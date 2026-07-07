@@ -11,7 +11,7 @@ const MAX_ATTEMPTS = 5;
 const WINDOW_MINUTES = 15;
 
 const EDITABLE_KEYS = [
-  'locBadge', 'heroTitle', 'heroSub',
+  'heroTitle', 'heroSub',
   'value1', 'value2b', 'value2', 'value3b', 'value3',
   'footerText'
 ];
@@ -173,6 +173,81 @@ async function handleCompedList(req, res) {
   res.status(200).json({ squares: data });
 }
 
+async function handleFindCompany(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const query = (req.query.query || '').trim();
+  if (!query) return res.status(400).json({ error: 'Missing search query.' });
+
+  const { data, error } = await supabase
+    .from('squares')
+    .select('id, idx, company_name, email, group_id, town_id, status, towns(name)')
+    .eq('status', 'active')
+    .or(`company_name.ilike.%${query}%,email.ilike.%${query}%`);
+  if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }
+
+  const groups = {};
+  (data || []).forEach(s => {
+    if (!groups[s.group_id]) {
+      groups[s.group_id] = {
+        groupId: s.group_id,
+        companyName: s.company_name,
+        email: s.email,
+        townId: s.town_id,
+        townName: s.towns ? s.towns.name : '',
+        count: 0
+      };
+    }
+    groups[s.group_id].count++;
+  });
+  res.status(200).json({ groups: Object.values(groups) });
+}
+
+async function handleMove(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+
+  const { groupId, destinationTownId, newIndices } = req.body || {};
+  if (!groupId || !destinationTownId || !Array.isArray(newIndices)) {
+    return res.status(400).json({ error: 'Missing groupId, destinationTownId, or newIndices.' });
+  }
+
+  const { data: existing, error: existingErr } = await supabase
+    .from('squares')
+    .select('id, idx')
+    .eq('group_id', groupId)
+    .eq('status', 'active')
+    .order('idx', { ascending: true });
+  if (existingErr) { console.error(existingErr); return res.status(500).json({ error: 'Lookup failed.' }); }
+  if (!existing || existing.length === 0) {
+    return res.status(404).json({ error: 'No active squares found for that group.' });
+  }
+  if (newIndices.length !== existing.length) {
+    return res.status(400).json({ error: `This company has ${existing.length} square(s) — pick exactly that many in the destination town.` });
+  }
+
+  const { data: taken, error: takenErr } = await supabase
+    .from('squares')
+    .select('idx')
+    .eq('town_id', destinationTownId)
+    .in('idx', newIndices)
+    .in('status', ['active', 'pending']);
+  if (takenErr) { console.error(takenErr); return res.status(500).json({ error: 'Lookup failed.' }); }
+  if (taken && taken.length > 0) {
+    return res.status(409).json({ error: 'One or more of those destination squares are already taken.' });
+  }
+
+  const sortedNewIndices = [...newIndices].sort((a, b) => a - b);
+  for (let i = 0; i < existing.length; i++) {
+    const { error: updateErr } = await supabase
+      .from('squares')
+      .update({ town_id: destinationTownId, idx: sortedNewIndices[i] })
+      .eq('id', existing[i].id);
+    if (updateErr) { console.error(updateErr); return res.status(500).json({ error: 'Move failed partway through — check the board manually.' }); }
+  }
+
+  res.status(200).json({ ok: true, moved: existing.length });
+}
+
 module.exports = async (req, res) => {
   const { action } = req.query;
   switch (action) {
@@ -183,6 +258,8 @@ module.exports = async (req, res) => {
     case 'grant': return handleGrant(req, res);
     case 'revoke': return handleRevoke(req, res);
     case 'comped-list': return handleCompedList(req, res);
+    case 'find-company': return handleFindCompany(req, res);
+    case 'move': return handleMove(req, res);
     default: return res.status(404).json({ error: 'Unknown admin action.' });
   }
 };
