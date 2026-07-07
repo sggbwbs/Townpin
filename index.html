@@ -7,6 +7,8 @@
 <meta name="description" content="Varaa yrityksellesi ruutu Oulun ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen ruutu saa oman hakukoneiden löytämän verkkosivun." />
 
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 
 <style>
   :root{
@@ -127,6 +129,11 @@
     font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fffdf8;}
   #modal input:focus{outline:none;border-color:var(--amber-deep);box-shadow:0 0 0 3px rgba(242,166,90,0.18);}
   #modal .colorRow{display:flex;gap:9px;margin-top:6px;flex-wrap:wrap;}
+  .logoBtn{padding:10px 16px;border:1px solid #d8cfb4;border-radius:7px;background:#fffdf8;
+    color:#3a331d;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;cursor:pointer;}
+  .logoBtn.primary{background:var(--amber);border-color:var(--amber-deep);color:#2a1c0d;font-weight:700;}
+  .logoBtn:hover{background:#f5f1e2;}
+  #modal .note{font-size:11.5px;color:#8a8168;margin:8px 0;}
   #modal .swatch{width:30px;height:30px;border-radius:7px;cursor:pointer;border:2px solid transparent;}
   #modal .swatch.selected{border-color:#26210f;box-shadow:0 0 0 2px var(--paper),0 0 0 3px #26210f;}
   #modal .highlightBox{margin-top:16px;padding:12px 14px;background:#efe8d3;border:1px solid #ddd0a8;
@@ -217,10 +224,28 @@
     <label data-i18n="lEmail">Sähköposti — kuittia ja tilauksen hallintaa varten</label>
     <input type="email" id="fEmail" placeholder="sina@yritys.fi" required />
 
-    <label data-i18n="lLogo">Logon kuvan osoite <span style="font-weight:400;color:#8a8168;" data-i18n="optional">(valinnainen)</span></label>
+    <label data-i18n="lLogo">Logo <span style="font-weight:400;color:#8a8168;">(valinnainen)</span></label>
+    <input type="file" id="fLogoFile" accept="image/png,image/jpeg,image/webp" style="display:none;" />
+    <button type="button" class="logoBtn" id="logoUploadBtn" data-i18n="chooseFile">📁 Valitse kuva puhelimesta/koneelta</button>
+
+    <div id="cropperWrap" style="display:none;margin-top:12px;">
+      <div style="max-height:280px;overflow:hidden;border-radius:8px;background:#e4dcc4;">
+        <img id="cropperImg" style="display:block;max-width:100%;" />
+      </div>
+      <p class="note" data-i18n="cropHint">Siirrä ja zoomaa kuvaa niin, että se sopii valitsemasi alueen muotoon.</p>
+      <button type="button" class="logoBtn primary" id="cropConfirmBtn" data-i18n="useThisCrop">✓ Käytä tätä rajausta</button>
+    </div>
+
+    <div id="logoPreview" style="display:none;margin-top:10px;align-items:center;gap:10px;">
+      <img id="logoPreviewImg" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid #d8cfb4;" />
+      <span style="font-size:12.5px;color:#3a331d;" data-i18n="logoSelected">Logo valittu ✓</span>
+      <span id="logoRemoveBtn" style="font-size:11.5px;color:#8a8168;text-decoration:underline;cursor:pointer;" data-i18n="removeLogo">Poista</span>
+    </div>
+
+    <label style="margin-top:16px;" data-i18n="lLogoUrl">Tai liitä kuvan osoite <span style="font-weight:400;color:#8a8168;">(jos et lataa tiedostoa)</span></label>
     <input type="url" id="fLogo" placeholder="https://yrityksesi.fi/logo.png" />
 
-    <label data-i18n="lTagline">Lyhyt iskulause <span style="font-weight:400;color:#8a8168;" data-i18n="optionalShown">(valinnainen, näkyy sivullasi)</span></label>
+    <label data-i18n="lTagline">Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span></label>
     <input type="text" id="fTagline" placeholder="Oulun paras kahvi vuodesta 2015" />
 
     <label data-i18n="lColor">Tai valitse ruudun väri</label>
@@ -577,8 +602,15 @@ const STRINGS = {
     modalTitle: 'Varaa ruudut',
     lCompany: 'Yrityksen nimi', lWebsite: 'Verkkosivun osoite',
     lEmail: 'Sähköposti — kuittia ja tilauksen hallintaa varten',
-    lLogo: 'Logon kuvan osoite', optional: '(valinnainen)',
-    lTagline: 'Lyhyt iskulause', optionalShown: '(valinnainen, näkyy sivullasi)',
+    lLogo: 'Logo <span style="font-weight:400;color:#8a8168;">(valinnainen)</span>',
+    chooseFile: '📁 Valitse kuva puhelimesta/koneelta',
+    cropHint: 'Siirrä ja zoomaa kuvaa niin, että se sopii valitsemasi alueen muotoon.',
+    useThisCrop: '✓ Käytä tätä rajausta',
+    logoSelected: 'Logo valittu ✓',
+    removeLogo: 'Poista',
+    lLogoUrl: 'Tai liitä kuvan osoite <span style="font-weight:400;color:#8a8168;">(jos et lataa tiedostoa)</span>',
+    uploading: 'Ladataan…',
+    lTagline: 'Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span>',
     lColor: 'Tai valitse ruudun väri',
     confirmText: 'Vahvistan, että tämä on rekisteröity yritys. Veloitus {price}€/kk, kunnes peruutan.',
     perMonth: ' / kk',
@@ -614,8 +646,15 @@ const STRINGS = {
     modalTitle: 'Claim your squares',
     lCompany: 'Company name', lWebsite: 'Website URL',
     lEmail: 'Contact email — for your receipt & managing the subscription',
-    lLogo: 'Logo image URL', optional: '(optional)',
-    lTagline: 'Short tagline', optionalShown: '(optional, shown on your page)',
+    lLogo: 'Logo <span style="font-weight:400;color:#8a8168;">(optional)</span>',
+    chooseFile: '📁 Choose an image from your phone/computer',
+    cropHint: 'Drag and zoom the image to fit the shape of the area you selected.',
+    useThisCrop: '✓ Use this crop',
+    logoSelected: 'Logo selected ✓',
+    removeLogo: 'Remove',
+    lLogoUrl: 'Or paste an image URL <span style="font-weight:400;color:#8a8168;">(if you don\'t upload a file)</span>',
+    uploading: 'Uploading…',
+    lTagline: 'Short tagline <span style="font-weight:400;color:#8a8168;">(optional, shown on your page)</span>',
     lColor: 'Or pick a square color',
     confirmText: 'I confirm this is a registered business, billed €{price}/month until I cancel.',
     perMonth: ' / month',
@@ -895,16 +934,104 @@ function openClaimModal(){
       .replace('{town}', currentTown.name);
   document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:#8a8168;font-weight:400;">${t('perMonth')}</span>`;
   document.getElementById('confirmText').textContent = t('confirmText').replace('{price}', price);
+
+  // fresh selection -> clear any previous logo upload/crop state
+  uploadedLogoUrl = null;
+  document.getElementById('logoPreview').style.display = 'none';
+  document.getElementById('cropperWrap').style.display = 'none';
+  document.getElementById('fLogoFile').value = '';
+  if (cropper) { cropper.destroy(); cropper = null; }
+
   document.getElementById('overlay').style.display = 'flex';
 }
 document.getElementById('modalClose').addEventListener('click', ()=> document.getElementById('overlay').style.display='none');
 document.getElementById('overlay').addEventListener('click', (e)=>{ if (e.target.id==='overlay') e.currentTarget.style.display='none'; });
 
+/* ---- logo upload + crop ---- */
+let cropper = null;
+let uploadedLogoUrl = null;
+
+function getSelectionAspectRatio(){
+  if (!selectedIndices || selectedIndices.length === 0 || !currentTown) return 1;
+  const n = currentTown.grid_size;
+  const rows = selectedIndices.map(i => Math.floor(i / n));
+  const cols = selectedIndices.map(i => i % n);
+  const w = Math.max(...cols) - Math.min(...cols) + 1;
+  const h = Math.max(...rows) - Math.min(...rows) + 1;
+  return w / h;
+}
+
+document.getElementById('logoUploadBtn').addEventListener('click', ()=>{
+  document.getElementById('fLogoFile').click();
+});
+
+document.getElementById('fLogoFile').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const img = document.getElementById('cropperImg');
+    img.src = ev.target.result;
+    document.getElementById('cropperWrap').style.display = 'block';
+    document.getElementById('logoPreview').style.display = 'none';
+    if (cropper) cropper.destroy();
+    cropper = new Cropper(img, {
+      aspectRatio: getSelectionAspectRatio(),
+      viewMode: 1,
+      autoCropArea: 1,
+      background: false
+    });
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('cropConfirmBtn').addEventListener('click', ()=>{
+  if (!cropper) return;
+  const canvas = cropper.getCroppedCanvas({ maxWidth: 800, maxHeight: 800 });
+  const btn = document.getElementById('cropConfirmBtn');
+  btn.disabled = true; btn.textContent = t('uploading');
+
+  canvas.toBlob((blob)=>{
+    const reader = new FileReader();
+    reader.onload = async ()=>{
+      const base64 = reader.result.split(',')[1];
+      try{
+        const res = await fetch('/api/upload-logo', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ imageBase64: base64, contentType: 'image/jpeg' })
+        });
+        const data = await res.json();
+        if (!res.ok){
+          alert(data.error || 'Upload failed.');
+          btn.disabled = false; btn.textContent = t('useThisCrop');
+          return;
+        }
+        uploadedLogoUrl = data.url;
+        document.getElementById('logoPreviewImg').src = data.url;
+        document.getElementById('logoPreview').style.display = 'flex';
+        document.getElementById('cropperWrap').style.display = 'none';
+        cropper.destroy(); cropper = null;
+        btn.disabled = false; btn.textContent = t('useThisCrop');
+      }catch(err){
+        alert(t('networkErr'));
+        btn.disabled = false; btn.textContent = t('useThisCrop');
+      }
+    };
+    reader.readAsDataURL(blob);
+  }, 'image/jpeg', 0.85);
+});
+
+document.getElementById('logoRemoveBtn').addEventListener('click', ()=>{
+  uploadedLogoUrl = null;
+  document.getElementById('logoPreview').style.display = 'none';
+  document.getElementById('fLogoFile').value = '';
+});
+
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
   const company = document.getElementById('fCompany').value.trim();
   const website = document.getElementById('fWebsite').value.trim();
   const email = document.getElementById('fEmail').value.trim();
-  const logo = document.getElementById('fLogo').value.trim();
+  const logo = uploadedLogoUrl || document.getElementById('fLogo').value.trim();
   const tagline = document.getElementById('fTagline').value.trim();
   const errBox = document.getElementById('formErr');
 

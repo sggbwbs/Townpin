@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
     if (!squares || squares.length === 0) {
       return res.status(404).json({ error: 'No active squares found for this link.' });
     }
-    const { data: town } = await supabase.from('towns').select('name, slug').eq('id', squares[0].town_id).maybeSingle();
+    const { data: town } = await supabase.from('towns').select('name, slug, grid_size').eq('id', squares[0].town_id).maybeSingle();
     return res.status(200).json({ squares, town });
   }
 

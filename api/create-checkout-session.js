@@ -57,6 +57,7 @@ module.exports = async (req, res) => {
 
     const reservedUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     const editToken = require('crypto').randomUUID();
+    const groupId = require('crypto').randomUUID();
     const rows = indices.map(idx => ({
       town_id: townId,
       idx,
@@ -68,7 +69,8 @@ module.exports = async (req, res) => {
       tagline: tagline || null,
       status: 'pending',
       reserved_until: reservedUntil,
-      edit_token: editToken
+      edit_token: editToken,
+      group_id: groupId
     }));
 
     const { data: inserted, error: insertErr } = await supabase

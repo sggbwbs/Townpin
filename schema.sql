@@ -68,3 +68,19 @@ alter table squares add column if not exists ai_blurb_source text;
 -- ==== Self-service edit link for the business that claimed the square(s) ====
 alter table squares add column if not exists edit_token text;
 create index if not exists squares_edit_token_idx on squares (edit_token);
+
+-- ==== Grouping ID for multi-square purchases, so the board can render one
+-- big logo across a block instead of repeating it in every tiny cell.
+-- Deliberately a *different* value from edit_token -- this one is safe to
+-- expose publicly (it grants no edit access), edit_token is not.
+alter table squares add column if not exists group_id text;
+create index if not exists squares_group_id_idx on squares (group_id);
+
+-- ==== Storage bucket for directly-uploaded logo images ====
+-- "public" here just means uploaded images can be viewed via their URL by
+-- anyone (needed, since they're shown on the public board) -- it does NOT
+-- mean anyone can upload; only the server (using the service role key) can
+-- write to this bucket.
+insert into storage.buckets (id, name, public)
+values ('logos', 'logos', true)
+on conflict (id) do nothing;

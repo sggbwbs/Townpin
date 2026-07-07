@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
 
   const { data, error } = await supabase
     .from('squares')
-    .select('idx, company_name, website_url, logo_url, tagline, color, id')
+    .select('idx, company_name, website_url, logo_url, tagline, color, id, group_id')
     .eq('town_id', townId)
     .eq('status', 'active')
     .eq('flagged', false);

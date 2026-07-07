@@ -203,3 +203,30 @@ tightly (only that one purchase's cosmetic fields, nothing site-wide), but
 if a customer forwards their link to someone else, that person could edit
 their listing's appearance. Worth knowing, not worth over-engineering for
 a link that only controls a tagline, a logo, and an AI blurb.
+
+## Direct logo upload + on-site cropping
+
+Businesses can now upload a logo straight from their phone or computer,
+instead of needing it already hosted somewhere with a URL to paste. After
+picking a file, a crop/zoom tool appears (Cropper.js — drag to reposition,
+scroll/pinch to zoom) automatically shaped to match whatever they've
+selected — a single square gets a 1:1 crop, a wide multi-square block gets
+a wide crop — so the logo is framed correctly for the exact space it'll
+occupy. Pasting a URL manually still works too, as a fallback.
+
+**Where uploads go:** Supabase Storage, in a bucket called `logos`, created
+automatically by `schema.sql` (no separate dashboard step needed). Images
+are capped at 800×800px and 3MB, compressed client-side before upload —
+keeps storage and bandwidth trivial at this scale.
+
+**Same capability was added to `/manage`** so a business can swap their
+logo after the fact too, not just at purchase time.
+
+**One real gap worth knowing about, not fixed yet:** unlike the destination
+URL and company name, uploaded logo *images* aren't currently scanned by
+the AI content check — only text goes through moderation right now. In
+practice this is a narrow risk (worst case, someone uploads an inappropriate
+image rather than a bad link), but if you want it closed, the fix is
+straightforward: Claude can also look directly at images, so the same
+moderation call could be extended to inspect the logo too. Not built yet
+since it wasn't asked for — happy to add it if you want that covered.
