@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "stripe": "^16.0.0",
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "bcryptjs": "^2.4.3"
   }
 }

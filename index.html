@@ -913,7 +913,25 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
   }
 });
 
+async function applyContentOverrides(){
+  try{
+    const res = await fetch(`${API_BASE}/admin/content`);
+    if (!res.ok) return;
+    const data = await res.json();
+    (data.content || []).forEach(row => {
+      if (STRINGS[row.lang] && row.key in STRINGS[row.lang]) {
+        STRINGS[row.lang][row.key] = row.value;
+      }
+    });
+  }catch(e){
+    // if this fails, the site just falls back to its built-in default copy
+  }
+}
+
 async function init(){
+  await applyContentOverrides();
+  setLang(lang);
+  showSuccessBannerIfNeeded();
   const path = window.location.pathname;
   if (path.startsWith('/board/')){
     const slug = decodeURIComponent(path.slice('/board/'.length));
@@ -923,6 +941,22 @@ async function init(){
   } else {
     await openBoard('Oulu', 'FI', 215000);
   }
+}
+
+function showSuccessBannerIfNeeded(){
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('claimed') !== 'success') return;
+  const token = params.get('token');
+  if (!token) return;
+  const manageUrl = `/manage?token=${encodeURIComponent(token)}`;
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:3000;background:#f2a65a;color:#2a1c0d;'
+    + 'padding:14px 20px;text-align:center;font-family:IBM Plex Sans,sans-serif;font-size:14px;';
+  banner.innerHTML = (lang === 'fi'
+    ? `🎉 Kiitos ostoksesta! <a href="${manageUrl}" style="color:#2a1c0d;font-weight:700;">Muokkaa ilmoitustasi täältä</a> — tallenna tämä linkki, se on ainoa tapa hallita ilmoitustasi myöhemmin.`
+    : `🎉 Thanks for your purchase! <a href="${manageUrl}" style="color:#2a1c0d;font-weight:700;">Manage your listing here</a> — save this link, it's the only way back in to edit it later.`)
+    + ` <span style="cursor:pointer;text-decoration:underline;margin-left:10px;" onclick="this.parentElement.remove()">✕</span>`;
+  document.body.prepend(banner);
 }
 init();
 </script>

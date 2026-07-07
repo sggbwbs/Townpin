@@ -42,3 +42,29 @@ create index if not exists towns_slug_idx on towns (slug);
 insert into towns (slug, name, country, grid_size)
 values ('oulu-fi', 'Oulu', 'FI', 15)
 on conflict (slug) do nothing;
+
+-- ==== Admin-editable site copy ====
+create table if not exists site_content (
+  key text not null,
+  lang text not null,
+  value text not null,
+  updated_at timestamptz not null default now(),
+  primary key (key, lang)
+);
+
+-- ==== Login attempt tracking, for brute-force protection ====
+create table if not exists admin_login_attempts (
+  id bigserial primary key,
+  ip text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists admin_login_attempts_ip_idx on admin_login_attempts (ip, created_at);
+
+-- ==== AI-generated "quick info" about the business, found via web search ====
+alter table squares add column if not exists ai_blurb_fi text;
+alter table squares add column if not exists ai_blurb_en text;
+alter table squares add column if not exists ai_blurb_source text;
+
+-- ==== Self-service edit link for the business that claimed the square(s) ====
+alter table squares add column if not exists edit_token text;
+create index if not exists squares_edit_token_idx on squares (edit_token);

@@ -108,3 +108,98 @@ vercel.json                    routing + cron schedules
 The Finland business/VAT checklist (toiminimi registration, the €20,000 VAT
 threshold, the legal footer, the business-purchase confirmation) all still
 applies here exactly as discussed.
+
+## Admin page — editing site copy without touching code
+
+There's now a password-protected page at `/admin` for editing the main
+marketing copy (headline, subheading, value props, footer) in both Finnish
+and English, live, without redeploying.
+
+### Setup
+1. Locally, run `npm install bcryptjs` then:
+   ```
+   node scripts/hash-password.js "your-chosen-password"
+   ```
+   This prints a hash — your actual password is never sent anywhere, only
+   this hash goes into Vercel.
+2. In Vercel, add two environment variables:
+   - `ADMIN_PASSWORD_HASH` — the value the script printed.
+   - `ADMIN_TOKEN_SECRET` — any long random string (e.g. run
+     `openssl rand -hex 32`, or use a password generator). This signs your
+     login session — treat it like a secret, never commit it.
+3. Redeploy, then visit `https://your-site/admin`.
+
+### Why this is actually safe, not just "has a password box"
+- The password itself is never stored anywhere — only a one-way bcrypt
+  hash, which can't be reversed back into the password even if someone saw
+  it.
+- Logging in issues a signed, time-limited (12 hour) session cookie marked
+  `HttpOnly` (JavaScript on any page, including a malicious one, can't read
+  it), `Secure` (only ever sent over HTTPS), and `SameSite=Strict` (never
+  sent along with requests originating from another website, which blocks
+  the standard cross-site-request-forgery attack on an admin panel like
+  this).
+- Failed login attempts are rate-limited per IP address (5 attempts / 15
+  minutes) directly in the database, so password-guessing bots can't just
+  hammer the login endpoint indefinitely.
+- The set of editable fields is hard-coded server-side to a short list of
+  low-risk marketing copy — even with a valid session, the API will reject
+  an attempt to edit anything outside that list, or a value that's absurdly
+  long.
+- Deliberately excluded from editing: any string containing a `{price}`
+  token (like the checkout confirmation text) — editing those through a
+  generic text box risks silently breaking the real price display, so
+  they're left as fixed code instead.
+
+### What this doesn't cover (worth knowing, not urgent)
+This protects the admin page itself well. It doesn't add anything like
+two-factor authentication or an audit log of who changed what — reasonable
+for a single-operator site like this, but worth upgrading if you ever add
+a second admin user.
+
+## AI company lookup — "quick info" on each pin page
+
+Right after a purchase completes, the webhook triggers a background search:
+Claude (via its built-in web search tool) looks up the company and writes a
+short, original 1-2 sentence "quick info" blurb in both Finnish and English,
+shown on that business's `/pin/{id}` page with a small "automatically
+found" label and a source link. If nothing reliable turns up, it's skipped
+silently — no error, no effect on the purchase itself.
+
+**Cost:** roughly 1-2 cents per new listing (Anthropic's web search tool is
+$0.01/search, plus a small amount of token usage on the cheap Haiku model).
+Trivial next to €5+/month per square.
+
+**One thing worth knowing, not urgent:** this search runs inside the same
+webhook function that already marked the purchase as paid, so a slow or
+failed search can never undo or block the actual purchase — the square is
+already active before the lookup even starts. The only real edge case:
+if the search takes long enough to hit Vercel's function time limit, Stripe
+may not get its expected response and could retry the whole webhook event.
+Worst case, that just means the lookup runs twice (harmless — it simply
+overwrites the same result) — not a broken purchase. Worth an eye if you
+ever see it in the logs, not something to fix preemptively.
+
+## Self-service listing management — /manage
+
+After a purchase completes, Stripe redirects the business back to your site
+with a unique, private edit link (shown right on the success screen — tell
+them to save/bookmark it, since there's no account system, that link *is*
+their access).
+
+That link lets them, without any password:
+- Edit their tagline, logo, and square color
+- Edit, remove, or ask for a fresh AI-search on their "quick info" blurb
+
+**What it deliberately does *not* let them touch:** company name or
+destination URL. Changing where a square's link points is exactly the
+bait-and-switch pattern the AI moderation and weekly recheck exist to catch
+— so that stays behind the real purchase/moderation flow, never a
+lightweight link.
+
+**Security model, plainly stated:** possession of the link is the only
+check — same idea as an email "manage your subscription" link. It's scoped
+tightly (only that one purchase's cosmetic fields, nothing site-wide), but
+if a customer forwards their link to someone else, that person could edit
+their listing's appearance. Worth knowing, not worth over-engineering for
+a link that only controls a tagline, a logo, and an AI blurb.

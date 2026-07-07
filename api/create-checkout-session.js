@@ -56,6 +56,7 @@ module.exports = async (req, res) => {
     }
 
     const reservedUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    const editToken = require('crypto').randomUUID();
     const rows = indices.map(idx => ({
       town_id: townId,
       idx,
@@ -66,7 +67,8 @@ module.exports = async (req, res) => {
       color: color || '#f2a65a',
       tagline: tagline || null,
       status: 'pending',
-      reserved_until: reservedUntil
+      reserved_until: reservedUntil,
+      edit_token: editToken
     }));
 
     const { data: inserted, error: insertErr } = await supabase
@@ -102,7 +104,7 @@ module.exports = async (req, res) => {
       }],
       metadata: { squareIds },
       subscription_data: { metadata: { squareIds } },
-      success_url: `${SITE_URL}/?claimed=success`,
+      success_url: `${SITE_URL}/?claimed=success&token=${editToken}`,
       cancel_url: `${SITE_URL}/?claimed=cancelled`
     });
 

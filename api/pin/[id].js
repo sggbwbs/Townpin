@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
 
   const { data: square, error } = await supabase
     .from('squares')
-    .select('company_name, website_url, logo_url, tagline, status, flagged, town_id')
+    .select('company_name, website_url, logo_url, tagline, status, flagged, town_id, ai_blurb_fi, ai_blurb_en, ai_blurb_source')
     .eq('id', id)
     .maybeSingle();
 
@@ -62,6 +62,11 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
   a.visit{display:inline-block;background:#f2a65a;color:#2a1c0d;text-decoration:none;
     font-family:'Space Grotesk',sans-serif;font-weight:700;padding:12px 26px;border-radius:8px;}
   .foot{margin-top:26px;font-size:12px;color:#8a8168;}
+  .quickInfo{margin-top:22px;padding:14px 16px;background:#eee7d4;border-radius:9px;text-align:left;}
+  .quickInfoLabel{font-size:10.5px;letter-spacing:0.04em;text-transform:uppercase;color:#8a8168;margin-bottom:8px;}
+  .quickInfoText{font-size:13px;line-height:1.5;margin:0 0 6px;color:#3a331d;}
+  .quickInfoEn{color:#6b6249;font-style:italic;}
+  .quickInfoSource{font-size:11px;color:#8a8168;text-decoration:underline;}
   .foot a{color:#8a8168;}
 </style>
 </head>
@@ -71,6 +76,13 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
     <h1>${escapeHtml(square.company_name)}</h1>
     <p class="tagline">${description}</p>
     <a class="visit" href="${escapeHtml(square.website_url)}" rel="nofollow">Visit website →</a>
+    ${square.ai_blurb_fi ? `
+    <div class="quickInfo">
+      <div class="quickInfoLabel">🔎 Automaattisesti löydetty tieto / Automatically found</div>
+      <p class="quickInfoText">${escapeHtml(square.ai_blurb_fi)}</p>
+      ${square.ai_blurb_en ? `<p class="quickInfoText quickInfoEn">${escapeHtml(square.ai_blurb_en)}</p>` : ''}
+      ${square.ai_blurb_source ? `<a class="quickInfoSource" href="${escapeHtml(square.ai_blurb_source)}" rel="nofollow noopener">Lähde / Source ↗</a>` : ''}
+    </div>` : ''}
     <p class="foot">A local business on the <a href="/board/${escapeHtml(townSlug)}">${escapeHtml(townName)} community board</a> — powered by TownPin.</p>
   </div>
 </body>

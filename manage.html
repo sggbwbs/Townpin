@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Manage your TownPin listing</title>
+<meta name="robots" content="noindex, nofollow" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg-0:#050b14; --paper:#f4efe4; --amber:#f2a65a; --amber-bright:#ffc07e; }
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:var(--bg-0);color:#f5f7fb;
+    font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:flex-start;justify-content:center;padding:60px 20px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-size:20px;margin:0 0 6px;}
+  .sub{color:#8fa3bd;font-size:13px;margin:0 0 24px;}
+  .card{background:var(--paper);color:#26210f;max-width:520px;width:100%;border-radius:14px;padding:32px;margin-bottom:20px;}
+  .card h2{font-family:'Space Grotesk',sans-serif;font-size:16px;margin:0 0 4px;}
+  .card .idx{font-size:11.5px;color:#8a8168;margin-bottom:16px;}
+  label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
+    color:#5c5440;margin:14px 0 5px;}
+  input[type=text],input[type=url],textarea{width:100%;padding:10px 12px;border:1px solid #d8cfb4;
+    border-radius:7px;font-size:14px;font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;}
+  textarea{min-height:60px;resize:vertical;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+  .swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid transparent;}
+  .swatch.selected{border-color:#26210f;}
+  button{border:none;border-radius:8px;padding:11px 18px;font-family:'Space Grotesk',sans-serif;
+    font-weight:700;font-size:13.5px;cursor:pointer;margin-top:8px;margin-right:8px;}
+  .primary{background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;}
+  .secondary{background:#e4dcc4;color:#3a331d;}
+  .danger{background:none;color:#b8452f;text-decoration:underline;}
+  .saved{color:#4a7a5c;font-size:12.5px;margin-left:8px;display:none;}
+  .err{color:#b8452f;font-size:13px;margin:12px 0 0;}
+  .blurbBox{background:#efe8d3;border-radius:8px;padding:12px;margin-top:8px;font-size:13px;line-height:1.5;}
+  .note{font-size:11.5px;color:#8a8168;margin-top:6px;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <p class="sub" style="color:#8fa3bd;">Loading…</p>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const token = params.get('token');
+const app = document.getElementById('app');
+const SWATCHES = ["#f2a65a","#d9694f","#5b8c5a","#3d6b94","#8a6fb0","#2b2718","#e0d9c4"];
+
+if (!token) {
+  app.innerHTML = '<div class="card"><h1>Missing link</h1><p>This page needs the edit link from your purchase confirmation — check your email receipt or the success page you saw right after paying.</p></div>';
+} else {
+  load();
+}
+
+async function load(){
+  try{
+    const res = await fetch(`/api/manage?token=${encodeURIComponent(token)}`);
+    const data = await res.json();
+    if (!res.ok){
+      app.innerHTML = `<div class="card"><h1>Link not found</h1><p>${data.error || 'This edit link is no longer valid.'}</p></div>`;
+      return;
+    }
+    render(data.squares, data.town);
+  }catch(e){
+    app.innerHTML = '<div class="card"><h1>Network error</h1><p>Please try refreshing.</p></div>';
+  }
+}
+
+function render(squares, town){
+  const s = squares[0]; // cosmetic fields are shared across all squares in one purchase
+  app.innerHTML = `
+    <h1>Manage your listing</h1>
+    <p class="sub">${s.company_name} — ${squares.length} square${squares.length>1?'s':''} on the ${town ? town.name : ''} board</p>
+
+    <div class="card">
+      <h2>Appearance</h2>
+      <label>Tagline (shown on your page)</label>
+      <input type="text" id="tagline" value="${(s.tagline||'').replace(/"/g,'&quot;')}" placeholder="A short line about your business" maxlength="120" />
+      <label>Logo image URL</label>
+      <input type="url" id="logoUrl" value="${(s.logo_url||'').replace(/"/g,'&quot;')}" placeholder="https://yoursite.com/logo.png" />
+      <label>Square color (used if no logo)</label>
+      <div class="row" id="colorRow"></div>
+      <button class="primary" onclick="saveAppearance()">Save appearance</button>
+      <span class="saved" id="savedAppearance">✓ Saved</span>
+      <div class="err" id="errAppearance"></div>
+    </div>
+
+    <div class="card">
+      <h2>AI-found "quick info"</h2>
+      <p class="sub" style="margin-bottom:10px;">This was automatically found and written by searching the web for your company. You can edit it, ask it to search again, or remove it entirely.</p>
+      ${s.ai_blurb_fi ? `<div class="blurbBox"><b>FI:</b> ${s.ai_blurb_fi}</div>` : '<div class="blurbBox">No info currently shown.</div>'}
+      ${s.ai_blurb_en ? `<div class="blurbBox"><b>EN:</b> ${s.ai_blurb_en}</div>` : ''}
+      <label>Edit Finnish text</label>
+      <textarea id="blurbFi">${s.ai_blurb_fi||''}</textarea>
+      <label>Edit English text</label>
+      <textarea id="blurbEn">${s.ai_blurb_en||''}</textarea>
+      <div>
+        <button class="secondary" onclick="saveBlurbText()">Save edited text</button>
+        <button class="secondary" onclick="regenerateBlurb()">🔎 Search again</button>
+        <button class="danger" onclick="clearBlurb()">Remove entirely</button>
+      </div>
+      <span class="saved" id="savedBlurb">✓ Saved</span>
+      <div class="err" id="errBlurb"></div>
+    </div>
+  `;
+
+  const colorRow = document.getElementById('colorRow');
+  let chosenColor = s.color || SWATCHES[0];
+  SWATCHES.forEach(c=>{
+    const sw = document.createElement('div');
+    sw.className = 'swatch' + (c === chosenColor ? ' selected' : '');
+    sw.style.background = c;
+    sw.addEventListener('click', ()=>{
+      chosenColor = c;
+      document.querySelectorAll('.swatch').forEach(el=>el.classList.remove('selected'));
+      sw.classList.add('selected');
+    });
+    colorRow.appendChild(sw);
+  });
+  window._getChosenColor = () => chosenColor;
+}
+
+async function post(body){
+  const res = await fetch('/api/manage', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ token, ...body })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Save failed.');
+  return data;
+}
+
+async function saveAppearance(){
+  const errBox = document.getElementById('errAppearance');
+  errBox.textContent = '';
+  try{
+    await post({
+      tagline: document.getElementById('tagline').value,
+      logoUrl: document.getElementById('logoUrl').value,
+      color: window._getChosenColor()
+    });
+    flash('savedAppearance');
+  }catch(e){ errBox.textContent = e.message; }
+}
+
+async function saveBlurbText(){
+  const errBox = document.getElementById('errBlurb');
+  errBox.textContent = '';
+  try{
+    await post({
+      aiBlurbFi: document.getElementById('blurbFi').value,
+      aiBlurbEn: document.getElementById('blurbEn').value
+    });
+    flash('savedBlurb');
+    load();
+  }catch(e){ errBox.textContent = e.message; }
+}
+
+async function regenerateBlurb(){
+  const errBox = document.getElementById('errBlurb');
+  errBox.textContent = '';
+  try{
+    await post({ action: 'regenerate_blurb' });
+    flash('savedBlurb');
+    load();
+  }catch(e){ errBox.textContent = e.message; }
+}
+
+async function clearBlurb(){
+  const errBox = document.getElementById('errBlurb');
+  errBox.textContent = '';
+  try{
+    await post({ action: 'clear_blurb' });
+    flash('savedBlurb');
+    load();
+  }catch(e){ errBox.textContent = e.message; }
+}
+
+function flash(id){
+  const el = document.getElementById(id);
+  el.style.display = 'inline';
+  setTimeout(()=> el.style.display = 'none', 2500);
+}
+</script>
+</body>
+</html>

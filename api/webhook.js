@@ -1,5 +1,6 @@
 const Stripe = require('stripe');
 const { supabase } = require('./_db');
+const { generateCompanyBlurb } = require('./_companyInfo');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
@@ -41,6 +42,34 @@ module.exports = async (req, res) => {
             stripe_customer_id: session.customer || null,
             subscription_id: session.subscription || null
           }).in('id', squareIds);
+
+          // Best-effort company lookup -- runs after the purchase is already
+          // confirmed active, so a slow or failed search never risks the
+          // actual payment. Respond to Stripe first in spirit; this is
+          // awaited here only because there's no separate queue to hand it
+          // off to, and it's wrapped so any failure is silently swallowed.
+          try {
+            const { data: rows } = await supabase
+              .from('squares')
+              .select('company_name, website_url')
+              .in('id', squareIds)
+              .limit(1);
+            if (rows && rows[0] && rows[0].website_url) {
+              const blurb = await generateCompanyBlurb({
+                companyName: rows[0].company_name,
+                websiteUrl: rows[0].website_url
+              });
+              if (blurb.found) {
+                await supabase.from('squares').update({
+                  ai_blurb_fi: blurb.fi,
+                  ai_blurb_en: blurb.en,
+                  ai_blurb_source: blurb.source_url
+                }).in('id', squareIds);
+              }
+            }
+          } catch (blurbErr) {
+            console.error('Company blurb generation failed (non-fatal):', blurbErr);
+          }
         }
         break;
       }
