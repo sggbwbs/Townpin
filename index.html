@@ -82,7 +82,7 @@
     align-content:start;
   }
   .sq{
-    aspect-ratio:1; border-radius:4px; cursor:pointer; position:relative; overflow:hidden;
+    border-radius:4px; cursor:pointer; position:relative; overflow:hidden;
     background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
     display:flex; align-items:center; justify-content:center; transition:transform .1s ease;
     user-select:none;
@@ -747,35 +747,79 @@ async function loadBoard(){
   renderGrid();
 }
 
+function updateCellSize(){
+  const grid = document.getElementById('grid');
+  const n = currentTown.grid_size;
+  const gapPx = 4, paddingPx = 10;
+  const usableWidth = grid.clientWidth - (paddingPx * 2) - (gapPx * (n - 1));
+  const cellPx = Math.max(usableWidth / n, 4);
+  grid.style.gridAutoRows = `${cellPx}px`;
+}
+window.addEventListener('resize', ()=>{ if (currentTown) updateCellSize(); });
+
 function renderGrid(){
   if (!currentTown) return;
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
-  const total = currentTown.grid_size * currentTown.grid_size;
+  updateCellSize();
+  const n = currentTown.grid_size;
+  const total = n * n;
   const byIdx = {};
   currentSquares.forEach(s => byIdx[s.idx] = s);
 
+  // Group squares bought in the same purchase (shared group_id) so they
+  // render as one clean rectangle with a single logo, not the same tiny
+  // image repeated in every cell.
+  const groups = {};
+  currentSquares.forEach(s => {
+    const key = s.group_id || `solo-${s.id}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(s);
+  });
+
+  const anchorFor = {};   // top-left idx of a group -> {rep square, width, height}
+  const skip = new Set(); // every other idx covered by that same block
+  Object.values(groups).forEach(members => {
+    const rows = members.map(m => idxToRowCol(m.idx).r);
+    const cols = members.map(m => idxToRowCol(m.idx).c);
+    const r0 = Math.min(...rows), c0 = Math.min(...cols);
+    const width = Math.max(...cols) - c0 + 1;
+    const height = Math.max(...rows) - r0 + 1;
+    const anchorIdx = r0 * n + c0;
+    anchorFor[anchorIdx] = { rep: members[0], width, height };
+    members.forEach(m => { if (m.idx !== anchorIdx) skip.add(m.idx); });
+  });
+
   for (let i = 0; i < total; i++){
-    const sq = document.createElement('div');
-    const filled = byIdx[i];
-    const isSelected = selectedIndices.includes(i);
-    sq.className = 'sq ' + (filled ? 'filled' : 'empty') + (isSelected ? ' selected' : '');
-    if (filled){
-      sq.style.background = filled.color || '#eae3d3';
-      if (filled.logo_url){
+    if (skip.has(i)) continue; // already covered by a spanning block
+
+    if (anchorFor[i]){
+      const { rep, width, height } = anchorFor[i];
+      const rc = idxToRowCol(i);
+      const sq = document.createElement('div');
+      sq.className = 'sq filled';
+      sq.style.gridColumn = `${rc.c + 1} / span ${width}`;
+      sq.style.gridRow = `${rc.r + 1} / span ${height}`;
+      sq.style.background = rep.color || '#eae3d3';
+      if (rep.logo_url){
         const img = document.createElement('img');
-        img.src = filled.logo_url;
-        img.alt = filled.company_name;
+        img.src = rep.logo_url;
+        img.alt = rep.company_name;
         sq.appendChild(img);
       }
-      sq.title = filled.company_name;
-      sq.addEventListener('click', ()=> window.open(`/pin/${filled.id}`, '_blank', 'noopener'));
-    } else {
-      sq.title = t('claimTitle');
-      sq.addEventListener('mousedown', (e)=>{ e.preventDefault(); startDrag(i); });
-      sq.addEventListener('mouseenter', ()=>{ if (mouseIsDown) extendDrag(i); });
-      sq.addEventListener('touchstart', (e)=>{ startDrag(i); }, {passive:true});
+      sq.title = rep.company_name;
+      sq.addEventListener('click', ()=> window.open(`/pin/${rep.id}`, '_blank', 'noopener'));
+      grid.appendChild(sq);
+      continue;
     }
+
+    const isSelected = selectedIndices.includes(i);
+    const sq = document.createElement('div');
+    sq.className = 'sq empty' + (isSelected ? ' selected' : '');
+    sq.title = t('claimTitle');
+    sq.addEventListener('mousedown', (e)=>{ e.preventDefault(); startDrag(i); });
+    sq.addEventListener('mouseenter', ()=>{ if (mouseIsDown) extendDrag(i); });
+    sq.addEventListener('touchstart', (e)=>{ startDrag(i); }, {passive:true});
     grid.appendChild(sq);
   }
 }
