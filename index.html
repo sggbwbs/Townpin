@@ -11,8 +11,8 @@
   } catch (e) {} // localStorage can throw in some locked-down browser contexts -- fail silently, default theme still works
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Paikalliset — Oulun yritysten ilmoitustaulu</title>
-<meta name="description" content="Varaa yrityksellesi ruutu Oulun ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen ruutu saa oman verkkosivun, joka voi näkyä Googlen hakutuloksissa." />
+<title>Paikalliset — Suomen yritysten ilmoitustaulu</title>
+<meta name="description" content="Varaa yrityksellesi ruutu suomalaisen kaupunkisi ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen ruutu saa oman verkkosivun, joka voi näkyä Googlen hakutuloksissa." />
 
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
@@ -66,7 +66,9 @@
   #hero h1 span{color:var(--amber);}
   #hero p.sub{color:var(--ink-dim);font-size:16px;max-width:560px;margin:0 auto 30px;line-height:1.6;}
 
-  .valueRow{display:flex;gap:28px;justify-content:center;margin:8px 0 36px;flex-wrap:wrap;}
+  .valueRow{display:flex;gap:28px;justify-content:center;margin:8px 0 20px;flex-wrap:wrap;}
+  #volumeNote{text-align:center;font-size:12.5px;color:var(--amber);font-family:'IBM Plex Mono',monospace;
+    margin:0 0 32px;}
   .valueCard{max-width:220px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
   .valueCard b{display:block;color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:22px;margin-bottom:6px;}
 
@@ -164,6 +166,8 @@
   #modal .highlightBox p{margin:0;font-size:12px;line-height:1.45;color:#5c5440;}
   #modal .price{font-size:24px;font-weight:700;margin:16px 0 4px;font-family:'Space Grotesk',sans-serif;}
   #modal .priceNote{font-size:11.5px;color:#8a8168;margin-bottom:6px;}
+  #trialNote{display:inline-block;background:#e8f0dc;color:#3d6b2f;font-size:12.5px;font-weight:700;
+    padding:5px 12px;border-radius:999px;margin-top:14px;}
   #modal .submitBtn{width:100%;margin-top:16px;padding:14px;border:none;border-radius:8px;
     background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;cursor:pointer;}
@@ -171,7 +175,52 @@
     background:none;border:none;width:28px;height:28px;border-radius:50%;}
   #modal .err{color:#b8452f;font-size:12.5px;margin-top:8px;display:none;font-weight:500;}
 
-  footer{text-align:center;padding:24px;color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;font-size:11px;}
+  footer{text-align:center;padding:8px 24px 24px;color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;font-size:11px;}
+
+  #legalBar{text-align:center;padding:16px 20px 4px;font-family:'IBM Plex Mono',monospace;font-size:11px;
+    color:var(--ink-dim);}
+  #legalBar .sep{margin:0 8px;opacity:0.5;}
+  #legalBar a{color:var(--ink-dim);text-decoration:underline;}
+  #legalBar a:hover{color:var(--amber);}
+
+  #legalOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
+    align-items:center;justify-content:center;padding:20px;}
+  #legalModal{position:relative;background:var(--paper);color:#26210f;width:100%;max-width:560px;
+    border-radius:14px;padding:32px;max-height:80vh;overflow-y:auto;box-shadow:var(--shadow-lg);
+    font-family:'IBM Plex Sans',sans-serif;}
+  #legalModal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 16px;font-size:19px;}
+  #legalModal .legalBody p{font-size:13.5px;line-height:1.6;margin:0 0 12px;color:#3a331d;}
+  #legalModal .legalBody a{color:#b9773a;}
+  #legalModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:#8a8168;
+    background:none;border:none;width:28px;height:28px;border-radius:50%;}
+  #legalModal .close:hover{background:rgba(0,0,0,0.06);}
+
+  #howItWorks{margin-top:56px;text-align:center;}
+  #howItWorks h2{font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--ink);margin:0 0 28px;}
+  .hiwSteps{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;}
+  .hiwStep{max-width:200px;text-align:left;background:var(--panelT4);border:1px solid var(--line);
+    border-radius:10px;padding:18px;}
+  .hiwStep b{display:block;width:26px;height:26px;border-radius:50%;background:var(--amber);color:#2a1c0d;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;text-align:center;line-height:26px;margin-bottom:10px;}
+  .hiwStep span{font-size:13px;color:var(--ink-dim);line-height:1.5;}
+
+  #factsSection{margin:40px auto 8px;max-width:760px;text-align:center;}
+  #factsSection h2{font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 22px;}
+  .factsRow{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;}
+  .factCard{max-width:190px;background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:18px 16px;}
+  .factCard b{display:block;font-family:'Space Grotesk',sans-serif;font-size:30px;color:var(--amber);margin-bottom:6px;}
+  .factCard span{font-size:12.5px;color:var(--ink-dim);line-height:1.5;}
+  .factsNote{font-size:11.5px;color:var(--ink-dim);margin-top:16px;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.5;}
+
+  #earlyBanner{max-width:640px;margin:28px auto;background:rgba(242,166,90,0.12);border:1px solid rgba(242,166,90,0.35);
+    border-radius:10px;padding:14px 20px;text-align:center;font-size:13.5px;color:var(--ink);line-height:1.5;}
+
+  #faq{margin-top:56px;max-width:640px;margin-left:auto;margin-right:auto;}
+  #faq h2{font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--ink);margin:0 0 20px;text-align:center;}
+  .faqItem{padding:16px 0;border-bottom:1px solid var(--line);}
+  .faqItem:last-child{border-bottom:none;}
+  .faqItem b{display:block;font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin-bottom:6px;}
+  .faqItem p{margin:0;font-size:13px;color:var(--ink-dim);line-height:1.55;}
 </style>
 </head>
 <body>
@@ -209,6 +258,20 @@
     <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
   </div>
 
+  <div id="volumeNote" data-i18n="volumeNote">Osta useampi ruutu ja säästä: 10+ ruutua 4€/kk, 30+ ruutua 3€/kk per ruutu.</div>
+
+  <div id="factsSection">
+    <h2 data-i18n="factsTitle">Miksi paikallinen näkyvyys kannattaa</h2>
+    <div class="factsRow">
+      <div class="factCard"><b>46%</b><span data-i18n="fact1">kaikista Google-hauista koskee jotain paikallista</span></div>
+      <div class="factCard"><b>76%</b><span data-i18n="fact2">hakijoista, jotka etsivät jotain "lähellä", käy yrityksessä 24 tunnin sisällä</span></div>
+      <div class="factCard"><b>98%</b><span data-i18n="fact3">kuluttajista etsii paikallisia yrityksiä netistä ennen kuin asioi niiden kanssa</span></div>
+    </div>
+    <p class="factsNote" data-i18n="factsNote">Lähde: Google / Think with Google, BrightLocal. Luvut kuvaavat yleistä hakukäyttäytymistä Suomessa ja muualla — emme väitä, että ne kuvaavat suoraan tämän palvelun tuomaa liikennettä juuri sinun yrityksellesi.</p>
+  </div>
+
+  <div id="earlyBanner" data-i18n="earlyBanner">🚀 Ensimmäinen kuukausi ilmaiseksi! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
+
   <div id="searchWrap" class="open">
     <div id="searchRow">
       <input type="text" id="townInput" autocomplete="off" data-i18n-placeholder="townPlaceholder" placeholder="Kaupungin nimi (esim. Tampere)" />
@@ -226,6 +289,30 @@
   <div id="boardLayout">
     <div id="grid"></div>
     <div id="mapPanel"><iframe id="mapFrame" loading="lazy" src=""></iframe></div>
+  </div>
+
+  <div id="howItWorks">
+    <h2 data-i18n="hiwTitle">Näin se toimii</h2>
+    <div class="hiwSteps">
+      <div class="hiwStep"><b>1</b><span data-i18n="hiw1">Etsi kaupunkisi yllä olevasta hausta</span></div>
+      <div class="hiwStep"><b>2</b><span data-i18n="hiw2">Klikkaa yksi tai useampi vapaa ruutu</span></div>
+      <div class="hiwStep"><b>3</b><span data-i18n="hiw3">Täytä yrityksesi tiedot ja maksa turvallisesti Stripen kautta</span></div>
+      <div class="hiwStep"><b>4</b><span data-i18n="hiw4">Ruutu ja oma verkkosivusi ovat käytössä heti maksun jälkeen</span></div>
+    </div>
+  </div>
+
+  <div id="faq">
+    <h2 data-i18n="faqTitle">Usein kysyttyä</h2>
+    <div class="faqItem"><b data-i18n="faqQ1">Onko tämä luotettava palvelu?</b>
+      <p data-i18n="faqA1">Maksut käsittelee Stripe, jota käyttävät miljoonat yritykset ympäri maailman — emme koskaan näe tai tallenna korttitietojasi.</p></div>
+    <div class="faqItem"><b data-i18n="faqQ2">Mitä oikeasti saan rahalleni?</b>
+      <p data-i18n="faqA2">Ruudun ilmoitustaululla omalla logollasi, sekä oman verkkosivun, joka linkittää suoraan yrityksesi sivustolle.</p></div>
+    <div class="faqItem"><b data-i18n="faqQ3">Voinko peruuttaa milloin vain?</b>
+      <p data-i18n="faqA3">Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan — peruutus vapauttaa ruudun heti.</p></div>
+    <div class="faqItem"><b data-i18n="faqQ4">Tarkistetaanko ilmoitukset?</b>
+      <p data-i18n="faqA4">Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.</p></div>
+    <div class="faqItem"><b data-i18n="faqQ5">Näynkö heti Google-haussa?</b>
+      <p data-i18n="faqA5">Sivusi julkaistaan heti, mutta hakukoneiden indeksointi voi viedä muutamasta päivästä pariin viikkoon — emme voi luvata tarkkaa aikataulua tai sijoitusta hakutuloksissa.</p></div>
   </div>
 </main>
 
@@ -279,9 +366,10 @@
 
     <div class="highlightBox">
       <input type="checkbox" id="fBusinessConfirm" required />
-      <p id="confirmText">Vahvistan, että tämä on rekisteröity yritys. Veloitus 5€/kk per ruutu, kunnes peruutan.</p>
+      <p id="confirmText">Vahvistan, että tämä on rekisteröity yritys. Ensimmäinen kuukausi ilmainen, sen jälkeen 5€/kk kunnes peruutan.</p>
     </div>
 
+    <div id="trialNote" data-i18n="trialNote">🎉 Ensimmäinen kuukausi ilmainen</div>
     <div class="price" id="priceDisplay">5€<span style="font-size:14px;color:#8a8168;font-weight:400;" data-i18n="perMonth"> / kk</span></div>
     <div class="priceNote" data-i18n="renewNote">Uusiutuu automaattisesti. Peruuta milloin vain — ruudut vapautuvat takaisin.</div>
 
@@ -290,12 +378,50 @@
   </div>
 </div>
 
+<div id="legalBar">
+  <span class="biz">Paikalliset · PaikallisCanvas · Y-tunnus 3637817-9</span>
+  <span class="sep">·</span>
+  <a href="mailto:paikalliscanvas@gmail.com">paikalliscanvas@gmail.com</a>
+  <span class="sep">·</span>
+  <a href="#" id="legalLink" data-i18n="legalLinkText">Ehdot ja tietosuoja</a>
+</div>
+
+<div id="legalOverlay">
+  <div id="legalModal">
+    <button class="close" id="legalClose">✕</button>
+    <h2 data-i18n="legalTitle">Ehdot ja tietosuoja</h2>
+    <div class="legalBody" data-i18n="legalBody">
+      <p><b>Palvelun tarjoaa:</b> PaikallisCanvas, Y-tunnus 3637817-9.</p>
+      <p><b>Yhteystiedot:</b> <a href="mailto:paikalliscanvas@gmail.com">paikalliscanvas@gmail.com</a></p>
+      <p><b>Mitä saat:</b> kiinteän ruutu-alueen kaupunkisi Paikalliset-taulusta, joka linkittää antamaasi verkko-osoitteeseen, sekä oman erillisen verkkosivun. Näkyvillä heti maksun jälkeen.</p>
+      <p><b>Peruuttamisoikeus:</b> vahvistamalla ostoksen yritysostoksi, vahvistat ettei kuluttajansuojalain 14 päivän peruutusoikeus sovellu, ja että näkyvyys alkaa heti.</p>
+      <p><b>Sisältö:</b> voimme poistaa minkä tahansa ilmoituksen harkintamme mukaan (esim. laiton, haitallinen tai harhaanjohtava sisältö) ilman hyvitystä.</p>
+      <p><b>Tiedot:</b> tallennamme yrityksen nimen, sähköpostin ja verkko-osoitteen tilauksen toimittamista ja laskutusta varten. Emme myy tietoja eteenpäin. Ota yhteyttä yllä olevaan sähköpostiin tietojen poistamiseksi.</p>
+      <p><b>Maksut:</b> käsittelee Stripe. Emme näe tai tallenna korttitietojasi.</p>
+    </div>
+  </div>
+</div>
+
 <footer data-i18n="footerText">Paikalliset · varaa ruutu, saat sivun, peruuta milloin vain</footer>
 
 <script>
 const API_BASE = '/api';
+// Paired with FOUNDING_TRIAL_DAYS in api/create-checkout-session.js -- when
+// you turn the trial off there, also flip this to false so the on-site
+// badge/copy stops promising something checkout no longer does.
+const FOUNDING_TRIAL_ACTIVE = true;
 const SWATCHES = ["#f2a65a","#d9694f","#5b8c5a","#3d6b94","#8a6fb0","#2b2718","#e0d9c4"];
-const PRICE_PER_SQUARE = 5; // EUR/month
+const PRICE_PER_SQUARE = 5; // EUR/month base rate — see pricePerSquareEur() for volume tiers
+
+// Mirrors the server-side tiering in create-checkout-session.js, used only
+// to display the right price before checkout — the server always
+// recalculates and charges the real amount itself, this is never trusted
+// as the actual charge.
+function pricePerSquareEur(count){
+  if (count >= 30) return 3;
+  if (count >= 10) return 4;
+  return 5;
+}
 
 // Approximate populations, used only for autocomplete ranking and picking a
 // sensible board size for a new town — not authoritative figures.
@@ -610,6 +736,29 @@ const STRINGS = {
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
     value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
+    volumeNote: 'Osta useampi ruutu ja säästä: 10+ ruutua 4€/kk, 30+ ruutua 3€/kk per ruutu.',
+    factsTitle: 'Miksi paikallinen näkyvyys kannattaa',
+    fact1: 'kaikista Google-hauista koskee jotain paikallista',
+    fact2: 'hakijoista, jotka etsivät jotain "lähellä", käy yrityksessä 24 tunnin sisällä',
+    fact3: 'kuluttajista etsii paikallisia yrityksiä netistä ennen kuin asioi niiden kanssa',
+    factsNote: 'Lähde: Google / Think with Google, BrightLocal. Luvut kuvaavat yleistä hakukäyttäytymistä Suomessa ja muualla — emme väitä, että ne kuvaavat suoraan tämän palvelun tuomaa liikennettä juuri sinun yrityksellesi.',
+    earlyBanner: '🚀 Ensimmäinen kuukausi ilmaiseksi! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.',
+    hiwTitle: 'Näin se toimii',
+    hiw1: 'Etsi kaupunkisi yllä olevasta hausta',
+    hiw2: 'Klikkaa yksi tai useampi vapaa ruutu',
+    hiw3: 'Täytä yrityksesi tiedot ja maksa turvallisesti Stripen kautta',
+    hiw4: 'Ruutu ja oma verkkosivusi ovat käytössä heti maksun jälkeen',
+    faqTitle: 'Usein kysyttyä',
+    faqQ1: 'Onko tämä luotettava palvelu?',
+    faqA1: 'Maksut käsittelee Stripe, jota käyttävät miljoonat yritykset ympäri maailman — emme koskaan näe tai tallenna korttitietojasi.',
+    faqQ2: 'Mitä oikeasti saan rahalleni?',
+    faqA2: 'Ruudun ilmoitustaululla omalla logollasi, sekä oman verkkosivun, joka linkittää suoraan yrityksesi sivustolle.',
+    faqQ3: 'Voinko peruuttaa milloin vain?',
+    faqA3: 'Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan — peruutus vapauttaa ruudun heti.',
+    faqQ4: 'Tarkistetaanko ilmoitukset?',
+    faqA4: 'Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.',
+    faqQ5: 'Näynkö heti Google-haussa?',
+    faqA5: 'Sivusi julkaistaan heti, mutta hakukoneiden indeksointi voi viedä muutamasta päivästä pariin viikkoon — emme voi luvata tarkkaa aikataulua tai sijoitusta hakutuloksissa.',
     otherTown: 'Etsitkö toista kaupunkia? →',
     townPlaceholder: 'Kaupungin nimi (esim. Tampere)',
     viewBoard: 'Katso taulu →',
@@ -627,7 +776,18 @@ const STRINGS = {
     uploading: 'Ladataan…',
     lTagline: 'Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span>',
     lColor: 'Tai valitse ruudun väri',
-    confirmText: 'Vahvistan, että tämä on rekisteröity yritys. Veloitus {price}€/kk, kunnes peruutan.',
+    confirmText: 'Vahvistan, että tämä on rekisteröity yritys. Ensimmäinen kuukausi ilmainen, sen jälkeen {price}€/kk kunnes peruutan.',
+    confirmTextNoTrial: 'Vahvistan, että tämä on rekisteröity yritys. Veloitus {price}€/kk, kunnes peruutan.',
+    trialNote: '🎉 Ensimmäinen kuukausi ilmainen',
+    legalLinkText: 'Ehdot ja tietosuoja',
+    legalTitle: 'Ehdot ja tietosuoja',
+    legalBody: `<p><b>Palvelun tarjoaa:</b> PaikallisCanvas, Y-tunnus 3637817-9.</p>
+      <p><b>Yhteystiedot:</b> <a href="mailto:paikalliscanvas@gmail.com">paikalliscanvas@gmail.com</a></p>
+      <p><b>Mitä saat:</b> kiinteän ruutu-alueen kaupunkisi Paikalliset-taulusta, joka linkittää antamaasi verkko-osoitteeseen, sekä oman erillisen verkkosivun. Näkyvillä heti maksun jälkeen.</p>
+      <p><b>Peruuttamisoikeus:</b> vahvistamalla ostoksen yritysostoksi, vahvistat ettei kuluttajansuojalain 14 päivän peruutusoikeus sovellu, ja että näkyvyys alkaa heti.</p>
+      <p><b>Sisältö:</b> voimme poistaa minkä tahansa ilmoituksen harkintamme mukaan (esim. laiton, haitallinen tai harhaanjohtava sisältö) ilman hyvitystä.</p>
+      <p><b>Tiedot:</b> tallennamme yrityksen nimen, sähköpostin ja verkko-osoitteen tilauksen toimittamista ja laskutusta varten. Emme myy tietoja eteenpäin. Ota yhteyttä yllä olevaan sähköpostiin tietojen poistamiseksi.</p>
+      <p><b>Maksut:</b> käsittelee Stripe. Emme näe tai tallenna korttitietojasi.</p>`,
     perMonth: ' / kk',
     renewNote: 'Uusiutuu automaattisesti. Peruuta milloin vain — ruudut vapautuvat takaisin.',
     continueBtn: 'Jatka maksuun →',
@@ -653,6 +813,29 @@ const STRINGS = {
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: '1 page', value2: 'each square is its own indexed webpage, not just a pixel',
     value3b: '0 lock-in', value3: 'cancel the subscription anytime, no contract',
+    volumeNote: 'Buy more squares and save: 10+ squares €4/mo, 30+ squares €3/mo each.',
+    factsTitle: 'Why local visibility matters',
+    fact1: 'of all Google searches are for something local',
+    fact2: 'of people who search for something "nearby" visit a business within 24 hours',
+    fact3: 'of consumers search online for local businesses before doing business with them',
+    factsNote: 'Source: Google / Think with Google, BrightLocal. These figures describe general search behavior, not a promise about the traffic this specific service will bring your business.',
+    earlyBanner: "🚀 First month free! Just launched — join early and get top visibility before the board fills up.",
+    hiwTitle: 'How it works',
+    hiw1: 'Search for your town above',
+    hiw2: 'Click one or more empty squares',
+    hiw3: 'Fill in your business details and pay securely via Stripe',
+    hiw4: 'Your square and your own webpage go live right after payment',
+    faqTitle: 'Frequently asked questions',
+    faqQ1: 'Is this a legitimate service?',
+    faqA1: 'Payments are processed by Stripe, used by millions of businesses worldwide — we never see or store your card details.',
+    faqQ2: 'What do I actually get for my money?',
+    faqA2: 'A square on the community board with your own logo, plus your own webpage linking directly to your business site.',
+    faqQ3: 'Can I cancel anytime?',
+    faqA3: 'Yes. It\'s a monthly subscription with no fixed term — cancelling frees your square immediately.',
+    faqQ4: 'Are listings checked?',
+    faqA4: 'Yes — every listing is automatically screened before it goes live, and inappropriate content can be removed at any time.',
+    faqQ5: 'Will I show up on Google right away?',
+    faqA5: 'Your page goes live immediately, but search engine indexing can take anywhere from a few days to a couple of weeks — we can\'t promise an exact timeline or ranking.',
     otherTown: 'Looking for another town? →',
     townPlaceholder: 'Enter your town (e.g. Tampere)',
     viewBoard: 'View board →',
@@ -670,7 +853,18 @@ const STRINGS = {
     uploading: 'Uploading…',
     lTagline: 'Short tagline <span style="font-weight:400;color:#8a8168;">(optional, shown on your page)</span>',
     lColor: 'Or pick a square color',
-    confirmText: 'I confirm this is a registered business, billed €{price}/month until I cancel.',
+    confirmText: 'I confirm this is a registered business. First month free, then €{price}/month until I cancel.',
+    confirmTextNoTrial: 'I confirm this is a registered business, billed €{price}/month until I cancel.',
+    trialNote: '🎉 First month free',
+    legalLinkText: 'Terms & Privacy',
+    legalTitle: 'Terms & Privacy',
+    legalBody: `<p><b>This service is provided by:</b> PaikallisCanvas, Business ID (Y-tunnus) 3637817-9.</p>
+      <p><b>Contact:</b> <a href="mailto:paikalliscanvas@gmail.com">paikalliscanvas@gmail.com</a></p>
+      <p><b>What you get:</b> a fixed square area on your town's Paikalliset board, linking to the URL you provide, plus its own separate webpage. Live immediately after payment.</p>
+      <p><b>Right of withdrawal:</b> by confirming this as a business purchase, you confirm the EU consumer 14-day withdrawal right does not apply, and that visibility begins immediately.</p>
+      <p><b>Content:</b> we may remove any listing at our discretion (e.g. illegal, harmful, or misleading content) without refund.</p>
+      <p><b>Data:</b> we store your company name, email, and website URL to fulfil and bill the subscription. We don't sell this data. Contact the email above to request deletion.</p>
+      <p><b>Payments:</b> handled by Stripe. We never see or store your card details.</p>`,
     perMonth: ' / month',
     renewNote: 'Renews automatically. Cancel anytime — your squares open back up.',
     continueBtn: 'Continue to payment →',
@@ -706,6 +900,17 @@ document.getElementById('themeToggle').addEventListener('click', ()=>{
 });
 // sync the button's icon with whatever the early head-script already applied
 applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+
+document.getElementById('legalLink').addEventListener('click', (e)=>{
+  e.preventDefault();
+  document.getElementById('legalOverlay').style.display = 'flex';
+});
+document.getElementById('legalClose').addEventListener('click', ()=>{
+  document.getElementById('legalOverlay').style.display = 'none';
+});
+document.getElementById('legalOverlay').addEventListener('click', (e)=>{
+  if (e.target.id === 'legalOverlay') e.currentTarget.style.display = 'none';
+});
 
 function setLang(l){
   lang = l;
@@ -920,10 +1125,15 @@ function updateSelectionBar(){
   const bar = document.getElementById('selectionBar');
   if (selectedIndices.length === 0){ bar.classList.remove('open'); return; }
   bar.classList.add('open');
-  const price = selectedIndices.length * PRICE_PER_SQUARE;
-  document.getElementById('selectionCount').textContent =
-    (selectedIndices.length === 1 ? t('squareSelected') : t('squaresSelected'))
-      .replace('{n}', selectedIndices.length).replace('{price}', price);
+  const n = selectedIndices.length;
+  const perSquare = pricePerSquareEur(n);
+  const price = n * perSquare;
+  const label = (n === 1 ? t('squareSelected') : t('squaresSelected'))
+    .replace('{n}', n).replace('{price}', price);
+  const rateNote = perSquare < 5
+    ? (lang === 'fi' ? ` (${perSquare}€/kk per ruutu)` : ` (€${perSquare}/mo per square)`)
+    : '';
+  document.getElementById('selectionCount').textContent = label + rateNote;
 }
 document.getElementById('selectionCancel').addEventListener('click', clearSelection);
 document.getElementById('selectionGo').addEventListener('click', openClaimModal);
@@ -931,12 +1141,20 @@ document.getElementById('selectionGo').addEventListener('click', openClaimModal)
 function openClaimModal(){
   if (selectedIndices.length === 0) return;
   const count = selectedIndices.length;
-  const price = count * PRICE_PER_SQUARE;
+  const perSquare = pricePerSquareEur(count);
+  const price = count * perSquare;
   document.getElementById('modalSummary').textContent =
     (count === 1 ? t('squareTitleOne').replace('{idx}', selectedIndices[0] + 1) : t('squareTitle').replace('{n}', count))
       .replace('{town}', currentTown.name);
-  document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:#8a8168;font-weight:400;">${t('perMonth')}</span>`;
-  document.getElementById('confirmText').textContent = t('confirmText').replace('{price}', price);
+  const rateNote = perSquare < 5
+    ? (lang === 'fi' ? ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(${perSquare}€/ruutu, alennushinta)</span>` : ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(€${perSquare}/square, discounted)</span>`)
+    : '';
+  document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:#8a8168;font-weight:400;">${t('perMonth')}</span>${rateNote}`;
+  const trialNoteEl = document.getElementById('trialNote');
+  if (trialNoteEl) trialNoteEl.style.display = FOUNDING_TRIAL_ACTIVE ? 'inline-block' : 'none';
+  document.getElementById('confirmText').textContent = FOUNDING_TRIAL_ACTIVE
+    ? t('confirmText').replace('{price}', price)
+    : t('confirmTextNoTrial').replace('{price}', price);
 
   // fresh selection -> clear any previous logo upload/crop state
   uploadedLogoUrl = null;
