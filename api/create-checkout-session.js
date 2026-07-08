@@ -5,8 +5,21 @@ const { moderate } = require('./_moderate');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
-const MONTHLY_PRICE_CENTS = 500; // EUR 5/month per square
 const MAX_SQUARES_PER_PURCHASE = 40; // safety cap against fat-finger selections
+
+// Founding-member offer: first month free for early businesses. Set to 0
+// to turn this off later once you've got enough real businesses on board
+// and don't need the incentive anymore -- nothing else needs to change.
+const FOUNDING_TRIAL_DAYS = 30;
+
+// Volume pricing -- more squares in one purchase costs less per square.
+// Computed here, server-side, so a customer can never manipulate the price
+// by sending a fake amount from the browser.
+function pricePerSquareEur(count) {
+  if (count >= 30) return 3;
+  if (count >= 10) return 4;
+  return 5;
+}
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -93,19 +106,22 @@ module.exports = async (req, res) => {
       line_items: [{
         price_data: {
           currency: 'eur',
-          unit_amount: MONTHLY_PRICE_CENTS,
+          unit_amount: pricePerSquareEur(count) * 100,
           recurring: { interval: 'month' },
           product_data: {
             name: count === 1
-              ? `Yritystaulu square — ${companyName}`
-              : `Yritystaulu squares (x${count}) — ${companyName}`,
+              ? `Paikalliset square — ${companyName}`
+              : `Paikalliset squares (x${count}, €${pricePerSquareEur(count)}/square) — ${companyName}`,
             description: 'Square(s) on your town\'s community board, renewed monthly.'
           }
         },
         quantity: count
       }],
       metadata: { squareIds },
-      subscription_data: { metadata: { squareIds } },
+      subscription_data: {
+        metadata: { squareIds },
+        ...(FOUNDING_TRIAL_DAYS > 0 ? { trial_period_days: FOUNDING_TRIAL_DAYS } : {})
+      },
       success_url: `${SITE_URL}/?claimed=success&token=${editToken}`,
       cancel_url: `${SITE_URL}/?claimed=cancelled`
     });
