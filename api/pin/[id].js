@@ -17,10 +17,10 @@ module.exports = async (req, res) => {
 
   if (error || !square || square.status !== 'active' || square.flagged) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.status(404).send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Not found — Yritystaulu</title></head>
+    res.status(404).send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Not found — PaikallisCanvas</title></head>
       <body style="font-family:sans-serif;text-align:center;padding:80px 20px;color:#333;">
         <h1>This square isn't claimed (yet)</h1>
-        <p><a href="/">Back to Yritystaulu</a></p>
+        <p><a href="/">Back to PaikallisCanvas</a></p>
       </body></html>`);
     return;
   }
@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
 
   const townName = town ? town.name : 'this town';
   const townSlug = town ? town.slug : '';
-  const title = `${escapeHtml(square.company_name)} — ${escapeHtml(townName)} | Yritystaulu`;
+  const title = `${escapeHtml(square.company_name)} — ${escapeHtml(townName)} | PaikallisCanvas`;
   const description = square.tagline
     ? escapeHtml(square.tagline)
     : `${escapeHtml(square.company_name)}, a local business on the ${escapeHtml(townName)} community board.`;
@@ -83,7 +83,7 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
       ${square.ai_blurb_en ? `<p class="quickInfoText quickInfoEn">${escapeHtml(square.ai_blurb_en)}</p>` : ''}
       ${square.ai_blurb_source ? `<a class="quickInfoSource" href="${escapeHtml(square.ai_blurb_source)}" rel="nofollow noopener">Lähde / Source ↗</a>` : ''}
     </div>` : ''}
-    <p class="foot">A local business on the <a href="/board/${escapeHtml(townSlug)}">${escapeHtml(townName)} community board</a> — powered by Yritystaulu.</p>
+    <p class="foot">A local business on the <a href="/board/${escapeHtml(townSlug)}">${escapeHtml(townName)} community board</a> — powered by PaikallisCanvas.</p>
   </div>
 </body>
 </html>`);

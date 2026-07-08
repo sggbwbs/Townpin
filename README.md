@@ -1,4 +1,4 @@
-# Yritystaulu — Oulu's own business bulletin board
+# PaikallisCanvas — Oulu's own business bulletin board
 
 Businesses claim one or more squares on Oulu's board for €5/month per
 square. Each square is its own indexed webpage at `/pin/{id}` — that's the
@@ -233,7 +233,7 @@ since it wasn't asked for — happy to add it if you want that covered.
 
 ## This round's changes
 
-**Renamed to Yritystaulu** ("business board" in Finnish) — every mention of
+**Renamed to PaikallisCanvas** ("business board" in Finnish) — every mention of
 the old name was updated across all files. If you want the actual domain
 and GitHub repo name to match too, that's the same optional operational
 step as when we renamed Pixland earlier — rename the repo in GitHub
@@ -277,3 +277,103 @@ which frees them back up.
 no subscription to lapse) — they stay live until you personally revoke
 them. They render identically to paid squares on the public board; nobody
 can tell the difference by looking.
+
+## Admin: moving a company to a different town
+
+New section on `/admin` — search a company by name or email, pick "Move
+this," then load the correct destination town's board and click exactly as
+many empty squares as they originally had. Their existing squares get
+reassigned there — same subscription, same payment history, same
+customer, just a different town and position. No new charge, no new
+Stripe interaction at all.
+
+**Why this is admin-only, not self-service:** unlike a tagline or logo,
+moving towns means giving up a spot in one town's limited inventory to
+claim one in another — a judgment call, not a cosmetic tweak. If this
+happens, it should just be "email us and we'll fix it," same as most
+sites handle this kind of one-off correction.
+
+## Admin: live preview while editing copy
+
+The copy editor on `/admin` now shows a live, styled preview above the
+text fields — updates as you type, matches the real site's dark
+background/colors/fonts, and has its own FI/EN toggle so you can check
+both languages without saving first. If a field is empty (never
+customized), the preview shows the site's actual current default text,
+not a blank space — so what you see really does match what a visitor
+would see right now.
+
+## Real legal footer + terms modal
+
+The site previously had no legal business disclosure at all — a plain
+tagline footer, nothing else. That's now fixed with real information:
+
+- **Business:** PaikallisCanvas, Y-tunnus 3637817-9
+- **Contact:** paikalliscanvas@gmail.com
+- A proper "Terms & Privacy" modal covering what a buyer gets, the
+  business-purchase confirmation, content moderation policy, data handling,
+  and a note that Stripe handles payments.
+
+**One thing worth knowing:** no physical address was provided, so none is
+shown. Finnish e-commerce disclosure rules (laki tietoyhteiskunnan
+palvelujen tarjoamisesta) technically expect a geographic address to be
+findable, not just an email — in practice a toiminimi's registered address
+is public via the Kaupparekisteri either way, so it's still discoverable,
+just not shown directly on the page. Worth adding here later if you want to
+close that gap completely; not blocking anything today.
+
+## Founding-member offer: first month free
+
+`FOUNDING_TRIAL_DAYS` in `api/create-checkout-session.js` (currently 30)
+applies an actual Stripe trial period to every new subscription — not just
+marketing copy, the first charge genuinely doesn't happen until the trial
+ends. Stripe's own checkout page automatically shows "€0 due today" during
+checkout, so nothing needed there.
+
+**To turn this off later**, once you have enough real businesses and don't
+need the incentive anymore:
+1. Set `FOUNDING_TRIAL_DAYS = 0` in `api/create-checkout-session.js`.
+2. Set `FOUNDING_TRIAL_ACTIVE = false` in `index.html` (same search term
+   finds it near the top of the script) — this hides the on-site "first
+   month free" badge and switches the confirmation text back to the plain
+   "billed immediately" version, so the site stops promising something
+   checkout no longer does.
+
+Both flags need to change together — one without the other means the site
+either promises a trial that doesn't exist, or hides a trial that still
+does.
+
+## Rectangle-only multi-square selection
+
+Selection changed from free-form click-to-toggle to a two-click rectangle
+picker: click one empty square to start, click a second empty square to
+define the opposite corner, and every square in between gets selected
+automatically. This guarantees a purchase can never end up as a scattered,
+non-rectangular shape — which matters because the board renders a
+multi-square purchase as one single logo spanning the whole block; a
+non-rectangular selection would have broken that rendering.
+
+If the rectangle between your two clicks would cross a square someone
+else already owns, the selection is rejected with a message rather than
+silently doing something odd — you just try a different second corner.
+
+Clicking the same square you started with clears the selection back to
+nothing (a quick way to start over without hunting for a cancel button).
+
+## Board sized to fit the screen
+
+The grid now sizes its cells based on *whichever is more limiting* — the
+available width, or however much vertical space is actually left in the
+viewport below it — rather than always stretching to fill the full width
+and letting the total height grow past the bottom of the screen. In
+practice this means the whole board is visible without scrolling on most
+screens.
+
+**Honest trade-off worth knowing:** there's a lot of content above the
+board on a fresh page load (headline, value props, search bar, banners).
+On a shorter laptop screen, that doesn't leave much vertical room, so the
+squares can end up quite small to make everything fit without scrolling.
+If that looks too cramped once you see it live, the fix isn't really more
+code — it's deciding whether some of that marketing content should
+collapse or move once a board is actually loaded, which is a design call
+worth making deliberately rather than me guessing at it now.

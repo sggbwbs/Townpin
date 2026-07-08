@@ -16,8 +16,7 @@ const FOUNDING_TRIAL_DAYS = 30;
 // Computed here, server-side, so a customer can never manipulate the price
 // by sending a fake amount from the browser.
 function pricePerSquareEur(count) {
-  if (count >= 30) return 3;
-  if (count >= 10) return 4;
+  if (count >= 4) return 4;
   return 5;
 }
 
@@ -110,8 +109,8 @@ module.exports = async (req, res) => {
           recurring: { interval: 'month' },
           product_data: {
             name: count === 1
-              ? `Paikalliset square — ${companyName}`
-              : `Paikalliset squares (x${count}, €${pricePerSquareEur(count)}/square) — ${companyName}`,
+              ? `PaikallisCanvas square — ${companyName}`
+              : `PaikallisCanvas squares (x${count}, €${pricePerSquareEur(count)}/square) — ${companyName}`,
             description: 'Square(s) on your town\'s community board, renewed monthly.'
           }
         },

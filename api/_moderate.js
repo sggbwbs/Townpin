@@ -35,7 +35,7 @@ async function moderate({ companyName, websiteUrl }) {
 
   const pageText = await fetchPageSnippet(websiteUrl);
 
-  const prompt = `You are a content-safety screen for a local advertising marketplace ("Yritystaulu") where small businesses claim a square on their town's community board, linking to their website. Decide if this submission should be BLOCKED.
+  const prompt = `You are a content-safety screen for a local advertising marketplace ("PaikallisCanvas") where small businesses claim a square on their town's community board, linking to their website. Decide if this submission should be BLOCKED.
 
 Block only on clear evidence of: illegal goods/services, scams or fraud, malware/phishing, hate speech or harassment, sexual content, or anything facilitating harm to minors. Do NOT block merely because a site is unfinished, under construction, a placeholder/parked domain, or unreachable — treat those as ALLOW, since real businesses often haven't finished their site yet. Be conservative: block on clear evidence, not vague suspicion.
 
