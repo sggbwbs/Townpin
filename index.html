@@ -2,8 +2,16 @@
 <html lang="fi">
 <head>
 <meta charset="UTF-8" />
+<script>
+  // Runs before anything else so there's no flash of the wrong theme on load.
+  try {
+    if (localStorage.getItem('theme') === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  } catch (e) {} // localStorage can throw in some locked-down browser contexts -- fail silently, default theme still works
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Yritystaulu — Oulun yritysten ilmoitustaulu</title>
+<title>Paikalliset — Oulun yritysten ilmoitustaulu</title>
 <meta name="description" content="Varaa yrityksellesi ruutu Oulun ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen ruutu saa oman verkkosivun, joka voi näkyä Googlen hakutuloksissa." />
 
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -16,11 +24,21 @@
     --paper:#f4efe4; --amber:#f2a65a; --amber-bright:#ffc07e; --amber-deep:#b9773a;
     --ink:#f5f7fb; --ink-dim:#8fa3bd; --danger:#e0715a;
     --shadow-lg:0 24px 60px rgba(0,0,0,0.45); --shadow-md:0 10px 28px rgba(0,0,0,0.3);
+    --glow:rgba(38,84,140,0.35); --panelT7:rgba(15,32,56,0.7); --panelT4:rgba(15,32,56,0.4);
+    --sq-empty-bg:rgba(255,255,255,0.04); --sq-empty-border:rgba(255,255,255,0.06); --sq-plus:rgba(255,255,255,0.25);
+  }
+  [data-theme="light"]{
+    --bg-0:#faf6ec; --bg-1:#f2ecdb; --panel:#ffffff; --line:rgba(120,100,60,0.16);
+    --paper:#ffffff; --amber:#e08e3e; --amber-bright:#f2a65a; --amber-deep:#b9773a;
+    --ink:#241f14; --ink-dim:#6b6249; --danger:#c1503a;
+    --shadow-lg:0 20px 50px rgba(120,100,60,0.15); --shadow-md:0 8px 22px rgba(120,100,60,0.12);
+    --glow:rgba(242,166,90,0.22); --panelT7:rgba(255,255,255,0.8); --panelT4:rgba(255,255,255,0.55);
+    --sq-empty-bg:rgba(36,31,20,0.035); --sq-empty-border:rgba(36,31,20,0.10); --sq-plus:rgba(36,31,20,0.28);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;min-height:100%;
-    background:radial-gradient(1200px 800px at 15% -10%, rgba(38,84,140,0.35), transparent 60%), var(--bg-0);
-    font-family:'IBM Plex Sans',sans-serif;color:var(--ink);}
+    background:radial-gradient(1200px 800px at 15% -10%, var(--glow), transparent 60%), var(--bg-0);
+    font-family:'IBM Plex Sans',sans-serif;color:var(--ink); transition:background .2s ease, color .2s ease;}
   a{color:inherit;}
 
   header{display:flex;align-items:center;justify-content:space-between;padding:22px 28px;flex-wrap:wrap;gap:12px;}
@@ -31,7 +49,7 @@
   #brand .name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
   #brand .name span{color:var(--amber);}
 
-  #langToggle{display:flex;gap:2px;background:rgba(15,32,56,0.7);border:1px solid var(--line);
+  #langToggle{display:flex;gap:2px;background:var(--panelT7);border:1px solid var(--line);
     border-radius:999px;padding:3px;}
   #langToggle button{border:none;background:none;color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;
     font-size:12px;font-weight:500;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .12s ease;}
@@ -55,7 +73,7 @@
   #searchWrap{max-width:460px;margin:0 auto 40px;position:relative;}
   #searchRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
   #townInput{flex:1;min-width:220px;padding:14px 18px;border-radius:999px;border:1px solid var(--line);
-    background:rgba(15,32,56,0.7);color:var(--ink);font-size:15px;font-family:'IBM Plex Sans',sans-serif;}
+    background:var(--panelT7);color:var(--ink);font-size:15px;font-family:'IBM Plex Sans',sans-serif;}
   #townInput:focus{outline:none;border-color:var(--amber);}
   #searchBtn{padding:14px 26px;border-radius:999px;border:none;cursor:pointer;
     background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;
@@ -80,23 +98,27 @@
 
   #grid{
     display:grid; grid-template-columns:repeat(var(--cols,20), 1fr); gap:4px;
-    background:rgba(15,32,56,0.4); padding:10px; border-radius:12px; border:1px solid var(--line);
-    align-content:start; touch-action:none;
+    background:var(--panelT4); padding:10px; border-radius:12px; border:1px solid var(--line);
+    align-content:start;
   }
   .sq{
     border-radius:4px; cursor:pointer; position:relative; overflow:hidden;
-    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
+    background:var(--sq-empty-bg); border:1px solid var(--sq-empty-border);
     display:flex; align-items:center; justify-content:center; transition:transform .1s ease;
     user-select:none;
   }
   .sq:hover{transform:scale(1.15); z-index:5; box-shadow:var(--shadow-md);}
   .sq.empty:hover{background:rgba(242,166,90,0.18); border-color:var(--amber);}
+  .plusIcon{color:var(--sq-plus); font-size:18px; font-weight:300; pointer-events:none;
+    transition:color .12s ease;}
+  .sq.empty:hover .plusIcon{color:var(--amber);}
   .sq.selected{background:rgba(242,166,90,0.35) !important; border-color:var(--amber) !important;}
   .sq img{width:100%;height:100%;object-fit:cover;}
   .sq.filled{border-color:rgba(0,0,0,0.15);cursor:pointer;}
 
   #mapPanel{border-radius:12px;overflow:hidden;border:1px solid var(--line);min-height:220px;background:var(--panel);contain:strict;}
   #mapPanel iframe{width:100%;height:100%;min-height:260px;border:0;filter:grayscale(0.15) invert(0.92) contrast(0.9);will-change:filter;}
+  [data-theme="light"] #mapPanel iframe{filter:none;}
 
   @media (max-width:640px){
     #grid{--cols:12 !important;}
@@ -162,11 +184,16 @@
       <rect x="3" y="14" width="7" height="7" rx="1.5" fill="#2a1c0d" fill-opacity="0.45"/>
       <rect x="14" y="14" width="7" height="7" rx="1.5" fill="#2a1c0d"/>
     </svg></div>
-    <div class="name">YRITYS<span>TAULU</span></div>
+    <div class="name">PAIKALLISET</div>
   </div>
-  <div id="langToggle">
-    <button id="langFi" class="active" onclick="setLang('fi')">FI</button>
-    <button id="langEn" onclick="setLang('en')">EN</button>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button id="themeToggle" title="Vaihda vaalea/tumma teema" style="border:none;background:var(--panelT7);
+      border:1px solid var(--line);border-radius:999px;width:34px;height:34px;cursor:pointer;
+      font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--ink);">🌙</button>
+    <div id="langToggle">
+      <button id="langFi" class="active" onclick="setLang('fi')">FI</button>
+      <button id="langEn" onclick="setLang('en')">EN</button>
+    </div>
   </div>
 </header>
 
@@ -263,7 +290,7 @@
   </div>
 </div>
 
-<footer data-i18n="footerText">Yritystaulu · varaa ruutu, saat sivun, peruuta milloin vain</footer>
+<footer data-i18n="footerText">Paikalliset · varaa ruutu, saat sivun, peruuta milloin vain</footer>
 
 <script>
 const API_BASE = '/api';
@@ -570,19 +597,9 @@ const FINNISH_CITIES = [
   {name:"Eckerö", population:900}
 ];
 
-function gridSizeForPopulation(pop){
-  if (!pop) return 8;
-  if (pop >= 150000) return 20;
-  if (pop >= 50000) return 15;
-  if (pop >= 15000) return 10;
-  return 8;
-}
-
 let currentTown = null;
 let currentSquares = [];
 let selectedIndices = [];
-let dragStartIdx = null;
-let mouseIsDown = false;
 let chosenColor = SWATCHES[0];
 let lang = 'fi';
 
@@ -614,7 +631,7 @@ const STRINGS = {
     perMonth: ' / kk',
     renewNote: 'Uusiutuu automaattisesti. Peruuta milloin vain — ruudut vapautuvat takaisin.',
     continueBtn: 'Jatka maksuun →',
-    footerText: 'Yritystaulu · varaa ruutu, saat sivun, peruuta milloin vain',
+    footerText: 'Paikalliset · varaa ruutu, saat sivun, peruuta milloin vain',
     fillRequired: 'Täytä yrityksen nimi, verkkosivu ja sähköposti.',
     confirmRequired: 'Vahvista, että tämä on yritystilaus, ennen kuin jatkat.',
     invalidUrl: 'Verkkosivun osoite vaikuttaa virheelliseltä — muista https://',
@@ -657,7 +674,7 @@ const STRINGS = {
     perMonth: ' / month',
     renewNote: 'Renews automatically. Cancel anytime — your squares open back up.',
     continueBtn: 'Continue to payment →',
-    footerText: 'Yritystaulu · claim a square, get a page, cancel anytime',
+    footerText: 'Paikalliset · claim a square, get a page, cancel anytime',
     fillRequired: 'Please fill in company name, website and email.',
     confirmRequired: 'Please confirm this is a business subscription before continuing.',
     invalidUrl: 'Website URL looks invalid — include https://',
@@ -676,6 +693,19 @@ const STRINGS = {
 };
 
 function t(key){ return STRINGS[lang][key] || key; }
+
+/* ---- light/dark theme toggle ---- */
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeToggle').textContent = theme === 'light' ? '🌙' : '☀️';
+  try { localStorage.setItem('theme', theme); } catch (e) {}
+}
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  applyTheme(current === 'light' ? 'dark' : 'light');
+});
+// sync the button's icon with whatever the early head-script already applied
+applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
 
 function setLang(l){
   lang = l;
@@ -793,13 +823,10 @@ function updateCellSize(){
 }
 window.addEventListener('resize', ()=>{ if (currentTown) updateCellSize(); });
 
-let emptySquareElements = {}; // idx -> DOM element, for lightweight selection updates during drag
-
 function renderGrid(){
   if (!currentTown) return;
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
-  emptySquareElements = {};
   updateCellSize();
   const n = currentTown.grid_size;
   const total = n * n;
@@ -856,94 +883,35 @@ function renderGrid(){
     const sq = document.createElement('div');
     sq.className = 'sq empty' + (isSelected ? ' selected' : '');
     sq.title = t('claimTitle');
-    sq.dataset.idx = i;
-    sq.addEventListener('mousedown', (e)=>{ e.preventDefault(); startDrag(i); });
-    sq.addEventListener('mouseenter', ()=>{ if (mouseIsDown) extendDrag(i); });
+    if (!isSelected){
+      const plus = document.createElement('span');
+      plus.className = 'plusIcon';
+      plus.textContent = '+';
+      sq.appendChild(plus);
+    }
+    sq.addEventListener('click', ()=> toggleSquare(i));
     grid.appendChild(sq);
-    emptySquareElements[i] = sq;
   }
 }
-
-// Touch handling lives on the grid container itself (not per-cell) so we can
-// call preventDefault and stop the browser's native page-scroll gesture from
-// hijacking a drag-select -- this is also what was causing the page to jump
-// to the top when dragging near the bottom of the board on mobile.
-const gridEl = document.getElementById('grid');
-gridEl.addEventListener('touchstart', (e)=>{
-  const touch = e.touches[0];
-  const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  if (el && el.classList.contains('empty') && el.dataset.idx !== undefined){
-    e.preventDefault();
-    startDrag(parseInt(el.dataset.idx, 10));
-  }
-}, { passive: false });
-gridEl.addEventListener('touchmove', (e)=>{
-  if (dragStartIdx === null) return;
-  e.preventDefault();
-  const touch = e.touches[0];
-  const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  if (el && el.dataset && el.dataset.idx !== undefined){
-    extendDrag(parseInt(el.dataset.idx, 10));
-  }
-}, { passive: false });
 
 function idxToRowCol(idx){
   const n = currentTown.grid_size;
   return { r: Math.floor(idx / n), c: idx % n };
 }
-function rectIndices(a, b){
-  const n = currentTown.grid_size;
-  const A = idxToRowCol(a), B = idxToRowCol(b);
-  const r0 = Math.min(A.r, B.r), r1 = Math.max(A.r, B.r);
-  const c0 = Math.min(A.c, B.c), c1 = Math.max(A.c, B.c);
-  const out = [];
-  const filledIdx = new Set(currentSquares.map(s=>s.idx));
-  for (let r = r0; r <= r1; r++){
-    for (let c = c0; c <= c1; c++){
-      const idx = r * n + c;
-      if (!filledIdx.has(idx)) out.push(idx);
-    }
-  }
-  return out;
-}
 
-function updateSelectionVisuals(){
-  Object.keys(emptySquareElements).forEach(key => {
-    const idx = parseInt(key, 10);
-    const el = emptySquareElements[idx];
-    if (!el) return;
-    el.classList.toggle('selected', selectedIndices.includes(idx));
-  });
+// Simple click-to-toggle selection -- no dragging at all. This is
+// deliberately simpler than the earlier drag-select: tap a square to add
+// it, tap again to remove it. Works identically on phone, tablet, or
+// desktop, in any orientation -- there's no gesture to get wrong.
+function toggleSquare(idx){
+  const pos = selectedIndices.indexOf(idx);
+  if (pos === -1) selectedIndices.push(idx); else selectedIndices.splice(pos, 1);
+  renderGrid();
+  updateSelectionBar();
 }
-
-function startDrag(idx){
-  mouseIsDown = true;
-  dragStartIdx = idx;
-  selectedIndices = [idx];
-  updateSelectionVisuals();
-}
-function extendDrag(idx){
-  if (dragStartIdx === null) return;
-  selectedIndices = rectIndices(dragStartIdx, idx);
-  updateSelectionVisuals();
-}
-document.addEventListener('mouseup', ()=>{
-  if (mouseIsDown){
-    mouseIsDown = false;
-    updateSelectionBar();
-  }
-});
-document.addEventListener('touchend', ()=>{
-  if (dragStartIdx !== null){
-    updateSelectionBar();
-  }
-  mouseIsDown = false;
-  dragStartIdx = null;
-});
 
 function clearSelection(){
   selectedIndices = [];
-  dragStartIdx = null;
   updateSelectionBar();
   renderGrid();
 }
