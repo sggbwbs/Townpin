@@ -101,9 +101,9 @@
   @media (min-width:900px){ #boardLayout{grid-template-columns:2.2fr 1fr;} }
 
   #grid{
-    display:grid; grid-template-columns:repeat(var(--cols,20), 1fr); gap:4px;
-    background:var(--panelT4); padding:10px; border-radius:12px; border:1px solid var(--line);
-    align-content:start; width:fit-content; margin:0 auto;
+    display:grid; grid-template-columns:repeat(var(--cols,10), 1fr); grid-template-rows:repeat(var(--cols,10), 1fr);
+    gap:4px; background:var(--panelT4); padding:10px; border-radius:12px; border:1px solid var(--line);
+    width:100%; max-width:480px; aspect-ratio:1/1; margin:0 auto;
   }
   .sq{
     border-radius:4px; cursor:pointer; position:relative; overflow:hidden;
@@ -125,7 +125,6 @@
   [data-theme="light"] #mapPanel iframe{filter:none;}
 
   @media (max-width:640px){
-    #grid{--cols:12 !important;}
     header{padding:16px 18px;}
   }
 
@@ -262,16 +261,6 @@
 
   <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi ruutu ja säästä: 4€/kk per ruutu.</div>
 
-  <div id="factsSection">
-    <h2 data-i18n="factsTitle">Miksi paikallinen näkyvyys kannattaa</h2>
-    <div class="factsRow">
-      <div class="factCard"><b>46%</b><span data-i18n="fact1">kaikista Google-hauista koskee jotain paikallista</span></div>
-      <div class="factCard"><b>76%</b><span data-i18n="fact2">hakijoista, jotka etsivät jotain "lähellä", käy yrityksessä 24 tunnin sisällä</span></div>
-      <div class="factCard"><b>98%</b><span data-i18n="fact3">kuluttajista etsii paikallisia yrityksiä netistä ennen kuin asioi niiden kanssa</span></div>
-    </div>
-    <p class="factsNote" data-i18n="factsNote">Lähde: Google / Think with Google, BrightLocal. Luvut kuvaavat yleistä hakukäyttäytymistä Suomessa ja muualla — emme väitä, että ne kuvaavat suoraan tämän palvelun tuomaa liikennettä juuri sinun yrityksellesi.</p>
-  </div>
-
   <div id="earlyBanner" data-i18n="earlyBanner">🚀 Ensimmäinen kuukausi ilmaiseksi! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
 
   <div id="searchWrap" class="open">
@@ -293,6 +282,16 @@
   <div id="boardLayout">
     <div id="grid"></div>
     <div id="mapPanel"><iframe id="mapFrame" loading="lazy" src=""></iframe></div>
+  </div>
+
+  <div id="factsSection">
+    <h2 data-i18n="factsTitle">Miksi paikallinen näkyvyys kannattaa</h2>
+    <div class="factsRow">
+      <div class="factCard"><b>46%</b><span data-i18n="fact1">kaikista Google-hauista koskee jotain paikallista</span></div>
+      <div class="factCard"><b>76%</b><span data-i18n="fact2">hakijoista, jotka etsivät jotain "lähellä", käy yrityksessä 24 tunnin sisällä</span></div>
+      <div class="factCard"><b>98%</b><span data-i18n="fact3">kuluttajista etsii paikallisia yrityksiä netistä ennen kuin asioi niiden kanssa</span></div>
+    </div>
+    <p class="factsNote" data-i18n="factsNote">Lähde: Google / Think with Google, BrightLocal. Luvut kuvaavat yleistä hakukäyttäytymistä Suomessa ja muualla — emme väitä, että ne kuvaavat suoraan tämän palvelun tuomaa liikennettä juuri sinun yrityksellesi.</p>
   </div>
 
   <div id="howItWorks">
@@ -1025,33 +1024,14 @@ async function loadBoard(){
   renderGrid();
 }
 
-function updateCellSize(){
-  const grid = document.getElementById('grid');
-  const n = currentTown.grid_size;
-  const gapPx = 4, paddingPx = 10;
-
-  // Width available: the grid's own column in #boardLayout (its parent),
-  // not the grid element itself (which is about to be resized).
-  const availableWidth = grid.parentElement.clientWidth;
-  // Height available: whatever's left in the viewport below the grid's
-  // current top position, minus a little breathing room at the bottom.
-  const topOffset = grid.getBoundingClientRect().top;
-  const availableHeight = window.innerHeight - topOffset - 24;
-
-  const cellFromWidth = (availableWidth - paddingPx * 2 - gapPx * (n - 1)) / n;
-  const cellFromHeight = (availableHeight - paddingPx * 2 - gapPx * (n - 1)) / n;
-  const cellPx = Math.max(Math.min(cellFromWidth, cellFromHeight), 4);
-
-  grid.style.gridTemplateColumns = `repeat(${n}, ${cellPx}px)`;
-  grid.style.gridAutoRows = `${cellPx}px`;
-}
-window.addEventListener('resize', ()=>{ if (currentTown) updateCellSize(); });
+// Cell sizing is now handled entirely by CSS (aspect-ratio on #grid),
+// which can't produce the "shrinks to almost nothing" bug the old
+// JS-calculated version had -- no measurement code needed here at all.
 
 function renderGrid(){
   if (!currentTown) return;
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
-  updateCellSize();
   const n = currentTown.grid_size;
   const total = n * n;
   const byIdx = {};
