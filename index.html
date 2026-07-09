@@ -43,9 +43,9 @@
 
   header{display:flex;align-items:center;justify-content:space-between;padding:22px 28px;flex-wrap:wrap;gap:12px;}
   #brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
-  #brandMark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--amber),var(--amber-deep));
-    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(242,166,90,0.35);flex:none;}
-  #brandMark svg{width:16px;height:16px;}
+  #brandMark{width:32px;height:38px;display:flex;align-items:center;justify-content:center;
+    flex:none;filter:drop-shadow(0 3px 6px rgba(14,42,71,0.35));}
+  #brandMark svg{width:32px;height:38px;}
   #brand .name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
   #brand .name span{color:var(--amber);}
 
@@ -235,10 +235,11 @@
 <header>
   <div id="brand" onclick="location.href='/'">
     <div id="brandMark"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="3" y="3" width="7" height="7" rx="1.5" fill="#2a1c0d"/>
-      <rect x="14" y="3" width="7" height="7" rx="1.5" fill="#2a1c0d" fill-opacity="0.45"/>
-      <rect x="3" y="14" width="7" height="7" rx="1.5" fill="#2a1c0d" fill-opacity="0.45"/>
-      <rect x="14" y="14" width="7" height="7" rx="1.5" fill="#2a1c0d"/>
+      <path d="M12 2C7.6 2 4 5.4 4 9.6C4 15 12 22 12 22C12 22 20 15 20 9.6C20 5.4 16.4 2 12 2Z" fill="var(--ink)"/>
+      <rect x="7.5" y="4.5" width="4" height="4" rx="0.8" fill="var(--amber)"/>
+      <rect x="12.5" y="4.5" width="4" height="4" rx="0.8" fill="var(--amber)" fill-opacity="0.55"/>
+      <rect x="7.5" y="9.5" width="4" height="4" rx="0.8" fill="var(--amber)" fill-opacity="0.55"/>
+      <rect x="12.5" y="9.5" width="4" height="4" rx="0.8" fill="var(--amber)"/>
     </svg></div>
     <div class="name">PAIKALLIS<span>CANVAS</span></div>
   </div>
@@ -256,7 +257,7 @@
 <main>
   <div id="hero">
     <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Suomelle.</span></h1>
-    <p class="sub" data-i18n="heroSub">Näy siellä, missä asiakkaasi jo etsivät sinua — jo 5€/kuukaudesta alkaen. Peruuta milloin vain. Jokainen ruutu saa oman verkkosivun, joka voi näkyä Googlen hakutuloksissa — halvempaa kuin yksi päivä Facebook-mainontaa.</p>
+    <p class="sub" data-i18n="heroSub">PaikallisCanvas on kaupunkisi yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Jo 5€/kuukaudesta alkaen. Peruuta milloin vain.</p>
   </div>
 
   <div class="valueRow">
@@ -283,17 +284,25 @@
     <div class="meta"><span id="claimedMeta"></span></div>
     <select id="industryFilter">
       <option value="" data-i18n="allCategories">Kaikki toimialat</option>
-      <option value="ravintola" data-i18n="indRavintola">Ravintola & kahvila</option>
-      <option value="kauneus" data-i18n="indKauneus">Kauneus & hyvinvointi</option>
-      <option value="rakentaminen" data-i18n="indRakentaminen">Rakentaminen & remontointi</option>
-      <option value="terveys" data-i18n="indTerveys">Terveys & lääkäripalvelut</option>
+      <option value="ravintola" data-i18n="indRavintola">Ravintola ja kahvila</option>
+      <option value="kauneus" data-i18n="indKauneus">Kauneus ja hyvinvointi</option>
+      <option value="rakentaminen" data-i18n="indRakentaminen">Rakentaminen ja remontointi</option>
+      <option value="terveys" data-i18n="indTerveys">Terveys ja lääkäripalvelut</option>
       <option value="kauppa" data-i18n="indKauppa">Vähittäiskauppa</option>
-      <option value="ajoneuvot" data-i18n="indAjoneuvot">Ajoneuvot & korjaamo</option>
-      <option value="it" data-i18n="indIt">IT & digitaaliset palvelut</option>
+      <option value="ajoneuvot" data-i18n="indAjoneuvot">Ajoneuvot ja korjaamo</option>
+      <option value="it" data-i18n="indIt">IT ja digitaaliset palvelut</option>
       <option value="koulutus" data-i18n="indKoulutus">Koulutus</option>
-      <option value="kiinteisto" data-i18n="indKiinteisto">Kiinteistö & asuminen</option>
-      <option value="talous" data-i18n="indTalous">Lakipalvelut & talous</option>
-      <option value="tapahtumat" data-i18n="indTapahtumat">Tapahtumat & viihde</option>
+      <option value="kiinteisto" data-i18n="indKiinteisto">Kiinteistö ja asuminen</option>
+      <option value="talous" data-i18n="indTalous">Lakipalvelut ja talous</option>
+      <option value="tapahtumat" data-i18n="indTapahtumat">Tapahtumat ja viihde</option>
+      <option value="kuljetus" data-i18n="indKuljetus">Kuljetus ja logistiikka</option>
+      <option value="siivous" data-i18n="indSiivous">Siivous ja kotipalvelut</option>
+      <option value="elainlaakari" data-i18n="indElainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
+      <option value="valokuvaus" data-i18n="indValokuvaus">Valokuvaus ja media</option>
+      <option value="matkailu" data-i18n="indMatkailu">Matkailu ja majoitus</option>
+      <option value="urheilu" data-i18n="indUrheilu">Urheilu ja liikunta</option>
+      <option value="kasityo" data-i18n="indKasityo">Käsityö ja taide</option>
+      <option value="maatalous" data-i18n="indMaatalous">Maatalous ja puutarha</option>
       <option value="muu" data-i18n="indMuu">Muu</option>
     </select>
     <div id="selectHint" data-i18n="selectHint">Klikkaa yhtä ruutua valitaksesi sen — klikkaa toista muodostaaksesi suorakulmion useammasta ruudusta.</div>
@@ -387,17 +396,25 @@
 
     <label data-i18n="lIndustry">Toimiala</label>
     <select id="fIndustry">
-      <option value="ravintola" data-i18n="indRavintola">Ravintola & kahvila</option>
-      <option value="kauneus" data-i18n="indKauneus">Kauneus & hyvinvointi</option>
-      <option value="rakentaminen" data-i18n="indRakentaminen">Rakentaminen & remontointi</option>
-      <option value="terveys" data-i18n="indTerveys">Terveys & lääkäripalvelut</option>
+      <option value="ravintola" data-i18n="indRavintola">Ravintola ja kahvila</option>
+      <option value="kauneus" data-i18n="indKauneus">Kauneus ja hyvinvointi</option>
+      <option value="rakentaminen" data-i18n="indRakentaminen">Rakentaminen ja remontointi</option>
+      <option value="terveys" data-i18n="indTerveys">Terveys ja lääkäripalvelut</option>
       <option value="kauppa" data-i18n="indKauppa">Vähittäiskauppa</option>
-      <option value="ajoneuvot" data-i18n="indAjoneuvot">Ajoneuvot & korjaamo</option>
-      <option value="it" data-i18n="indIt">IT & digitaaliset palvelut</option>
+      <option value="ajoneuvot" data-i18n="indAjoneuvot">Ajoneuvot ja korjaamo</option>
+      <option value="it" data-i18n="indIt">IT ja digitaaliset palvelut</option>
       <option value="koulutus" data-i18n="indKoulutus">Koulutus</option>
-      <option value="kiinteisto" data-i18n="indKiinteisto">Kiinteistö & asuminen</option>
-      <option value="talous" data-i18n="indTalous">Lakipalvelut & talous</option>
-      <option value="tapahtumat" data-i18n="indTapahtumat">Tapahtumat & viihde</option>
+      <option value="kiinteisto" data-i18n="indKiinteisto">Kiinteistö ja asuminen</option>
+      <option value="talous" data-i18n="indTalous">Lakipalvelut ja talous</option>
+      <option value="tapahtumat" data-i18n="indTapahtumat">Tapahtumat ja viihde</option>
+      <option value="kuljetus" data-i18n="indKuljetus">Kuljetus ja logistiikka</option>
+      <option value="siivous" data-i18n="indSiivous">Siivous ja kotipalvelut</option>
+      <option value="elainlaakari" data-i18n="indElainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
+      <option value="valokuvaus" data-i18n="indValokuvaus">Valokuvaus ja media</option>
+      <option value="matkailu" data-i18n="indMatkailu">Matkailu ja majoitus</option>
+      <option value="urheilu" data-i18n="indUrheilu">Urheilu ja liikunta</option>
+      <option value="kasityo" data-i18n="indKasityo">Käsityö ja taide</option>
+      <option value="maatalous" data-i18n="indMaatalous">Maatalous ja puutarha</option>
       <option value="muu" data-i18n="indMuu">Muu</option>
     </select>
 
@@ -772,7 +789,7 @@ let lang = 'fi';
 const STRINGS = {
   fi: {
     heroTitle: 'Näytä yrityksesi <span>koko Suomelle.</span>',
-    heroSub: 'Näy siellä, missä asiakkaasi jo etsivät sinua — jo 5€/kuukaudesta alkaen. Peruuta milloin vain. Jokainen ruutu saa oman verkkosivun, joka voi näkyä Googlen hakutuloksissa — halvempaa kuin yksi päivä Facebook-mainontaa.',
+    heroSub: 'PaikallisCanvas on kaupunkisi yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Jo 5€/kuukaudesta alkaen. Peruuta milloin vain.',
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
     value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
@@ -817,12 +834,16 @@ const STRINGS = {
     lTagline: 'Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span>',
     lColor: 'Tai valitse ruudun väri',
     lIndustry: 'Toimiala',
-    indRavintola: 'Ravintola & kahvila', indKauneus: 'Kauneus & hyvinvointi',
-    indRakentaminen: 'Rakentaminen & remontointi', indTerveys: 'Terveys & lääkäripalvelut',
-    indKauppa: 'Vähittäiskauppa', indAjoneuvot: 'Ajoneuvot & korjaamo',
-    indIt: 'IT & digitaaliset palvelut', indKoulutus: 'Koulutus',
-    indKiinteisto: 'Kiinteistö & asuminen', indTalous: 'Lakipalvelut & talous',
-    indTapahtumat: 'Tapahtumat & viihde', indMuu: 'Muu',
+    indRavintola: 'Ravintola ja kahvila', indKauneus: 'Kauneus ja hyvinvointi',
+    indRakentaminen: 'Rakentaminen ja remontointi', indTerveys: 'Terveys ja lääkäripalvelut',
+    indKauppa: 'Vähittäiskauppa', indAjoneuvot: 'Ajoneuvot ja korjaamo',
+    indIt: 'IT ja digitaaliset palvelut', indKoulutus: 'Koulutus',
+    indKiinteisto: 'Kiinteistö ja asuminen', indTalous: 'Lakipalvelut ja talous',
+    indTapahtumat: 'Tapahtumat ja viihde', indMuu: 'Muu',
+    indKuljetus: 'Kuljetus ja logistiikka', indSiivous: 'Siivous ja kotipalvelut',
+    indElainlaakari: 'Eläinlääkäri ja lemmikkipalvelut', indValokuvaus: 'Valokuvaus ja media',
+    indMatkailu: 'Matkailu ja majoitus', indUrheilu: 'Urheilu ja liikunta',
+    indKasityo: 'Käsityö ja taide', indMaatalous: 'Maatalous ja puutarha',
     allCategories: 'Kaikki toimialat',
     confirmText: 'Vahvistan, että tämä on rekisteröity yritys. Ensimmäinen kuukausi -50% ({halfPrice}€), sen jälkeen {price}€/kk kunnes peruutan.',
     confirmTextNoTrial: 'Vahvistan, että tämä on rekisteröity yritys. Veloitus {price}€/kk, kunnes peruutan.',
@@ -859,7 +880,7 @@ const STRINGS = {
   },
   en: {
     heroTitle: 'Put your business in front of <span>all of Finland.</span>',
-    heroSub: 'Get seen where your customers are already looking — starting from just €5/month. Cancel anytime. Every square is its own webpage that search engines can find — cheaper than one day of Facebook ads.',
+    heroSub: "PaikallisCanvas is a shared online board for your town's businesses — every square on the board is a different company. Buy your own square, add your logo and a link to your site, and customers can find you both on the board and on Google. From just €5/month. Cancel anytime.",
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: '1 page', value2: 'each square is its own indexed webpage, not just a pixel',
     value3b: '0 lock-in', value3: 'cancel the subscription anytime, no contract',
@@ -904,12 +925,16 @@ const STRINGS = {
     lTagline: 'Short tagline <span style="font-weight:400;color:#8a8168;">(optional, shown on your page)</span>',
     lColor: 'Or pick a square color',
     lIndustry: 'Industry',
-    indRavintola: 'Restaurant & café', indKauneus: 'Beauty & wellness',
-    indRakentaminen: 'Construction & renovation', indTerveys: 'Health & medical',
-    indKauppa: 'Retail', indAjoneuvot: 'Vehicles & repair',
-    indIt: 'IT & digital services', indKoulutus: 'Education',
-    indKiinteisto: 'Real estate & housing', indTalous: 'Legal & financial services',
-    indTapahtumat: 'Events & entertainment', indMuu: 'Other',
+    indRavintola: 'Restaurant and café', indKauneus: 'Beauty and wellness',
+    indRakentaminen: 'Construction and renovation', indTerveys: 'Health and medical',
+    indKauppa: 'Retail', indAjoneuvot: 'Vehicles and repair',
+    indIt: 'IT and digital services', indKoulutus: 'Education',
+    indKiinteisto: 'Real estate and housing', indTalous: 'Legal and financial services',
+    indTapahtumat: 'Events and entertainment', indMuu: 'Other',
+    indKuljetus: 'Transport and logistics', indSiivous: 'Cleaning and home services',
+    indElainlaakari: 'Veterinary and pet services', indValokuvaus: 'Photography and media',
+    indMatkailu: 'Tourism and accommodation', indUrheilu: 'Sports and fitness',
+    indKasityo: 'Crafts and art', indMaatalous: 'Agriculture and garden',
     allCategories: 'All categories',
     confirmText: 'I confirm this is a registered business. First month 50% off (€{halfPrice}), then €{price}/month until I cancel.',
     confirmTextNoTrial: 'I confirm this is a registered business, billed €{price}/month until I cancel.',

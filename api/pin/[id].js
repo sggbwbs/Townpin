@@ -7,12 +7,16 @@ function escapeHtml(str) {
 }
 
 const INDUSTRY_LABELS = {
-  ravintola: 'Ravintola & kahvila', kauneus: 'Kauneus & hyvinvointi',
-  rakentaminen: 'Rakentaminen & remontointi', terveys: 'Terveys & lääkäripalvelut',
-  kauppa: 'Vähittäiskauppa', ajoneuvot: 'Ajoneuvot & korjaamo',
-  it: 'IT & digitaaliset palvelut', koulutus: 'Koulutus',
-  kiinteisto: 'Kiinteistö & asuminen', talous: 'Lakipalvelut & talous',
-  tapahtumat: 'Tapahtumat & viihde', muu: 'Muu'
+  ravintola: 'Ravintola ja kahvila', kauneus: 'Kauneus ja hyvinvointi',
+  rakentaminen: 'Rakentaminen ja remontointi', terveys: 'Terveys ja lääkäripalvelut',
+  kauppa: 'Vähittäiskauppa', ajoneuvot: 'Ajoneuvot ja korjaamo',
+  it: 'IT ja digitaaliset palvelut', koulutus: 'Koulutus',
+  kiinteisto: 'Kiinteistö ja asuminen', talous: 'Lakipalvelut ja talous',
+  tapahtumat: 'Tapahtumat ja viihde', muu: 'Muu',
+  kuljetus: 'Kuljetus ja logistiikka', siivous: 'Siivous ja kotipalvelut',
+  elainlaakari: 'Eläinlääkäri ja lemmikkipalvelut', valokuvaus: 'Valokuvaus ja media',
+  matkailu: 'Matkailu ja majoitus', urheilu: 'Urheilu ja liikunta',
+  kasityo: 'Käsityö ja taide', maatalous: 'Maatalous ja puutarha'
 };
 
 module.exports = async (req, res) => {

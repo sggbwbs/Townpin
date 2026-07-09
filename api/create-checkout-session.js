@@ -11,7 +11,9 @@ const MAX_SQUARES_PER_PURCHASE = 40; // safety cap against fat-finger selections
 // validation so a direct API call can't store junk values here.
 const ALLOWED_INDUSTRIES = [
   'ravintola', 'kauneus', 'rakentaminen', 'terveys', 'kauppa', 'ajoneuvot',
-  'it', 'koulutus', 'kiinteisto', 'talous', 'tapahtumat', 'muu'
+  'it', 'koulutus', 'kiinteisto', 'talous', 'tapahtumat', 'kuljetus',
+  'siivous', 'elainlaakari', 'valokuvaus', 'matkailu', 'urheilu', 'kasityo',
+  'maatalous', 'muu'
 ];
 
 // Founding-member offer: 50% off the first month for early businesses.
