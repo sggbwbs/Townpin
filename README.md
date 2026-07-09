@@ -493,3 +493,64 @@ Wasn't earning its space — removed it entirely from the board page. The
 grid now gets the full content width (up to 800px, previously capped at
 640px when it had to share the row with the map), so squares render
 correspondingly larger too.
+
+## Cancellation policy — what actually happens now
+
+This was a real gap, worth being honest about: **the "no contract, no
+notice period" copy was never actually backed by a coded policy.** There
+was no self-service cancel button anywhere, meaning the only way a
+cancellation happened was you manually cancelling in the Stripe Dashboard
+— and Stripe gives you a choice there each time ("cancel immediately" vs
+"cancel at period end"), so the actual outcome depended on which one you
+happened to pick, not on anything guaranteed by the code.
+
+**Fixed now, matching the fair interpretation** (they paid for the period,
+they keep it): `/manage` has a real **"Cancel my subscription"** button.
+It calls Stripe's API to set `cancel_at_period_end: true` — the
+subscription keeps running as normal (squares stay live) until the end of
+the period already paid for, then Stripe cancels it automatically and the
+existing webhook logic (unchanged, already handled this correctly) expires
+the squares at that point. No further charge happens.
+
+**If you ever need to cancel someone's subscription manually** for any
+reason (a support request, a dispute, etc.), do it the same way: in
+Stripe Dashboard, choose **"Cancel at end of billing period,"** not
+"Cancel immediately" — that keeps every cancellation consistent with what
+the site actually promises, regardless of whether it happened through
+`/manage` or by your own hand.
+
+## Two payment plans: monthly subscription or prepaid term
+
+Businesses now choose between two fundamentally different payment models
+in the claim form:
+
+**Monthly subscription** (unchanged) — ongoing, cancel anytime via
+`/manage`, keeps working until the end of the period already paid for.
+
+**Pay upfront** — a genuine one-time payment (not a subscription at all,
+`mode: 'payment'` in Stripe) covering a fixed term:
+- 3 months — 10% off
+- 6 months — 15% off
+- 12 months — pay for 10, get 12 (~17% off, framed as "2 months free")
+
+**How prepaid squares expire:** since there's no subscription to cancel,
+the square's `active_until` date is stored directly, and the existing
+daily cleanup cron (`api/cleanup.js`) now also expires any prepaid square
+past its term — extended the existing cron rather than adding a new one,
+since Vercel Hobby only allows once-daily cron jobs and we're already
+close to the serverless function limit.
+
+**One deliberate design choice:** the 50%-off-first-month founding offer
+only applies to the monthly plan, not prepaid — stacking two different
+discount mechanisms on the same purchase would make both harder to
+explain and reason about. Prepaid already has its own clear incentive.
+
+**`/manage` now shows the right thing for each plan type** — an active
+subscription still gets the "Cancel my subscription" button; a prepaid
+term instead shows a read-only note with the exact date it ends and a
+reminder that it won't auto-renew.
+
+**Where this is explained on the site:** a new FAQ entry compares the two
+plans in plain language, and the claim form itself shows the live price
+and per-term savings as soon as a plan is selected — no need to dig
+through a pricing page to understand what you're signing up for.

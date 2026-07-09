@@ -130,6 +130,23 @@ function render(squares, towns){
       <span class="saved" id="savedBlurb">✓ Saved</span>
       <div class="err" id="errBlurb"></div>
     </div>
+
+    ${s.subscription_id ? `
+    <div class="card">
+      <h2>Cancel subscription</h2>
+      <p class="sub" style="margin-bottom:12px;">
+        No contract, no notice period. If you cancel, your square(s) stay live and visible for the rest of the period you've already paid for — then they're removed automatically. You won't be charged again.
+      </p>
+      <button class="danger" style="border:1px solid #c1503a;padding:9px 16px;border-radius:7px;" onclick="cancelSubscription()">Cancel my subscription</button>
+      <span class="saved" id="savedCancel">✓ Done</span>
+      <div class="err" id="errCancel"></div>
+    </div>` : (s.active_until ? `
+    <div class="card">
+      <h2>Prepaid term</h2>
+      <p class="sub">
+        This was paid upfront for a fixed term and does not auto-renew. Your square(s) stay live until <b>${new Date(s.active_until).toLocaleDateString()}</b>, then become available for someone else to claim. You can come back and buy again anytime before or after that date.
+      </p>
+    </div>` : '')}
   `;
 
   const colorRow = document.getElementById('colorRow');
@@ -261,6 +278,19 @@ async function clearBlurb(){
     await post({ action: 'clear_blurb' });
     flash('savedBlurb');
     load();
+  }catch(e){ errBox.textContent = e.message; }
+}
+
+async function cancelSubscription(){
+  const errBox = document.getElementById('errCancel');
+  errBox.textContent = '';
+  if (!confirm('Cancel your subscription? Your square(s) will stay live until the end of your current billing period, then be removed. You will not be charged again.')) return;
+  try{
+    const data = await post({ action: 'cancel_subscription' });
+    const endsDate = data.endsAt ? new Date(data.endsAt * 1000).toLocaleDateString() : 'the end of your current period';
+    flash('savedCancel');
+    errBox.style.color = '#4a7a5c';
+    errBox.textContent = `Cancelled. Your square(s) stay live until ${endsDate}.`;
   }catch(e){ errBox.textContent = e.message; }
 }
 

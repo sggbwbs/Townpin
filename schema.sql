@@ -90,3 +90,8 @@ on conflict (id) do nothing;
 -- ==== Business industry/category, for filtering the board and for context on pin pages ====
 alter table squares add column if not exists industry text;
 create index if not exists squares_industry_idx on squares (town_id, industry);
+
+-- ==== Prepaid multi-month terms (one-time payment, no subscription) ====
+-- Null = normal ongoing monthly subscription. Non-null = this square was
+-- paid upfront for a fixed term and should auto-expire on this date.
+alter table squares add column if not exists active_until timestamptz;

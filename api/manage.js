@@ -1,6 +1,9 @@
+const Stripe = require('stripe');
 const { supabase } = require('./_db');
 const { isSuspicious } = require('./_linkCheck');
 const { generateCompanyBlurb } = require('./_companyInfo');
+
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const MAX_TAGLINE_LENGTH = 120;
 const MAX_BLURB_LENGTH = 400;
@@ -20,7 +23,7 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     const { data: squares, error } = await supabase
       .from('squares')
-      .select('id, idx, company_name, website_url, tagline, logo_url, color, ai_blurb_fi, ai_blurb_en, ai_blurb_source, status, town_id')
+      .select('id, idx, company_name, website_url, tagline, logo_url, color, ai_blurb_fi, ai_blurb_en, ai_blurb_source, status, town_id, subscription_id, active_until')
       .eq('edit_token', token)
       .eq('status', 'active');
     if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }
@@ -38,7 +41,7 @@ module.exports = async (req, res) => {
   if (req.method === 'POST') {
     const { data: squares, error } = await supabase
       .from('squares')
-      .select('id, company_name, website_url')
+      .select('id, company_name, website_url, subscription_id')
       .eq('edit_token', token)
       .eq('status', 'active');
     if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }
@@ -47,6 +50,19 @@ module.exports = async (req, res) => {
     }
     const ids = squares.map(s => s.id);
     const { tagline, logoUrl, color, action, aiBlurbFi, aiBlurbEn } = req.body || {};
+
+    if (action === 'cancel_subscription') {
+      const subscriptionId = squares[0].subscription_id;
+      if (!subscriptionId) return res.status(400).json({ error: 'No subscription found for these squares.' });
+      try {
+        const sub = await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+        return res.status(200).json({ ok: true, endsAt: sub.current_period_end });
+      } catch (stripeErr) {
+        console.error(stripeErr);
+        return res.status(500).json({ error: 'Could not cancel — please contact us directly.' });
+      }
+    }
+
     const update = {};
 
     if (typeof tagline === 'string') {

@@ -26,6 +26,10 @@ const ALLOWED_INDUSTRIES = [
 // create a coupon with "50% off", duration "Once", copy its ID into
 // STRIPE_FOUNDING_COUPON_ID. Leave that env var unset to turn the offer
 // off later -- nothing else needs to change.
+//
+// Deliberately does NOT apply to prepaid terms below -- stacking it with
+// the prepaid discount would muddy both offers, and prepaid already has
+// its own clear incentive.
 const FOUNDING_COUPON_ID = process.env.STRIPE_FOUNDING_COUPON_ID;
 
 // Volume pricing -- more squares in one purchase costs less per square.
@@ -35,6 +39,24 @@ const FOUNDING_COUPON_ID = process.env.STRIPE_FOUNDING_COUPON_ID;
 function pricePerSquareEur(count) {
   if (count >= 4) return 4;
   return 5;
+}
+
+// Prepaid multi-month terms: pay once upfront instead of an ongoing
+// subscription. Discount is layered on top of the per-square rate above.
+// Kept as a lookup table (not a formula) so the exact numbers are easy to
+// see and change in one place, and to keep the 12-month tier framed as
+// "2 months free" (clean, easy to explain) rather than an odd percentage.
+const PREPAID_TERMS = {
+  3:  { discountPct: 0.10 },
+  6:  { discountPct: 0.15 },
+  12: { monthsCharged: 10 } // pay for 10, get 12 -- ~16.7% off, framed as "2 months free"
+};
+
+function calculatePrepaidTotal(monthlyTotal, months) {
+  const term = PREPAID_TERMS[months];
+  if (!term) return null;
+  if (term.monthsCharged) return Math.round(monthlyTotal * term.monthsCharged * 100) / 100;
+  return Math.round(monthlyTotal * months * (1 - term.discountPct) * 100) / 100;
 }
 
 // For "post to additional towns": pick N random empty squares in that
@@ -68,7 +90,10 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { townId, indices, additionalTowns, companyName, websiteUrl, email, logoUrl, color, tagline, industry } = req.body;
+    const {
+      townId, indices, additionalTowns, companyName, websiteUrl, email,
+      logoUrl, color, tagline, industry, planType, prepaidMonths
+    } = req.body;
 
     if (typeof townId !== 'number' && typeof townId !== 'string') {
       return res.status(400).json({ error: 'Missing town.' });
@@ -92,6 +117,10 @@ module.exports = async (req, res) => {
     }
     if (industry && !ALLOWED_INDUSTRIES.includes(industry)) {
       return res.status(400).json({ error: 'Invalid industry value.' });
+    }
+    const isPrepaid = planType === 'prepaid';
+    if (isPrepaid && !PREPAID_TERMS[prepaidMonths]) {
+      return res.status(400).json({ error: 'Invalid prepaid term -- choose 3, 6, or 12 months.' });
     }
     const linkProblem = isSuspicious(websiteUrl);
     if (linkProblem) return res.status(400).json({ error: linkProblem });
@@ -179,32 +208,61 @@ module.exports = async (req, res) => {
 
     const squareIds = inserted.map(r => r.id).join(',');
     const actualCount = inserted.length; // may be slightly less than requested if a full additional town got skipped
+    const perSquare = pricePerSquareEur(actualCount);
+    const monthlyTotal = actualCount * perSquare;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      customer_email: email,
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          unit_amount: pricePerSquareEur(actualCount) * 100,
-          recurring: { interval: 'month' },
-          product_data: {
-            name: extraTowns.length > 0
-              ? `PaikallisCanvas squares (x${actualCount} across multiple towns) — ${companyName}`
-              : (actualCount === 1
-                ? `PaikallisCanvas square — ${companyName}`
-                : `PaikallisCanvas squares (x${actualCount}, €${pricePerSquareEur(actualCount)}/square) — ${companyName}`),
-            description: 'Square(s) on your town\'s community board, renewed monthly.'
-          }
-        },
-        quantity: actualCount
-      }],
-      metadata: { squareIds },
-      subscription_data: { metadata: { squareIds } },
-      ...(FOUNDING_COUPON_ID ? { discounts: [{ coupon: FOUNDING_COUPON_ID }] } : {}),
-      success_url: `${SITE_URL}/?claimed=success&token=${editToken}`,
-      cancel_url: `${SITE_URL}/?claimed=cancelled`
-    });
+    let session;
+
+    if (isPrepaid) {
+      const totalCharge = calculatePrepaidTotal(monthlyTotal, prepaidMonths);
+      const activeUntil = new Date();
+      activeUntil.setMonth(activeUntil.getMonth() + Number(prepaidMonths));
+
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment', // one-time charge, not a subscription -- no auto-renewal
+        customer_email: email,
+        line_items: [{
+          price_data: {
+            currency: 'eur',
+            unit_amount: Math.round(totalCharge * 100),
+            product_data: {
+              name: `PaikallisCanvas — ${actualCount} square(s), ${prepaidMonths}-month prepaid term — ${companyName}`,
+              description: `Prepaid for ${prepaidMonths} months, ends ${activeUntil.toISOString().slice(0, 10)}. Does not auto-renew.`
+            }
+          },
+          quantity: 1
+        }],
+        metadata: { squareIds, activeUntil: activeUntil.toISOString() },
+        success_url: `${SITE_URL}/?claimed=success&token=${editToken}`,
+        cancel_url: `${SITE_URL}/?claimed=cancelled`
+      });
+    } else {
+      session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        customer_email: email,
+        line_items: [{
+          price_data: {
+            currency: 'eur',
+            unit_amount: perSquare * 100,
+            recurring: { interval: 'month' },
+            product_data: {
+              name: extraTowns.length > 0
+                ? `PaikallisCanvas squares (x${actualCount} across multiple towns) — ${companyName}`
+                : (actualCount === 1
+                  ? `PaikallisCanvas square — ${companyName}`
+                  : `PaikallisCanvas squares (x${actualCount}, €${perSquare}/square) — ${companyName}`),
+              description: 'Square(s) on your town\'s community board, renewed monthly.'
+            }
+          },
+          quantity: actualCount
+        }],
+        metadata: { squareIds },
+        subscription_data: { metadata: { squareIds } },
+        ...(FOUNDING_COUPON_ID ? { discounts: [{ coupon: FOUNDING_COUPON_ID }] } : {}),
+        success_url: `${SITE_URL}/?claimed=success&token=${editToken}`,
+        cancel_url: `${SITE_URL}/?claimed=cancelled`
+      });
+    }
 
     await supabase.from('squares').update({ stripe_session_id: session.id }).in('id', inserted.map(r => r.id));
 

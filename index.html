@@ -181,6 +181,18 @@
   .townChip .qtyNum{min-width:14px;text-align:center;}
   .townChip span.rm{cursor:pointer;background:rgba(0,0,0,0.1);border-radius:50%;width:18px;height:18px;
     display:flex;align-items:center;justify-content:center;font-size:12px;}
+  .planBox{margin-top:16px;}
+  .planToggle{display:flex;gap:8px;margin-top:6px;}
+  .planOpt{flex:1;padding:10px;border:1px solid #d8cfb4;border-radius:8px;background:#fffdf8;
+    font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;color:#5c5440;cursor:pointer;}
+  .planOpt.selected{background:var(--amber);border-color:var(--amber-deep);color:#2a1c0d;}
+  #prepaidTermRow{display:flex;gap:8px;margin-top:8px;}
+  .termOpt{flex:1;padding:9px 6px;border:1px solid #d8cfb4;border-radius:8px;background:#fffdf8;
+    font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;font-weight:600;color:#5c5440;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .termOpt .save{font-size:11px;font-weight:700;color:#4a7a5c;}
+  .termOpt.selected{background:var(--amber);border-color:var(--amber-deep);color:#2a1c0d;}
+  .termOpt.selected .save{color:#2a1c0d;}
   #modal .highlightBox{margin-top:16px;padding:12px 14px;background:#efe8d3;border:1px solid #ddd0a8;
     border-radius:9px;display:flex;gap:10px;align-items:flex-start;}
   #modal .highlightBox input{width:auto;margin-top:3px;}
@@ -359,6 +371,8 @@
       <p data-i18n="faqA4">Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.</p></div>
     <div class="faqItem"><b data-i18n="faqQ5">Näynkö heti Google-haussa?</b>
       <p data-i18n="faqA5">Sivusi julkaistaan heti, mutta hakukoneiden indeksointi voi viedä muutamasta päivästä pariin viikkoon — emme voi luvata tarkkaa aikataulua tai sijoitusta hakutuloksissa.</p></div>
+    <div class="faqItem"><b data-i18n="faqQ6">Kuukausitilaus vai kertamaksu — kumpi kannattaa?</b>
+      <p data-i18n="faqA6">Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.</p></div>
   </div>
 </main>
 
@@ -445,6 +459,19 @@
       <div id="additionalTownsList"></div>
     </div>
 
+    <div class="planBox">
+      <label data-i18n="lPlanType">Maksutapa</label>
+      <div class="planToggle">
+        <button type="button" class="planOpt selected" id="planMonthlyBtn" data-i18n="planMonthly">Kuukausitilaus</button>
+        <button type="button" class="planOpt" id="planPrepaidBtn" data-i18n="planPrepaid">Maksa etukäteen</button>
+      </div>
+      <div id="prepaidTermRow" style="display:none;">
+        <button type="button" class="termOpt" data-months="3">3 kk <span class="save">−10%</span></button>
+        <button type="button" class="termOpt" data-months="6">6 kk <span class="save">−15%</span></button>
+        <button type="button" class="termOpt" data-months="12">12 kk <span class="save" data-i18n="twoMonthsFree">2 kk ilmaiseksi</span></button>
+      </div>
+    </div>
+
     <div class="highlightBox">
       <input type="checkbox" id="fBusinessConfirm" required />
       <p id="confirmText">Vahvistan, että tämä on rekisteröity yritys. Ensimmäinen kuukausi -50% (2,50€), sen jälkeen 5€/kk kunnes peruutan.</p>
@@ -452,7 +479,7 @@
 
     <div id="trialNote" data-i18n="trialNote">🎉 -50% ensimmäisestä kuukaudesta</div>
     <div class="price" id="priceDisplay">5€<span style="font-size:14px;color:#8a8168;font-weight:400;" data-i18n="perMonth"> / kk</span></div>
-    <div class="priceNote" data-i18n="renewNote">Uusiutuu automaattisesti. Peruuta milloin vain — ruudut vapautuvat takaisin.</div>
+    <div class="priceNote" id="priceNote" data-i18n="renewNote">Uusiutuu automaattisesti. Peruuta milloin vain — ruudut vapautuvat takaisin.</div>
 
     <div class="err" id="formErr"></div>
     <button class="submitBtn" id="submitBtn" data-i18n="continueBtn">Jatka maksuun →</button>
@@ -841,6 +868,8 @@ const STRINGS = {
     faqA4: 'Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.',
     faqQ5: 'Näynkö heti Google-haussa?',
     faqA5: 'Sivusi julkaistaan heti, mutta hakukoneiden indeksointi voi viedä muutamasta päivästä pariin viikkoon — emme voi luvata tarkkaa aikataulua tai sijoitusta hakutuloksissa.',
+    faqQ6: 'Kuukausitilaus vai kertamaksu — kumpi kannattaa?',
+    faqA6: 'Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.',
     otherTown: 'Etsitkö toista kaupunkia? →',
     townPlaceholder: 'Kaupungin nimi (esim. Tampere)',
     viewBoard: 'Katso taulu →',
@@ -860,6 +889,12 @@ const STRINGS = {
     uploading: 'Ladataan…',
     lTagline: 'Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span>',
     lColor: 'Tai valitse ruudun väri',
+    lPlanType: 'Maksutapa',
+    planMonthly: 'Kuukausitilaus',
+    planPrepaid: 'Maksa etukäteen',
+    twoMonthsFree: '2 kk ilmaiseksi',
+    prepaidRenewNote: 'Kertamaksu, ei automaattista uusiutumista. Ruudut ovat käytössä valitsemasi ajanjakson loppuun asti.',
+    prepaidConfirmText: 'Vahvistan, että tämä on rekisteröity yritys. Kertamaksu {price}€ ({months} kk), ei automaattista uusiutumista.',
     lAdditionalTowns: 'Julkaise myös muissa kaupungeissa',
     additionalTownsHint: 'Sama ilmoitus, lisää kaupunkeja — valitse ruutujen määrä per kaupunki, järjestelmä valitsee ne puolestasi.',
     additionalTownPlaceholder: 'Kaupungin nimi…',
@@ -938,6 +973,8 @@ const STRINGS = {
     faqA4: 'Yes — every listing is automatically screened before it goes live, and inappropriate content can be removed at any time.',
     faqQ5: 'Will I show up on Google right away?',
     faqA5: 'Your page goes live immediately, but search engine indexing can take anywhere from a few days to a couple of weeks — we can\'t promise an exact timeline or ranking.',
+    faqQ6: 'Monthly subscription or one-time payment — which is better?',
+    faqA6: 'Both work on the same square. The monthly subscription bills every month and you can cancel anytime. Prepaid lets you pay for a 3, 6, or 12-month term upfront at a discount (12 months = 2 months free) — it doesn\'t auto-renew, so there\'s nothing to remember to cancel.',
     otherTown: 'Looking for another town? →',
     townPlaceholder: 'Enter your town (e.g. Tampere)',
     viewBoard: 'View board →',
@@ -957,6 +994,12 @@ const STRINGS = {
     uploading: 'Uploading…',
     lTagline: 'Short tagline <span style="font-weight:400;color:#8a8168;">(optional, shown on your page)</span>',
     lColor: 'Or pick a square color',
+    lPlanType: 'Payment plan',
+    planMonthly: 'Monthly subscription',
+    planPrepaid: 'Pay upfront',
+    twoMonthsFree: '2 months free',
+    prepaidRenewNote: 'One-time payment, no auto-renewal. Squares stay live until the end of the term you picked.',
+    prepaidConfirmText: 'I confirm this is a registered business. One-time payment of €{price} ({months} months), no auto-renewal.',
     lAdditionalTowns: 'Also post in additional towns',
     additionalTownsHint: 'Same listing, more towns — choose how many squares per town, automatically placed for you.',
     additionalTownPlaceholder: 'Town name…',
@@ -1326,6 +1369,16 @@ function openClaimModal(){
   if (selectedIndices.length === 0) return;
   additionalTowns = []; // fresh modal -> fresh "also post in" list
   renderAdditionalTownsList();
+
+  // fresh modal -> reset plan choice back to the default (monthly)
+  selectedPlanType = 'monthly';
+  selectedPrepaidMonths = 3;
+  document.getElementById('planMonthlyBtn').classList.add('selected');
+  document.getElementById('planPrepaidBtn').classList.remove('selected');
+  document.getElementById('prepaidTermRow').style.display = 'none';
+  document.querySelectorAll('.termOpt').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.termOpt[data-months="3"]').classList.add('selected');
+
   updateModalSummary();
   updateModalPricing();
 
@@ -1351,16 +1404,69 @@ function updateModalSummary(){
   document.getElementById('modalSummary').textContent = summary;
 }
 
+const PREPAID_TERMS_CLIENT = {
+  3:  { discountPct: 0.10 },
+  6:  { discountPct: 0.15 },
+  12: { monthsCharged: 10 }
+};
+function calculatePrepaidTotalClient(monthlyTotal, months){
+  const term = PREPAID_TERMS_CLIENT[months];
+  if (!term) return monthlyTotal * months;
+  if (term.monthsCharged) return Math.round(monthlyTotal * term.monthsCharged * 100) / 100;
+  return Math.round(monthlyTotal * months * (1 - term.discountPct) * 100) / 100;
+}
+
+let selectedPlanType = 'monthly';
+let selectedPrepaidMonths = 3;
+
+document.getElementById('planMonthlyBtn').addEventListener('click', ()=>{
+  selectedPlanType = 'monthly';
+  document.getElementById('planMonthlyBtn').classList.add('selected');
+  document.getElementById('planPrepaidBtn').classList.remove('selected');
+  document.getElementById('prepaidTermRow').style.display = 'none';
+  updateModalPricing();
+});
+document.getElementById('planPrepaidBtn').addEventListener('click', ()=>{
+  selectedPlanType = 'prepaid';
+  document.getElementById('planPrepaidBtn').classList.add('selected');
+  document.getElementById('planMonthlyBtn').classList.remove('selected');
+  document.getElementById('prepaidTermRow').style.display = 'flex';
+  updateModalPricing();
+});
+document.querySelectorAll('.termOpt').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    selectedPrepaidMonths = Number(btn.dataset.months);
+    document.querySelectorAll('.termOpt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    updateModalPricing();
+  });
+});
+// default the first term button to selected since prepaid defaults to 3 months
+document.querySelector('.termOpt[data-months="3"]').classList.add('selected');
+
 function updateModalPricing(){
   const totalCount = selectedIndices.length + additionalTowns.reduce((sum, a) => sum + a.count, 0);
   const perSquare = pricePerSquareEur(totalCount);
-  const price = totalCount * perSquare;
+  const monthlyTotal = totalCount * perSquare;
+  const discountNoteEl = document.getElementById('trialNote');
+
+  if (selectedPlanType === 'prepaid'){
+    const totalCharge = calculatePrepaidTotalClient(monthlyTotal, selectedPrepaidMonths);
+    document.getElementById('priceDisplay').innerHTML = `${totalCharge}€<span style="font-size:14px;color:#8a8168;font-weight:400;"> ${lang==='fi' ? `(${selectedPrepaidMonths} kk yhteensä)` : `(${selectedPrepaidMonths} months total)`}</span>`;
+    document.getElementById('priceNote').textContent = t('prepaidRenewNote');
+    if (discountNoteEl) discountNoteEl.style.display = 'none'; // founding discount doesn't stack with prepaid
+    document.getElementById('confirmText').textContent = t('prepaidConfirmText')
+      .replace('{price}', totalCharge).replace('{months}', selectedPrepaidMonths);
+    return;
+  }
+
+  const price = monthlyTotal;
   const rateNote = perSquare < 5
     ? (lang === 'fi' ? ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(${perSquare}€/ruutu, alennushinta)</span>` : ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(€${perSquare}/square, discounted)</span>`)
     : '';
   document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:#8a8168;font-weight:400;">${t('perMonth')}</span>${rateNote}`;
+  document.getElementById('priceNote').textContent = t('renewNote');
   const halfPrice = Math.round(price / 2 * 100) / 100;
-  const discountNoteEl = document.getElementById('trialNote');
   if (discountNoteEl) discountNoteEl.style.display = FOUNDING_DISCOUNT_ACTIVE ? 'inline-block' : 'none';
   document.getElementById('confirmText').textContent = FOUNDING_DISCOUNT_ACTIVE
     ? t('confirmText').replace('{price}', price).replace('{halfPrice}', halfPrice)
@@ -1596,6 +1702,8 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
         townId: currentTown.id,
         indices: selectedIndices,
         additionalTowns: additionalTowns.map(a => ({ townId: a.id, count: a.count })),
+        planType: selectedPlanType,
+        prepaidMonths: selectedPlanType === 'prepaid' ? selectedPrepaidMonths : null,
         companyName: company,
         websiteUrl: website,
         email,

@@ -36,11 +36,13 @@ module.exports = async (req, res) => {
         const squareIdsRaw = session.metadata && session.metadata.squareIds;
         if (squareIdsRaw) {
           const squareIds = squareIdsRaw.split(',').map(s => s.trim()).filter(Boolean);
+          const activeUntil = session.metadata && session.metadata.activeUntil;
           await supabase.from('squares').update({
             status: 'active',
             reserved_until: null,
             stripe_customer_id: session.customer || null,
-            subscription_id: session.subscription || null
+            subscription_id: session.subscription || null,
+            active_until: activeUntil || null // prepaid terms only -- null for ongoing subscriptions
           }).in('id', squareIds);
 
           // Best-effort company lookup -- runs after the purchase is already
