@@ -132,18 +132,18 @@
   }
 
   /* ---- floating selection bar ---- */
-  #selectionBar, #cartBar{
+  #selectionBar{
     position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:900;display:none;
     background:var(--paper);color:#26210f;padding:14px 20px;border-radius:20px;
     box-shadow:var(--shadow-lg);align-items:center;gap:10px 16px;font-family:'Space Grotesk',sans-serif;
     max-width:min(92vw, 480px);flex-wrap:wrap;justify-content:center;
   }
-  #selectionBar.open, #cartBar.open{display:flex;}
-  #selectionBar .count, #cartBar .count{font-weight:700;font-size:14.5px;flex:1 1 100%;text-align:center;}
-  #selectionBar button, #cartBar button{border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;
+  #selectionBar.open{display:flex;}
+  #selectionBar .count{font-weight:700;font-size:14.5px;flex:1 1 100%;text-align:center;}
+  #selectionBar button{border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;
     font-weight:700;font-size:13.5px;cursor:pointer;white-space:nowrap;flex:0 0 auto;}
-  #selectionBar .go, #cartBar .go{background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;}
-  #selectionBar .cancel, #cartBar .cancel{background:none;color:#8a8168;text-decoration:underline;padding:9px 6px;}
+  #selectionBar .go{background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;}
+  #selectionBar .cancel{background:none;color:#8a8168;text-decoration:underline;padding:9px 6px;}
 
   /* ---- modal ---- */
   #overlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:2000;display:none;
@@ -168,6 +168,19 @@
   #modal .note{font-size:11.5px;color:#8a8168;margin:8px 0;}
   #modal .swatch{width:30px;height:30px;border-radius:7px;cursor:pointer;border:2px solid transparent;}
   #modal .swatch.selected{border-color:#26210f;box-shadow:0 0 0 2px var(--paper),0 0 0 3px #26210f;}
+  .additionalTownsBox{margin-top:16px;padding:12px 14px;background:#f5f1e2;border:1px solid #e4dcc4;border-radius:9px;}
+  .additionalTownsBox input[type=text]{width:100%;padding:9px 11px;border:1px solid #d8cfb4;border-radius:7px;
+    font-size:13.5px;background:#fffdf8;font-family:'IBM Plex Sans',sans-serif;}
+  #additionalTownSuggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fffdf8;
+    border:1px solid #d8cfb4;border-radius:8px;z-index:20;display:none;max-height:180px;overflow-y:auto;}
+  #additionalTownSuggestions.open{display:block;}
+  #additionalTownSuggestions div{padding:8px 12px;cursor:pointer;font-size:13px;color:#3a331d;}
+  #additionalTownSuggestions div:hover{background:#efe8d3;}
+  #additionalTownsList{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .townChip{display:flex;align-items:center;gap:6px;background:#e4dcc4;color:#3a331d;font-size:12.5px;
+    font-weight:600;padding:5px 6px 5px 12px;border-radius:999px;}
+  .townChip span.rm{cursor:pointer;background:rgba(0,0,0,0.1);border-radius:50%;width:18px;height:18px;
+    display:flex;align-items:center;justify-content:center;font-size:12px;}
   #modal .highlightBox{margin-top:16px;padding:12px 14px;background:#efe8d3;border:1px solid #ddd0a8;
     border-radius:9px;display:flex;gap:10px;align-items:flex-start;}
   #modal .highlightBox input{width:auto;margin-top:3px;}
@@ -353,13 +366,7 @@
 <div id="selectionBar">
   <span class="count" id="selectionCount">0 ruutua</span>
   <button class="cancel" id="selectionCancel" data-i18n="cancelSelection">Peruuta</button>
-  <button class="go" id="selectionGo" data-i18n="addToCart">Lisää koriin →</button>
-</div>
-
-<div id="cartBar">
-  <span class="count" id="cartCount">0 ruutua korissa</span>
-  <button class="cancel" id="cartClear" data-i18n="clearCart">Tyhjennä kori</button>
-  <button class="go" id="cartCheckout" data-i18n="continueSelection">Jatka maksuun →</button>
+  <button class="go" id="selectionGo" data-i18n="continueSelection">Jatka →</button>
 </div>
 
 <div id="overlay">
@@ -428,6 +435,16 @@
 
     <label data-i18n="lColor">Tai valitse ruudun väri</label>
     <div class="colorRow" id="colorRow"></div>
+
+    <div class="additionalTownsBox">
+      <label data-i18n="lAdditionalTowns">Julkaise myös muissa kaupungeissa <span style="font-weight:400;color:#8a8168;">(valinnainen)</span></label>
+      <p class="note" data-i18n="additionalTownsHint" style="margin:0 0 8px;">Sama ilmoitus, lisää kaupunkeja — yksi ruutu per kaupunki, järjestelmä valitsee sen puolestasi.</p>
+      <div style="position:relative;">
+        <input type="text" id="additionalTownInput" autocomplete="off" data-i18n-placeholder="additionalTownPlaceholder" placeholder="Kaupungin nimi…" />
+        <div id="additionalTownSuggestions"></div>
+      </div>
+      <div id="additionalTownsList"></div>
+    </div>
 
     <div class="highlightBox">
       <input type="checkbox" id="fBusinessConfirm" required />
@@ -791,7 +808,6 @@ const FINNISH_CITIES = [
 let currentTown = null;
 let currentSquares = [];
 let selectedIndices = [];
-let cart = []; // {townId, townName, indices} entries, one per town added so far
 let chosenColor = SWATCHES[0];
 let lang = 'fi';
 
@@ -845,6 +861,9 @@ const STRINGS = {
     uploading: 'Ladataan…',
     lTagline: 'Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span>',
     lColor: 'Tai valitse ruudun väri',
+    lAdditionalTowns: 'Julkaise myös muissa kaupungeissa',
+    additionalTownsHint: 'Sama ilmoitus, lisää kaupunkeja — yksi ruutu per kaupunki, järjestelmä valitsee sen puolestasi.',
+    additionalTownPlaceholder: 'Kaupungin nimi…',
     lIndustry: 'Toimiala',
     indRavintola: 'Ravintola ja kahvila', indKauneus: 'Kauneus ja hyvinvointi',
     indRakentaminen: 'Rakentaminen ja remontointi', indTerveys: 'Terveys ja lääkäripalvelut',
@@ -883,9 +902,6 @@ const STRINGS = {
     networkErr: 'Verkkovirhe — yritä uudelleen.',
     squareTitle: '{n} ruutua — {town}',
     squareTitleOne: 'Ruutu #{idx} — {town}',
-    squareTitleMulti: '{n} ruutua yhteensä — {towns}',
-    addToCart: 'Lisää koriin →',
-    clearCart: 'Tyhjennä kori',
     claimTitle: 'Varaa tämä ruutu — 5€/kk',
     cancelSelection: 'Peruuta',
     continueSelection: 'Jatka →',
@@ -942,6 +958,9 @@ const STRINGS = {
     uploading: 'Uploading…',
     lTagline: 'Short tagline <span style="font-weight:400;color:#8a8168;">(optional, shown on your page)</span>',
     lColor: 'Or pick a square color',
+    lAdditionalTowns: 'Also post in additional towns',
+    additionalTownsHint: 'Same listing, more towns — one square per town, automatically placed for you.',
+    additionalTownPlaceholder: 'Town name…',
     lIndustry: 'Industry',
     indRavintola: 'Restaurant and café', indKauneus: 'Beauty and wellness',
     indRakentaminen: 'Construction and renovation', indTerveys: 'Health and medical',
@@ -980,9 +999,6 @@ const STRINGS = {
     networkErr: 'Network error — please try again.',
     squareTitle: '{n} squares — {town}',
     squareTitleOne: 'Square #{idx} — {town}',
-    squareTitleMulti: '{n} squares total — {towns}',
-    addToCart: 'Add to cart →',
-    clearCart: 'Clear cart',
     claimTitle: 'Claim this square — €5/month',
     cancelSelection: 'Cancel',
     continueSelection: 'Continue →',
@@ -1276,92 +1292,27 @@ function clearSelection(){
 
 function updateSelectionBar(){
   const bar = document.getElementById('selectionBar');
-  const cartBar = document.getElementById('cartBar');
-
-  if (selectedIndices.length === 0){
-    bar.classList.remove('open');
-  } else {
-    bar.classList.add('open');
-    const n = selectedIndices.length;
-    const perSquare = pricePerSquareEur(n);
-    const price = n * perSquare;
-    const label = (n === 1 ? t('squareSelected') : t('squaresSelected'))
-      .replace('{n}', n).replace('{price}', price);
-    const rateNote = perSquare < 5
-      ? (lang === 'fi' ? ` (${perSquare}€/kk per ruutu)` : ` (€${perSquare}/mo per square)`)
-      : '';
-    document.getElementById('selectionCount').textContent = label + rateNote;
-  }
-
-  // cart bar only shows once something's actually been added, and never at
-  // the same time as an active in-progress selection on the current board
-  if (cart.length === 0 || selectedIndices.length > 0){
-    cartBar.classList.remove('open');
-  } else {
-    cartBar.classList.add('open');
-    const totalCount = cart.reduce((sum, c) => sum + c.indices.length, 0);
-    const perSquare = pricePerSquareEur(totalCount);
-    const price = totalCount * perSquare;
-    document.getElementById('cartCount').textContent =
-      (lang === 'fi' ? `${totalCount} ruutua korissa · ${price}€/kk` : `${totalCount} squares in cart · €${price}/mo`);
-  }
+  if (selectedIndices.length === 0){ bar.classList.remove('open'); return; }
+  bar.classList.add('open');
+  const n = selectedIndices.length;
+  const perSquare = pricePerSquareEur(n);
+  const price = n * perSquare;
+  const label = (n === 1 ? t('squareSelected') : t('squaresSelected'))
+    .replace('{n}', n).replace('{price}', price);
+  const rateNote = perSquare < 5
+    ? (lang === 'fi' ? ` (${perSquare}€/kk per ruutu)` : ` (€${perSquare}/mo per square)`)
+    : '';
+  document.getElementById('selectionCount').textContent = label + rateNote;
 }
 document.getElementById('selectionCancel').addEventListener('click', clearSelection);
-document.getElementById('selectionGo').addEventListener('click', commitSelectionToCart);
-document.getElementById('cartClear').addEventListener('click', ()=>{
-  cart = [];
-  updateSelectionBar();
-});
-document.getElementById('cartCheckout').addEventListener('click', openClaimModal);
-
-function commitSelectionToCart(){
-  if (selectedIndices.length === 0) return;
-  cart.push({ townId: currentTown.id, townName: currentTown.name, indices: [...selectedIndices] });
-  selectionAnchor = null;
-  selectedIndices = [];
-  renderGrid();
-  updateSelectionBar();
-}
+document.getElementById('selectionGo').addEventListener('click', openClaimModal);
 
 function openClaimModal(){
-  // Support being called either from the cart (after "Lisää koriin") or
-  // directly from an in-progress single-town selection (so a business
-  // buying in just one town never needs the extra "add to cart" click).
-  let entries = cart.length > 0 ? cart : [];
-  if (selectedIndices.length > 0) {
-    entries = entries.concat([{ townId: currentTown.id, townName: currentTown.name, indices: [...selectedIndices] }]);
-  }
-  if (entries.length === 0) return;
-
-  const totalCount = entries.reduce((sum, c) => sum + c.indices.length, 0);
-  const perSquare = pricePerSquareEur(totalCount);
-  const price = totalCount * perSquare;
-
-  if (entries.length === 1 && entries[0].indices.length === 1) {
-    document.getElementById('modalSummary').textContent =
-      t('squareTitleOne').replace('{idx}', entries[0].indices[0] + 1).replace('{town}', entries[0].townName);
-  } else if (entries.length === 1) {
-    document.getElementById('modalSummary').textContent =
-      t('squareTitle').replace('{n}', totalCount).replace('{town}', entries[0].townName);
-  } else {
-    const townList = entries.map(c => `${c.townName} (${c.indices.length})`).join(', ');
-    document.getElementById('modalSummary').textContent =
-      t('squareTitleMulti').replace('{n}', totalCount).replace('{towns}', townList);
-  }
-
-  const rateNote = perSquare < 5
-    ? (lang === 'fi' ? ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(${perSquare}€/ruutu, alennushinta)</span>` : ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(€${perSquare}/square, discounted)</span>`)
-    : '';
-  document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:#8a8168;font-weight:400;">${t('perMonth')}</span>${rateNote}`;
-  const halfPrice = Math.round(price / 2 * 100) / 100;
-  const discountNoteEl = document.getElementById('trialNote');
-  if (discountNoteEl) discountNoteEl.style.display = FOUNDING_DISCOUNT_ACTIVE ? 'inline-block' : 'none';
-  document.getElementById('confirmText').textContent = FOUNDING_DISCOUNT_ACTIVE
-    ? t('confirmText').replace('{price}', price).replace('{halfPrice}', halfPrice)
-    : t('confirmTextNoTrial').replace('{price}', price);
-
-  // stash the final entries so the submit handler sends exactly what was shown here
-  window._checkoutEntries = entries;
+  if (selectedIndices.length === 0) return;
+  additionalTowns = []; // fresh modal -> fresh "also post in" list
+  renderAdditionalTownsList();
+  updateModalSummary();
+  updateModalPricing();
 
   // fresh selection -> clear any previous logo upload/crop state
   uploadedLogoUrl = null;
@@ -1372,8 +1323,98 @@ function openClaimModal(){
 
   document.getElementById('overlay').style.display = 'flex';
 }
+
+function updateModalSummary(){
+  const n = selectedIndices.length;
+  let summary = n === 1
+    ? t('squareTitleOne').replace('{idx}', selectedIndices[0] + 1).replace('{town}', currentTown.name)
+    : t('squareTitle').replace('{n}', n).replace('{town}', currentTown.name);
+  if (additionalTowns.length > 0){
+    const names = additionalTowns.map(a => a.name).join(', ');
+    summary += (lang === 'fi' ? ` + 1 ruutu myös: ${names}` : ` + 1 square also in: ${names}`);
+  }
+  document.getElementById('modalSummary').textContent = summary;
+}
+
+function updateModalPricing(){
+  const totalCount = selectedIndices.length + additionalTowns.length;
+  const perSquare = pricePerSquareEur(totalCount);
+  const price = totalCount * perSquare;
+  const rateNote = perSquare < 5
+    ? (lang === 'fi' ? ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(${perSquare}€/ruutu, alennushinta)</span>` : ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(€${perSquare}/square, discounted)</span>`)
+    : '';
+  document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:#8a8168;font-weight:400;">${t('perMonth')}</span>${rateNote}`;
+  const halfPrice = Math.round(price / 2 * 100) / 100;
+  const discountNoteEl = document.getElementById('trialNote');
+  if (discountNoteEl) discountNoteEl.style.display = FOUNDING_DISCOUNT_ACTIVE ? 'inline-block' : 'none';
+  document.getElementById('confirmText').textContent = FOUNDING_DISCOUNT_ACTIVE
+    ? t('confirmText').replace('{price}', price).replace('{halfPrice}', halfPrice)
+    : t('confirmTextNoTrial').replace('{price}', price);
+}
 document.getElementById('modalClose').addEventListener('click', ()=> document.getElementById('overlay').style.display='none');
 document.getElementById('overlay').addEventListener('click', (e)=>{ if (e.target.id==='overlay') e.currentTarget.style.display='none'; });
+
+/* ---- "post to additional towns" (one auto-placed square each) ---- */
+let additionalTowns = []; // {id, name}
+const addlInput = document.getElementById('additionalTownInput');
+const addlSuggestions = document.getElementById('additionalTownSuggestions');
+
+addlInput.addEventListener('input', ()=>{
+  const val = addlInput.value.trim().toLowerCase();
+  addlSuggestions.innerHTML = '';
+  if (!val){ addlSuggestions.classList.remove('open'); return; }
+  const matches = FINNISH_CITIES
+    .filter(c => c.name.toLowerCase().startsWith(val))
+    .filter(c => c.name !== currentTown.name) // no point adding the town you're already buying in
+    .filter(c => !additionalTowns.some(a => a.name === c.name))
+    .sort((a,b) => b.population - a.population)
+    .slice(0, 8);
+  if (matches.length === 0){ addlSuggestions.classList.remove('open'); return; }
+  matches.forEach(c=>{
+    const row = document.createElement('div');
+    row.textContent = c.name;
+    row.addEventListener('click', ()=> addAdditionalTown(c.name));
+    addlSuggestions.appendChild(row);
+  });
+  addlSuggestions.classList.add('open');
+});
+document.addEventListener('click', (e)=>{
+  if (!e.target.closest('.additionalTownsBox')) addlSuggestions.classList.remove('open');
+});
+
+async function addAdditionalTown(name){
+  addlInput.value = '';
+  addlSuggestions.classList.remove('open');
+  try{
+    const match = FINNISH_CITIES.find(c => c.name.toLowerCase() === name.toLowerCase());
+    const res = await fetch(`/api/town?name=${encodeURIComponent(name)}&country=FI${match ? `&population=${match.population}` : ''}`);
+    const data = await res.json();
+    if (!res.ok) return;
+    if (data.town.id === currentTown.id) return; // safety net, shouldn't normally happen
+    if (additionalTowns.some(a => a.id === data.town.id)) return;
+    additionalTowns.push({ id: data.town.id, name: data.town.name });
+    renderAdditionalTownsList();
+    updateModalSummary();
+    updateModalPricing();
+  }catch(e){ /* silently ignore -- this is an optional add-on, not required to complete a purchase */ }
+}
+
+function renderAdditionalTownsList(){
+  const box = document.getElementById('additionalTownsList');
+  box.innerHTML = '';
+  additionalTowns.forEach(a=>{
+    const chip = document.createElement('div');
+    chip.className = 'townChip';
+    chip.innerHTML = `<span>${a.name}</span><span class="rm">✕</span>`;
+    chip.querySelector('.rm').addEventListener('click', ()=>{
+      additionalTowns = additionalTowns.filter(x => x.id !== a.id);
+      renderAdditionalTownsList();
+      updateModalSummary();
+      updateModalPricing();
+    });
+    box.appendChild(chip);
+  });
+}
 
 /* ---- logo upload + crop ---- */
 let cropper = null;
@@ -1519,7 +1560,9 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        selections: (window._checkoutEntries || []).map(e => ({ townId: e.townId, indices: e.indices })),
+        townId: currentTown.id,
+        indices: selectedIndices,
+        additionalTownIds: additionalTowns.map(a => a.id),
         companyName: company,
         websiteUrl: website,
         email,

@@ -433,29 +433,34 @@ versions.
 
 ## Buying squares across multiple towns in one purchase
 
-A business can now select squares in one town, click **"Lisää koriin"**
-(Add to cart) instead of going straight to checkout, then search a
-different town and select squares there too — repeating as many times as
-they want — before finally clicking **"Jatka maksuun"** (Continue to
-payment) to check out for everything at once. One payment, one
-subscription, squares in as many towns as they picked.
+This went through two designs — worth knowing the current one, not the
+first attempt. The first version added a shopping-cart step directly on
+the board (select squares → "add to cart" → search another town → select
+there too → check out for everything). That got replaced with something
+simpler, matching how the reference site (yourlocalsquare.com) handles it:
 
-**How pricing works across towns:** the volume discount (4+ squares →
-€4/square) is calculated on the *total* count across every town combined,
-not per-town — buying 2 squares in Oulu and 2 in Tampere gets the same
-discount as buying 4 in one place.
+**Your primary square(s) still work exactly like always** — pick them
+visually on the board, same as before, no extra step.
 
-**A single-town purchase still works exactly as before** — nothing extra
-to click if you're only buying in one town; the cart step is genuinely
-optional, matching what was asked for.
+**"Post to additional towns" now lives inside the details form itself**,
+as an optional section. Type another town's name, and the system
+automatically places **one square there for you** — no visual picking
+needed for those extra towns, matching "type the city name and open the
+square from there directly." Add as many additional towns as you want,
+each shows as a removable chip.
 
-**Self-service editing (`/manage`) was updated to match** — since a single
-edit link can now cover squares in different towns, it shows a proper
-per-town breakdown ("3 in Oulu, 2 in Tampere") instead of assuming
-everything is in one place. The logo-cropping tool's shape-matching still
-works correctly too — it was quietly relying on all squares sharing one
-town's coordinate system, which broke the moment squares could span
-multiple towns, so that got fixed as part of this change.
+**How pricing works:** primary squares + one square per additional town =
+total count, and the volume discount (4+ squares → €4/square) applies to
+that total, calculated server-side.
+
+**One honest edge case, handled but worth knowing:** if an additional
+town's board happens to be completely full, that one town is silently
+skipped rather than failing the whole purchase — the business still gets
+everything else they asked for, just not that one full town.
+
+Self-service editing (`/manage`) already handles squares spanning multiple
+towns correctly (shows a proper per-town breakdown), since that part
+didn't need to change between the two designs.
 
 ## Website "quick listing" autofill
 
