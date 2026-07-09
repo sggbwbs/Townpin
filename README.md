@@ -1,32 +1,37 @@
-# PaikallisCanvas — Oulu's own business bulletin board
+# PaikallisCanvas — a business board for every town in Finland
 
-Businesses claim one or more squares on Oulu's board for €5/month per
-square. Each square is its own indexed webpage at `/pin/{id}` — that's the
-actual product, not just a pretty grid. Cancel anytime and the squares open
-back up automatically.
+Businesses claim one or more squares on their town's board — €5/month per
+square (or a discounted prepaid term), starting at just 4 squares for
+€4/square. Each square is its own indexed webpage at `/pin/{id}` — that's
+the actual product, not just a pretty grid.
 
-The site is Finnish-first with an English toggle, and launches with Oulu as
-the only active board.
+The site positions itself nationwide ("Put your business in front of all
+of Finland") — any town can be searched and gets its own board created on
+demand, sized at a flat 100 squares (10×10). Oulu remains the operator's
+real first market for direct outreach (see "Bootstrapping Oulu" below),
+but that's a go-to-market choice, not a limitation of the product itself.
 
-## What changed in this version
-- **€5/month per square**, billed monthly (was €12/year — see the note
-  below on why that trade-off is worth it deliberately).
-- **Multiple squares in one purchase.** Drag across the grid to select a
-  block, or click once for a single square. Price scales linearly
-  (5 squares = €25/month), and it's all one Stripe subscription — cancel
-  once, all of them free up together.
-- **Board size scales with town population**, not a flat 400 squares
-  everywhere. A search brings up a real Finnish city/town list (with
-  approximate populations) as you type; picking one sizes a *new* board
-  sensibly — small towns get a small board (64 squares), a city the size of
-  Oulu gets the full 400. This is all a local, free dataset — no Google
-  API, no cost, no billing account.
-- **A map on the board page**, via Google's classic keyless embed (the same
-  mechanism behind any "share → embed" map link) — shows roughly where the
-  town is, with zero API key and zero billing account required.
-- **Hero copy now explicitly says "business bulletin board"** rather than
-  just "community board" — the earlier version didn't actually say who
-  it's for.
+The site is Finnish-first with an English toggle.
+
+## Current core mechanics (as of the latest round of changes)
+- **€5/month per square**, or **4+ squares at €4/square**. A separate
+  prepaid option (3/6/12 months upfront, with a discount) also exists
+  alongside the ongoing monthly subscription — see the dedicated section
+  further down for how that works.
+- **Every town's board is a flat 100 squares (10×10)** — simple and
+  consistent, not scaled by population.
+- **Click-to-select, not drag** — click one square to select it, click a
+  second to fill in the rectangle between them. Works identically on
+  phone, tablet, and desktop regardless of orientation, which a
+  drag-based selector did not.
+- **Multiple squares bought together render as one block with a single
+  logo spanning the area**, not repeated tiny copies of the same image.
+- **No map on the board page** — removed; it wasn't earning its space, and
+  the grid now uses the full width instead.
+- **"Post to additional towns"** lets a business add one or more other
+  towns to the same purchase, choosing how many squares per additional
+  town — auto-placed, since they never see that other town's board
+  directly.
 
 ## On the €5/month vs €12/year trade-off
 We originally moved to annual billing specifically to stop Stripe's
