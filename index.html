@@ -134,13 +134,14 @@
   /* ---- floating selection bar ---- */
   #selectionBar{
     position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:900;display:none;
-    background:var(--paper);color:#26210f;padding:14px 20px;border-radius:999px;
-    box-shadow:var(--shadow-lg);align-items:center;gap:16px;font-family:'Space Grotesk',sans-serif;
+    background:var(--paper);color:#26210f;padding:14px 20px;border-radius:20px;
+    box-shadow:var(--shadow-lg);align-items:center;gap:10px 16px;font-family:'Space Grotesk',sans-serif;
+    max-width:min(92vw, 480px);flex-wrap:wrap;justify-content:center;
   }
   #selectionBar.open{display:flex;}
-  #selectionBar .count{font-weight:700;font-size:14.5px;}
+  #selectionBar .count{font-weight:700;font-size:14.5px;flex:1 1 100%;text-align:center;}
   #selectionBar button{border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;
-    font-weight:700;font-size:13.5px;cursor:pointer;}
+    font-weight:700;font-size:13.5px;cursor:pointer;white-space:nowrap;flex:0 0 auto;}
   #selectionBar .go{background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;}
   #selectionBar .cancel{background:none;color:#8a8168;text-decoration:underline;padding:9px 6px;}
 
@@ -257,7 +258,7 @@
 <main>
   <div id="hero">
     <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Suomelle.</span></h1>
-    <p class="sub" data-i18n="heroSub">PaikallisCanvas on kaupunkisi yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Jo 5€/kuukaudesta alkaen. Peruuta milloin vain.</p>
+    <p class="sub" data-i18n="heroSub">PaikallisCanvas on kaupunkisi yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.</p>
   </div>
 
   <div class="valueRow">
@@ -789,7 +790,7 @@ let lang = 'fi';
 const STRINGS = {
   fi: {
     heroTitle: 'Näytä yrityksesi <span>koko Suomelle.</span>',
-    heroSub: 'PaikallisCanvas on kaupunkisi yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Jo 5€/kuukaudesta alkaen. Peruuta milloin vain.',
+    heroSub: 'PaikallisCanvas on kaupunkisi yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.',
     value1b: '5€/kk',
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
@@ -881,7 +882,7 @@ const STRINGS = {
   },
   en: {
     heroTitle: 'Put your business in front of <span>all of Finland.</span>',
-    heroSub: "PaikallisCanvas is a shared online board for your town's businesses — every square on the board is a different company. Buy your own square, add your logo and a link to your site, and customers can find you both on the board and on Google. From just €5/month. Cancel anytime.",
+    heroSub: "PaikallisCanvas is a shared online board for your town's businesses — every square on the board is a different company. Buy your own square, add your logo and a link to your site, and customers can find you both on the board and on Google. Cancel anytime.",
     value1b: '€5/month',
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: 'Findable on Google', value2: 'your business gets its own page that can appear in search results, even if nobody browses the board itself',
