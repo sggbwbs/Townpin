@@ -37,34 +37,38 @@ function pricePerSquareEur(count) {
   return 5;
 }
 
-// For "post to additional towns": pick one random empty square in that
-// town. Random (not just the first empty index) so everyone doesn't pile
-// into the same top-left corner of every board.
-async function pickRandomEmptySquare(townId) {
+// For "post to additional towns": pick N random empty squares in that
+// town. Random (not just the first empty indices) so everyone doesn't
+// pile into the same top-left corner of every board.
+async function pickRandomEmptySquares(townId, count) {
   const { data: town, error: townErr } = await supabase.from('towns').select('grid_size').eq('id', townId).maybeSingle();
-  if (townErr || !town) return null;
+  if (townErr || !town) return [];
 
   const { data: taken, error: takenErr } = await supabase
     .from('squares')
     .select('idx')
     .eq('town_id', townId)
     .in('status', ['active', 'pending']);
-  if (takenErr) return null;
+  if (takenErr) return [];
 
   const takenSet = new Set((taken || []).map(r => r.idx));
   const total = town.grid_size * town.grid_size;
   const emptyIndices = [];
   for (let i = 0; i < total; i++) { if (!takenSet.has(i)) emptyIndices.push(i); }
-  if (emptyIndices.length === 0) return null; // this town's board is completely full
 
-  return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+  // shuffle, then take as many as requested (or as many as actually exist)
+  for (let i = emptyIndices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [emptyIndices[i], emptyIndices[j]] = [emptyIndices[j], emptyIndices[i]];
+  }
+  return emptyIndices.slice(0, count);
 }
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { townId, indices, additionalTownIds, companyName, websiteUrl, email, logoUrl, color, tagline, industry } = req.body;
+    const { townId, indices, additionalTowns, companyName, websiteUrl, email, logoUrl, color, tagline, industry } = req.body;
 
     if (typeof townId !== 'number' && typeof townId !== 'string') {
       return res.status(400).json({ error: 'Missing town.' });
@@ -75,8 +79,11 @@ module.exports = async (req, res) => {
     if (indices.some(i => typeof i !== 'number' || i < 0)) {
       return res.status(400).json({ error: 'Invalid square selection.' });
     }
-    const extraTownIds = Array.isArray(additionalTownIds) ? additionalTownIds.filter(id => id !== townId) : [];
-    const totalCount = indices.length + extraTownIds.length;
+    const extraTowns = Array.isArray(additionalTowns)
+      ? additionalTowns.filter(a => a.townId !== townId && typeof a.count === 'number' && a.count > 0)
+      : [];
+    const extraCount = extraTowns.reduce((sum, a) => sum + Math.min(a.count, 20), 0);
+    const totalCount = indices.length + extraCount;
     if (totalCount > MAX_SQUARES_PER_PURCHASE) {
       return res.status(400).json({ error: `Max ${MAX_SQUARES_PER_PURCHASE} squares per purchase — split larger campaigns into a few buys.` });
     }
@@ -132,25 +139,30 @@ module.exports = async (req, res) => {
       group_id: groupId
     }));
 
-    // one auto-placed square per additional town -- picked server-side
+    // N auto-placed squares per additional town -- picked server-side
     // since the client never saw that town's board, just typed its name
-    for (const extraTownId of extraTownIds) {
-      const randomIdx = await pickRandomEmptySquare(extraTownId);
-      if (randomIdx === null) continue; // that town's board is full -- skip it rather than fail the whole purchase
-      rows.push({
-        town_id: extraTownId,
-        idx: randomIdx,
-        company_name: companyName,
-        website_url: websiteUrl,
-        email,
-        logo_url: logoUrl || null,
-        color: color || '#f2a65a',
-        tagline: tagline || null,
-        industry: industry || null,
-        status: 'pending',
-        reserved_until: reservedUntil,
-        edit_token: editToken,
-        group_id: groupId
+    // and chose a quantity
+    for (const extra of extraTowns) {
+      const wantCount = Math.min(extra.count, 20);
+      const randomIndices = await pickRandomEmptySquares(extra.townId, wantCount);
+      // if the town doesn't have enough room left, place as many as are
+      // actually available rather than failing the whole purchase
+      randomIndices.forEach(idx => {
+        rows.push({
+          town_id: extra.townId,
+          idx,
+          company_name: companyName,
+          website_url: websiteUrl,
+          email,
+          logo_url: logoUrl || null,
+          color: color || '#f2a65a',
+          tagline: tagline || null,
+          industry: industry || null,
+          status: 'pending',
+          reserved_until: reservedUntil,
+          edit_token: editToken,
+          group_id: groupId
+        });
       });
     }
 
@@ -177,7 +189,7 @@ module.exports = async (req, res) => {
           unit_amount: pricePerSquareEur(actualCount) * 100,
           recurring: { interval: 'month' },
           product_data: {
-            name: extraTownIds.length > 0
+            name: extraTowns.length > 0
               ? `PaikallisCanvas squares (x${actualCount} across multiple towns) — ${companyName}`
               : (actualCount === 1
                 ? `PaikallisCanvas square — ${companyName}`

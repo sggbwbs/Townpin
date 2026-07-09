@@ -478,3 +478,18 @@ which needs OAuth (the business logging into their own Google account) and
 Google's app-review process. This is the free, simpler alternative that
 covers the most common practical need (not retyping what's already on your
 site) without that overhead.
+
+## Choose quantity per additional town
+
+Each additional town added in the claim form now has its own +/- stepper
+(1-20 squares) instead of always placing exactly one. The server still
+picks the actual square positions randomly within that town — the
+business chooses how many, not which specific ones, since they never see
+that town's board visually.
+
+## Removed the Google Maps embed
+
+Wasn't earning its space — removed it entirely from the board page. The
+grid now gets the full content width (up to 800px, previously capped at
+640px when it had to share the row with the map), so squares render
+correspondingly larger too.

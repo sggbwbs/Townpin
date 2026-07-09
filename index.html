@@ -101,12 +101,11 @@
   #rectError{display:none;color:var(--danger);font-size:12.5px;font-weight:600;margin-top:6px;}
 
   #boardLayout{display:grid;grid-template-columns:1fr;gap:24px;margin-top:12px;}
-  @media (min-width:900px){ #boardLayout{grid-template-columns:2.2fr 1fr;} }
 
   #grid{
     display:grid; grid-template-columns:repeat(var(--cols,10), 1fr); grid-template-rows:repeat(var(--cols,10), 1fr);
     gap:4px; background:var(--panelT4); padding:10px; border-radius:12px; border:1px solid var(--line);
-    width:100%; max-width:640px; aspect-ratio:1/1; margin:0 auto;
+    width:100%; max-width:800px; aspect-ratio:1/1; margin:0 auto;
   }
   .sq{
     border-radius:4px; cursor:pointer; position:relative; overflow:hidden;
@@ -123,9 +122,6 @@
   .sq img{width:100%;height:100%;object-fit:cover;}
   .sq.filled{border-color:rgba(0,0,0,0.15);cursor:pointer;}
 
-  #mapPanel{border-radius:12px;overflow:hidden;border:1px solid var(--line);min-height:220px;background:var(--panel);contain:strict;}
-  #mapPanel iframe{width:100%;height:100%;min-height:260px;border:0;filter:grayscale(0.15) invert(0.92) contrast(0.9);will-change:filter;}
-  [data-theme="light"] #mapPanel iframe{filter:none;}
 
   @media (max-width:640px){
     header{padding:16px 18px;}
@@ -179,6 +175,10 @@
   #additionalTownsList{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
   .townChip{display:flex;align-items:center;gap:6px;background:#e4dcc4;color:#3a331d;font-size:12.5px;
     font-weight:600;padding:5px 6px 5px 12px;border-radius:999px;}
+  .townChip .qtyBtn{cursor:pointer;background:rgba(0,0,0,0.08);border:none;border-radius:50%;width:20px;height:20px;
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#3a331d;padding:0;}
+  .townChip .qtyBtn:hover{background:rgba(0,0,0,0.16);}
+  .townChip .qtyNum{min-width:14px;text-align:center;}
   .townChip span.rm{cursor:pointer;background:rgba(0,0,0,0.1);border-radius:50%;width:18px;height:18px;
     display:flex;align-items:center;justify-content:center;font-size:12px;}
   #modal .highlightBox{margin-top:16px;padding:12px 14px;background:#efe8d3;border:1px solid #ddd0a8;
@@ -325,7 +325,6 @@
 
   <div id="boardLayout">
     <div id="grid"></div>
-    <div id="mapPanel"><iframe id="mapFrame" loading="lazy" src=""></iframe></div>
   </div>
 
   <div id="factsSection">
@@ -438,7 +437,7 @@
 
     <div class="additionalTownsBox">
       <label data-i18n="lAdditionalTowns">Julkaise myös muissa kaupungeissa <span style="font-weight:400;color:#8a8168;">(valinnainen)</span></label>
-      <p class="note" data-i18n="additionalTownsHint" style="margin:0 0 8px;">Sama ilmoitus, lisää kaupunkeja — yksi ruutu per kaupunki, järjestelmä valitsee sen puolestasi.</p>
+      <p class="note" data-i18n="additionalTownsHint" style="margin:0 0 8px;">Sama ilmoitus, lisää kaupunkeja — valitse ruutujen määrä per kaupunki, järjestelmä valitsee ne puolestasi.</p>
       <div style="position:relative;">
         <input type="text" id="additionalTownInput" autocomplete="off" data-i18n-placeholder="additionalTownPlaceholder" placeholder="Kaupungin nimi…" />
         <div id="additionalTownSuggestions"></div>
@@ -862,7 +861,7 @@ const STRINGS = {
     lTagline: 'Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span>',
     lColor: 'Tai valitse ruudun väri',
     lAdditionalTowns: 'Julkaise myös muissa kaupungeissa',
-    additionalTownsHint: 'Sama ilmoitus, lisää kaupunkeja — yksi ruutu per kaupunki, järjestelmä valitsee sen puolestasi.',
+    additionalTownsHint: 'Sama ilmoitus, lisää kaupunkeja — valitse ruutujen määrä per kaupunki, järjestelmä valitsee ne puolestasi.',
     additionalTownPlaceholder: 'Kaupungin nimi…',
     lIndustry: 'Toimiala',
     indRavintola: 'Ravintola ja kahvila', indKauneus: 'Kauneus ja hyvinvointi',
@@ -959,7 +958,7 @@ const STRINGS = {
     lTagline: 'Short tagline <span style="font-weight:400;color:#8a8168;">(optional, shown on your page)</span>',
     lColor: 'Or pick a square color',
     lAdditionalTowns: 'Also post in additional towns',
-    additionalTownsHint: 'Same listing, more towns — one square per town, automatically placed for you.',
+    additionalTownsHint: 'Same listing, more towns — choose how many squares per town, automatically placed for you.',
     additionalTownPlaceholder: 'Town name…',
     lIndustry: 'Industry',
     indRavintola: 'Restaurant and café', indKauneus: 'Beauty and wellness',
@@ -1124,7 +1123,6 @@ async function openBoard(name, country, population){
     history.pushState({}, '', `/board/${currentTown.slug}`);
     document.getElementById('boardTitle').textContent = currentTown.name;
     document.getElementById('grid').style.setProperty('--cols', currentTown.grid_size);
-    document.getElementById('mapFrame').src = `https://www.google.com/maps?q=${encodeURIComponent(currentTown.name + ', Finland')}&output=embed`;
     await loadBoard();
   }catch(e){
     errBox.textContent = t('networkErr');
@@ -1330,14 +1328,14 @@ function updateModalSummary(){
     ? t('squareTitleOne').replace('{idx}', selectedIndices[0] + 1).replace('{town}', currentTown.name)
     : t('squareTitle').replace('{n}', n).replace('{town}', currentTown.name);
   if (additionalTowns.length > 0){
-    const names = additionalTowns.map(a => a.name).join(', ');
-    summary += (lang === 'fi' ? ` + 1 ruutu myös: ${names}` : ` + 1 square also in: ${names}`);
+    const parts = additionalTowns.map(a => `${a.name} (${a.count})`).join(', ');
+    summary += (lang === 'fi' ? ` + myös: ${parts}` : ` + also in: ${parts}`);
   }
   document.getElementById('modalSummary').textContent = summary;
 }
 
 function updateModalPricing(){
-  const totalCount = selectedIndices.length + additionalTowns.length;
+  const totalCount = selectedIndices.length + additionalTowns.reduce((sum, a) => sum + a.count, 0);
   const perSquare = pricePerSquareEur(totalCount);
   const price = totalCount * perSquare;
   const rateNote = perSquare < 5
@@ -1392,12 +1390,14 @@ async function addAdditionalTown(name){
     if (!res.ok) return;
     if (data.town.id === currentTown.id) return; // safety net, shouldn't normally happen
     if (additionalTowns.some(a => a.id === data.town.id)) return;
-    additionalTowns.push({ id: data.town.id, name: data.town.name });
+    additionalTowns.push({ id: data.town.id, name: data.town.name, count: 1 });
     renderAdditionalTownsList();
     updateModalSummary();
     updateModalPricing();
   }catch(e){ /* silently ignore -- this is an optional add-on, not required to complete a purchase */ }
 }
+
+const MAX_PER_ADDITIONAL_TOWN = 20; // reasonable safety cap per town, overall purchase cap still applies too
 
 function renderAdditionalTownsList(){
   const box = document.getElementById('additionalTownsList');
@@ -1405,7 +1405,23 @@ function renderAdditionalTownsList(){
   additionalTowns.forEach(a=>{
     const chip = document.createElement('div');
     chip.className = 'townChip';
-    chip.innerHTML = `<span>${a.name}</span><span class="rm">✕</span>`;
+    chip.innerHTML = `<span>${a.name}</span>
+      <button type="button" class="qtyBtn qtyMinus">−</button>
+      <span class="qtyNum">${a.count}</span>
+      <button type="button" class="qtyBtn qtyPlus">+</button>
+      <span class="rm">✕</span>`;
+    chip.querySelector('.qtyMinus').addEventListener('click', ()=>{
+      a.count = Math.max(1, a.count - 1);
+      renderAdditionalTownsList();
+      updateModalSummary();
+      updateModalPricing();
+    });
+    chip.querySelector('.qtyPlus').addEventListener('click', ()=>{
+      a.count = Math.min(MAX_PER_ADDITIONAL_TOWN, a.count + 1);
+      renderAdditionalTownsList();
+      updateModalSummary();
+      updateModalPricing();
+    });
     chip.querySelector('.rm').addEventListener('click', ()=>{
       additionalTowns = additionalTowns.filter(x => x.id !== a.id);
       renderAdditionalTownsList();
@@ -1562,7 +1578,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
       body: JSON.stringify({
         townId: currentTown.id,
         indices: selectedIndices,
-        additionalTownIds: additionalTowns.map(a => a.id),
+        additionalTowns: additionalTowns.map(a => ({ townId: a.id, count: a.count })),
         companyName: company,
         websiteUrl: website,
         email,
