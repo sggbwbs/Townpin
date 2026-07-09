@@ -63,21 +63,33 @@ async function load(){
       app.innerHTML = `<div class="card"><h1>Link not found</h1><p>${data.error || 'This edit link is no longer valid.'}</p></div>`;
       return;
     }
-    render(data.squares, data.town);
+    render(data.squares, data.towns);
   }catch(e){
     app.innerHTML = '<div class="card"><h1>Network error</h1><p>Please try refreshing.</p></div>';
   }
 }
 
-function render(squares, town){
-  const s = squares[0]; // cosmetic fields are shared across all squares in one purchase
+function render(squares, towns){
+  const s = squares[0]; // cosmetic fields (logo/tagline/color) are shared across all squares in one purchase
+  const townsById = {};
+  (towns || []).forEach(t => { townsById[t.id] = t; });
+
+  // group squares by town for an accurate summary when a purchase spans more than one town
+  const countsByTown = {};
+  squares.forEach(sq => {
+    const name = townsById[sq.town_id] ? townsById[sq.town_id].name : 'unknown town';
+    countsByTown[name] = (countsByTown[name] || 0) + 1;
+  });
+  const townSummary = Object.entries(countsByTown).map(([name, n]) => `${n} in ${name}`).join(', ');
+
   app.innerHTML = `
     <h1>Manage your listing</h1>
-    <p class="sub">${s.company_name} — ${squares.length} square${squares.length>1?'s':''} on the ${town ? town.name : ''} board</p>
+    <p class="sub">${s.company_name} — ${squares.length} square${squares.length>1?'s':''} (${townSummary})</p>
 
     <div class="card">
       <h2>Appearance</h2>
       <label>Tagline (shown on your page)</label>
+      <p class="note" style="margin:-4px 0 8px;">This is shared across all your squares, even if they're in different towns.</p>
       <input type="text" id="tagline" value="${(s.tagline||'').replace(/"/g,'&quot;')}" placeholder="A short line about your business" maxlength="120" />
       <label>Logo</label>
       <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp" style="display:none;" />
@@ -137,9 +149,14 @@ function render(squares, town){
 
   // ---- logo upload + crop ----
   let cropper = null;
-  const gridSize = town ? town.grid_size : 20;
-  const rows = squares.map(sq => Math.floor(sq.idx / gridSize));
-  const cols = squares.map(sq => sq.idx % gridSize);
+  const primaryTown = townsById[s.town_id];
+  const gridSize = primaryTown ? primaryTown.grid_size : 20;
+  // Only squares in the SAME town as the primary square -- squares in a
+  // different town use their own independent row/col coordinate system,
+  // so mixing them into one bounding box would be meaningless.
+  const sameTownSquares = squares.filter(sq => sq.town_id === s.town_id);
+  const rows = sameTownSquares.map(sq => Math.floor(sq.idx / gridSize));
+  const cols = sameTownSquares.map(sq => sq.idx % gridSize);
   const aspectRatio = (Math.max(...cols) - Math.min(...cols) + 1) / (Math.max(...rows) - Math.min(...rows) + 1);
 
   document.getElementById('logoUploadBtn').addEventListener('click', ()=>{

@@ -106,7 +106,7 @@
   #grid{
     display:grid; grid-template-columns:repeat(var(--cols,10), 1fr); grid-template-rows:repeat(var(--cols,10), 1fr);
     gap:4px; background:var(--panelT4); padding:10px; border-radius:12px; border:1px solid var(--line);
-    width:100%; max-width:480px; aspect-ratio:1/1; margin:0 auto;
+    width:100%; max-width:640px; aspect-ratio:1/1; margin:0 auto;
   }
   .sq{
     border-radius:4px; cursor:pointer; position:relative; overflow:hidden;
@@ -132,18 +132,18 @@
   }
 
   /* ---- floating selection bar ---- */
-  #selectionBar{
+  #selectionBar, #cartBar{
     position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:900;display:none;
     background:var(--paper);color:#26210f;padding:14px 20px;border-radius:20px;
     box-shadow:var(--shadow-lg);align-items:center;gap:10px 16px;font-family:'Space Grotesk',sans-serif;
     max-width:min(92vw, 480px);flex-wrap:wrap;justify-content:center;
   }
-  #selectionBar.open{display:flex;}
-  #selectionBar .count{font-weight:700;font-size:14.5px;flex:1 1 100%;text-align:center;}
-  #selectionBar button{border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;
+  #selectionBar.open, #cartBar.open{display:flex;}
+  #selectionBar .count, #cartBar .count{font-weight:700;font-size:14.5px;flex:1 1 100%;text-align:center;}
+  #selectionBar button, #cartBar button{border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;
     font-weight:700;font-size:13.5px;cursor:pointer;white-space:nowrap;flex:0 0 auto;}
-  #selectionBar .go{background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;}
-  #selectionBar .cancel{background:none;color:#8a8168;text-decoration:underline;padding:9px 6px;}
+  #selectionBar .go, #cartBar .go{background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;}
+  #selectionBar .cancel, #cartBar .cancel{background:none;color:#8a8168;text-decoration:underline;padding:9px 6px;}
 
   /* ---- modal ---- */
   #overlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:2000;display:none;
@@ -353,7 +353,13 @@
 <div id="selectionBar">
   <span class="count" id="selectionCount">0 ruutua</span>
   <button class="cancel" id="selectionCancel" data-i18n="cancelSelection">Peruuta</button>
-  <button class="go" id="selectionGo" data-i18n="continueSelection">Jatka →</button>
+  <button class="go" id="selectionGo" data-i18n="addToCart">Lisää koriin →</button>
+</div>
+
+<div id="cartBar">
+  <span class="count" id="cartCount">0 ruutua korissa</span>
+  <button class="cancel" id="cartClear" data-i18n="clearCart">Tyhjennä kori</button>
+  <button class="go" id="cartCheckout" data-i18n="continueSelection">Jatka maksuun →</button>
 </div>
 
 <div id="overlay">
@@ -367,6 +373,7 @@
 
     <label data-i18n="lWebsite">Verkkosivun osoite</label>
     <input type="url" id="fWebsite" placeholder="https://yrityksesi.fi" required />
+    <div id="autofillHint" style="font-size:11.5px;color:#8a8168;margin-top:5px;display:none;"></div>
 
     <label data-i18n="lEmail">Sähköposti — kuittia ja tilauksen hallintaa varten</label>
     <input type="email" id="fEmail" placeholder="sina@yritys.fi" required />
@@ -784,6 +791,7 @@ const FINNISH_CITIES = [
 let currentTown = null;
 let currentSquares = [];
 let selectedIndices = [];
+let cart = []; // {townId, townName, indices} entries, one per town added so far
 let chosenColor = SWATCHES[0];
 let lang = 'fi';
 
@@ -827,6 +835,8 @@ const STRINGS = {
     lEmail: 'Sähköposti — kuittia ja tilauksen hallintaa varten',
     lLogo: 'Logo <span style="font-weight:400;color:#8a8168;">(valinnainen)</span>',
     chooseFile: '📁 Valitse kuva puhelimesta/koneelta',
+    autofillLoading: 'Haetaan tietoja sivultasi…',
+    autofillFound: 'Löysimme tietoja sivultasi ja täytimme ne puolestasi ✓',
     cropHint: 'Siirrä ja zoomaa kuvaa niin, että se sopii valitsemasi alueen muotoon.',
     useThisCrop: '✓ Käytä tätä rajausta',
     logoSelected: 'Logo valittu ✓',
@@ -873,6 +883,9 @@ const STRINGS = {
     networkErr: 'Verkkovirhe — yritä uudelleen.',
     squareTitle: '{n} ruutua — {town}',
     squareTitleOne: 'Ruutu #{idx} — {town}',
+    squareTitleMulti: '{n} ruutua yhteensä — {towns}',
+    addToCart: 'Lisää koriin →',
+    clearCart: 'Tyhjennä kori',
     claimTitle: 'Varaa tämä ruutu — 5€/kk',
     cancelSelection: 'Peruuta',
     continueSelection: 'Jatka →',
@@ -919,6 +932,8 @@ const STRINGS = {
     lEmail: 'Contact email — for your receipt & managing the subscription',
     lLogo: 'Logo <span style="font-weight:400;color:#8a8168;">(optional)</span>',
     chooseFile: '📁 Choose an image from your phone/computer',
+    autofillLoading: 'Fetching info from your site…',
+    autofillFound: 'Found info on your site and filled it in for you ✓',
     cropHint: 'Drag and zoom the image to fit the shape of the area you selected.',
     useThisCrop: '✓ Use this crop',
     logoSelected: 'Logo selected ✓',
@@ -965,6 +980,9 @@ const STRINGS = {
     networkErr: 'Network error — please try again.',
     squareTitle: '{n} squares — {town}',
     squareTitleOne: 'Square #{idx} — {town}',
+    squareTitleMulti: '{n} squares total — {towns}',
+    addToCart: 'Add to cart →',
+    clearCart: 'Clear cart',
     claimTitle: 'Claim this square — €5/month',
     cancelSelection: 'Cancel',
     continueSelection: 'Continue →',
@@ -1258,29 +1276,79 @@ function clearSelection(){
 
 function updateSelectionBar(){
   const bar = document.getElementById('selectionBar');
-  if (selectedIndices.length === 0){ bar.classList.remove('open'); return; }
-  bar.classList.add('open');
-  const n = selectedIndices.length;
-  const perSquare = pricePerSquareEur(n);
-  const price = n * perSquare;
-  const label = (n === 1 ? t('squareSelected') : t('squaresSelected'))
-    .replace('{n}', n).replace('{price}', price);
-  const rateNote = perSquare < 5
-    ? (lang === 'fi' ? ` (${perSquare}€/kk per ruutu)` : ` (€${perSquare}/mo per square)`)
-    : '';
-  document.getElementById('selectionCount').textContent = label + rateNote;
+  const cartBar = document.getElementById('cartBar');
+
+  if (selectedIndices.length === 0){
+    bar.classList.remove('open');
+  } else {
+    bar.classList.add('open');
+    const n = selectedIndices.length;
+    const perSquare = pricePerSquareEur(n);
+    const price = n * perSquare;
+    const label = (n === 1 ? t('squareSelected') : t('squaresSelected'))
+      .replace('{n}', n).replace('{price}', price);
+    const rateNote = perSquare < 5
+      ? (lang === 'fi' ? ` (${perSquare}€/kk per ruutu)` : ` (€${perSquare}/mo per square)`)
+      : '';
+    document.getElementById('selectionCount').textContent = label + rateNote;
+  }
+
+  // cart bar only shows once something's actually been added, and never at
+  // the same time as an active in-progress selection on the current board
+  if (cart.length === 0 || selectedIndices.length > 0){
+    cartBar.classList.remove('open');
+  } else {
+    cartBar.classList.add('open');
+    const totalCount = cart.reduce((sum, c) => sum + c.indices.length, 0);
+    const perSquare = pricePerSquareEur(totalCount);
+    const price = totalCount * perSquare;
+    document.getElementById('cartCount').textContent =
+      (lang === 'fi' ? `${totalCount} ruutua korissa · ${price}€/kk` : `${totalCount} squares in cart · €${price}/mo`);
+  }
 }
 document.getElementById('selectionCancel').addEventListener('click', clearSelection);
-document.getElementById('selectionGo').addEventListener('click', openClaimModal);
+document.getElementById('selectionGo').addEventListener('click', commitSelectionToCart);
+document.getElementById('cartClear').addEventListener('click', ()=>{
+  cart = [];
+  updateSelectionBar();
+});
+document.getElementById('cartCheckout').addEventListener('click', openClaimModal);
+
+function commitSelectionToCart(){
+  if (selectedIndices.length === 0) return;
+  cart.push({ townId: currentTown.id, townName: currentTown.name, indices: [...selectedIndices] });
+  selectionAnchor = null;
+  selectedIndices = [];
+  renderGrid();
+  updateSelectionBar();
+}
 
 function openClaimModal(){
-  if (selectedIndices.length === 0) return;
-  const count = selectedIndices.length;
-  const perSquare = pricePerSquareEur(count);
-  const price = count * perSquare;
-  document.getElementById('modalSummary').textContent =
-    (count === 1 ? t('squareTitleOne').replace('{idx}', selectedIndices[0] + 1) : t('squareTitle').replace('{n}', count))
-      .replace('{town}', currentTown.name);
+  // Support being called either from the cart (after "Lisää koriin") or
+  // directly from an in-progress single-town selection (so a business
+  // buying in just one town never needs the extra "add to cart" click).
+  let entries = cart.length > 0 ? cart : [];
+  if (selectedIndices.length > 0) {
+    entries = entries.concat([{ townId: currentTown.id, townName: currentTown.name, indices: [...selectedIndices] }]);
+  }
+  if (entries.length === 0) return;
+
+  const totalCount = entries.reduce((sum, c) => sum + c.indices.length, 0);
+  const perSquare = pricePerSquareEur(totalCount);
+  const price = totalCount * perSquare;
+
+  if (entries.length === 1 && entries[0].indices.length === 1) {
+    document.getElementById('modalSummary').textContent =
+      t('squareTitleOne').replace('{idx}', entries[0].indices[0] + 1).replace('{town}', entries[0].townName);
+  } else if (entries.length === 1) {
+    document.getElementById('modalSummary').textContent =
+      t('squareTitle').replace('{n}', totalCount).replace('{town}', entries[0].townName);
+  } else {
+    const townList = entries.map(c => `${c.townName} (${c.indices.length})`).join(', ');
+    document.getElementById('modalSummary').textContent =
+      t('squareTitleMulti').replace('{n}', totalCount).replace('{towns}', townList);
+  }
+
   const rateNote = perSquare < 5
     ? (lang === 'fi' ? ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(${perSquare}€/ruutu, alennushinta)</span>` : ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(€${perSquare}/square, discounted)</span>`)
     : '';
@@ -1291,6 +1359,9 @@ function openClaimModal(){
   document.getElementById('confirmText').textContent = FOUNDING_DISCOUNT_ACTIVE
     ? t('confirmText').replace('{price}', price).replace('{halfPrice}', halfPrice)
     : t('confirmTextNoTrial').replace('{price}', price);
+
+  // stash the final entries so the submit handler sends exactly what was shown here
+  window._checkoutEntries = entries;
 
   // fresh selection -> clear any previous logo upload/crop state
   uploadedLogoUrl = null;
@@ -1384,6 +1455,37 @@ document.getElementById('logoRemoveBtn').addEventListener('click', ()=>{
   document.getElementById('fLogoFile').value = '';
 });
 
+/* ---- website autofill ("quick listing") ---- */
+document.getElementById('fWebsite').addEventListener('blur', async ()=>{
+  const url = document.getElementById('fWebsite').value.trim();
+  if (!url) return;
+  try { new URL(url); } catch(e) { return; }
+
+  const hint = document.getElementById('autofillHint');
+  hint.style.display = 'block';
+  hint.textContent = t('autofillLoading');
+
+  try{
+    const res = await fetch(`/api/fetch-site-info?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+    if (!res.ok || !data.found){ hint.style.display = 'none'; return; }
+
+    const companyField = document.getElementById('fCompany');
+    const taglineField = document.getElementById('fTagline');
+    if (!companyField.value.trim() && data.title) companyField.value = data.title;
+    if (!taglineField.value.trim() && data.description) taglineField.value = data.description;
+    if (data.logoUrl && !uploadedLogoUrl){
+      uploadedLogoUrl = data.logoUrl;
+      document.getElementById('logoPreviewImg').src = data.logoUrl;
+      document.getElementById('logoPreview').style.display = 'flex';
+    }
+    hint.textContent = t('autofillFound');
+    setTimeout(()=>{ hint.style.display = 'none'; }, 4000);
+  }catch(e){
+    hint.style.display = 'none';
+  }
+});
+
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
   const company = document.getElementById('fCompany').value.trim();
   const website = document.getElementById('fWebsite').value.trim();
@@ -1417,8 +1519,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        townId: currentTown.id,
-        indices: selectedIndices,
+        selections: (window._checkoutEntries || []).map(e => ({ townId: e.townId, indices: e.indices })),
         companyName: company,
         websiteUrl: website,
         email,

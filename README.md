@@ -322,26 +322,33 @@ is public via the Kaupparekisteri either way, so it's still discoverable,
 just not shown directly on the page. Worth adding here later if you want to
 close that gap completely; not blocking anything today.
 
-## Founding-member offer: first month free
+## Founding-member offer: 50% off the first month
 
-`FOUNDING_TRIAL_DAYS` in `api/create-checkout-session.js` (currently 30)
-applies an actual Stripe trial period to every new subscription — not just
-marketing copy, the first charge genuinely doesn't happen until the trial
-ends. Stripe's own checkout page automatically shows "€0 due today" during
-checkout, so nothing needed there.
+This used to be a genuine free first month via a Stripe trial period.
+Changed to a 50%-off-first-invoice discount instead, because a truly free
+month is easy to abuse — sign up, get the free exposure, cancel before the
+first real charge, repeat with a new email address. A real (if discounted)
+charge each time raises the bar meaningfully while still being a genuine
+incentive to join early.
 
-**To turn this off later**, once you have enough real businesses and don't
-need the incentive anymore:
-1. Set `FOUNDING_TRIAL_DAYS = 0` in `api/create-checkout-session.js`.
-2. Set `FOUNDING_TRIAL_ACTIVE = false` in `index.html` (same search term
-   finds it near the top of the script) — this hides the on-site "first
-   month free" badge and switches the confirmation text back to the plain
-   "billed immediately" version, so the site stops promising something
-   checkout no longer does.
+**One-time setup required** (unlike the old trial, which needed zero Stripe
+configuration): in Stripe Dashboard → Product catalog → Coupons → create a
+coupon with **"50% off"**, duration **"Once"** (applies to the first
+invoice only, then the subscription reverts to full price automatically —
+Stripe handles this natively). Copy its ID into `STRIPE_FOUNDING_COUPON_ID`.
 
-Both flags need to change together — one without the other means the site
-either promises a trial that doesn't exist, or hides a trial that still
-does.
+**To turn the offer off later**, once you have enough real businesses and
+don't need the incentive anymore:
+1. Remove/unset `STRIPE_FOUNDING_COUPON_ID` in Vercel's environment
+   variables (or just delete the coupon in Stripe — either works).
+2. Set `FOUNDING_DISCOUNT_ACTIVE = false` in `index.html` (same search term
+   finds it near the top of the script) — this hides the on-site "-50%"
+   badge and switches the confirmation text back to the plain "billed
+   immediately" version, so the site stops promising a discount checkout
+   no longer applies.
+
+Both need to change together — one without the other means the site either
+promises a discount that doesn't exist, or hides one that still does.
 
 ## Rectangle-only multi-square selection
 
@@ -400,3 +407,69 @@ currently lists the homepage and the Oulu board. **As you add more towns,
 add their `/board/{slug}` URL to `sitemap.xml` manually** — or ask me to
 build a version that generates itself automatically from the towns already
 in your database, which is a small addition whenever you want it.
+
+## New logo mark
+
+Replaced the placeholder 4-square icon with a proper mark: a location pin
+(representing "Paikallis-" / local) containing the same 2x2 grid pattern
+from the board itself — literally "your local board." Colors use the
+site's existing CSS variables (`--ink`, `--amber`) rather than fixed hex
+values, so it automatically stays visible and correctly themed in both
+dark and light mode, rather than needing two separate hand-maintained
+versions.
+
+## Expanded industry list + copy fixes
+
+- Industry categories went from 12 to 20, adding transport/logistics,
+  cleaning services, veterinary/pet care, photography, tourism,
+  sports/fitness, crafts, and agriculture — a much more complete picture
+  of local business types.
+- Every category label changed from "X & Y" to "X ja Y" (Finnish) / "X and
+  Y" (English) — no ampersands left anywhere in the industry list.
+- Rewrote the hero subtitle, which previously just made a claim ("get
+  seen...") without explaining the actual mechanism. It now plainly states
+  what the site is (a shared visual board), what a square gets you (logo +
+  link + your own separate webpage), and the price — in that order.
+
+## Buying squares across multiple towns in one purchase
+
+A business can now select squares in one town, click **"Lisää koriin"**
+(Add to cart) instead of going straight to checkout, then search a
+different town and select squares there too — repeating as many times as
+they want — before finally clicking **"Jatka maksuun"** (Continue to
+payment) to check out for everything at once. One payment, one
+subscription, squares in as many towns as they picked.
+
+**How pricing works across towns:** the volume discount (4+ squares →
+€4/square) is calculated on the *total* count across every town combined,
+not per-town — buying 2 squares in Oulu and 2 in Tampere gets the same
+discount as buying 4 in one place.
+
+**A single-town purchase still works exactly as before** — nothing extra
+to click if you're only buying in one town; the cart step is genuinely
+optional, matching what was asked for.
+
+**Self-service editing (`/manage`) was updated to match** — since a single
+edit link can now cover squares in different towns, it shows a proper
+per-town breakdown ("3 in Oulu, 2 in Tampere") instead of assuming
+everything is in one place. The logo-cropping tool's shape-matching still
+works correctly too — it was quietly relying on all squares sharing one
+town's coordinate system, which broke the moment squares could span
+multiple towns, so that got fixed as part of this change.
+
+## Website "quick listing" autofill
+
+When a business types their website URL into the claim form and clicks
+away from that field, the site quietly fetches their site's existing
+preview tags (the same ones used for link previews on social media) and
+fills in their company name, tagline, and logo automatically if those
+fields are still empty. No Google account, no billing, no OAuth — just
+reads public HTML the business's own site already has.
+
+**What this doesn't do, compared to a real Google Business integration:**
+no star ratings, no review counts, no data pulled from Google Maps
+specifically — those genuinely require Google's Business Profile API,
+which needs OAuth (the business logging into their own Google account) and
+Google's app-review process. This is the free, simpler alternative that
+covers the most common practical need (not retyping what's already on your
+site) without that overhead.

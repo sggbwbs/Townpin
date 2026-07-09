@@ -27,8 +27,12 @@ module.exports = async (req, res) => {
     if (!squares || squares.length === 0) {
       return res.status(404).json({ error: 'No active squares found for this link.' });
     }
-    const { data: town } = await supabase.from('towns').select('name, slug, grid_size').eq('id', squares[0].town_id).maybeSingle();
-    return res.status(200).json({ squares, town });
+    // squares can now span multiple towns in one purchase -- fetch all of
+    // them, not just the first square's town, so nothing gets silently
+    // mislabeled if this purchase covers more than one town.
+    const townIds = [...new Set(squares.map(s => s.town_id))];
+    const { data: towns } = await supabase.from('towns').select('id, name, slug, grid_size').in('id', townIds);
+    return res.status(200).json({ squares, towns: towns || [] });
   }
 
   if (req.method === 'POST') {

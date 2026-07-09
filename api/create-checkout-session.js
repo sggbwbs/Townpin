@@ -5,7 +5,7 @@ const { moderate } = require('./_moderate');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
-const MAX_SQUARES_PER_PURCHASE = 40; // safety cap against fat-finger selections
+const MAX_SQUARES_PER_PURCHASE = 40; // safety cap against fat-finger selections, across all towns combined
 
 // Kept in sync with the <select> options in index.html -- server-side
 // validation so a direct API call can't store junk values here.
@@ -29,8 +29,10 @@ const ALLOWED_INDUSTRIES = [
 const FOUNDING_COUPON_ID = process.env.STRIPE_FOUNDING_COUPON_ID;
 
 // Volume pricing -- more squares in one purchase costs less per square.
-// Computed here, server-side, so a customer can never manipulate the price
-// by sending a fake amount from the browser.
+// Computed here, server-side, on the TOTAL count across every town in the
+// purchase, so a customer can never manipulate the price by sending a fake
+// amount from the browser, and buying across several towns in one go still
+// earns the same bulk discount as buying that many squares in one town.
 function pricePerSquareEur(count) {
   if (count >= 4) return 4;
   return 5;
@@ -40,19 +42,25 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { townId, indices, companyName, websiteUrl, email, logoUrl, color, tagline, industry } = req.body;
+    const { selections, companyName, websiteUrl, email, logoUrl, color, tagline, industry } = req.body;
 
-    if (typeof townId !== 'number' && typeof townId !== 'string') {
-      return res.status(400).json({ error: 'Missing town.' });
-    }
-    if (!Array.isArray(indices) || indices.length === 0) {
+    if (!Array.isArray(selections) || selections.length === 0) {
       return res.status(400).json({ error: 'Select at least one square.' });
     }
-    if (indices.length > MAX_SQUARES_PER_PURCHASE) {
-      return res.status(400).json({ error: `Max ${MAX_SQUARES_PER_PURCHASE} squares per purchase — split larger campaigns into a few buys.` });
+    for (const sel of selections) {
+      if (typeof sel.townId !== 'number' && typeof sel.townId !== 'string') {
+        return res.status(400).json({ error: 'Missing town in one of your selections.' });
+      }
+      if (!Array.isArray(sel.indices) || sel.indices.length === 0) {
+        return res.status(400).json({ error: 'Each town in your selection needs at least one square.' });
+      }
+      if (sel.indices.some(i => typeof i !== 'number' || i < 0)) {
+        return res.status(400).json({ error: 'Invalid square selection.' });
+      }
     }
-    if (indices.some(i => typeof i !== 'number' || i < 0)) {
-      return res.status(400).json({ error: 'Invalid square selection.' });
+    const totalCount = selections.reduce((sum, sel) => sum + sel.indices.length, 0);
+    if (totalCount > MAX_SQUARES_PER_PURCHASE) {
+      return res.status(400).json({ error: `Max ${MAX_SQUARES_PER_PURCHASE} squares per purchase — split larger campaigns into a few buys.` });
     }
     if (!companyName || !websiteUrl || !email) {
       return res.status(400).json({ error: 'Company name, website and email are required.' });
@@ -75,22 +83,28 @@ module.exports = async (req, res) => {
       .lt('reserved_until', new Date().toISOString())
       .eq('status', 'pending');
 
-    const { data: existing, error: existingErr } = await supabase
-      .from('squares')
-      .select('idx')
-      .eq('town_id', townId)
-      .in('idx', indices)
-      .in('status', ['active', 'pending']);
-    if (existingErr) throw existingErr;
-    if (existing && existing.length > 0) {
-      return res.status(409).json({ error: 'One of those squares was just taken — pick again.' });
+    // check each town's requested squares are still free
+    for (const sel of selections) {
+      const { data: existing, error: existingErr } = await supabase
+        .from('squares')
+        .select('idx')
+        .eq('town_id', sel.townId)
+        .in('idx', sel.indices)
+        .in('status', ['active', 'pending']);
+      if (existingErr) throw existingErr;
+      if (existing && existing.length > 0) {
+        return res.status(409).json({ error: 'One of those squares was just taken — pick again.' });
+      }
     }
 
     const reservedUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     const editToken = require('crypto').randomUUID();
     const groupId = require('crypto').randomUUID();
-    const rows = indices.map(idx => ({
-      town_id: townId,
+
+    // one shared row-shape across every town in this purchase -- same
+    // company info, same group_id/edit_token, just a different town_id/idx
+    const rows = selections.flatMap(sel => sel.indices.map(idx => ({
+      town_id: sel.townId,
       idx,
       company_name: companyName,
       website_url: websiteUrl,
@@ -103,7 +117,7 @@ module.exports = async (req, res) => {
       reserved_until: reservedUntil,
       edit_token: editToken,
       group_id: groupId
-    }));
+    })));
 
     const { data: inserted, error: insertErr } = await supabase
       .from('squares')
@@ -117,7 +131,7 @@ module.exports = async (req, res) => {
     }
 
     const squareIds = inserted.map(r => r.id).join(',');
-    const count = indices.length;
+    const townCount = selections.length;
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -125,16 +139,18 @@ module.exports = async (req, res) => {
       line_items: [{
         price_data: {
           currency: 'eur',
-          unit_amount: pricePerSquareEur(count) * 100,
+          unit_amount: pricePerSquareEur(totalCount) * 100,
           recurring: { interval: 'month' },
           product_data: {
-            name: count === 1
-              ? `PaikallisCanvas square — ${companyName}`
-              : `PaikallisCanvas squares (x${count}, €${pricePerSquareEur(count)}/square) — ${companyName}`,
+            name: townCount > 1
+              ? `PaikallisCanvas squares (x${totalCount} across ${townCount} towns) — ${companyName}`
+              : (totalCount === 1
+                ? `PaikallisCanvas square — ${companyName}`
+                : `PaikallisCanvas squares (x${totalCount}, €${pricePerSquareEur(totalCount)}/square) — ${companyName}`),
             description: 'Square(s) on your town\'s community board, renewed monthly.'
           }
         },
-        quantity: count
+        quantity: totalCount
       }],
       metadata: { squareIds },
       subscription_data: { metadata: { squareIds } },
