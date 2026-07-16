@@ -837,3 +837,43 @@ the bad duplicate image_url baked in) in Supabase:
 ```sql
 delete from local_feed_items where item_type = 'event';
 ```
+
+## Four fixes: logo accuracy, industry default, header size, clean URLs
+
+**Logo detection genuinely improved, not just patched.** Previously used
+`og:image` as the logo — in practice this is usually a marketing/hero
+photo, not a logo, confirmed directly with Martela's site pulling a
+random office photo. Replaced with real logo-detection, checked in
+priority order: (1) Schema.org JSON-LD `"logo"` field, when the site
+explicitly labels one — the same field Google uses for Knowledge Panel
+logos; (2) `<img>` tags whose class/id/alt mention "logo"; (3)
+`apple-touch-icon`, a dedicated square icon most sites configure on
+purpose. If none of these produce a confident match, **no logo is shown
+at all** — showing nothing is a better outcome than showing the wrong
+photo, so the old always-available `og:image` fallback was removed
+entirely rather than kept as a last resort.
+
+**Industry no longer silently defaults to the first alphabetical
+option.** Added a real "— Valitse toimiala —" placeholder as the genuine
+default. Also added a low-risk AI suggestion: given the site's title and
+description (already fetched for the autofill), a quick classification
+call picks the best match from the fixed industry list — a fundamentally
+safer AI task than generating content, since it's just selecting from a
+known set of values, never inventing anything. Still fully overridable,
+and follows the same "don't overwrite what the user actually chose"
+pattern as the other autofill fields.
+
+**Header logo enlarged** — both the icon mark and the wordmark are
+noticeably bigger now.
+
+**Clean URLs**: the board now lives at `/oulu` instead of `/board/oulu-fi`.
+Deliberately implemented as an **explicit** rewrite for `/oulu`
+specifically, not a generic wildcard — a generic single-segment pattern
+would risk shadowing `/admin`, `/manage`, and `/generate-hash`, which are
+also single-segment paths. **This means expanding to a new town later
+needs one manual step**: add that town's own explicit rewrite line to
+`vercel.json` (e.g. `{"source": "/tampere", "destination": "/"}`) as
+part of enabling it — a small, deliberate step given towns are already
+enabled one at a time through the admin panel, not something that
+happens automatically or often. The old `/board/:slug` format still
+works too, so no existing links break.

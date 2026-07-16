@@ -42,11 +42,11 @@
   a{color:inherit;}
 
   header{display:flex;align-items:center;justify-content:space-between;padding:22px 28px;flex-wrap:wrap;gap:12px;}
-  #brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
-  #brandMark{width:32px;height:38px;display:flex;align-items:center;justify-content:center;
+  #brand{display:flex;align-items:center;gap:14px;cursor:pointer;}
+  #brandMark{width:64px;height:76px;display:flex;align-items:center;justify-content:center;
     flex:none;filter:drop-shadow(0 3px 6px rgba(14,42,71,0.35));}
-  #brandMark svg{width:32px;height:38px;}
-  #brand .name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
+  #brandMark svg{width:64px;height:76px;}
+  #brand .name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:34px;}
   #brand .name span{color:var(--amber);}
 
   #langToggle{display:flex;gap:2px;background:var(--panelT7);border:1px solid var(--line);
@@ -513,6 +513,7 @@
 
     <label data-i18n="lIndustry">Toimiala</label>
     <select id="fIndustry">
+      <option value="" data-i18n="pickIndustry" selected>— Valitse toimiala —</option>
       <option value="ajoneuvot" data-i18n="indAjoneuvot">Ajoneuvot ja korjaamo</option>
       <option value="elainlaakari" data-i18n="indElainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
       <option value="it" data-i18n="indIt">IT ja digitaaliset palvelut</option>
@@ -998,6 +999,7 @@ const STRINGS = {
     indRavintola: 'Ravintola ja kahvila', indKauneus: 'Kauneus ja hyvinvointi',
     indRakentaminen: 'Rakentaminen ja remontointi', indTerveys: 'Terveys ja lääkäripalvelut',
     indKauppa: 'Vähittäiskauppa', indAjoneuvot: 'Ajoneuvot ja korjaamo',
+    pickIndustry: '— Valitse toimiala —',
     indIt: 'IT ja digitaaliset palvelut', indKoulutus: 'Koulutus',
     indKiinteisto: 'Kiinteistö ja asuminen', indTalous: 'Lakipalvelut ja talous',
     indTapahtumat: 'Tapahtumat ja viihde', indMuu: 'Muu',
@@ -1111,6 +1113,7 @@ const STRINGS = {
     indRavintola: 'Restaurant and café', indKauneus: 'Beauty and wellness',
     indRakentaminen: 'Construction and renovation', indTerveys: 'Health and medical',
     indKauppa: 'Retail', indAjoneuvot: 'Vehicles and repair',
+    pickIndustry: '— Choose an industry —',
     indIt: 'IT and digital services', indKoulutus: 'Education',
     indKiinteisto: 'Real estate and housing', indTalous: 'Legal and financial services',
     indTapahtumat: 'Events and entertainment', indMuu: 'Other',
@@ -1290,7 +1293,13 @@ async function openBoard(name, country, population){
       return;
     }
     currentTown = data.town;
-    history.pushState({}, '', `/board/${currentTown.slug}`);
+    // Clean, shareable URL -- strips the "-fi" country suffix from the
+    // internal database slug (e.g. "oulu-fi" -> "/oulu"). Vercel needs a
+    // matching explicit rewrite entry for each town's clean slug (see
+    // vercel.json) -- deliberately not a generic wildcard, which would
+    // risk shadowing /admin, /manage, and /generate-hash.
+    const cleanSlug = currentTown.slug.replace(/-[a-z]{2}$/i, '');
+    history.pushState({}, '', `/${cleanSlug}`);
     document.getElementById('boardTitle').textContent = currentTown.name;
     document.getElementById('grid').style.setProperty('--cols', currentTown.grid_size);
     await loadBoard();
@@ -1686,6 +1695,8 @@ function openClaimModal(){
   companyWasAutofilled = false;
   taglineWasAutofilled = false;
   logoWasAutofilled = false;
+  industryWasAutofilled = false;
+  document.getElementById('fIndustry').value = '';
   document.getElementById('logoPreview').style.display = 'none';
   document.getElementById('cropperWrap').style.display = 'none';
   document.getElementById('fLogoFile').value = '';
@@ -1944,12 +1955,14 @@ document.getElementById('logoRemoveBtn').addEventListener('click', ()=>{
 let companyWasAutofilled = false;
 let taglineWasAutofilled = false;
 let logoWasAutofilled = false;
+let industryWasAutofilled = false;
 
 // Manually editing a field after autofill means "keep my version" --
 // stop treating it as autofilled so a later website-URL change won't
 // silently overwrite what the user actually typed.
 document.getElementById('fCompany').addEventListener('input', () => { companyWasAutofilled = false; });
 document.getElementById('fTagline').addEventListener('input', () => { taglineWasAutofilled = false; });
+document.getElementById('fIndustry').addEventListener('change', () => { industryWasAutofilled = false; });
 
 document.getElementById('fWebsite').addEventListener('blur', async ()=>{
   const url = document.getElementById('fWebsite').value.trim();
@@ -1983,6 +1996,11 @@ document.getElementById('fWebsite').addEventListener('blur', async ()=>{
       document.getElementById('logoPreviewImg').src = data.logoUrl;
       document.getElementById('logoPreview').style.display = 'flex';
       logoWasAutofilled = true;
+    }
+    const industryField = document.getElementById('fIndustry');
+    if (data.suggestedIndustry && (!industryField.value || industryWasAutofilled)){
+      industryField.value = data.suggestedIndustry;
+      industryWasAutofilled = true;
     }
     hint.textContent = t('autofillFound');
     setTimeout(()=>{ hint.style.display = 'none'; }, 4000);
@@ -2077,11 +2095,13 @@ async function init(){
   showSuccessBannerIfNeeded();
   const path = window.location.pathname;
   if (path.startsWith('/board/')){
+    // legacy URL format -- kept working for any existing bookmarks/links
     const slug = decodeURIComponent(path.slice('/board/'.length));
     const guessName = slug.split('-').slice(0, -1).join(' ') || slug;
     const match = FINNISH_CITIES.find(c => c.name.toLowerCase() === guessName.toLowerCase());
     await openBoard(match ? match.name : guessName, slug.split('-').pop().toUpperCase(), match ? match.population : null);
   } else {
+    // covers both the new clean "/oulu" URL and the bare homepage
     await openBoard('Oulu', 'FI', 215000);
   }
 }
