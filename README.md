@@ -776,3 +776,64 @@ has one clean single date the way an event does, so a date is optional
 here (shown if the model can genuinely determine an expiry, omitted
 rather than guessed otherwise), and offers display as a flat list rather
 than the weekly browser events use.
+
+## Events upgraded from AI-guessing to a real, structured data source
+
+Found (with real credit due — you tracked this down yourself, browser
+devtools and all) a genuine, public, unauthenticated API behind
+tapahtumat.kaleva.fi that returns actual event data: real titles, real
+dates (including recurring-event date arrays), real venue addresses,
+organizer-written descriptions, and ticket links. This is a categorically
+better source than asking AI to search and guess, same upgrade already
+made for news via Kaleva's RSS feed.
+
+**How it works now:**
+1. Fetch `tapahtumat.kaleva.fi/api/collection/.../content/...` directly
+2. Filter to venues whose address contains "Oulu" (this collection covers
+   all of Northern Finland, not just Oulu) and to dates genuinely within
+   the next 4 weeks
+3. Use the real title, the organizer's own short description, and the
+   real date directly — no AI involved in generating any of this
+4. **Only** use a lightweight AI call to translate the real Finnish text
+   to English — translating known-accurate text is a fundamentally lower-
+   risk task than generating event data from scratch, since there's
+   nothing to hallucinate
+5. Falls back to the old AI-search approach only if this API is ever
+   unreachable or returns nothing — preserves resilience without losing
+   the accuracy upgrade
+
+**Worth knowing:** this endpoint was found by inspecting the real
+site's own network requests, not through official documentation — it's
+a genuinely public, unauthenticated request (nothing bypassed or
+scraped against the site's wishes), but there's no guarantee Kaleva
+keeps this exact URL/response shape stable forever. If events silently
+stop updating at some point in the future, this API's structure may have
+changed and would need re-checking the same way it was found.
+
+## Fixed duplicate event images, and corrected the "AI-curated" label
+
+**Duplicate images fixed:** every event was showing the same photo,
+traced to the exact same root cause discovered earlier for the main
+listings page — each individual Kaleva event page is *also* a
+JavaScript-rendered app. Confirmed directly: fetching one of these pages
+returns literal unrendered template code (`{{ ui.description }}`), not
+real content. Fetching it for its og:image only ever saw a generic
+template-level image, the same one every time. Fixed by simply not
+attempting this for events at all — no image is a better, more honest
+outcome than a wrong, duplicated one. News images are unaffected and
+still work correctly, since Kaleva's actual news articles are properly
+server-rendered.
+
+**"Automatically curated by AI" label removed from events** — no longer
+accurate now that events are real Kaleva data, not AI-generated. Replaced
+with a plain "Source: Kaleva" note matching the news section's style,
+since that's now literally true. The Offers section keeps its own
+separate AI disclaimer unchanged, since offers are still genuinely
+AI-generated and that label is still accurate there.
+
+**To see this take effect immediately** rather than waiting for the
+next natural cache refresh, clear the stale event rows (which still have
+the bad duplicate image_url baked in) in Supabase:
+```sql
+delete from local_feed_items where item_type = 'event';
+```

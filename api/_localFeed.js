@@ -404,9 +404,13 @@ async function getLocalFeed(supabase, townId, townName) {
     } else {
       const fresh = await generateEventItems(townName);
       if (fresh.length > 0) {
-        const enriched = await enrichWithImages(fresh, supabase);
+        // Deliberately NOT running enrichWithImages here -- each Kaleva
+        // event page is itself a JS-rendered app, so fetching it only
+        // sees a generic template shell, not the real per-event image.
+        // That produced the same misleading photo on every single event.
+        // No image is a better outcome than a wrong, duplicated one.
         await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'event');
-        const rows = enriched.map(i => ({ town_id: townId, ...i }));
+        const rows = fresh.map(i => ({ town_id: townId, ...i }));
         const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select().order('event_date', { ascending: true });
         result.events = inserted || [];
       } else {
