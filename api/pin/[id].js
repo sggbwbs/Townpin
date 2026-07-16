@@ -38,6 +38,9 @@ module.exports = async (req, res) => {
     return;
   }
 
+  // best-effort view tracking -- never let a tracking failure break the actual page
+  supabase.rpc('increment_view_count', { square_id: id }).then(null, () => {});
+
   const { data: town } = await supabase
     .from('towns')
     .select('name, slug, country')

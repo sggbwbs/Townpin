@@ -11,8 +11,8 @@
   } catch (e) {} // localStorage can throw in some locked-down browser contexts -- fail silently, default theme still works
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PaikallisCanvas — Suomen yritysten ilmoitustaulu</title>
-<meta name="description" content="Varaa yrityksellesi ruutu suomalaisen kaupunkisi ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen ruutu saa oman verkkosivun, joka voi näkyä Googlen hakutuloksissa." />
+<title>PaikallisCanvas — Oulun yritysten ilmoitustaulu</title>
+<meta name="description" content="Varaa yrityksellesi ruutu Oulun ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen ruutu saa oman verkkosivun, joka voi näkyä Googlen hakutuloksissa." />
 
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
@@ -237,6 +237,13 @@
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;text-align:center;line-height:26px;margin-bottom:10px;}
   .hiwStep span{font-size:13px;color:var(--ink-dim);line-height:1.5;}
 
+  #localFeed{margin:44px auto 0;max-width:760px;}
+  #localFeed h2{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 6px;}
+  #localFeedItems{display:grid;gap:12px;margin-top:16px;}
+  .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .feedItem b{display:block;font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin-bottom:4px;}
+  .feedItem p{margin:0 0 6px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
+  .feedItem a{font-size:11.5px;color:var(--amber);text-decoration:underline;}
   #factsSection{margin:40px auto 8px;max-width:760px;text-align:center;}
   #factsSection h2{font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 22px;}
   .factsRow{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;}
@@ -282,8 +289,8 @@
 
 <main>
   <div id="hero">
-    <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Suomelle.</span></h1>
-    <p class="sub" data-i18n="heroSub">PaikallisCanvas on kaupunkisi yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.</p>
+    <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h1>
+    <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.</p>
   </div>
 
   <div class="valueRow">
@@ -337,6 +344,12 @@
 
   <div id="boardLayout">
     <div id="grid"></div>
+  </div>
+
+  <div id="localFeed" style="display:none;">
+    <h2 id="localFeedTitle"></h2>
+    <p class="note" data-i18n="localFeedNote" style="text-align:center;margin:0 0 20px;">🤖 Automaattisesti koottu — emme takaa täydellistä tarkkuutta, tarkista lähteestä.</p>
+    <div id="localFeedItems"></div>
   </div>
 
   <div id="factsSection">
@@ -839,8 +852,8 @@ let lang = 'fi';
 
 const STRINGS = {
   fi: {
-    heroTitle: 'Näytä yrityksesi <span>koko Suomelle.</span>',
-    heroSub: 'PaikallisCanvas on kaupunkisi yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.',
+    heroTitle: 'Näytä yrityksesi <span>koko Oululle.</span>',
+    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.',
     value1b: '5€/kk',
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
@@ -870,6 +883,7 @@ const STRINGS = {
     faqA5: 'Sivusi julkaistaan heti, mutta hakukoneiden indeksointi voi viedä muutamasta päivästä pariin viikkoon — emme voi luvata tarkkaa aikataulua tai sijoitusta hakutuloksissa.',
     faqQ6: 'Kuukausitilaus vai kertamaksu — kumpi kannattaa?',
     faqA6: 'Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.',
+    localFeedNote: '🤖 Automaattisesti koottu — emme takaa täydellistä tarkkuutta, tarkista lähteestä.',
     otherTown: 'Etsitkö toista kaupunkia? →',
     townPlaceholder: 'Kaupungin nimi (esim. Tampere)',
     viewBoard: 'Katso taulu →',
@@ -944,8 +958,8 @@ const STRINGS = {
     noSuggestion: 'Kaupunkia ei löytynyt tietokannasta — voit silti hakea sitä, taulu luodaan automaattisesti.'
   },
   en: {
-    heroTitle: 'Put your business in front of <span>all of Finland.</span>',
-    heroSub: "PaikallisCanvas is a shared online board for your town's businesses — every square on the board is a different company. Buy your own square, add your logo and a link to your site, and customers can find you both on the board and on Google. Cancel anytime.",
+    heroTitle: 'Put your business in front of <span>all of Oulu.</span>',
+    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every square on the board is a different company. Buy your own square, add your logo and a link to your site, and customers can find you both on the board and on Google. Cancel anytime.",
     value1b: '€5/month',
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: 'Findable on Google', value2: 'your business gets its own page that can appear in search results, even if nobody browses the board itself',
@@ -975,6 +989,7 @@ const STRINGS = {
     faqA5: 'Your page goes live immediately, but search engine indexing can take anywhere from a few days to a couple of weeks — we can\'t promise an exact timeline or ranking.',
     faqQ6: 'Monthly subscription or one-time payment — which is better?',
     faqA6: 'Both work on the same square. The monthly subscription bills every month and you can cancel anytime. Prepaid lets you pay for a 3, 6, or 12-month term upfront at a discount (12 months = 2 months free) — it doesn\'t auto-renew, so there\'s nothing to remember to cancel.',
+    localFeedNote: '🤖 Automatically curated — accuracy isn\'t guaranteed, check the source.',
     otherTown: 'Looking for another town? →',
     townPlaceholder: 'Enter your town (e.g. Tampere)',
     viewBoard: 'View board →',
@@ -1092,6 +1107,7 @@ function setLang(l){
   updateClaimedMeta();
   updateSelectionBar();
   renderGrid();
+  renderLocalFeed(currentFeedItems);
 }
 
 // Alphabetically sorts a <select>'s options using proper locale rules for
@@ -1190,12 +1206,49 @@ async function openBoard(name, country, population){
   }
 }
 
+let currentFeedItems = [];
+
 async function loadBoard(){
   const res = await fetch(`${API_BASE}/board?townId=${currentTown.id}`);
   const data = await res.json();
   currentSquares = data.squares || [];
+  currentFeedItems = data.feed || [];
   updateClaimedMeta();
   renderGrid();
+  renderLocalFeed(currentFeedItems);
+}
+
+function renderLocalFeed(items){
+  const wrap = document.getElementById('localFeed');
+  if (!items || items.length === 0){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  document.getElementById('localFeedTitle').textContent =
+    (lang === 'fi' ? `Ajankohtaista — ${currentTown.name}` : `Happening now — ${currentTown.name}`);
+  const box = document.getElementById('localFeedItems');
+  box.innerHTML = '';
+  items.forEach(item=>{
+    const el = document.createElement('div');
+    el.className = 'feedItem';
+    const title = lang === 'fi' ? item.title_fi : item.title_en;
+    const summary = lang === 'fi' ? item.summary_fi : item.summary_en;
+
+    const titleEl = document.createElement('b');
+    titleEl.textContent = title;
+    const summaryEl = document.createElement('p');
+    summaryEl.textContent = summary;
+    el.appendChild(titleEl);
+    el.appendChild(summaryEl);
+
+    if (item.source_url && /^https?:\/\//i.test(item.source_url)){
+      const link = document.createElement('a');
+      link.href = item.source_url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = (lang === 'fi' ? 'Lähde ↗' : 'Source ↗');
+      el.appendChild(link);
+    }
+    box.appendChild(el);
+  });
 }
 
 // Cell sizing is now handled entirely by CSS (aspect-ratio on #grid),

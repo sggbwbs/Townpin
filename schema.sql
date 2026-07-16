@@ -95,3 +95,31 @@ create index if not exists squares_industry_idx on squares (town_id, industry);
 -- Null = normal ongoing monthly subscription. Non-null = this square was
 -- paid upfront for a fixed term and should auto-expire on this date.
 alter table squares add column if not exists active_until timestamptz;
+
+-- ==== View tracking, so business owners can see proof their square is
+-- actually getting looked at (directly addresses feedback that businesses
+-- need to see concrete value, not just trust it blindly) ====
+alter table squares add column if not exists view_count integer not null default 0;
+
+-- Atomic increment (not a plain read-then-write update) so concurrent
+-- visitors never silently undercount each other's views.
+create or replace function increment_view_count(square_id bigint)
+returns void as $$
+begin
+  update squares set view_count = view_count + 1 where id = square_id;
+end;
+$$ language plpgsql;
+
+-- ==== AI-curated local news/events feed, refreshed automatically ====
+create extension if not exists pgcrypto;
+create table if not exists local_feed_items (
+  id uuid primary key default gen_random_uuid(),
+  town_id bigint not null references towns(id) on delete cascade,
+  title_fi text not null,
+  title_en text not null,
+  summary_fi text not null,
+  summary_en text not null,
+  source_url text,
+  created_at timestamptz not null default now()
+);
+create index if not exists local_feed_items_town_idx on local_feed_items (town_id, created_at desc);

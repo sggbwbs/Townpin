@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     const { data: squares, error } = await supabase
       .from('squares')
-      .select('id, idx, company_name, website_url, tagline, logo_url, color, ai_blurb_fi, ai_blurb_en, ai_blurb_source, status, town_id, subscription_id, active_until')
+      .select('id, idx, company_name, website_url, tagline, logo_url, color, ai_blurb_fi, ai_blurb_en, ai_blurb_source, status, town_id, subscription_id, active_until, view_count')
       .eq('edit_token', token)
       .eq('status', 'active');
     if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }

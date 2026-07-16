@@ -559,3 +559,53 @@ reminder that it won't auto-renew.
 plans in plain language, and the claim form itself shows the live price
 and per-term savings as soon as a plan is selected — no need to dig
 through a pricing page to understand what you're signing up for.
+
+## Refocused to Oulu-only
+
+Reverted the hero copy from "all of Finland" back to Oulu-specific,
+matching the advice from Oulun Seudun Uusyrityskeskus to prove the concept
+in one town before expanding. This was a copy/positioning change only —
+the underlying multi-town technical capability (other towns can still be
+searched and created, "post to additional towns" still works) wasn't
+removed, just no longer the headline pitch. Worth deciding later, once
+Oulu has real traction, whether to keep that capability quiet or actively
+promote it again.
+
+## View count analytics for business owners
+
+Directly answers a real gap raised in that same feedback: a business
+buying a square previously had no way to know if anyone was actually
+looking. `/manage` now shows a real total view count, incremented
+atomically every time their pin page loads (a plain read-then-write update
+would risk undercounting simultaneous visitors; this uses a proper
+Postgres function instead). Simple and honest, not fake vanity metrics —
+this literally is the number of times the page was requested, though
+note it doesn't currently distinguish real visitors from bots/crawlers,
+which is a reasonable limitation to know about but not fix unless it
+becomes a real problem.
+
+## AI-curated local news/events feed
+
+Also answers feedback from the same conversation — the suggestion that the
+board could offer more reasons to come back than just a static business
+directory. Rather than building a whole content-submission system (who
+posts, is it moderated, does it cost extra), this uses the same Claude +
+web search mechanism already powering the "quick info" company blurb
+feature: it searches for genuinely current local news/events in Oulu,
+writes short original summaries in both languages with a source link
+each, and shows them on the board page.
+
+**Cost and refresh:** cached for ~20 hours per town, so almost every board
+load is instant — only the rare request that finds the cache stale pays
+the cost of a fresh generation (a few Claude API calls, well under a cent
+each time this happens). No separate cron job needed; this refreshes
+itself lazily as part of the existing board-loading endpoint.
+
+**Honestly labeled**, not presented as verified editorial content — every
+item shows "🤖 Automatically curated" and links to its source, so anyone
+can check the AI got it right rather than just trusting it blindly.
+
+**One known, accepted limitation:** if two people happen to load a stale
+board at the exact same moment, both could trigger a regeneration
+simultaneously. At current traffic levels this is a non-issue — worth
+revisiting only if traffic grows enough to make it a real concern.

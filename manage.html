@@ -81,10 +81,17 @@ function render(squares, towns){
     countsByTown[name] = (countsByTown[name] || 0) + 1;
   });
   const townSummary = Object.entries(countsByTown).map(([name, n]) => `${n} in ${name}`).join(', ');
+  const totalViews = squares.reduce((sum, sq) => sum + (sq.view_count || 0), 0);
 
   app.innerHTML = `
     <h1>Manage your listing</h1>
     <p class="sub">${s.company_name} — ${squares.length} square${squares.length>1?'s':''} (${townSummary})</p>
+
+    <div class="card" style="text-align:center;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:#8a8168;margin-bottom:4px;">Total page views</div>
+      <div style="font-size:34px;font-weight:700;font-family:'Space Grotesk',sans-serif;color:#3a331d;">${totalViews.toLocaleString()}</div>
+      <p class="sub" style="margin-top:6px;">Every time someone opens your square's page, it counts here — real proof people are actually looking, not just a promise.</p>
+    </div>
 
     <div class="card">
       <h2>Appearance</h2>
