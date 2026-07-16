@@ -125,8 +125,25 @@ async function fetchOuluNewsFromRSS() {
 }
 
 const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72edb9364237309bf/content/63198844806f262926e72683?country=FI&lang=fi&mode=event&sort=startDate';
-const EVENTS_LOOKAHEAD_DAYS = 14; // current week + all of next week
 const EVENTS_PER_DAY_CAP = 10;
+
+// End of "next Sunday" (Finnish week convention: Monday-Sunday),
+// calculated in Europe/Helsinki local time -- NOT just "now + 14 days",
+// which drifts depending what day of the week it happens to be right
+// now and doesn't actually align with calendar week boundaries.
+function getEventsWindowCutoff() {
+  const helsinkiParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
+  }).formatToParts(new Date());
+  const get = (type) => helsinkiParts.find(p => p.type === type).value;
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const todayWeekday = weekdayMap[get('weekday')];
+  const todayUTC = Date.UTC(Number(get('year')), Number(get('month')) - 1, Number(get('day')));
+  // if today is already Sunday, next Sunday is exactly 7 days away;
+  // otherwise it's (14 - today's weekday number) days away
+  const daysUntilNextSunday = todayWeekday === 0 ? 7 : (14 - todayWeekday);
+  return todayUTC + daysUntilNextSunday * 24 * 60 * 60 * 1000 + (24 * 60 * 60 * 1000 - 1); // end of that day
+}
 
 // Real, structured event data from Kaleva's own event platform -- covers
 // all of Northern Finland, so this filters down to Oulu-area venues and
@@ -152,7 +169,7 @@ async function fetchOuluEventsFromAPI() {
     const data = await res.json();
     const pages = data.pages || [];
     const now = Date.now();
-    const cutoff = now + EVENTS_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000;
+    const cutoff = getEventsWindowCutoff();
 
     const findUpcomingDate = (page) => {
       const dates = (page.event && page.event.dates) || [];
