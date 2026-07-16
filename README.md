@@ -1104,3 +1104,74 @@ what's shown here.
 the month abbreviation — makes more sense now that you're browsing one
 specific day at a time rather than a whole week, and reinforces which
 day you're currently looking at.
+
+## Events refined: top 10 most popular per day, consistent 2-week window
+
+Adjusted based on more specific feedback: instead of comprehensive-but-
+uneven coverage across 4 weeks, this now:
+
+1. **Narrows the window to exactly 14 days** — current week + all of
+   next week, matching what was actually asked for, not an arbitrary
+   4-week range.
+2. **Groups events by day first, then keeps only the 10 most popular
+   per day** — using Kaleva's own real `countViews` figure per event,
+   not a guess. This guarantees every day in the 2-week window gets a
+   fair, consistent shot at showing its own top 10, rather than one
+   day's popular events crowding out another's.
+
+Still fetched sorted chronologically from the API (ensures every day is
+actually represented in the raw data before this per-day trimming
+happens), with the popularity ranking done afterward, in code, per day
+— combines comprehensive day coverage with genuine "most popular" curation
+rather than picking one or the other.
+
+## Fixed the actual week-alignment bug (Finnish weeks start Monday)
+
+Found and fixed a real bug, not just a labeling issue: the "current week
++ next week" window was calculated as a rolling "right now + 14 days,"
+which doesn't actually align with calendar week boundaries at all — it
+drifts depending on what day of the week it happens to be when the fetch
+runs. That's very likely why specific days late in "next week" (Wed
+through Sun) were coming up empty — they may have been landing just
+outside the actual fetched range, or getting inconsistent treatment
+depending on when the cache last refreshed.
+
+**Fixed properly**: the cutoff is now calculated as the actual end of
+next Sunday, in real Europe/Helsinki local time (matching the Finnish
+Monday-Sunday week convention), not a rolling day-count. This is a
+timezone-aware calculation specifically, not just using the server's
+default clock — Vercel's functions don't run in Finland's timezone by
+default, so this had to be computed correctly rather than assumed.
+
+**One honest thing to watch for after this fix**: if certain days *still*
+show few or no events even with the window correctly aligned now, that
+may reflect genuine data availability — event organizers often publish
+listings closer to the date, so days further out naturally have less
+listed yet. Worth checking again after this deploys and a fresh cache
+clear before assuming anything else is wrong.
+
+## Found the real cause: "next" was disabled by data, not by the window itself
+
+The window/cutoff calculation from the last fix was very likely already
+correct (no error about it in the logs) — the actual bug was in how the
+"next day" button decided when to disable itself. It was checking
+"is there any event data past this point," not "have we reached the
+actual end of the intended window." If Kaleva genuinely has no events
+listed yet for some of the later days (very normal — organizers often
+publish closer to the date), the button would lock navigation right at
+wherever the real data happened to run out, well before reaching the
+actual end of next Sunday.
+
+**Fixed**: "next" now disables strictly based on reaching the real end
+of the window (next Sunday, calculated the same Monday-Sunday-aligned
+way as the backend) — never based on whether any given day happens to
+have events yet. Empty days within the real range now show an honest
+"no events" message and stay navigable, rather than blocking you from
+even seeing them.
+
+**Also fixed a separate, real bug found in the same log**: event
+translation (Finnish → English) was failing every time due to not
+stripping markdown code fences before parsing the response — the exact
+same class of bug fixed elsewhere in this file before, just missed here.
+Unrelated to the date-range issue, but a real bug nonetheless, now fixed
+the same way.

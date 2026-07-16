@@ -1511,10 +1511,24 @@ function renderEventsDay(sortedEvents){
   }
 
   // prev disabled at "today" (these are upcoming events, not history);
-  // next disabled once we're past every event we actually have data for
+  // next disabled once we're past the actual end of the intended window
+  // (next Sunday) -- NOT just "the last event we happen to have data
+  // for". If a day genuinely has no events yet (common for dates further
+  // out, since organizers often publish closer to the date), it should
+  // still show honestly as "no events" rather than silently blocking
+  // navigation before reaching the real end of the browsable range.
   document.getElementById('weekPrevBtn').disabled = (currentDayOffset <= 0);
-  const lastEventDate = sortedEvents.length > 0 ? new Date(sortedEvents[sortedEvents.length - 1].event_date + 'T12:00:00') : null;
-  document.getElementById('weekNextBtn').disabled = !lastEventDate || end >= lastEventDate;
+  document.getElementById('weekNextBtn').disabled = (start >= getNextSundayEnd());
+}
+function getNextSundayEnd(){
+  const now = new Date();
+  const weekday = now.getDay(); // 0=Sun..6=Sat
+  const daysUntilNextSunday = weekday === 0 ? 7 : (14 - weekday);
+  const result = new Date();
+  result.setHours(0, 0, 0, 0);
+  result.setDate(result.getDate() + daysUntilNextSunday);
+  result.setHours(23, 59, 59, 999);
+  return result;
 }
 document.getElementById('showMoreEventsBtn').addEventListener('click', ()=>{
   eventsExpanded = !eventsExpanded;

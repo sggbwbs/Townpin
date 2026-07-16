@@ -252,8 +252,9 @@ ${JSON.stringify(events.map(e => ({ title_fi: e.title_fi, summary_fi: e.summary_
     });
     const data = await res.json();
     const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    const translations = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+    const translations = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
     return events.map((e, i) => ({
       ...e,
       title_en: (translations[i] && translations[i].title_en) || e.title_fi,
