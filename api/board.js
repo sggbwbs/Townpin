@@ -16,11 +16,10 @@ module.exports = async (req, res) => {
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not load board.' }); }
 
-  // Local news/events feed -- cached for ~20h, so most requests are
-  // instant; only the rare request that finds it stale pays the cost of
-  // regenerating it. Never blocks the board itself from loading -- a
-  // failure here just means an empty feed array.
-  let feed = [];
+  // Local news/events feed -- news refreshes often (cheap, real RSS),
+  // events refresh roughly daily (AI-generated). Never blocks the board
+  // itself from loading -- a failure here just means empty feed sections.
+  let feed = { news: [], events: [] };
   try {
     const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
     if (town) feed = await getLocalFeed(supabase, townId, town.name);

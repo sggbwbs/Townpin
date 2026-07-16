@@ -1,29 +1,80 @@
-// AI-curated local news/events feed. Uses Claude's web search tool to find
-// what's actually happening in a town right now, the same mechanism
-// already used for the company "quick info" blurb -- same cost profile
-// (~$0.01/search plus trivial token cost), no separate service to manage.
+// Local feed = two genuinely different things, sourced two different ways:
 //
-// Deliberately generates a handful of short items with a source link each,
-// rather than long-form articles: enough to make a board feel alive and
-// current, not a replacement for real local journalism.
+// NEWS: pulled directly from Kaleva's real, public RSS feed for Oulu.
+// Kaleva is the actual regional newspaper -- real headlines, real
+// journalism, zero AI involved, zero hallucination risk, and completely
+// free (RSS feeds are explicitly published for exactly this kind of
+// reuse). Currently hardcoded to Kaleva's Oulu feed since the site is
+// Oulu-only right now; expanding to other towns later would need a
+// per-town RSS source mapping, with AI search as a fallback where no
+// equivalent feed exists.
+//
+// EVENTS: no equivalent single "what's happening" feed exists, so this
+// still uses Claude + web search (same mechanism as the company "quick
+// info" blurb) to find genuinely current local events with real dates.
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-haiku-4-5-20251001';
-const REFRESH_AFTER_HOURS = 20; // refresh roughly once a day, not on every single visit
+const NEWS_REFRESH_AFTER_HOURS = 2;   // cheap to refresh often -- just an XML fetch, no AI cost
+const EVENTS_REFRESH_AFTER_HOURS = 20; // AI-generated -- refresh roughly once a day
 
-async function generateFeedItems(townName) {
+const OULU_NEWS_RSS = 'https://kaleva.fi/feedit/rss/managed-listing/oulun-seutu/';
+
+function stripCDATA(str) {
+  return (str || '').replace(/<!\[CDATA\[/, '').replace(/\]\]>$/, '').trim();
+}
+function decodeEntities(str) {
+  return (str || '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+function extractTag(block, tag) {
+  const m = block.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+  return m ? decodeEntities(stripCDATA(m[1])) : null;
+}
+
+async function fetchOuluNewsFromRSS() {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(OULU_NEWS_RSS, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return [];
+
+    const xml = await res.text();
+    const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+    return itemBlocks.slice(0, 10).map(block => {
+      const title = extractTag(block, 'title');
+      const link = extractTag(block, 'link');
+      let description = extractTag(block, 'description') || '';
+      if (description.length > 180) description = description.slice(0, 177) + '...';
+      return {
+        item_type: 'news',
+        title_fi: title, title_en: title, // Kaleva's own headline, not translated -- it's their real reporting, not ours to rewrite
+        summary_fi: description, summary_en: description,
+        source_url: link,
+        source_name: 'Kaleva',
+        event_date: null
+      };
+    }).filter(i => i.title_fi && i.source_url);
+  } catch (err) {
+    console.error('Oulu news RSS fetch failed:', err);
+    return [];
+  }
+}
+
+async function generateEventItems(townName) {
   if (!ANTHROPIC_API_KEY) return [];
 
-  const prompt = `Search the web for genuinely current local news or upcoming events in ${townName}, Finland -- things happening this week or in the next couple of weeks (local business openings, markets, festivals, council decisions, notable local news). Skip anything older or generic/national.
+  const prompt = `Search the web for genuinely current upcoming events in ${townName}, Finland -- things happening in the next 4 weeks (festivals, markets, concerts, sports, exhibitions, council/community events). Skip anything that already happened or is too generic/national.
 
-Write up to 4 short items. Each needs a title and a 1-2 sentence summary IN YOUR OWN WORDS (never a direct quote), in both Finnish and English, plus the single most relevant source URL.
+Write up to 10 events. Each needs a title, a 1-2 sentence description IN YOUR OWN WORDS (never a direct quote) in both Finnish and English, the actual date (as an ISO date "YYYY-MM-DD" -- your best accurate reading of the real date, required for every event), and the single most relevant source URL.
 
 Do not narrate your search process or explain your reasoning. Do not write anything like "I'll search for..." or "Based on my search results...". Just search, then respond with only the JSON below -- nothing before it, nothing after it.
 
 If you can't find anything genuinely current and local, respond with exactly: {"items": []}
 
 Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
-{"items": [{"title_fi": "...", "title_en": "...", "summary_fi": "...", "summary_en": "...", "source_url": "..."}]}`;
+{"items": [{"title_fi": "...", "title_en": "...", "summary_fi": "...", "summary_en": "...", "event_date": "YYYY-MM-DD", "source_url": "..."}]}`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -35,7 +86,7 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 3000,
+        max_tokens: 4000,
         messages: [{ role: 'user', content: prompt }],
         tools: [{ type: 'web_search_20250305', name: 'web_search' }]
       })
@@ -46,60 +97,89 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
       .map(b => b.text)
       .join('\n');
     const cleaned = text.replace(/```json|```/g, '').trim();
-    // The model sometimes narrates its search process in plain text
-    // before the actual JSON ("I'll search for..."). Pull out just the
-    // JSON object rather than assuming the whole response is clean JSON.
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
     if (!jsonStr) {
-      console.error('Local feed generation: empty response from model (likely ran out of tokens after the search step). Full response:', JSON.stringify(data));
+      console.error('Event generation: empty response from model. Full response:', JSON.stringify(data));
       return [];
     }
     let parsed;
     try {
       parsed = JSON.parse(jsonStr);
     } catch (parseErr) {
-      console.error('Local feed generation: could not parse model output as JSON. Raw text was:', cleaned);
+      console.error('Event generation: could not parse model output as JSON. Raw text was:', cleaned);
       return [];
     }
     if (!Array.isArray(parsed.items)) return [];
-    return parsed.items.slice(0, 4).filter(i => i.title_fi && i.title_en && i.summary_fi && i.summary_en);
+    return parsed.items
+      .slice(0, 10)
+      .filter(i => i.title_fi && i.title_en && i.summary_fi && i.summary_en && i.event_date)
+      .map(i => ({ ...i, item_type: 'event', source_name: null }));
   } catch (err) {
-    console.error('Local feed generation failed:', err);
-    return []; // fail open -- board still works fine with no feed items
+    console.error('Event generation failed:', err);
+    return [];
   }
 }
 
-// Returns cached items if fresh enough, otherwise regenerates and replaces
-// them. Best-effort: any failure here just means an empty/stale feed, never
-// a broken board page.
+// Returns { news, events }, each refreshed independently on its own
+// schedule since one is cheap/fast (RSS) and the other costs real API
+// calls (AI search). Best-effort throughout: any failure just means an
+// empty/stale section, never a broken board page.
 async function getLocalFeed(supabase, townId, townName) {
+  const result = { news: [], events: [] };
+
   try {
-    const { data: existing } = await supabase
-      .from('local_feed_items')
-      .select('*')
-      .eq('town_id', townId)
+    const { data: existingNews } = await supabase
+      .from('local_feed_items').select('*')
+      .eq('town_id', townId).eq('item_type', 'news')
       .order('created_at', { ascending: false });
+    const newsAgeHours = existingNews && existingNews.length > 0
+      ? (Date.now() - new Date(existingNews[0].created_at).getTime()) / 3600000 : Infinity;
 
-    const newestAgeHours = existing && existing.length > 0
-      ? (Date.now() - new Date(existing[0].created_at).getTime()) / 3600000
-      : Infinity;
-
-    if (existing && existing.length > 0 && newestAgeHours < REFRESH_AFTER_HOURS) {
-      return existing;
+    if (existingNews && existingNews.length > 0 && newsAgeHours < NEWS_REFRESH_AFTER_HOURS) {
+      result.news = existingNews;
+    } else {
+      const fresh = await fetchOuluNewsFromRSS();
+      if (fresh.length > 0) {
+        await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'news');
+        const rows = fresh.map(i => ({ town_id: townId, ...i }));
+        const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
+        result.news = inserted || [];
+      } else {
+        result.news = existingNews || [];
+      }
     }
-
-    const freshItems = await generateFeedItems(townName);
-    if (freshItems.length === 0) return existing || []; // generation failed/empty -- keep showing old items rather than nothing
-
-    await supabase.from('local_feed_items').delete().eq('town_id', townId);
-    const rows = freshItems.map(i => ({ town_id: townId, ...i }));
-    const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
-    return inserted || [];
   } catch (err) {
-    console.error('getLocalFeed failed:', err);
-    return [];
+    console.error('News feed lookup failed:', err);
   }
+
+  try {
+    const { data: existingEvents } = await supabase
+      .from('local_feed_items').select('*')
+      .eq('town_id', townId).eq('item_type', 'event')
+      .order('event_date', { ascending: true });
+    const newestCreated = existingEvents && existingEvents.length > 0
+      ? Math.max(...existingEvents.map(e => new Date(e.created_at).getTime())) : 0;
+    const eventsAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
+
+    if (existingEvents && existingEvents.length > 0 && eventsAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
+      result.events = existingEvents;
+    } else {
+      const fresh = await generateEventItems(townName);
+      if (fresh.length > 0) {
+        await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'event');
+        const rows = fresh.map(i => ({ town_id: townId, ...i }));
+        const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select().order('event_date', { ascending: true });
+        result.events = inserted || [];
+      } else {
+        result.events = existingEvents || [];
+      }
+    }
+  } catch (err) {
+    console.error('Events feed lookup failed:', err);
+  }
+
+  return result;
 }
 
 module.exports = { getLocalFeed };

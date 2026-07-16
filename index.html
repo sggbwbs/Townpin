@@ -238,12 +238,21 @@
   .hiwStep span{font-size:13px;color:var(--ink-dim);line-height:1.5;}
 
   #localFeed{margin:44px auto 0;max-width:760px;}
-  #localFeed h2{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 6px;}
-  #localFeedItems{display:grid;gap:12px;margin-top:16px;}
-  .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  #localFeed h2{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 24px;}
+  #newsSection{margin-bottom:36px;}
+  .feedSubhead{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--amber);
+    text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
+  #newsItems, #eventItems{display:grid;gap:12px;margin-top:12px;}
+  .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+    display:flex;gap:12px;align-items:flex-start;}
+  .feedItem .eventDate{flex:none;background:var(--amber);color:#2a1c0d;font-family:'Space Grotesk',sans-serif;
+    font-weight:700;font-size:11px;border-radius:6px;padding:6px 8px;text-align:center;line-height:1.2;min-width:44px;}
+  .feedItem .eventDate .day{display:block;font-size:16px;}
+  .feedItem .feedBody{flex:1;min-width:0;}
   .feedItem b{display:block;font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin-bottom:4px;}
   .feedItem p{margin:0 0 6px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
   .feedItem a{font-size:11.5px;color:var(--amber);text-decoration:underline;}
+  #showMoreEventsBtn{background:var(--panelT7);color:var(--ink);border-color:var(--line);}
   #factsSection{margin:40px auto 8px;max-width:760px;text-align:center;}
   #factsSection h2{font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 22px;}
   .factsRow{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;}
@@ -348,8 +357,21 @@
 
   <div id="localFeed" style="display:none;">
     <h2 id="localFeedTitle"></h2>
-    <p class="note" data-i18n="localFeedNote" style="text-align:center;margin:0 0 20px;">🤖 Automaattisesti koottu — emme takaa täydellistä tarkkuutta, tarkista lähteestä.</p>
-    <div id="localFeedItems"></div>
+
+    <div id="newsSection">
+      <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
+      <p class="note" style="text-align:center;margin:0 0 14px;" id="newsSourceNote"></p>
+      <div id="newsItems"></div>
+    </div>
+
+    <div id="eventsSection">
+      <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat</h3>
+      <p class="note" data-i18n="localFeedNote" style="text-align:center;margin:0 0 14px;">🤖 Automaattisesti koottu — emme takaa täydellistä tarkkuutta, tarkista lähteestä.</p>
+      <div id="eventItems"></div>
+      <div style="text-align:center;margin-top:14px;">
+        <button id="showMoreEventsBtn" class="logoBtn" style="display:none;" data-i18n="showMore">Näytä lisää</button>
+      </div>
+    </div>
   </div>
 
   <div id="factsSection">
@@ -882,6 +904,10 @@ const STRINGS = {
     faqQ6: 'Kuukausitilaus vai kertamaksu — kumpi kannattaa?',
     faqA6: 'Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.',
     localFeedNote: '🤖 Automaattisesti koottu — emme takaa täydellistä tarkkuutta, tarkista lähteestä.',
+    newsSectionTitle: 'Uutiset',
+    eventsSectionTitle: 'Tapahtumat',
+    showMore: 'Näytä lisää',
+    showLess: 'Näytä vähemmän',
     otherTown: 'Etsitkö toista kaupunkia? →',
     townPlaceholder: 'Kaupungin nimi (esim. Tampere)',
     viewBoard: 'Katso taulu →',
@@ -988,6 +1014,10 @@ const STRINGS = {
     faqQ6: 'Monthly subscription or one-time payment — which is better?',
     faqA6: 'Both work on the same square. The monthly subscription bills every month and you can cancel anytime. Prepaid lets you pay for a 3, 6, or 12-month term upfront at a discount (12 months = 2 months free) — it doesn\'t auto-renew, so there\'s nothing to remember to cancel.',
     localFeedNote: '🤖 Automatically curated — accuracy isn\'t guaranteed, check the source.',
+    newsSectionTitle: 'News',
+    eventsSectionTitle: 'Events',
+    showMore: 'Show more',
+    showLess: 'Show less',
     otherTown: 'Looking for another town? →',
     townPlaceholder: 'Enter your town (e.g. Tampere)',
     viewBoard: 'View board →',
@@ -1209,50 +1239,106 @@ async function openBoard(name, country, population){
   }
 }
 
-let currentFeedItems = [];
+let currentFeedItems = { news: [], events: [] };
 
 async function loadBoard(){
   const res = await fetch(`${API_BASE}/board?townId=${currentTown.id}`);
   const data = await res.json();
   currentSquares = data.squares || [];
-  currentFeedItems = data.feed || [];
+  currentFeedItems = data.feed || { news: [], events: [] };
+  eventsExpanded = false;
   updateClaimedMeta();
   renderGrid();
   renderLocalFeed(currentFeedItems);
 }
 
-function renderLocalFeed(items){
+let eventsExpanded = false;
+const EVENTS_COLLAPSED_COUNT = 4;
+
+function makeFeedItemEl(item){
+  const el = document.createElement('div');
+  el.className = 'feedItem';
+  const title = lang === 'fi' ? item.title_fi : item.title_en;
+  const summary = lang === 'fi' ? item.summary_fi : item.summary_en;
+
+  if (item.event_date){
+    const d = new Date(item.event_date + 'T00:00:00');
+    const dateBadge = document.createElement('div');
+    dateBadge.className = 'eventDate';
+    const months = lang === 'fi'
+      ? ['TAM','HEL','MAA','HUH','TOU','KES','HEI','ELO','SYY','LOK','MAR','JOU']
+      : ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    dateBadge.innerHTML = `<span class="day">${d.getDate()}</span>${months[d.getMonth()]}`;
+    el.appendChild(dateBadge);
+  }
+
+  const body = document.createElement('div');
+  body.className = 'feedBody';
+  const titleEl = document.createElement('b');
+  titleEl.textContent = title;
+  const summaryEl = document.createElement('p');
+  summaryEl.textContent = summary;
+  body.appendChild(titleEl);
+  body.appendChild(summaryEl);
+
+  if (item.source_url && /^https?:\/\//i.test(item.source_url)){
+    const link = document.createElement('a');
+    link.href = item.source_url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = (lang === 'fi' ? 'Lähde ↗' : 'Source ↗');
+    body.appendChild(link);
+  }
+  el.appendChild(body);
+  return el;
+}
+
+function renderLocalFeed(feed){
+  const news = (feed && feed.news) || [];
+  const events = (feed && feed.events) || [];
   const wrap = document.getElementById('localFeed');
-  if (!items || items.length === 0){ wrap.style.display = 'none'; return; }
+
+  if (news.length === 0 && events.length === 0){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
   document.getElementById('localFeedTitle').textContent =
     (lang === 'fi' ? `Ajankohtaista — ${currentTown.name}` : `Happening now — ${currentTown.name}`);
-  const box = document.getElementById('localFeedItems');
-  box.innerHTML = '';
-  items.forEach(item=>{
-    const el = document.createElement('div');
-    el.className = 'feedItem';
-    const title = lang === 'fi' ? item.title_fi : item.title_en;
-    const summary = lang === 'fi' ? item.summary_fi : item.summary_en;
 
-    const titleEl = document.createElement('b');
-    titleEl.textContent = title;
-    const summaryEl = document.createElement('p');
-    summaryEl.textContent = summary;
-    el.appendChild(titleEl);
-    el.appendChild(summaryEl);
+  // news
+  const newsSection = document.getElementById('newsSection');
+  if (news.length === 0){ newsSection.style.display = 'none'; }
+  else {
+    newsSection.style.display = 'block';
+    document.getElementById('newsSourceNote').textContent =
+      (lang === 'fi' ? 'Lähde: Kaleva' : 'Source: Kaleva');
+    const newsBox = document.getElementById('newsItems');
+    newsBox.innerHTML = '';
+    news.forEach(item => newsBox.appendChild(makeFeedItemEl(item)));
+  }
 
-    if (item.source_url && /^https?:\/\//i.test(item.source_url)){
-      const link = document.createElement('a');
-      link.href = item.source_url;
-      link.target = '_blank';
-      link.rel = 'noopener';
-      link.textContent = (lang === 'fi' ? 'Lähde ↗' : 'Source ↗');
-      el.appendChild(link);
+  // events, sorted chronologically, with show-more
+  const eventsSection = document.getElementById('eventsSection');
+  if (events.length === 0){ eventsSection.style.display = 'none'; }
+  else {
+    eventsSection.style.display = 'block';
+    const sorted = [...events].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
+    const eventsBox = document.getElementById('eventItems');
+    eventsBox.innerHTML = '';
+    const visibleCount = eventsExpanded ? sorted.length : Math.min(EVENTS_COLLAPSED_COUNT, sorted.length);
+    sorted.slice(0, visibleCount).forEach(item => eventsBox.appendChild(makeFeedItemEl(item)));
+
+    const moreBtn = document.getElementById('showMoreEventsBtn');
+    if (sorted.length > EVENTS_COLLAPSED_COUNT){
+      moreBtn.style.display = 'inline-block';
+      moreBtn.textContent = eventsExpanded ? t('showLess') : t('showMore');
+    } else {
+      moreBtn.style.display = 'none';
     }
-    box.appendChild(el);
-  });
+  }
 }
+document.getElementById('showMoreEventsBtn').addEventListener('click', ()=>{
+  eventsExpanded = !eventsExpanded;
+  renderLocalFeed(currentFeedItems);
+});
 
 // Cell sizing is now handled entirely by CSS (aspect-ratio on #grid),
 // which can't produce the "shrinks to almost nothing" bug the old

@@ -668,3 +668,25 @@ server-side enforcement, not just something the interface happens to hide.
 The "post to additional towns" section itself is hidden in the claim form
 for now (same reversible `display:none` approach as the search box) —
 bring both back together once more towns are open.
+
+## Split the local feed: real news (RSS) + AI-curated events (with dates)
+
+**News is no longer AI-generated at all.** It now pulls directly from
+Kaleva's real, public RSS feed for the Oulu region
+(`kaleva.fi/feedit/rss/managed-listing/oulun-seutu/`) — actual headlines
+from an actual regional newspaper, zero hallucination risk, refreshed
+every ~2 hours since it's just a free XML fetch with no AI cost at all.
+Each item links straight back to the original Kaleva article.
+
+**Events stay AI-curated** (no equivalent single "what's happening"
+feed exists), but now:
+- Generates up to 10 events instead of 4
+- Each one has a real date, requested explicitly from the model
+- Displayed sorted chronologically with a date badge, not just a flat list
+- Shows the nearest 4 by default with a **"Show more"** button to reveal
+  the rest — avoids overwhelming the board with a long list by default
+
+**If you ever expand to another town**, the news side currently only
+works for Oulu (Kaleva's feed is Oulu-specific) — a different town would
+need either its own equivalent local newspaper RSS feed, or fall back to
+the AI-search approach the whole feed used before this change.

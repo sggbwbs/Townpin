@@ -138,3 +138,8 @@ create table if not exists site_settings (
   value text,
   updated_at timestamptz not null default now()
 );
+
+-- ==== Split the local feed into real news (RSS) and AI-curated events ====
+alter table local_feed_items add column if not exists item_type text not null default 'event';
+alter table local_feed_items add column if not exists event_date date;
+alter table local_feed_items add column if not exists source_name text;
