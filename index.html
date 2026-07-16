@@ -136,6 +136,14 @@
     max-width:min(92vw, 480px);flex-wrap:wrap;justify-content:center;
   }
   #selectionBar.open{display:flex;}
+  /* On wider screens the board sits in its own column (see
+     #heroBoardGrid) -- a viewport-centered fixed bar ends up disconnected
+     from the grid and can visually land over unrelated content below.
+     Above that breakpoint, it's a normal element directly under the
+     grid instead: always in the right place, never floating loose. */
+  @media (min-width:1000px){
+    #selectionBar{position:static;transform:none;left:auto;bottom:auto;margin:16px 0 0;max-width:none;width:100%;}
+  }
   #selectionBar .count{font-weight:700;font-size:14.5px;flex:1 1 100%;text-align:center;}
   #selectionBar button{border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;
     font-weight:700;font-size:13.5px;cursor:pointer;white-space:nowrap;flex:0 0 auto;}
@@ -400,6 +408,12 @@
       <div id="boardLayout">
         <div id="grid"></div>
       </div>
+
+      <div id="selectionBar">
+        <span class="count" id="selectionCount">0 ruutua</span>
+        <button class="cancel" id="selectionCancel" data-i18n="cancelSelection">Peruuta</button>
+        <button class="go" id="selectionGo" data-i18n="continueSelection">Jatka →</button>
+      </div>
     </div>
   </div>
 
@@ -478,12 +492,6 @@
       <p class="faqA" data-i18n="faqA6">Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.</p></div>
   </div>
 </main>
-
-<div id="selectionBar">
-  <span class="count" id="selectionCount">0 ruutua</span>
-  <button class="cancel" id="selectionCancel" data-i18n="cancelSelection">Peruuta</button>
-  <button class="go" id="selectionGo" data-i18n="continueSelection">Jatka →</button>
-</div>
 
 <div id="overlay">
   <div id="modal">
