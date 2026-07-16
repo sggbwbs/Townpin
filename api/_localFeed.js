@@ -154,6 +154,17 @@ async function fetchOuluEventsFromAPI() {
       });
     };
 
+    // Kaleva's own data occasionally has a junk placeholder in the short
+    // description field (literally "N/A" in at least one real case seen)
+    // -- fall back to a stripped excerpt of the long description instead
+    // of passing that straight through to a real visitor.
+    const getSummary = (p) => {
+      const short = (p.descriptionShort || '').trim();
+      if (short && !/^n\/?a$/i.test(short)) return short.slice(0, 300);
+      const long = (p.descriptionLong || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      return long.slice(0, 300);
+    };
+
     return pages
       .filter(p => {
         const addr = (p.locations && p.locations[0] && p.locations[0].address) || '';
@@ -165,12 +176,12 @@ async function fetchOuluEventsFromAPI() {
         const upcoming = findUpcomingDate(p);
         return {
           title_fi: p.name,
-          summary_fi: (p.descriptionShort || '').slice(0, 300),
+          summary_fi: getSummary(p),
           event_date: upcoming.start.slice(0, 10),
           source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`
         };
       })
-      .filter(e => e.title_fi && e.event_date);
+      .filter(e => e.title_fi && e.event_date && e.summary_fi);
   } catch (err) {
     console.error('Oulu events API fetch failed:', err);
     return [];
@@ -296,9 +307,9 @@ async function generateOfferItems(townName) {
   // flyers, not clean indexable text. This will genuinely find less,
   // and less reliably, than the other two feed types -- that's expected,
   // not a bug, given what's actually searchable.
-  const prompt = `Search the web for genuinely current local discounts, sales, or special offers from real, well-known, established businesses based in ${townName}, Finland -- grocery stores, retail shops, restaurants, or local services running an active promotion right now. Prefer businesses that are genuinely popular and well-known locally (well-reviewed, established, actively talked about) over obscure ones that just happen to be easy to find online. Must be an actual ${townName}-based business, not a national chain's generic campaign with no local presence. Skip anything expired or anything you can't verify is currently running.
+  const prompt = `Search the web for genuinely current local discounts, sales, or special offers from real businesses based in ${townName}, Finland -- grocery stores, retail shops, restaurants, or local services running an active promotion right now. When you have a choice, prefer businesses that seem genuinely popular or well-known locally over obscure ones -- but a real, verifiable, currently-running local offer is always better than no offer at all, even from a smaller business. Must be an actual ${townName}-based business, not a national chain's generic campaign with no local presence. Skip anything expired or anything you can't verify is currently running.
 
-Actively look for a MIX of different individual businesses, not just one convenient source (e.g. a single shopping center's own campaigns page). Search separately for restaurants (many post daily/weekly specials on their own site or social media), local shops, and services, not only supermarkets. Maximum 2 offers from any single business or source -- if a shopping center or single site would otherwise dominate the results, actively search for other individual businesses instead of returning more from that one source.
+When possible, look for a mix of different individual businesses rather than only one convenient source (e.g. a single shopping center's own campaigns page covering many stores at once) -- but don't discard a genuinely good, verifiable offer just to force variety if that's genuinely what you find.
 
 Write up to 8 offers. Each needs a title, a 1-2 sentence description IN YOUR OWN WORDS (never a direct quote) in both Finnish and English, an ISO date "YYYY-MM-DD" for when it expires if you can determine one (omit the field entirely if you can't -- do not guess), and the single most relevant source URL.
 
