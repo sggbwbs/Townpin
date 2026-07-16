@@ -146,3 +146,7 @@ alter table local_feed_items add column if not exists source_name text;
 
 -- ==== Real photos for feed items, pulled from each item's own source page ====
 alter table local_feed_items add column if not exists image_url text;
+
+-- ==== IP-based reservation rate limiting (troll/abuse prevention) ====
+alter table squares add column if not exists reserving_ip text;
+create index if not exists squares_reserving_ip_idx on squares (reserving_ip, status, reserved_until);

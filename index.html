@@ -439,14 +439,20 @@
 
       <div id="eventsSection">
         <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat</h3>
-        <p class="note" data-i18n="eventsSourceNote" style="text-align:center;margin:0 0 14px;">Lähde: Kaleva</p>
+        <p class="note" style="text-align:center;margin:0 0 14px;">
+          <span data-i18n="eventsSourceNote">Lähde: Kaleva</span> —
+          <a href="https://tapahtumat.kaleva.fi/fi-FI" target="_blank" rel="noopener" data-i18n="viewAllEventsLink">katso kaikki tapahtumat ↗</a>
+        </p>
         <div id="weekNav">
-          <button id="weekPrevBtn" aria-label="Previous week">←</button>
+          <button id="weekPrevBtn" aria-label="Previous day">←</button>
           <span id="weekLabel"></span>
-          <button id="weekNextBtn" aria-label="Next week">→</button>
+          <button id="weekNextBtn" aria-label="Next day">→</button>
         </div>
         <div id="eventItems"></div>
         <p class="note" id="noEventsThisWeek" style="text-align:center;display:none;"></p>
+        <div style="text-align:center;margin-top:14px;">
+          <button id="showMoreEventsBtn" class="logoBtn" style="display:none;"></button>
+        </div>
       </div>
     </div>
   </div>
@@ -982,9 +988,10 @@ const STRINGS = {
     faqQ6: 'Kuukausitilaus vai kertamaksu — kumpi kannattaa?',
     faqA6: 'Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.',
     eventsSourceNote: 'Lähde: Kaleva',
+    viewAllEventsLink: 'katso kaikki tapahtumat ↗',
     newsSectionTitle: 'Uutiset',
     eventsSectionTitle: 'Tapahtumat',
-    noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
+    noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle päivälle.',
     showMore: 'Näytä lisää',
     showLess: 'Näytä vähemmän',
     otherTown: 'Etsitkö toista kaupunkia? →',
@@ -1094,9 +1101,10 @@ const STRINGS = {
     faqQ6: 'Monthly subscription or one-time payment — which is better?',
     faqA6: 'Both work on the same square. The monthly subscription bills every month and you can cancel anytime. Prepaid lets you pay for a 3, 6, or 12-month term upfront at a discount (12 months = 2 months free) — it doesn\'t auto-renew, so there\'s nothing to remember to cancel.',
     eventsSourceNote: 'Source: Kaleva',
+    viewAllEventsLink: 'see all events ↗',
     newsSectionTitle: 'News',
     eventsSectionTitle: 'Events',
-    noEventsThisWeek: 'No known events for this week.',
+    noEventsThisWeek: 'No known events for this day.',
     showMore: 'Show more',
     showLess: 'Show less',
     otherTown: 'Looking for another town? →',
@@ -1339,8 +1347,9 @@ async function loadBoard(){
   // Loaded separately, after the grid is already visible -- this can
   // take a few seconds on a cache miss, but it should never make someone
   // wait to see and use the board itself.
-  currentWeekOffset = 0;
+  currentDayOffset = 0;
   newsExpanded = false;
+  eventsExpanded = false;
   loadFeed();
 }
 
@@ -1357,27 +1366,26 @@ async function loadFeed(){
 
 let newsExpanded = false;
 const NEWS_COLLAPSED_COUNT = 5;
-let currentWeekOffset = 0; // 0 = this week, 1 = next week, etc.
+let eventsExpanded = false;
+const EVENTS_COLLAPSED_COUNT = 10;
+let currentDayOffset = 0; // 0 = today, 1 = tomorrow, etc.
 
-// Monday-Sunday week bounds for a given offset from the current week --
-// matches the Finnish week convention (weeks start Monday, not Sunday).
-function getWeekBounds(offset){
-  const now = new Date();
-  const day = now.getDay(); // 0=Sun..6=Sat
-  const diffToMonday = (day === 0 ? -6 : 1 - day);
-  const monday = new Date(now);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(now.getDate() + diffToMonday + offset * 7);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  return { start: monday, end: sunday };
+function getDayBounds(offset){
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + offset);
+  const end = new Date(d);
+  end.setHours(23, 59, 59, 999);
+  return { start: d, end };
 }
-function formatWeekLabel(offset, start, end){
-  const fmt = d => `${d.getDate()}.${d.getMonth() + 1}.`;
-  if (offset === 0) return lang === 'fi' ? `Tämä viikko (${fmt(start)}–${fmt(end)})` : `This week (${fmt(start)}–${fmt(end)})`;
-  if (offset === 1) return lang === 'fi' ? `Ensi viikko (${fmt(start)}–${fmt(end)})` : `Next week (${fmt(start)}–${fmt(end)})`;
-  return `${fmt(start)}–${fmt(end)}`;
+function formatDayLabel(offset, start){
+  const weekdaysFi = ['sunnuntai','maanantai','tiistai','keskiviikko','torstai','perjantai','lauantai'];
+  const weekdaysEn = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const weekday = (lang === 'fi' ? weekdaysFi : weekdaysEn)[start.getDay()];
+  const fmt = `${start.getDate()}.${start.getMonth() + 1}.`;
+  if (offset === 0) return lang === 'fi' ? `Tänään (${weekday} ${fmt})` : `Today (${weekday} ${fmt})`;
+  if (offset === 1) return lang === 'fi' ? `Huomenna (${weekday} ${fmt})` : `Tomorrow (${weekday} ${fmt})`;
+  return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${fmt}`;
 }
 
 function makeFeedItemEl(item){
@@ -1390,10 +1398,10 @@ function makeFeedItemEl(item){
     const d = new Date(item.event_date + 'T00:00:00');
     const dateBadge = document.createElement('div');
     dateBadge.className = 'eventDate';
-    const months = lang === 'fi'
-      ? ['TAM','HEL','MAA','HUH','TOU','KES','HEI','ELO','SYY','LOK','MAR','JOU']
-      : ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-    dateBadge.innerHTML = `<span class="day">${d.getDate()}</span>${months[d.getMonth()]}`;
+    const weekdays = lang === 'fi'
+      ? ['su','ma','ti','ke','to','pe','la']
+      : ['sun','mon','tue','wed','thu','fri','sat'];
+    dateBadge.innerHTML = `<span class="day">${d.getDate()}</span>${weekdays[d.getDay()]}`;
     el.appendChild(dateBadge);
   }
 
@@ -1464,16 +1472,16 @@ function renderLocalFeed(feed){
   else {
     eventsSection.style.display = 'block';
     const sorted = [...events].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
-    renderEventsWeek(sorted);
+    renderEventsDay(sorted);
   }
 
 }
 
-function renderEventsWeek(sortedEvents){
-  const { start, end } = getWeekBounds(currentWeekOffset);
-  document.getElementById('weekLabel').textContent = formatWeekLabel(currentWeekOffset, start, end);
+function renderEventsDay(sortedEvents){
+  const { start, end } = getDayBounds(currentDayOffset);
+  document.getElementById('weekLabel').textContent = formatDayLabel(currentDayOffset, start);
 
-  const inWeek = sortedEvents.filter(e => {
+  const inDay = sortedEvents.filter(e => {
     if (!e.event_date) return false;
     const d = new Date(e.event_date + 'T12:00:00');
     return d >= start && d <= end;
@@ -1481,36 +1489,54 @@ function renderEventsWeek(sortedEvents){
 
   const eventsBox = document.getElementById('eventItems');
   const noneMsg = document.getElementById('noEventsThisWeek');
+  const moreBtn = document.getElementById('showMoreEventsBtn');
   eventsBox.innerHTML = '';
-  eventsBox.classList.toggle('twoCol', inWeek.length > 5);
-  if (inWeek.length === 0){
+  eventsBox.classList.remove('twoCol');
+
+  if (inDay.length === 0){
     noneMsg.style.display = 'block';
     noneMsg.textContent = t('noEventsThisWeek');
+    moreBtn.style.display = 'none';
   } else {
     noneMsg.style.display = 'none';
-    inWeek.forEach(item => eventsBox.appendChild(makeFeedItemEl(item)));
+    const visibleCount = eventsExpanded ? inDay.length : Math.min(EVENTS_COLLAPSED_COUNT, inDay.length);
+    inDay.slice(0, visibleCount).forEach(item => eventsBox.appendChild(makeFeedItemEl(item)));
+
+    if (inDay.length > EVENTS_COLLAPSED_COUNT){
+      moreBtn.style.display = 'inline-block';
+      moreBtn.textContent = eventsExpanded ? t('showLess') : t('showMore');
+    } else {
+      moreBtn.style.display = 'none';
+    }
   }
 
-  // prev disabled at "this week" (these are upcoming events, not history);
+  // prev disabled at "today" (these are upcoming events, not history);
   // next disabled once we're past every event we actually have data for
-  document.getElementById('weekPrevBtn').disabled = (currentWeekOffset <= 0);
+  document.getElementById('weekPrevBtn').disabled = (currentDayOffset <= 0);
   const lastEventDate = sortedEvents.length > 0 ? new Date(sortedEvents[sortedEvents.length - 1].event_date + 'T12:00:00') : null;
   document.getElementById('weekNextBtn').disabled = !lastEventDate || end >= lastEventDate;
 }
+document.getElementById('showMoreEventsBtn').addEventListener('click', ()=>{
+  eventsExpanded = !eventsExpanded;
+  const sorted = [...(currentFeedItems.events || [])].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
+  renderEventsDay(sorted);
+});
 document.getElementById('showMoreNewsBtn').addEventListener('click', ()=>{
   newsExpanded = !newsExpanded;
   renderLocalFeed(currentFeedItems);
 });
 document.getElementById('weekPrevBtn').addEventListener('click', ()=>{
-  if (currentWeekOffset <= 0) return;
-  currentWeekOffset--;
+  if (currentDayOffset <= 0) return;
+  currentDayOffset--;
+  eventsExpanded = false;
   const sorted = [...(currentFeedItems.events || [])].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
-  renderEventsWeek(sorted);
+  renderEventsDay(sorted);
 });
 document.getElementById('weekNextBtn').addEventListener('click', ()=>{
-  currentWeekOffset++;
+  currentDayOffset++;
+  eventsExpanded = false;
   const sorted = [...(currentFeedItems.events || [])].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
-  renderEventsWeek(sorted);
+  renderEventsDay(sorted);
 });
 
 // Cell sizing is now handled entirely by CSS (aspect-ratio on #grid),

@@ -997,3 +997,110 @@ whether that section happens to have content that day.
 **Tagline field is now a resizable textarea** instead of a single-line
 input — you can drag the corner to make it taller and see the whole
 text, rather than it scrolling off to one side.
+
+## Weather moved under the section title, now expandable to a 7-day forecast
+
+Moved the widget to sit directly under "Ajankohtaista — Oulu" as
+requested. **One honest trade-off from this placement:** the widget now
+lives inside the same section that hides itself when there's no
+news/events content that day — in the extremely unlikely case both
+happened to be empty simultaneously, weather would be hidden too. Given
+how reliable both real data sources have been, this is a reasonable
+trade for matching the visual placement you wanted; worth knowing if it
+ever comes up.
+
+**On AccuWeather/Foreca:** both would need a registered API key and
+likely a paid tier for meaningful use. Open-Meteo (already in use, free,
+no key) already includes a full 7-day forecast in the same request, so
+there was no real reason to add that complexity for the same result.
+
+**Click the weather pill to expand** a 7-day forecast strip — day name,
+icon, and high/low temperatures, styled similarly to the Foreca-style
+reference image. Click again to collapse it.
+
+## Reservation window shortened to 5 minutes, and a real anti-troll fix
+
+**Window shortened**: starting a checkout now reserves squares for 5
+minutes instead of 30 — an abandoned attempt frees up much faster for
+real customers.
+
+**The actual vulnerability, closed properly, not just shortened:**
+starting a Stripe checkout costs nothing and reserves squares
+immediately — someone could repeatedly start-and-abandon checkouts
+(never paying) to keep the board looking artificially full. Shortening
+the window alone helps, but doesn't stop someone from just doing it
+again immediately.
+
+Added a real cap: the same IP address can only hold **40 pending
+squares at once, across every unfinished attempt combined** — not per
+purchase, cumulative. Someone who already has pending reservations
+elsewhere gets a clear message to finish or wait rather than being able
+to stack up more. This required tracking which IP made each reservation
+(`reserving_ip` column, added via the schema update) — existing
+completed/active squares are unaffected, this only matters for
+still-pending ones.
+
+**Known limitation worth naming honestly**: this is IP-based, so it
+won't stop someone determined enough to use multiple IPs (VPN, mobile
+data switching, etc.) — a real deterrent against casual trolling, not a
+guarantee against a genuinely motivated bad actor. Worth revisiting with
+something stronger (like a CAPTCHA on checkout start) only if this
+specific abuse pattern actually shows up in practice.
+
+## Selection bar moved next to the grid on desktop
+
+The floating "X squares selected" bar was `position:fixed` centered on
+the *whole viewport*, completely disconnected from the grid in the HTML
+— on the wider desktop layout (board in its own column), it could end
+up visually floating over unrelated content further down the page,
+exactly as shown.
+
+**Fixed properly, not just repositioned:** moved the element in the
+markup to sit directly inside the board column, right below the grid.
+On screens 1000px and wider, it's now a normal, always-visible element
+in that exact spot — no floating, no risk of ending up over the wrong
+content. On narrower/mobile screens, it keeps the original fixed-to-the-
+bottom floating behavior, since that still makes sense there (keeps it
+reachable without scrolling on a small screen).
+
+## Events cap raised - more of the 4-week window can actually show up
+
+Direct answer to "will more events load automatically for next week" —
+no, not with the old setup. Events were capped at 10 total across the
+*entire* 4-week lookahead window, sorted by real popularity from
+Kaleva's own data. Since Oulu is in a busy festival stretch right now
+(Mallasfest, etc.), most of the top-10-most-popular events happened to
+fall in the current week specifically, leaving little room in that fixed
+cap for real events happening further out — not because they don't
+exist, but because they weren't in the "top 10 overall."
+
+Raised the cap from 10 to 30, giving much more room for events spread
+across the full 4 weeks to actually appear, rather than a busy week
+crowding out quieter ones later in the window.
+
+## Events redesigned: daily browsing, much higher cap, Kaleva link, weekday badges
+
+**Switched from weekly to daily browsing.** Rather than guessing at a
+"normal" number of events per week for a city the size of Oulu, daily
+browsing sidesteps that question entirely — each day shows what's
+actually happening that day, with a **"Show more" button if a single day
+has more than 10 events**, so genuinely busy days (festivals, etc.)
+aren't artificially cut off.
+
+**Fetch cap raised from 30 to 100**, and **sort changed from popularity
+to date** (`sort=startDate` instead of `sort=countViews`). The previous
+popularity-based sort meant a handful of very popular events could crowd
+out real, smaller events happening on quieter days — sorting
+chronologically instead gives comprehensive day-by-day coverage across
+the full lookahead window rather than just "whatever's most popular
+overall."
+
+**Added a direct link to Kaleva's own events page**
+(tapahtumat.kaleva.fi) right next to the source attribution — lets
+anyone browse the complete, real listing directly if they want more than
+what's shown here.
+
+**Date badges now show the weekday** (ma/ti/ke/to/pe/la/su) instead of
+the month abbreviation — makes more sense now that you're browsing one
+specific day at a time rather than a whole week, and reinforces which
+day you're currently looking at.

@@ -124,7 +124,7 @@ async function fetchOuluNewsFromRSS() {
   }
 }
 
-const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72edb9364237309bf/content/63198844806f262926e72683?country=FI&lang=fi&mode=event&sort=countViews';
+const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72edb9364237309bf/content/63198844806f262926e72683?country=FI&lang=fi&mode=event&sort=startDate';
 const EVENTS_LOOKAHEAD_DAYS = 28;
 
 // Real, structured event data from Kaleva's own event platform -- covers
@@ -171,7 +171,7 @@ async function fetchOuluEventsFromAPI() {
         if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
         return !!findUpcomingDate(p);
       })
-      .slice(0, 30) // raised from 10 -- a low cap meant a busy week could crowd out real events happening further out in the lookahead window
+      .slice(0, 100) // generous cap -- daily browsing + per-day "show more" handles genuinely busy days, so this just needs to comfortably cover the full lookahead window, not guess at a "normal" weekly number
       .map(p => {
         const upcoming = findUpcomingDate(p);
         return {
