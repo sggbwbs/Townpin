@@ -33,7 +33,7 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1200,
+        max_tokens: 3000,
         messages: [{ role: 'user', content: prompt }],
         tools: [{ type: 'web_search_20250305', name: 'web_search' }]
       })
@@ -44,7 +44,17 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
       .map(b => b.text)
       .join('\n');
     const cleaned = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(cleaned);
+    if (!cleaned) {
+      console.error('Local feed generation: empty response from model (likely ran out of tokens after the search step). Full response:', JSON.stringify(data));
+      return [];
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (parseErr) {
+      console.error('Local feed generation: could not parse model output as JSON. Raw text was:', cleaned);
+      return [];
+    }
     if (!Array.isArray(parsed.items)) return [];
     return parsed.items.slice(0, 4).filter(i => i.title_fi && i.title_en && i.summary_fi && i.summary_en);
   } catch (err) {
