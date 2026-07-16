@@ -296,7 +296,9 @@ async function generateOfferItems(townName) {
   // flyers, not clean indexable text. This will genuinely find less,
   // and less reliably, than the other two feed types -- that's expected,
   // not a bug, given what's actually searchable.
-  const prompt = `Search the web for genuinely current local discounts, sales, or special offers from real businesses in ${townName}, Finland -- grocery stores, retail shops, restaurants, or local services running an active promotion right now. Skip anything expired, generic/national chain-wide advertising with no local angle, or anything you can't verify is currently running.
+  const prompt = `Search the web for genuinely current local discounts, sales, or special offers from real, well-known, established businesses based in ${townName}, Finland -- grocery stores, retail shops, restaurants, or local services running an active promotion right now. Prefer businesses that are genuinely popular and well-known locally (well-reviewed, established, actively talked about) over obscure ones that just happen to be easy to find online. Must be an actual ${townName}-based business, not a national chain's generic campaign with no local presence. Skip anything expired or anything you can't verify is currently running.
+
+Actively look for a MIX of different individual businesses, not just one convenient source (e.g. a single shopping center's own campaigns page). Search separately for restaurants (many post daily/weekly specials on their own site or social media), local shops, and services, not only supermarkets. Maximum 2 offers from any single business or source -- if a shopping center or single site would otherwise dominate the results, actively search for other individual businesses instead of returning more from that one source.
 
 Write up to 8 offers. Each needs a title, a 1-2 sentence description IN YOUR OWN WORDS (never a direct quote) in both Finnish and English, an ISO date "YYYY-MM-DD" for when it expires if you can determine one (omit the field entirely if you can't -- do not guess), and the single most relevant source URL.
 
@@ -342,9 +344,22 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
       return [];
     }
     if (!Array.isArray(parsed.items)) return [];
-    return parsed.items
+    const filtered = parsed.items.filter(i => i.title_fi && i.title_en && i.summary_fi && i.summary_en);
+
+    // Hard cap, not just a prompt instruction -- max 2 offers from any
+    // single source domain, so one easy-to-find shopping center campaign
+    // page can't quietly crowd out everything else.
+    const perDomainCount = {};
+    const diversified = [];
+    for (const item of filtered) {
+      let domain = 'unknown';
+      try { domain = new URL(item.source_url).hostname; } catch (e) { /* keep 'unknown' */ }
+      perDomainCount[domain] = (perDomainCount[domain] || 0) + 1;
+      if (perDomainCount[domain] <= 2) diversified.push(item);
+    }
+
+    return diversified
       .slice(0, 8)
-      .filter(i => i.title_fi && i.title_en && i.summary_fi && i.summary_en)
       .map(i => ({ ...i, item_type: 'offer', source_name: null, event_date: i.event_date || null }));
   } catch (err) {
     console.error('Offer generation failed:', err);
