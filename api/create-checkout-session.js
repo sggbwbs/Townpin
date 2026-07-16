@@ -6,6 +6,7 @@ const { moderate } = require('./_moderate');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
 const MAX_SQUARES_PER_PURCHASE = 40; // safety cap against fat-finger selections, across all towns combined
+const MAX_PENDING_PER_IP = 40; // cumulative cap across all of one IP's current unfinished reservations -- stops someone from repeatedly starting-and-abandoning checkouts to tie up the whole board
 
 // Kept in sync with the <select> options in index.html -- server-side
 // validation so a direct API call can't store junk values here.
@@ -112,6 +113,25 @@ module.exports = async (req, res) => {
     if (totalCount > MAX_SQUARES_PER_PURCHASE) {
       return res.status(400).json({ error: `Max ${MAX_SQUARES_PER_PURCHASE} squares per purchase — split larger campaigns into a few buys.` });
     }
+
+    // Real, low-effort abuse case worth closing: starting a checkout costs
+    // nothing and reserves squares immediately -- someone could repeatedly
+    // start-and-abandon checkouts (never actually paying) to keep the
+    // whole board looking full. Cap how many *pending* squares a single IP
+    // can hold at once, across every attempt, not just this one.
+    const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+    if (clientIp !== 'unknown') {
+      const { count: pendingCount, error: pendingErr } = await supabase
+        .from('squares')
+        .select('id', { count: 'exact', head: true })
+        .eq('reserving_ip', clientIp)
+        .eq('status', 'pending')
+        .gt('reserved_until', new Date().toISOString());
+      if (!pendingErr && (pendingCount || 0) + totalCount > MAX_PENDING_PER_IP) {
+        return res.status(429).json({ error: 'You already have several unfinished reservations pending — finish or wait a few minutes for those to release before starting more.' });
+      }
+    }
+
     if (!companyName || !websiteUrl || !email) {
       return res.status(400).json({ error: 'Company name, website and email are required.' });
     }
@@ -164,7 +184,7 @@ module.exports = async (req, res) => {
       return res.status(409).json({ error: 'One of those squares was just taken — pick again.' });
     }
 
-    const reservedUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    const reservedUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     const editToken = require('crypto').randomUUID();
     const groupId = require('crypto').randomUUID();
 
@@ -180,6 +200,7 @@ module.exports = async (req, res) => {
       industry: industry || null,
       status: 'pending',
       reserved_until: reservedUntil,
+      reserving_ip: clientIp !== 'unknown' ? clientIp : null,
       edit_token: editToken,
       group_id: groupId
     }));
@@ -205,6 +226,7 @@ module.exports = async (req, res) => {
           industry: industry || null,
           status: 'pending',
           reserved_until: reservedUntil,
+          reserving_ip: clientIp !== 'unknown' ? clientIp : null,
           edit_token: editToken,
           group_id: groupId
         });
