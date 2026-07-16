@@ -877,3 +877,41 @@ part of enabling it — a small, deliberate step given towns are already
 enabled one at a time through the admin panel, not something that
 happens automatically or often. The old `/board/:slug` format still
 works too, so no existing links break.
+
+## Offers were converging on one source (expected, now mitigated)
+
+Confirmed this was the exact known limitation flagged when the feature
+was built — the AI kept finding one easily-searchable source (a shopping
+center's own campaigns page) instead of diverse individual businesses,
+since that kind of aggregated page is genuinely more indexable than a
+single restaurant's own weekly special.
+
+Two fixes: the prompt now explicitly asks for a mix of different
+businesses and to actively search restaurants/shops/services separately
+rather than settling for one convenient source, **and** there's now a
+real code-level cap — max 2 offers from any single source domain,
+enforced regardless of what the AI actually returns. Still expect this
+category to be less complete than news or events; that's inherent to
+what's realistically searchable, not something more prompt tuning fully
+solves.
+
+## Offers now biased toward well-known, genuinely Oulu-based businesses
+
+Real trending-search data (Google Trends, social media trending topics)
+turned out to be infeasible without paid/approved APIs, and wouldn't
+reliably connect to actual current offers even if available. Instead,
+the prompt now explicitly asks for well-known, established, genuinely
+Oulu-based businesses over obscure ones that just happen to be easy to
+find, and explicitly excludes national chains without real local
+presence. Combined with the source-diversity cap from the previous fix.
+
+## Two-column events layout for busy weeks, larger date numbers
+
+When a week has more than 5 events, the events list now splits into two
+columns side by side instead of one long scroll — only on screens wide
+enough to actually have room for it (1200px+), since this section
+already sits in a shared 2-column layout with News; narrower screens
+keep the normal single-column list, which is safer than cramming things
+into narrow cards.
+
+Date badge numbers are noticeably larger now (16px → 22px) for readability.

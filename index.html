@@ -246,13 +246,14 @@
   .feedSubhead{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--amber);
     text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
   #newsItems, #eventItems, #offerItems{display:grid;gap:12px;margin-top:12px;}
+  @media (min-width:1200px){ #eventItems.twoCol{grid-template-columns:1fr 1fr;} }
   #offersSection{margin-top:36px;}
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;}
   .feedItem .feedImg{flex:none;width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--panel);}
   .feedItem .eventDate{flex:none;background:var(--amber);color:#2a1c0d;font-family:'Space Grotesk',sans-serif;
-    font-weight:700;font-size:11px;border-radius:6px;padding:6px 8px;text-align:center;line-height:1.2;min-width:44px;}
-  .feedItem .eventDate .day{display:block;font-size:16px;}
+    font-weight:700;font-size:12px;border-radius:6px;padding:6px 8px;text-align:center;line-height:1.15;min-width:48px;}
+  .feedItem .eventDate .day{display:block;font-size:22px;}
   .feedItem .feedBody{flex:1;min-width:0;}
   .feedItem b{display:block;font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin-bottom:4px;}
   .feedItem p{margin:0 0 6px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
@@ -1472,6 +1473,7 @@ function renderEventsWeek(sortedEvents){
   const eventsBox = document.getElementById('eventItems');
   const noneMsg = document.getElementById('noEventsThisWeek');
   eventsBox.innerHTML = '';
+  eventsBox.classList.toggle('twoCol', inWeek.length > 5);
   if (inWeek.length === 0){
     noneMsg.style.display = 'block';
     noneMsg.textContent = t('noEventsThisWeek');
