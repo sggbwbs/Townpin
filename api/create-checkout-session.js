@@ -122,6 +122,22 @@ module.exports = async (req, res) => {
     if (isPrepaid && !PREPAID_TERMS[prepaidMonths]) {
       return res.status(400).json({ error: 'Invalid prepaid term -- choose 3, 6, or 12 months.' });
     }
+
+    // Every town involved (primary + any "post to additional towns") must
+    // actually be open to the public -- this is the real enforcement of
+    // the "pilot one town first" restriction. Checking only in the
+    // frontend/UI would be trivial to bypass with a direct API call.
+    const allTownIds = [...new Set([townId, ...extraTowns.map(a => a.townId)])];
+    const { data: townRows, error: townCheckErr } = await supabase
+      .from('towns')
+      .select('id, enabled')
+      .in('id', allTownIds);
+    if (townCheckErr) throw townCheckErr;
+    const disabledTown = allTownIds.find(id => !townRows.some(t => t.id === id && t.enabled));
+    if (disabledTown !== undefined) {
+      return res.status(400).json({ error: 'One of the selected towns is not currently open to new listings.' });
+    }
+
     const linkProblem = isSuspicious(websiteUrl);
     if (linkProblem) return res.status(400).json({ error: linkProblem });
 
