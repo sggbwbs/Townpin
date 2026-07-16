@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PaikallisCanvas — Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg-0:#050b14; --panel:#0f2038; --line:rgba(120,160,210,0.16);
+    --paper:#f4efe4; --amber:#f2a65a; --amber-bright:#ffc07e; --ink:#f5f7fb; --ink-dim:#8fa3bd; --danger:#e0715a; }
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:var(--bg-0);color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;display:flex;flex-direction:column;align-items:center;padding:60px 20px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-size:20px;margin:0 0 6px;}
+  .sub{color:var(--ink-dim);font-size:13px;margin:0 0 28px;}
+  .card{background:var(--paper);color:#26210f;max-width:520px;width:100%;border-radius:14px;padding:32px;}
+  #loginCard input{width:100%;padding:12px 14px;border:1px solid #d8cfb4;border-radius:7px;
+    font-size:14px;margin-bottom:14px;font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;}
+  button{border:none;border-radius:8px;padding:12px 20px;font-family:'Space Grotesk',sans-serif;
+    font-weight:700;font-size:14px;cursor:pointer;background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;}
+  .err{color:#b8452f;font-size:13px;margin:-4px 0 14px;display:none;}
+  .field{margin-bottom:20px;}
+  .field label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
+    color:#5c5440;margin-bottom:5px;}
+  .field .langLabel{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8a8168;margin:8px 0 3px;}
+  .field textarea{width:100%;padding:9px 11px;border:1px solid #d8cfb4;border-radius:6px;font-size:13.5px;
+    font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;resize:vertical;min-height:44px;}
+  .saveBar{position:sticky;bottom:-32px;background:var(--paper);padding:16px 0 0;margin-top:8px;
+    display:flex;align-items:center;gap:14px;}
+  .saved{color:#4a7a5c;font-size:13px;display:none;}
+  #logoutLink{display:block;margin-top:18px;font-size:12px;color:#8a8168;text-decoration:underline;cursor:pointer;}
+  #previewBox{background:#050b14;border-radius:10px;padding:32px 20px;text-align:center;margin-bottom:24px;
+    font-family:'IBM Plex Sans',sans-serif;}
+  #previewBox h2{font-family:'Space Grotesk',sans-serif;color:#f5f7fb;font-size:22px;margin:0 0 10px;line-height:1.2;}
+  #previewBox h2 span{color:#f2a65a;}
+  #previewBox p{color:#8fa3bd;font-size:13px;max-width:400px;margin:0 auto 20px;line-height:1.5;}
+  #previewValueRow{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;}
+  #previewValueRow div{max-width:150px;font-size:11px;color:#8fa3bd;text-align:left;}
+  #previewValueRow b{display:block;color:#f5f7fb;font-family:'Space Grotesk',sans-serif;font-size:16px;margin-bottom:3px;}
+  #previewFooter{color:#8fa3bd;font-size:10px;margin-top:18px;font-family:'IBM Plex Mono',monospace;}
+  #previewLangToggle{display:flex;gap:2px;justify-content:center;margin-bottom:16px;}
+  #previewLangToggle button{background:none;border:1px solid #8fa3bd;color:#8fa3bd;font-size:11px;
+    padding:4px 10px;border-radius:999px;cursor:pointer;}
+  #previewLangToggle button.active{background:#f2a65a;border-color:#f2a65a;color:#2a1c0d;font-weight:700;}
+  .grantGrid{display:grid;grid-template-columns:repeat(var(--gcols,20),1fr);gap:3px;margin:12px 0;
+    background:#e4dcc4;padding:8px;border-radius:8px;max-height:340px;overflow:auto;}
+  .gsq{aspect-ratio:1;border-radius:3px;cursor:pointer;background:#d8cfb4;}
+  .gsq.taken{background:#a89a78;cursor:not-allowed;}
+  .gsq.picked{background:var(--amber) !important;}
+  .compedRow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;
+    border-bottom:1px solid #e4dcc4;font-size:13px;}
+  .compedRow:last-child{border-bottom:none;}
+  .revokeBtn{background:none;color:#b8452f;text-decoration:underline;padding:4px 8px;font-size:12px;}
+  .field input[type=text],.field input[type=url]{width:100%;padding:9px 11px;border:1px solid #d8cfb4;
+    border-radius:6px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;}
+  .grantColorRow{display:flex;gap:8px;margin-top:6px;}
+  .grantColorRow .swatch{width:26px;height:26px;border-radius:6px;cursor:pointer;border:2px solid transparent;}
+  .grantColorRow .swatch.sel{border-color:#26210f;}
+</style>
+</head>
+<body>
+
+<div class="card" id="loginCard">
+  <h1>PaikallisCanvas Admin</h1>
+  <p class="sub">Enter the admin password to edit site copy.</p>
+  <input type="password" id="pwInput" placeholder="Password" />
+  <div class="err" id="loginErr"></div>
+  <button id="loginBtn">Log in</button>
+</div>
+
+<div class="card" id="maintenanceCard" style="display:none;">
+  <h1>Site status</h1>
+  <p class="sub" id="maintenanceStatusText" style="margin-bottom:12px;">Checking…</p>
+  <button id="maintenanceToggleBtn">Loading…</button>
+  <p class="sub" style="margin-top:12px;font-size:11.5px;">Only hides the main homepage — existing customer pages, /manage, and this admin panel keep working normally the whole time.</p>
+</div>
+
+<div class="card" id="editCard" style="display:none;">
+  <h1>Edit site copy</h1>
+  <p class="sub">Changes go live within a few seconds — no redeploy needed. Only the main marketing copy is editable here.</p>
+
+  <div id="previewLangToggle">
+    <button id="previewLangFi" class="active">FI</button>
+    <button id="previewLangEn">EN</button>
+  </div>
+  <div id="previewBox">
+    <h2 id="previewTitle"></h2>
+    <p id="previewSub"></p>
+    <div id="previewValueRow">
+      <div><b id="previewV1b">5€/kk</b> <span id="previewV1"></span></div>
+      <div><b id="previewV2b"></b> <span id="previewV2"></span></div>
+      <div><b id="previewV3b"></b> <span id="previewV3"></span></div>
+    </div>
+    <div id="previewFooter"></div>
+  </div>
+
+  <div id="fields"></div>
+  <div class="saveBar">
+    <button id="saveBtn">Save changes</button>
+    <span class="saved" id="savedMsg">✓ Saved</span>
+  </div>
+  <span id="logoutLink">Log out</span>
+</div>
+
+<div class="card" id="grantCard" style="display:none;">
+  <h1>Grant a free square</h1>
+  <p class="sub">Reserve one or more squares for a company of your choice — no payment, no subscription. Click a town's board below to pick empty squares.</p>
+
+  <div class="field">
+    <label>Town name</label>
+    <input type="text" id="grantTownInput" placeholder="e.g. Oulu" />
+    <button id="grantLoadBtn" style="margin-top:8px;">Load board</button>
+  </div>
+
+  <div id="grantGridWrap" style="display:none;">
+    <div class="grantGrid" id="grantGrid"></div>
+    <p class="sub" id="grantPickCount" style="margin:0 0 14px;">0 squares selected</p>
+
+    <div class="field">
+      <label>Company name</label>
+      <input type="text" id="grantCompany" placeholder="Company name" />
+    </div>
+    <div class="field">
+      <label>Website URL</label>
+      <input type="url" id="grantWebsite" placeholder="https://company.fi" />
+    </div>
+    <div class="field">
+      <label>Logo URL (optional)</label>
+      <input type="url" id="grantLogo" placeholder="https://company.fi/logo.png" />
+    </div>
+    <div class="field">
+      <label>Tagline (optional)</label>
+      <input type="text" id="grantTagline" placeholder="A short line" />
+    </div>
+    <div class="field">
+      <label>Color (used if no logo)</label>
+      <div class="grantColorRow" id="grantColorRow"></div>
+    </div>
+    <button id="grantSubmitBtn">Grant selected squares free</button>
+    <span class="saved" id="grantSavedMsg">✓ Granted</span>
+    <div class="err" id="grantErr"></div>
+  </div>
+
+  <hr style="margin:24px 0;border:none;border-top:1px solid #e4dcc4;">
+  <h1 style="font-size:15px;">Currently comped squares</h1>
+  <div id="compedList"><p class="sub">Loading…</p></div>
+</div>
+
+<div class="card" id="moveCard" style="display:none;">
+  <h1>Move a company to another town</h1>
+  <p class="sub">For when a business claims squares in the wrong city by mistake. Search by company name or email to find them.</p>
+
+  <div class="field">
+    <label>Search company name or email</label>
+    <input type="text" id="moveSearchInput" placeholder="e.g. Kahvila Oy or owner@company.fi" />
+    <button id="moveSearchBtn" style="margin-top:8px;">Find</button>
+  </div>
+  <div id="moveResults"></div>
+
+  <div id="moveDestWrap" style="display:none;">
+    <hr style="margin:18px 0;border:none;border-top:1px solid #e4dcc4;">
+    <p class="sub" id="moveSummary"></p>
+    <div class="field">
+      <label>Destination town</label>
+      <input type="text" id="moveDestTownInput" placeholder="e.g. Tampere" />
+      <button id="moveDestLoadBtn" style="margin-top:8px;">Load board</button>
+    </div>
+    <div id="moveGridWrap" style="display:none;">
+      <div class="grantGrid" id="moveGrid"></div>
+      <p class="sub" id="movePickCount"></p>
+      <button id="moveConfirmBtn">Confirm move</button>
+      <span class="saved" id="moveSavedMsg">✓ Moved</span>
+    </div>
+    <div class="err" id="moveErr"></div>
+  </div>
+</div>
+
+<div class="card" id="townsCard" style="display:none;">
+  <h1>Towns open to the public</h1>
+  <p class="sub">Only towns listed here as "Open" can be found or claimed by visitors — this is the "pilot one town first" restriction. Enable a new town when you're ready to expand there.</p>
+
+  <div class="field">
+    <label>Enable a new town</label>
+    <input type="text" id="newTownInput" placeholder="e.g. Tampere" />
+    <button id="enableTownBtn" style="margin-top:8px;">Enable this town</button>
+    <span class="saved" id="townsSavedMsg">✓ Done</span>
+    <div class="err" id="townsErr"></div>
+  </div>
+
+  <hr style="margin:18px 0;border:none;border-top:1px solid #e4dcc4;">
+  <div id="townsList"><p class="sub">Loading…</p></div>
+</div>
+
+<script>
+const FIELD_DEFS = [
+  { key: 'heroTitle', label: 'Headline (HTML allowed, e.g. <span>...</span> for the accent color)' },
+  { key: 'heroSub', label: 'Subheading' },
+  { key: 'value1', label: 'Value prop 1 — description (under "5€/kk")' },
+  { key: 'value2b', label: 'Value prop 2 — bold number/label' },
+  { key: 'value2', label: 'Value prop 2 — description' },
+  { key: 'value3b', label: 'Value prop 3 — bold number/label' },
+  { key: 'value3', label: 'Value prop 3 — description' },
+  { key: 'footerText', label: 'Footer text' }
+];
+
+// The real site's built-in defaults, shown in the preview when a field
+// hasn't been customized yet -- keeps the preview honest about what
+// visitors are actually seeing right now.
+const DEFAULTS = {
+  fi: {
+    heroTitle: 'Näytä yrityksesi <span>koko Oululle.</span>',
+    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.',
+    value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
+    value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
+    value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
+    footerText: 'PaikallisCanvas · varaa ruutu, saat sivun, peruuta milloin vain'
+  },
+  en: {
+    heroTitle: 'Put your business in front of <span>all of Oulu.</span>',
+    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every square on the board is a different company. Buy your own square, add your logo and a link to your site, and customers can find you both on the board and on Google. Cancel anytime.",
+    value1: 'a fraction of a typical monthly social media ad budget',
+    value2b: 'Findable on Google', value2: 'your business gets its own showcase page on our site that can appear in search results, even if nobody browses the board itself',
+    value3b: 'Cancel anytime', value3: 'no contract period, no notice period',
+    footerText: 'PaikallisCanvas · claim a square, get a page, cancel anytime'
+  }
+};
+let previewLang = 'fi';
+
+const API = '/api/admin';
+
+async function checkAuth(){
+  const res = await fetch(`${API}/check`);
+  const data = await res.json();
+  if (data.authenticated) showEditor();
+}
+
+document.getElementById('loginBtn').addEventListener('click', async ()=>{
+  const password = document.getElementById('pwInput').value;
+  const errBox = document.getElementById('loginErr');
+  errBox.style.display = 'none';
+  try{
+    const res = await fetch(`${API}/login`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (!res.ok){ errBox.textContent = data.error || 'Login failed.'; errBox.style.display = 'block'; return; }
+    showEditor();
+  }catch(e){
+    errBox.textContent = 'Network error.';
+    errBox.style.display = 'block';
+  }
+});
+document.getElementById('pwInput').addEventListener('keydown', (e)=>{
+  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+
+document.getElementById('logoutLink').addEventListener('click', async ()=>{
+  await fetch(`${API}/logout`, { method: 'POST' });
+  location.reload();
+});
+
+async function showEditor(){
+  document.getElementById('loginCard').style.display = 'none';
+  document.getElementById('editCard').style.display = 'block';
+  document.getElementById('grantCard').style.display = 'block';
+  document.getElementById('moveCard').style.display = 'block';
+  document.getElementById('townsCard').style.display = 'block';
+  document.getElementById('maintenanceCard').style.display = 'block';
+
+  const res = await fetch(`${API}/content`);
+  const data = await res.json();
+  const existing = {};
+  (data.content || []).forEach(row => { existing[`${row.key}:${row.lang}`] = row.value; });
+
+  const container = document.getElementById('fields');
+  container.innerHTML = '';
+  FIELD_DEFS.forEach(f => {
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    wrap.innerHTML = `
+      <label>${f.label}</label>
+      <div class="langLabel">Finnish</div>
+      <textarea data-key="${f.key}" data-lang="fi">${existing[`${f.key}:fi`] || ''}</textarea>
+      <div class="langLabel">English</div>
+      <textarea data-key="${f.key}" data-lang="en">${existing[`${f.key}:en`] || ''}</textarea>
+    `;
+    container.appendChild(wrap);
+  });
+
+  document.querySelectorAll('#fields textarea').forEach(ta => {
+    ta.addEventListener('input', updatePreview);
+  });
+  updatePreview();
+
+  initGrantSection();
+  loadCompedList();
+  loadTownsList();
+  loadMaintenanceStatus();
+}
+
+function getFieldValue(key, lang){
+  const ta = document.querySelector(`#fields textarea[data-key="${key}"][data-lang="${lang}"]`);
+  const val = ta ? ta.value.trim() : '';
+  return val || DEFAULTS[lang][key] || '';
+}
+
+function updatePreview(){
+  const l = previewLang;
+  document.getElementById('previewTitle').innerHTML = getFieldValue('heroTitle', l);
+  document.getElementById('previewSub').textContent = getFieldValue('heroSub', l);
+  document.getElementById('previewV1').textContent = getFieldValue('value1', l);
+  document.getElementById('previewV2b').textContent = getFieldValue('value2b', l);
+  document.getElementById('previewV2').textContent = getFieldValue('value2', l);
+  document.getElementById('previewV3b').textContent = getFieldValue('value3b', l);
+  document.getElementById('previewV3').textContent = getFieldValue('value3', l);
+  document.getElementById('previewFooter').textContent = getFieldValue('footerText', l);
+}
+
+document.getElementById('previewLangFi').addEventListener('click', () => {
+  previewLang = 'fi';
+  document.getElementById('previewLangFi').classList.add('active');
+  document.getElementById('previewLangEn').classList.remove('active');
+  updatePreview();
+});
+document.getElementById('previewLangEn').addEventListener('click', () => {
+  previewLang = 'en';
+  document.getElementById('previewLangEn').classList.add('active');
+  document.getElementById('previewLangFi').classList.remove('active');
+  updatePreview();
+});
+
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  const updates = [];
+  document.querySelectorAll('#fields textarea').forEach(el => {
+    if (el.value.trim()) {
+      updates.push({ key: el.dataset.key, lang: el.dataset.lang, value: el.value });
+    }
+  });
+  const res = await fetch(`${API}/content`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ updates })
+  });
+  const data = await res.json();
+  if (res.ok){
+    const msg = document.getElementById('savedMsg');
+    msg.style.display = 'inline';
+    setTimeout(()=> msg.style.display = 'none', 2500);
+  } else {
+    alert(data.error || 'Save failed.');
+  }
+});
+
+const GRANT_SWATCHES = ["#f2a65a","#d9694f","#5b8c5a","#3d6b94","#8a6fb0","#2b2718","#e0d9c4"];
+let grantTown = null;
+let grantSquares = [];
+let grantPicked = [];
+let grantColor = GRANT_SWATCHES[0];
+
+function initGrantSection(){
+  const row = document.getElementById('grantColorRow');
+  if (row.children.length) return; // only build swatches once
+  GRANT_SWATCHES.forEach((c, i) => {
+    const sw = document.createElement('div');
+    sw.className = 'swatch' + (i === 0 ? ' sel' : '');
+    sw.style.background = c;
+    sw.addEventListener('click', () => {
+      grantColor = c;
+      row.querySelectorAll('.swatch').forEach(el => el.classList.remove('sel'));
+      sw.classList.add('sel');
+    });
+    row.appendChild(sw);
+  });
+}
+
+document.getElementById('grantLoadBtn').addEventListener('click', async () => {
+  const name = document.getElementById('grantTownInput').value.trim();
+  if (!name) return;
+  const errBox = document.getElementById('grantErr');
+  errBox.textContent = '';
+  try {
+    const townRes = await fetch(`/api/town?name=${encodeURIComponent(name)}&country=FI&admin=1`);
+    const townData = await townRes.json();
+    if (!townRes.ok) { errBox.textContent = townData.error || 'Could not load town.'; return; }
+    grantTown = townData.town;
+
+    const boardRes = await fetch(`/api/board?townId=${grantTown.id}`);
+    const boardData = await boardRes.json();
+    grantSquares = boardData.squares || [];
+    grantPicked = [];
+    renderGrantGrid();
+    document.getElementById('grantGridWrap').style.display = 'block';
+  } catch (e) {
+    errBox.textContent = 'Network error.';
+  }
+});
+
+function renderGrantGrid(){
+  const grid = document.getElementById('grantGrid');
+  grid.style.setProperty('--gcols', grantTown.grid_size);
+  grid.innerHTML = '';
+  const takenIdx = new Set(grantSquares.map(s => s.idx));
+  const total = grantTown.grid_size * grantTown.grid_size;
+  for (let i = 0; i < total; i++){
+    const sq = document.createElement('div');
+    const taken = takenIdx.has(i);
+    sq.className = 'gsq' + (taken ? ' taken' : '') + (grantPicked.includes(i) ? ' picked' : '');
+    if (!taken){
+      sq.addEventListener('click', () => {
+        const idx = grantPicked.indexOf(i);
+        if (idx === -1) grantPicked.push(i); else grantPicked.splice(idx, 1);
+        renderGrantGrid();
+      });
+    }
+    grid.appendChild(sq);
+  }
+  document.getElementById('grantPickCount').textContent = `${grantPicked.length} square${grantPicked.length === 1 ? '' : 's'} selected`;
+}
+
+document.getElementById('grantSubmitBtn').addEventListener('click', async () => {
+  const errBox = document.getElementById('grantErr');
+  errBox.textContent = '';
+  if (grantPicked.length === 0) { errBox.textContent = 'Pick at least one square first.'; return; }
+  const companyName = document.getElementById('grantCompany').value.trim();
+  const websiteUrl = document.getElementById('grantWebsite').value.trim();
+  if (!companyName || !websiteUrl) { errBox.textContent = 'Company name and website are required.'; return; }
+
+  try {
+    const res = await fetch(`${API}/grant`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        townId: grantTown.id,
+        indices: grantPicked,
+        companyName, websiteUrl,
+        logoUrl: document.getElementById('grantLogo').value.trim() || null,
+        tagline: document.getElementById('grantTagline').value.trim() || null,
+        color: grantColor
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) { errBox.textContent = data.error || 'Grant failed.'; return; }
+    const msg = document.getElementById('grantSavedMsg');
+    msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
+    grantPicked = [];
+    document.getElementById('grantCompany').value = '';
+    document.getElementById('grantWebsite').value = '';
+    document.getElementById('grantLogo').value = '';
+    document.getElementById('grantTagline').value = '';
+    document.getElementById('grantLoadBtn').click(); // refresh the board
+    loadCompedList();
+  } catch (e) {
+    errBox.textContent = 'Network error.';
+  }
+});
+
+async function loadCompedList(){
+  const box = document.getElementById('compedList');
+  try {
+    const res = await fetch(`${API}/comped-list`);
+    const data = await res.json();
+    if (!res.ok) { box.innerHTML = `<p class="sub">${data.error || 'Could not load.'}</p>`; return; }
+    const groups = {};
+    (data.squares || []).forEach(s => {
+      if (!groups[s.group_id]) groups[s.group_id] = { company: s.company_name, town: s.towns ? s.towns.name : '', count: 0 };
+      groups[s.group_id].count++;
+    });
+    const entries = Object.entries(groups);
+    if (entries.length === 0) { box.innerHTML = '<p class="sub">No comped squares yet.</p>'; return; }
+    box.innerHTML = '';
+    entries.forEach(([groupId, g]) => {
+      const row = document.createElement('div');
+      row.className = 'compedRow';
+      row.innerHTML = `<span>${g.company} — ${g.count} square${g.count === 1 ? '' : 's'} in ${g.town}</span>`;
+      const btn = document.createElement('button');
+      btn.className = 'revokeBtn';
+      btn.textContent = 'Revoke';
+      btn.addEventListener('click', async () => {
+        if (!confirm(`Remove ${g.company}'s ${g.count} free square(s)?`)) return;
+        await fetch(`${API}/revoke`, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ groupId })
+        });
+        loadCompedList();
+        if (grantTown) document.getElementById('grantLoadBtn').click();
+      });
+      row.appendChild(btn);
+      box.appendChild(row);
+    });
+  } catch (e) {
+    box.innerHTML = '<p class="sub">Network error.</p>';
+  }
+}
+
+let moveSelectedGroup = null;
+let moveDestTown = null;
+let moveDestSquares = [];
+let movePicked = [];
+
+document.getElementById('moveSearchBtn').addEventListener('click', async () => {
+  const query = document.getElementById('moveSearchInput').value.trim();
+  if (!query) return;
+  const box = document.getElementById('moveResults');
+  box.innerHTML = '<p class="sub">Searching…</p>';
+  try {
+    const res = await fetch(`${API}/find-company?query=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    if (!res.ok) { box.innerHTML = `<p class="sub">${data.error}</p>`; return; }
+    if (!data.groups || data.groups.length === 0) { box.innerHTML = '<p class="sub">No matches found.</p>'; return; }
+    box.innerHTML = '';
+    data.groups.forEach(g => {
+      const row = document.createElement('div');
+      row.className = 'compedRow';
+      row.innerHTML = `<span>${g.companyName} — ${g.count} square${g.count === 1 ? '' : 's'} in ${g.townName}</span>`;
+      const btn = document.createElement('button');
+      btn.textContent = 'Move this';
+      btn.style.padding = '6px 12px';
+      btn.style.fontSize = '12px';
+      btn.addEventListener('click', () => selectGroupToMove(g));
+      row.appendChild(btn);
+      box.appendChild(row);
+    });
+  } catch (e) {
+    box.innerHTML = '<p class="sub">Network error.</p>';
+  }
+});
+
+function selectGroupToMove(g){
+  moveSelectedGroup = g;
+  movePicked = [];
+  moveDestTown = null;
+  document.getElementById('moveSummary').textContent =
+    `Moving ${g.companyName}'s ${g.count} square${g.count === 1 ? '' : 's'} out of ${g.townName} — pick ${g.count} empty square${g.count === 1 ? '' : 's'} in the destination town below.`;
+  document.getElementById('moveDestWrap').style.display = 'block';
+  document.getElementById('moveGridWrap').style.display = 'none';
+  document.getElementById('moveErr').textContent = '';
+}
+
+document.getElementById('moveDestLoadBtn').addEventListener('click', async () => {
+  const name = document.getElementById('moveDestTownInput').value.trim();
+  if (!name || !moveSelectedGroup) return;
+  const errBox = document.getElementById('moveErr');
+  errBox.textContent = '';
+  try {
+    const townRes = await fetch(`/api/town?name=${encodeURIComponent(name)}&country=FI&admin=1`);
+    const townData = await townRes.json();
+    if (!townRes.ok) { errBox.textContent = townData.error || 'Could not load town.'; return; }
+    moveDestTown = townData.town;
+
+    if (moveDestTown.id === moveSelectedGroup.townId) {
+      errBox.textContent = "That's the same town this company is already in — pick a different one.";
+      return;
+    }
+
+    const boardRes = await fetch(`/api/board?townId=${moveDestTown.id}`);
+    const boardData = await boardRes.json();
+    moveDestSquares = boardData.squares || [];
+    movePicked = [];
+    renderMoveGrid();
+    document.getElementById('moveGridWrap').style.display = 'block';
+  } catch (e) {
+    errBox.textContent = 'Network error.';
+  }
+});
+
+function renderMoveGrid(){
+  const grid = document.getElementById('moveGrid');
+  grid.style.setProperty('--gcols', moveDestTown.grid_size);
+  grid.innerHTML = '';
+  const takenIdx = new Set(moveDestSquares.map(s => s.idx));
+  const total = moveDestTown.grid_size * moveDestTown.grid_size;
+  for (let i = 0; i < total; i++){
+    const sq = document.createElement('div');
+    const taken = takenIdx.has(i);
+    sq.className = 'gsq' + (taken ? ' taken' : '') + (movePicked.includes(i) ? ' picked' : '');
+    if (!taken){
+      sq.addEventListener('click', () => {
+        const idx = movePicked.indexOf(i);
+        if (idx === -1) movePicked.push(i); else movePicked.splice(idx, 1);
+        renderMoveGrid();
+      });
+    }
+    grid.appendChild(sq);
+  }
+  document.getElementById('movePickCount').textContent =
+    `${movePicked.length} / ${moveSelectedGroup.count} needed selected`;
+}
+
+document.getElementById('moveConfirmBtn').addEventListener('click', async () => {
+  const errBox = document.getElementById('moveErr');
+  errBox.textContent = '';
+  if (movePicked.length !== moveSelectedGroup.count) {
+    errBox.textContent = `Pick exactly ${moveSelectedGroup.count} square(s) — you have ${movePicked.length}.`;
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/move`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        groupId: moveSelectedGroup.groupId,
+        destinationTownId: moveDestTown.id,
+        newIndices: movePicked
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) { errBox.textContent = data.error || 'Move failed.'; return; }
+    const msg = document.getElementById('moveSavedMsg');
+    msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
+    document.getElementById('moveDestWrap').style.display = 'none';
+    document.getElementById('moveResults').innerHTML = '';
+    document.getElementById('moveSearchInput').value = '';
+    moveSelectedGroup = null;
+  } catch (e) {
+    errBox.textContent = 'Network error.';
+  }
+});
+
+document.getElementById('enableTownBtn').addEventListener('click', async () => {
+  const name = document.getElementById('newTownInput').value.trim();
+  const errBox = document.getElementById('townsErr');
+  errBox.textContent = '';
+  if (!name) return;
+  try {
+    const res = await fetch(`${API}/enable-town`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name, country: 'FI' })
+    });
+    const data = await res.json();
+    if (!res.ok) { errBox.textContent = data.error || 'Could not enable town.'; return; }
+    document.getElementById('newTownInput').value = '';
+    const msg = document.getElementById('townsSavedMsg');
+    msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
+    loadTownsList();
+  } catch (e) {
+    errBox.textContent = 'Network error.';
+  }
+});
+
+async function loadTownsList(){
+  const box = document.getElementById('townsList');
+  try {
+    const res = await fetch(`${API}/towns-list`);
+    const data = await res.json();
+    if (!res.ok) { box.innerHTML = `<p class="sub">${data.error || 'Could not load.'}</p>`; return; }
+    if (!data.towns || data.towns.length === 0) { box.innerHTML = '<p class="sub">No towns yet.</p>'; return; }
+    box.innerHTML = '';
+    data.towns.forEach(town => {
+      const row = document.createElement('div');
+      row.className = 'compedRow';
+      row.innerHTML = `<span>${town.name} — <span style="color:${town.enabled ? '#4a7a5c' : '#b8452f'};font-weight:700;">${town.enabled ? 'Open' : 'Closed'}</span></span>`;
+      const btn = document.createElement('button');
+      btn.className = town.enabled ? 'revokeBtn' : '';
+      if (!town.enabled) { btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; }
+      btn.textContent = town.enabled ? 'Close to public' : 'Open to public';
+      btn.addEventListener('click', async () => {
+        if (town.enabled && !confirm(`Close ${town.name} to new visitors? Existing squares there keep working — this only stops new people from finding or claiming squares there.`)) return;
+        const action = town.enabled ? 'disable-town' : 'enable-town';
+        const body = town.enabled ? { townId: town.id } : { name: town.name, country: town.slug.split('-').pop().toUpperCase() };
+        await fetch(`${API}/${action}`, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(body)
+        });
+        loadTownsList();
+      });
+      row.appendChild(btn);
+      box.appendChild(row);
+    });
+  } catch (e) {
+    box.innerHTML = '<p class="sub">Network error.</p>';
+  }
+}
+
+let maintenanceIsOn = false;
+
+async function loadMaintenanceStatus(){
+  try {
+    const res = await fetch(`${API}/maintenance-status`);
+    const data = await res.json();
+    maintenanceIsOn = !!data.maintenanceMode;
+    updateMaintenanceUI();
+  } catch (e) {
+    document.getElementById('maintenanceStatusText').textContent = 'Could not check status.';
+  }
+}
+
+function updateMaintenanceUI(){
+  const statusText = document.getElementById('maintenanceStatusText');
+  const btn = document.getElementById('maintenanceToggleBtn');
+  if (maintenanceIsOn){
+    statusText.innerHTML = '🔧 <b style="color:#b8452f;">Under construction</b> — the homepage is currently showing a "back soon" message to visitors.';
+    btn.textContent = 'Turn site back on';
+  } else {
+    statusText.innerHTML = '✅ <b style="color:#4a7a5c;">Live</b> — the homepage is working normally for visitors.';
+    btn.textContent = 'Put site under construction';
+  }
+}
+
+document.getElementById('maintenanceToggleBtn').addEventListener('click', async () => {
+  const goingUnder = !maintenanceIsOn;
+  if (goingUnder && !confirm('Put the homepage under construction? Visitors will see a "back soon" message instead of the site. /manage, existing customer pages, and this admin panel keep working normally.')) return;
+  try {
+    await fetch(`${API}/set-maintenance`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ enabled: goingUnder })
+    });
+    maintenanceIsOn = goingUnder;
+    updateMaintenanceUI();
+  } catch (e) {
+    alert('Could not update — try again.');
+  }
+});
+
+checkAuth();
+</script>
+</body>
+</html>
