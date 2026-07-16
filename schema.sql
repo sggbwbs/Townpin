@@ -143,3 +143,6 @@ create table if not exists site_settings (
 alter table local_feed_items add column if not exists item_type text not null default 'event';
 alter table local_feed_items add column if not exists event_date date;
 alter table local_feed_items add column if not exists source_name text;
+
+-- ==== Real photos for feed items, pulled from each item's own source page ====
+alter table local_feed_items add column if not exists image_url text;

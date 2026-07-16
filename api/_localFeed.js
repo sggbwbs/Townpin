@@ -32,6 +32,65 @@ function extractTag(block, tag) {
   return m ? decodeEntities(stripCDATA(m[1])) : null;
 }
 
+// Pulls a real photo from an item's own source page (its og:image meta
+// tag) and re-hosts it through our own storage -- not AI-generated, not
+// guessed, just the actual preview image that page already publishes for
+// link previews. Same technique already used for the website "quick
+// listing" autofill. Best-effort: a failure here just means no photo for
+// that one item, never a broken feed.
+async function fetchAndStoreOgImage(pageUrl, supabase) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const pageRes = await fetch(pageUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!pageRes.ok) return null;
+
+    const html = (await pageRes.text()).slice(0, 200000);
+    const match = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    if (!match) return null;
+    let imageUrl = match[1];
+    if (!imageUrl.startsWith('http')) imageUrl = new URL(imageUrl, pageUrl).toString();
+
+    const controller2 = new AbortController();
+    const timeout2 = setTimeout(() => controller2.abort(), 5000);
+    const imgRes = await fetch(imageUrl, { signal: controller2.signal });
+    clearTimeout(timeout2);
+    if (!imgRes.ok) return null;
+
+    const contentType = (imgRes.headers.get('content-type') || '').split(';')[0].trim();
+    const allowed = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+    const ext = allowed[contentType];
+    if (!ext) return null;
+
+    const buffer = Buffer.from(await imgRes.arrayBuffer());
+    if (buffer.length > 3 * 1024 * 1024) return null;
+
+    const filename = `feed-${require('crypto').randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from('logos').upload(filename, buffer, { contentType, upsert: false });
+    if (error) return null;
+
+    const { data } = supabase.storage.from('logos').getPublicUrl(filename);
+    return data.publicUrl;
+  } catch (err) {
+    return null; // fail quietly -- an item without a photo still displays fine
+  }
+}
+
+// Enriches a batch of items with images in parallel (not one at a time),
+// so fetching several source pages doesn't add up to a slow serial delay.
+async function enrichWithImages(items, supabase) {
+  const results = await Promise.all(
+    items.map(async item => {
+      if (!item.source_url) return item;
+      const imageUrl = await fetchAndStoreOgImage(item.source_url, supabase);
+      return { ...item, image_url: imageUrl };
+    })
+  );
+  return results;
+}
+
 async function fetchOuluNewsFromRSS() {
   try {
     const controller = new AbortController();
@@ -141,8 +200,9 @@ async function getLocalFeed(supabase, townId, townName) {
     } else {
       const fresh = await fetchOuluNewsFromRSS();
       if (fresh.length > 0) {
+        const enriched = await enrichWithImages(fresh, supabase);
         await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'news');
-        const rows = fresh.map(i => ({ town_id: townId, ...i }));
+        const rows = enriched.map(i => ({ town_id: townId, ...i }));
         const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
         result.news = inserted || [];
       } else {
@@ -167,8 +227,9 @@ async function getLocalFeed(supabase, townId, townName) {
     } else {
       const fresh = await generateEventItems(townName);
       if (fresh.length > 0) {
+        const enriched = await enrichWithImages(fresh, supabase);
         await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'event');
-        const rows = fresh.map(i => ({ town_id: townId, ...i }));
+        const rows = enriched.map(i => ({ town_id: townId, ...i }));
         const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select().order('event_date', { ascending: true });
         result.events = inserted || [];
       } else {

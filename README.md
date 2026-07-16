@@ -690,3 +690,18 @@ feed exists), but now:
 works for Oulu (Kaleva's feed is Oulu-specific) — a different town would
 need either its own equivalent local newspaper RSS feed, or fall back to
 the AI-search approach the whole feed used before this change.
+
+## Real photos + desktop side-by-side layout for the feed
+
+**Photos, without AI-generating or guessing them:** every news and event
+item now shows a real photo pulled directly from its own source page's
+preview image (the same og:image technique already used for the website
+"quick listing" autofill) — re-hosted through our own storage rather than
+hotlinking, and fetched in parallel across all items so this doesn't slow
+down a refresh. If a source page happens to have no preview image, that
+one item just displays without a photo — never breaks anything.
+
+**Desktop layout fixed:** News and Events now sit side-by-side in two
+columns on wider screens (900px+), instead of one long stack — directly
+addresses the "everything just sits under each other" feedback. Still
+stacks normally on mobile, since that layout was already fine there.

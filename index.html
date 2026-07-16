@@ -237,14 +237,17 @@
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;text-align:center;line-height:26px;margin-bottom:10px;}
   .hiwStep span{font-size:13px;color:var(--ink-dim);line-height:1.5;}
 
-  #localFeed{margin:44px auto 0;max-width:760px;}
+  #localFeed{margin:44px auto 0;max-width:1000px;}
   #localFeed h2{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 24px;}
-  #newsSection{margin-bottom:36px;}
+  #feedColumns{display:grid;grid-template-columns:1fr;gap:36px;align-items:start;}
+  @media (min-width:900px){ #feedColumns{grid-template-columns:1fr 1fr;} }
+  #newsSection{margin-bottom:0;}
   .feedSubhead{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--amber);
     text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
   #newsItems, #eventItems{display:grid;gap:12px;margin-top:12px;}
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;}
+  .feedItem .feedImg{flex:none;width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--panel);}
   .feedItem .eventDate{flex:none;background:var(--amber);color:#2a1c0d;font-family:'Space Grotesk',sans-serif;
     font-weight:700;font-size:11px;border-radius:6px;padding:6px 8px;text-align:center;line-height:1.2;min-width:44px;}
   .feedItem .eventDate .day{display:block;font-size:16px;}
@@ -358,18 +361,20 @@
   <div id="localFeed" style="display:none;">
     <h2 id="localFeedTitle"></h2>
 
-    <div id="newsSection">
-      <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
-      <p class="note" style="text-align:center;margin:0 0 14px;" id="newsSourceNote"></p>
-      <div id="newsItems"></div>
-    </div>
+    <div id="feedColumns">
+      <div id="newsSection">
+        <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
+        <p class="note" style="text-align:center;margin:0 0 14px;" id="newsSourceNote"></p>
+        <div id="newsItems"></div>
+      </div>
 
-    <div id="eventsSection">
-      <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat</h3>
-      <p class="note" data-i18n="localFeedNote" style="text-align:center;margin:0 0 14px;">🤖 Automaattisesti koottu — emme takaa täydellistä tarkkuutta, tarkista lähteestä.</p>
-      <div id="eventItems"></div>
-      <div style="text-align:center;margin-top:14px;">
-        <button id="showMoreEventsBtn" class="logoBtn" style="display:none;" data-i18n="showMore">Näytä lisää</button>
+      <div id="eventsSection">
+        <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat</h3>
+        <p class="note" data-i18n="localFeedNote" style="text-align:center;margin:0 0 14px;">🤖 Automaattisesti koottu — emme takaa täydellistä tarkkuutta, tarkista lähteestä.</p>
+        <div id="eventItems"></div>
+        <div style="text-align:center;margin-top:14px;">
+          <button id="showMoreEventsBtn" class="logoBtn" style="display:none;" data-i18n="showMore">Näytä lisää</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1270,6 +1275,15 @@ function makeFeedItemEl(item){
       : ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
     dateBadge.innerHTML = `<span class="day">${d.getDate()}</span>${months[d.getMonth()]}`;
     el.appendChild(dateBadge);
+  }
+
+  if (item.image_url){
+    const img = document.createElement('img');
+    img.className = 'feedImg';
+    img.src = item.image_url;
+    img.alt = '';
+    img.loading = 'lazy';
+    el.appendChild(img);
   }
 
   const body = document.createElement('div');
