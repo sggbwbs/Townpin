@@ -1,17 +1,20 @@
-// Local feed = two genuinely different things, sourced two different ways:
+// Local feed = three genuinely different things, sourced differently:
 //
 // NEWS: pulled directly from Kaleva's real, public RSS feed for Oulu.
-// Kaleva is the actual regional newspaper -- real headlines, real
-// journalism, zero AI involved, zero hallucination risk, and completely
-// free (RSS feeds are explicitly published for exactly this kind of
-// reuse). Currently hardcoded to Kaleva's Oulu feed since the site is
-// Oulu-only right now; expanding to other towns later would need a
-// per-town RSS source mapping, with AI search as a fallback where no
-// equivalent feed exists.
+// Real headlines, real journalism, zero AI involved, zero hallucination
+// risk, completely free (RSS feeds are explicitly published for this).
 //
-// EVENTS: no equivalent single "what's happening" feed exists, so this
-// still uses Claude + web search (same mechanism as the company "quick
-// info" blurb) to find genuinely current local events with real dates.
+// EVENTS: pulled directly from Kaleva's real event platform API
+// (tapahtumat.kaleva.fi) -- real titles, dates, venues, and descriptions
+// written by the actual event organizers. Only a lightweight, low-risk
+// AI call is used here, and only to translate the real Finnish text to
+// English -- nothing is invented or searched for. Falls back to AI web
+// search only if that API is ever unreachable or returns nothing.
+//
+// OFFERS: no equivalent structured source exists for local deals/
+// discounts, so this still uses Claude + web search (same mechanism as
+// the company "quick info" blurb) -- genuinely a harder, less reliable
+// category than the other two, and expected to find less.
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -121,10 +124,115 @@ async function fetchOuluNewsFromRSS() {
   }
 }
 
+const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72edb9364237309bf/content/63198844806f262926e72683?country=FI&lang=fi&mode=event&sort=countViews';
+const EVENTS_LOOKAHEAD_DAYS = 28;
+
+// Real, structured event data from Kaleva's own event platform -- covers
+// all of Northern Finland, so this filters down to Oulu-area venues and
+// genuinely upcoming dates specifically. Found by inspecting the network
+// requests of tapahtumat.kaleva.fi's own page (a public, unauthenticated
+// endpoint, not a private API). Far more reliable than asking AI to guess
+// at events -- same upgrade already made for news via Kaleva's RSS feed.
+async function fetchOuluEventsFromAPI() {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(OULU_EVENTS_API, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    const pages = data.pages || [];
+    const now = Date.now();
+    const cutoff = now + EVENTS_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000;
+
+    const findUpcomingDate = (page) => {
+      const dates = (page.event && page.event.dates) || [];
+      return dates.find(d => {
+        const t = new Date(d.start).getTime();
+        return t >= now && t <= cutoff;
+      });
+    };
+
+    return pages
+      .filter(p => {
+        const addr = (p.locations && p.locations[0] && p.locations[0].address) || '';
+        if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
+        return !!findUpcomingDate(p);
+      })
+      .slice(0, 10)
+      .map(p => {
+        const upcoming = findUpcomingDate(p);
+        return {
+          title_fi: p.name,
+          summary_fi: (p.descriptionShort || '').slice(0, 300),
+          event_date: upcoming.start.slice(0, 10),
+          source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`
+        };
+      })
+      .filter(e => e.title_fi && e.event_date);
+  } catch (err) {
+    console.error('Oulu events API fetch failed:', err);
+    return [];
+  }
+}
+
+// Translating real event text is a much lower-risk AI task than
+// generating event data from scratch -- no search needed, nothing to
+// hallucinate, just rephrasing text that's already known to be accurate.
+async function translateEventsToEnglish(events) {
+  if (events.length === 0) return events;
+  if (!ANTHROPIC_API_KEY) return events.map(e => ({ ...e, title_en: e.title_fi, summary_en: e.summary_fi }));
+
+  const prompt = `Translate each of these Finnish event titles and descriptions to English. Respond with ONLY a JSON array, same order, same length as the input, no other text, no markdown fences:
+[{"title_en": "...", "summary_en": "..."}]
+
+Events:
+${JSON.stringify(events.map(e => ({ title_fi: e.title_fi, summary_fi: e.summary_fi })))}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({ model: MODEL, max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    const translations = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    return events.map((e, i) => ({
+      ...e,
+      title_en: (translations[i] && translations[i].title_en) || e.title_fi,
+      summary_en: (translations[i] && translations[i].summary_en) || e.summary_fi
+    }));
+  } catch (err) {
+    console.error('Event translation failed (showing Finnish text as fallback):', err);
+    return events.map(e => ({ ...e, title_en: e.title_fi, summary_en: e.summary_fi }));
+  }
+}
+
 async function generateEventItems(townName) {
+  const realEvents = await fetchOuluEventsFromAPI();
+  if (realEvents.length > 0) {
+    const translated = await translateEventsToEnglish(realEvents);
+    return translated.map(e => ({ ...e, item_type: 'event', source_name: 'Kaleva' }));
+  }
+  // Fallback only -- the real API above should normally cover this, but
+  // AI search is a reasonable safety net if that API is ever down or
+  // returns nothing for a stretch.
+  return await generateEventItemsViaAISearch(townName);
+}
+
+async function generateEventItemsViaAISearch(townName) {
   if (!ANTHROPIC_API_KEY) return [];
 
   const prompt = `Search the web for genuinely current upcoming events in ${townName}, Finland -- things happening in the next 4 weeks (festivals, markets, concerts, sports, exhibitions, council/community events). Skip anything that already happened or is too generic/national.
+
+Good sources to check specifically for Oulu-area events: tapahtumat.kaleva.fi, ouka.fi/tapahtumapalvelut/tapahtumakalenteri, and tapahtumat.munoulu.fi -- these are real local event calendars, likely to have better and more current results than a generic search.
 
 Write up to 10 events. Each needs a title, a 1-2 sentence description IN YOUR OWN WORDS (never a direct quote) in both Finnish and English, the actual date (as an ISO date "YYYY-MM-DD" -- your best accurate reading of the real date, required for every event), and the single most relevant source URL.
 
@@ -159,14 +267,14 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
     if (!jsonStr) {
-      console.error('Event generation: empty response from model. Full response:', JSON.stringify(data));
+      console.error('Event generation (fallback): empty response from model. Full response:', JSON.stringify(data));
       return [];
     }
     let parsed;
     try {
       parsed = JSON.parse(jsonStr);
     } catch (parseErr) {
-      console.error('Event generation: could not parse model output as JSON. Raw text was:', cleaned);
+      console.error('Event generation (fallback): could not parse model output as JSON. Raw text was:', cleaned);
       return [];
     }
     if (!Array.isArray(parsed.items)) return [];
@@ -175,7 +283,7 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
       .filter(i => i.title_fi && i.title_en && i.summary_fi && i.summary_en && i.event_date)
       .map(i => ({ ...i, item_type: 'event', source_name: null }));
   } catch (err) {
-    console.error('Event generation failed:', err);
+    console.error('Event generation (fallback) failed:', err);
     return [];
   }
 }
