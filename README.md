@@ -653,3 +653,18 @@ working the whole time:
 If you ever want a full site-wide lockout instead (everything down, not
 just the homepage), that's a bigger change — say so and I'll build that
 version instead.
+
+## Enforced the Oulu-only restriction at the actual point of purchase
+
+Found and closed a real gap while hiding the "post to additional towns"
+UI: the checkout backend itself never checked whether *any* town — not
+even the primary one — was actually enabled. Hiding UI elements only
+stops the normal flow; it does nothing against a direct API call. Fixed
+properly now: `create-checkout-session.js` checks every town involved
+(primary purchase + any additional towns) against the `enabled` flag and
+rejects the request if any of them isn't currently open — this is real
+server-side enforcement, not just something the interface happens to hide.
+
+The "post to additional towns" section itself is hidden in the claim form
+for now (same reversible `display:none` approach as the search box) —
+bring both back together once more towns are open.

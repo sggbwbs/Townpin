@@ -18,6 +18,8 @@ async function generateFeedItems(townName) {
 
 Write up to 4 short items. Each needs a title and a 1-2 sentence summary IN YOUR OWN WORDS (never a direct quote), in both Finnish and English, plus the single most relevant source URL.
 
+Do not narrate your search process or explain your reasoning. Do not write anything like "I'll search for..." or "Based on my search results...". Just search, then respond with only the JSON below -- nothing before it, nothing after it.
+
 If you can't find anything genuinely current and local, respond with exactly: {"items": []}
 
 Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
@@ -44,13 +46,18 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
       .map(b => b.text)
       .join('\n');
     const cleaned = text.replace(/```json|```/g, '').trim();
-    if (!cleaned) {
+    // The model sometimes narrates its search process in plain text
+    // before the actual JSON ("I'll search for..."). Pull out just the
+    // JSON object rather than assuming the whole response is clean JSON.
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
+    if (!jsonStr) {
       console.error('Local feed generation: empty response from model (likely ran out of tokens after the search step). Full response:', JSON.stringify(data));
       return [];
     }
     let parsed;
     try {
-      parsed = JSON.parse(cleaned);
+      parsed = JSON.parse(jsonStr);
     } catch (parseErr) {
       console.error('Local feed generation: could not parse model output as JSON. Raw text was:', cleaned);
       return [];
