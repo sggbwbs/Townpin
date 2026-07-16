@@ -214,15 +214,20 @@ async function getLocalFeed(supabase, townId, townName) {
   }
 
   try {
-    const { data: existingEvents } = await supabase
+    const { data: existingRaw } = await supabase
       .from('local_feed_items').select('*')
       .eq('town_id', townId).eq('item_type', 'event')
       .order('event_date', { ascending: true });
-    const newestCreated = existingEvents && existingEvents.length > 0
+    // Undated rows can only be leftovers from before event_date was
+    // required -- useless to the weekly browser, which needs a real date
+    // to place anything in a week. Treat them as if the cache were empty
+    // rather than let them sit around indefinitely showing as "nothing".
+    const existingEvents = (existingRaw || []).filter(e => e.event_date);
+    const newestCreated = existingEvents.length > 0
       ? Math.max(...existingEvents.map(e => new Date(e.created_at).getTime())) : 0;
     const eventsAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
 
-    if (existingEvents && existingEvents.length > 0 && eventsAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
+    if (existingEvents.length > 0 && eventsAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
       result.events = existingEvents;
     } else {
       const fresh = await generateEventItems(townName);
@@ -233,7 +238,7 @@ async function getLocalFeed(supabase, townId, townName) {
         const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select().order('event_date', { ascending: true });
         result.events = inserted || [];
       } else {
-        result.events = existingEvents || [];
+        result.events = existingEvents; // still useless if this is also empty, but never worse than what we had
       }
     }
   } catch (err) {

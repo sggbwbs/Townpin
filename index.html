@@ -394,6 +394,9 @@
         <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
         <p class="note" style="text-align:center;margin:0 0 14px;" id="newsSourceNote"></p>
         <div id="newsItems"></div>
+        <div style="text-align:center;margin-top:14px;">
+          <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
+        </div>
       </div>
 
       <div id="eventsSection">
@@ -949,6 +952,8 @@ const STRINGS = {
     newsSectionTitle: 'Uutiset',
     eventsSectionTitle: 'Tapahtumat',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
+    showMore: 'Näytä lisää',
+    showLess: 'Näytä vähemmän',
     otherTown: 'Etsitkö toista kaupunkia? →',
     townPlaceholder: 'Kaupungin nimi (esim. Tampere)',
     viewBoard: 'Katso taulu →',
@@ -1058,6 +1063,8 @@ const STRINGS = {
     newsSectionTitle: 'News',
     eventsSectionTitle: 'Events',
     noEventsThisWeek: 'No known events for this week.',
+    showMore: 'Show more',
+    showLess: 'Show less',
     otherTown: 'Looking for another town? →',
     townPlaceholder: 'Enter your town (e.g. Tampere)',
     viewBoard: 'View board →',
@@ -1287,11 +1294,14 @@ async function loadBoard(){
   currentSquares = data.squares || [];
   currentFeedItems = data.feed || { news: [], events: [] };
   currentWeekOffset = 0;
+  newsExpanded = false;
   updateClaimedMeta();
   renderGrid();
   renderLocalFeed(currentFeedItems);
 }
 
+let newsExpanded = false;
+const NEWS_COLLAPSED_COUNT = 5;
 let currentWeekOffset = 0; // 0 = this week, 1 = next week, etc.
 
 // Monday-Sunday week bounds for a given offset from the current week --
@@ -1381,7 +1391,16 @@ function renderLocalFeed(feed){
       (lang === 'fi' ? 'Lähde: Kaleva' : 'Source: Kaleva');
     const newsBox = document.getElementById('newsItems');
     newsBox.innerHTML = '';
-    news.forEach(item => newsBox.appendChild(makeFeedItemEl(item)));
+    const visibleCount = newsExpanded ? news.length : Math.min(NEWS_COLLAPSED_COUNT, news.length);
+    news.slice(0, visibleCount).forEach(item => newsBox.appendChild(makeFeedItemEl(item)));
+
+    const moreBtn = document.getElementById('showMoreNewsBtn');
+    if (news.length > NEWS_COLLAPSED_COUNT){
+      moreBtn.style.display = 'inline-block';
+      moreBtn.textContent = newsExpanded ? t('showLess') : t('showMore');
+    } else {
+      moreBtn.style.display = 'none';
+    }
   }
 
   // events, filtered to the currently browsed week
@@ -1421,6 +1440,10 @@ function renderEventsWeek(sortedEvents){
   const lastEventDate = sortedEvents.length > 0 ? new Date(sortedEvents[sortedEvents.length - 1].event_date + 'T12:00:00') : null;
   document.getElementById('weekNextBtn').disabled = !lastEventDate || end >= lastEventDate;
 }
+document.getElementById('showMoreNewsBtn').addEventListener('click', ()=>{
+  newsExpanded = !newsExpanded;
+  renderLocalFeed(currentFeedItems);
+});
 document.getElementById('weekPrevBtn').addEventListener('click', ()=>{
   if (currentWeekOffset <= 0) return;
   currentWeekOffset--;

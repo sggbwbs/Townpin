@@ -705,3 +705,51 @@ one item just displays without a photo — never breaks anything.
 columns on wider screens (900px+), instead of one long stack — directly
 addresses the "everything just sits under each other" feedback. Still
 stacks normally on mobile, since that layout was already fine there.
+
+## Weekly browser for events
+
+Replaced the flat "show more" list with proper week navigation — a
+prev/next arrow pair showing "Tämä viikko (14.7.–20.7.)" style labels,
+filtering to just that week's events. Starts on the current week; "next"
+disables once you've paged past the last event we actually have data for;
+"prev" disables at the current week, since these are upcoming events, not
+a history to browse backward through.
+
+## Two layout changes for less scrolling on desktop
+
+**Hero + board side-by-side.** On screens 1000px and wider, the pitch
+(headline, value props, offer banner) sits on the left and the actual
+live board sits on the right, both visible at once with no scrolling —
+directly solves "the product is below the fold." Stacks normally on
+mobile, same as before, since that was already fine there.
+
+**Collapsible FAQ.** Answers are now collapsed by default — click a
+question to expand it, click again (or open a different one) to close it.
+Only one stays open at a time, keeping the section short regardless of
+how many questions get added later.
+
+**One implementation note worth knowing, in case a similar bug shows up
+again elsewhere:** the FAQ toggle symbol (+/−) had to be structured
+carefully — it's a sibling of the translated text, not nested inside it.
+Nesting it would have caused the same bug fixed earlier tonight for other
+labels: switching languages replaces an element's *entire* contents, which
+silently wipes out anything nested inside it that wasn't part of the
+translation itself.
+
+## News show-more, and a real fix for events disappearing
+
+**News now shows 5 by default** with the same show-more/show-less pattern
+used elsewhere on the site.
+
+**Events were disappearing** — root cause: the weekly browser correctly
+requires a real date to place an event in a week, but some cached rows
+predated that requirement (or came from a run where generation failed and
+fell back to old data) and had no date at all. Those rows were technically
+still "fresh" by age, so the cache kept reusing them — and since they had
+no date, the weekly view correctly showed nothing for any week, forever.
+
+**Fixed at the source, not just papered over:** the cache-freshness check
+now filters out any dateless rows first — if that leaves nothing usable,
+it's treated as an empty cache regardless of age, which immediately
+triggers a fresh generation on the very next board load. Self-healing,
+no manual database cleanup needed for this one.
