@@ -55,7 +55,8 @@
     font-size:12px;font-weight:500;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .12s ease;}
   #langToggle button.active{background:var(--amber);color:#2a1c0d;font-weight:700;}
 
-  main{max-width:1100px;margin:0 auto;padding:0 24px 100px;}
+  main{max-width:1240px;margin:0 auto;padding:0 24px 100px;}
+  #heroBoardGrid{display:grid;grid-template-columns:1fr;gap:8px;align-items:start;}
 
   /* ---- hero ---- */
   #hero{text-align:center;padding:44px 20px 8px;}
@@ -255,7 +256,12 @@
   .feedItem b{display:block;font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin-bottom:4px;}
   .feedItem p{margin:0 0 6px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
   .feedItem a{font-size:11.5px;color:var(--amber);text-decoration:underline;}
-  #showMoreEventsBtn{background:var(--panelT7);color:var(--ink);border-color:var(--line);}
+  #weekNav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px;}
+  #weekNav button{background:var(--panelT7);color:var(--ink);border:1px solid var(--line);border-radius:999px;
+    width:30px;height:30px;cursor:pointer;font-size:14px;}
+  #weekNav button:disabled{opacity:0.35;cursor:default;}
+  #weekLabel{font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--ink);min-width:130px;text-align:center;}
+  #noEventsThisWeek{padding:20px 0;}
   #factsSection{margin:40px auto 8px;max-width:760px;text-align:center;}
   #factsSection h2{font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 22px;}
   .factsRow{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;}
@@ -269,10 +275,26 @@
 
   #faq{margin-top:56px;max-width:640px;margin-left:auto;margin-right:auto;}
   #faq h2{font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--ink);margin:0 0 20px;text-align:center;}
-  .faqItem{padding:16px 0;border-bottom:1px solid var(--line);}
+  .faqItem{padding:4px 0;border-bottom:1px solid var(--line);}
   .faqItem:last-child{border-bottom:none;}
-  .faqItem b{display:block;font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin-bottom:6px;}
-  .faqItem p{margin:0;font-size:13px;color:var(--ink-dim);line-height:1.55;}
+  .faqQ{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;
+    background:none;border:none;cursor:pointer;padding:14px 0;text-align:left;
+    font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);}
+  .faqToggle{flex:none;font-size:18px;color:var(--amber);font-weight:400;transition:transform .15s ease;}
+  .faqItem.open .faqToggle{transform:rotate(45deg);}
+  .faqA{margin:0;font-size:13px;color:var(--ink-dim);line-height:1.55;
+    max-height:0;overflow:hidden;transition:max-height .2s ease, padding .2s ease;}
+  .faqItem.open .faqA{max-height:400px;padding-bottom:16px;}
+  /* Placed last deliberately -- these override earlier same-specificity
+     rules (#hero, .valueRow, #volumeNote each set their own text-align)
+     only on wider screens, for the side-by-side hero+board layout. */
+  @media (min-width:1000px){
+    #heroBoardGrid{grid-template-columns:0.85fr 1.15fr;gap:40px;}
+    #heroPitchCol{padding-top:24px;}
+    #hero{text-align:left;}
+    .valueRow{justify-content:flex-start;gap:22px;}
+    #volumeNote{text-align:left;}
+  }
 </style>
 </head>
 <body>
@@ -300,62 +322,68 @@
 </header>
 
 <main>
-  <div id="hero">
-    <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h1>
-    <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.</p>
-  </div>
+  <div id="heroBoardGrid">
+    <div id="heroPitchCol">
+      <div id="hero">
+        <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h1>
+        <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.</p>
+      </div>
 
-  <div class="valueRow">
-    <div class="valueCard"><b data-i18n="value1b">5€/kk</b> <span data-i18n="value1">murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa</span></div>
-    <div class="valueCard"><b data-i18n="value2b">Löydettävissä Googlesta</b> <span data-i18n="value2">yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua</span></div>
-    <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
-  </div>
+      <div class="valueRow">
+        <div class="valueCard"><b data-i18n="value1b">5€/kk</b> <span data-i18n="value1">murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa</span></div>
+        <div class="valueCard"><b data-i18n="value2b">Löydettävissä Googlesta</b> <span data-i18n="value2">yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua</span></div>
+        <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
+      </div>
 
-  <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi ruutu ja säästä: 4€/kk per ruutu.</div>
+      <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi ruutu ja säästä: 4€/kk per ruutu.</div>
 
-  <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
+      <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
 
-  <div id="searchWrap" class="open" style="display:none;">
-    <div id="searchRow">
-      <input type="text" id="townInput" autocomplete="off" data-i18n-placeholder="townPlaceholder" placeholder="Kaupungin nimi (esim. Tampere)" />
-      <button id="searchBtn" data-i18n="viewBoard">Katso taulu →</button>
+      <div id="searchWrap" class="open" style="display:none;">
+        <div id="searchRow">
+          <input type="text" id="townInput" autocomplete="off" data-i18n-placeholder="townPlaceholder" placeholder="Kaupungin nimi (esim. Tampere)" />
+          <button id="searchBtn" data-i18n="viewBoard">Katso taulu →</button>
+        </div>
+        <div id="suggestions"></div>
+      </div>
+      <div id="homeErr"></div>
     </div>
-    <div id="suggestions"></div>
-  </div>
-  <div id="homeErr"></div>
 
-  <div id="boardHeader">
-    <h2 id="boardTitle">Oulu</h2>
-    <div class="meta"><span id="claimedMeta"></span></div>
-    <select id="industryFilter">
-      <option value="" data-i18n="allCategories">Kaikki toimialat</option>
-      <option value="ajoneuvot" data-i18n="indAjoneuvot">Ajoneuvot ja korjaamo</option>
-      <option value="elainlaakari" data-i18n="indElainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
-      <option value="it" data-i18n="indIt">IT ja digitaaliset palvelut</option>
-      <option value="kauneus" data-i18n="indKauneus">Kauneus ja hyvinvointi</option>
-      <option value="kiinteisto" data-i18n="indKiinteisto">Kiinteistö ja asuminen</option>
-      <option value="koulutus" data-i18n="indKoulutus">Koulutus</option>
-      <option value="kuljetus" data-i18n="indKuljetus">Kuljetus ja logistiikka</option>
-      <option value="kasityo" data-i18n="indKasityo">Käsityö ja taide</option>
-      <option value="talous" data-i18n="indTalous">Lakipalvelut ja talous</option>
-      <option value="maatalous" data-i18n="indMaatalous">Maatalous ja puutarha</option>
-      <option value="matkailu" data-i18n="indMatkailu">Matkailu ja majoitus</option>
-      <option value="muu" data-i18n="indMuu">Muu</option>
-      <option value="rakentaminen" data-i18n="indRakentaminen">Rakentaminen ja remontointi</option>
-      <option value="ravintola" data-i18n="indRavintola">Ravintola ja kahvila</option>
-      <option value="siivous" data-i18n="indSiivous">Siivous ja kotipalvelut</option>
-      <option value="tapahtumat" data-i18n="indTapahtumat">Tapahtumat ja viihde</option>
-      <option value="terveys" data-i18n="indTerveys">Terveys ja lääkäripalvelut</option>
-      <option value="urheilu" data-i18n="indUrheilu">Urheilu ja liikunta</option>
-      <option value="valokuvaus" data-i18n="indValokuvaus">Valokuvaus ja media</option>
-      <option value="kauppa" data-i18n="indKauppa">Vähittäiskauppa</option>
-    </select>
-    <div id="selectHint" data-i18n="selectHint">Klikkaa yhtä ruutua valitaksesi sen — klikkaa toista muodostaaksesi suorakulmion useammasta ruudusta.</div>
-    <div id="rectError"></div>
-  </div>
+    <div id="boardProductCol">
+      <div id="boardHeader">
+        <h2 id="boardTitle">Oulu</h2>
+        <div class="meta"><span id="claimedMeta"></span></div>
+        <select id="industryFilter">
+          <option value="" data-i18n="allCategories">Kaikki toimialat</option>
+          <option value="ajoneuvot" data-i18n="indAjoneuvot">Ajoneuvot ja korjaamo</option>
+          <option value="elainlaakari" data-i18n="indElainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
+          <option value="it" data-i18n="indIt">IT ja digitaaliset palvelut</option>
+          <option value="kauneus" data-i18n="indKauneus">Kauneus ja hyvinvointi</option>
+          <option value="kiinteisto" data-i18n="indKiinteisto">Kiinteistö ja asuminen</option>
+          <option value="koulutus" data-i18n="indKoulutus">Koulutus</option>
+          <option value="kuljetus" data-i18n="indKuljetus">Kuljetus ja logistiikka</option>
+          <option value="kasityo" data-i18n="indKasityo">Käsityö ja taide</option>
+          <option value="talous" data-i18n="indTalous">Lakipalvelut ja talous</option>
+          <option value="maatalous" data-i18n="indMaatalous">Maatalous ja puutarha</option>
+          <option value="matkailu" data-i18n="indMatkailu">Matkailu ja majoitus</option>
+          <option value="muu" data-i18n="indMuu">Muu</option>
+          <option value="rakentaminen" data-i18n="indRakentaminen">Rakentaminen ja remontointi</option>
+          <option value="ravintola" data-i18n="indRavintola">Ravintola ja kahvila</option>
+          <option value="siivous" data-i18n="indSiivous">Siivous ja kotipalvelut</option>
+          <option value="tapahtumat" data-i18n="indTapahtumat">Tapahtumat ja viihde</option>
+          <option value="terveys" data-i18n="indTerveys">Terveys ja lääkäripalvelut</option>
+          <option value="urheilu" data-i18n="indUrheilu">Urheilu ja liikunta</option>
+          <option value="valokuvaus" data-i18n="indValokuvaus">Valokuvaus ja media</option>
+          <option value="kauppa" data-i18n="indKauppa">Vähittäiskauppa</option>
+        </select>
+        <div id="selectHint" data-i18n="selectHint">Klikkaa yhtä ruutua valitaksesi sen — klikkaa toista muodostaaksesi suorakulmion useammasta ruudusta.</div>
+        <div id="rectError"></div>
+      </div>
 
-  <div id="boardLayout">
-    <div id="grid"></div>
+      <div id="boardLayout">
+        <div id="grid"></div>
+      </div>
+    </div>
   </div>
 
   <div id="localFeed" style="display:none;">
@@ -371,10 +399,13 @@
       <div id="eventsSection">
         <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat</h3>
         <p class="note" data-i18n="localFeedNote" style="text-align:center;margin:0 0 14px;">🤖 Automaattisesti koottu — emme takaa täydellistä tarkkuutta, tarkista lähteestä.</p>
-        <div id="eventItems"></div>
-        <div style="text-align:center;margin-top:14px;">
-          <button id="showMoreEventsBtn" class="logoBtn" style="display:none;" data-i18n="showMore">Näytä lisää</button>
+        <div id="weekNav">
+          <button id="weekPrevBtn" aria-label="Previous week">←</button>
+          <span id="weekLabel"></span>
+          <button id="weekNextBtn" aria-label="Next week">→</button>
         </div>
+        <div id="eventItems"></div>
+        <p class="note" id="noEventsThisWeek" style="text-align:center;display:none;"></p>
       </div>
     </div>
   </div>
@@ -400,18 +431,24 @@
 
   <div id="faq">
     <h2 data-i18n="faqTitle">Usein kysyttyä</h2>
-    <div class="faqItem"><b data-i18n="faqQ1">Onko tämä luotettava palvelu?</b>
-      <p data-i18n="faqA1">Maksut käsittelee Stripe, jota käyttävät miljoonat yritykset ympäri maailman — emme koskaan näe tai tallenna korttitietojasi.</p></div>
-    <div class="faqItem"><b data-i18n="faqQ2">Mitä oikeasti saan rahalleni?</b>
-      <p data-i18n="faqA2">Ruudun ilmoitustaululla omalla logollasi, sekä oman verkkosivun, joka linkittää suoraan yrityksesi sivustolle.</p></div>
-    <div class="faqItem"><b data-i18n="faqQ3">Voinko peruuttaa milloin vain?</b>
-      <p data-i18n="faqA3">Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan — peruutus vapauttaa ruudun heti.</p></div>
-    <div class="faqItem"><b data-i18n="faqQ4">Tarkistetaanko ilmoitukset?</b>
-      <p data-i18n="faqA4">Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.</p></div>
-    <div class="faqItem"><b data-i18n="faqQ5">Näynkö heti Google-haussa?</b>
-      <p data-i18n="faqA5">Sivusi julkaistaan heti, mutta hakukoneiden indeksointi voi viedä muutamasta päivästä pariin viikkoon — emme voi luvata tarkkaa aikataulua tai sijoitusta hakutuloksissa.</p></div>
-    <div class="faqItem"><b data-i18n="faqQ6">Kuukausitilaus vai kertamaksu — kumpi kannattaa?</b>
-      <p data-i18n="faqA6">Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.</p></div>
+    <div class="faqItem">
+      <button class="faqQ"><span data-i18n="faqQ1">Onko tämä luotettava palvelu?</span><span class="faqToggle">+</span></button>
+      <p class="faqA" data-i18n="faqA1">Maksut käsittelee Stripe, jota käyttävät miljoonat yritykset ympäri maailman — emme koskaan näe tai tallenna korttitietojasi.</p></div>
+    <div class="faqItem">
+      <button class="faqQ"><span data-i18n="faqQ2">Mitä oikeasti saan rahalleni?</span><span class="faqToggle">+</span></button>
+      <p class="faqA" data-i18n="faqA2">Ruudun ilmoitustaululla omalla logollasi, sekä oman verkkosivun, joka linkittää suoraan yrityksesi sivustolle.</p></div>
+    <div class="faqItem">
+      <button class="faqQ"><span data-i18n="faqQ3">Voinko peruuttaa milloin vain?</span><span class="faqToggle">+</span></button>
+      <p class="faqA" data-i18n="faqA3">Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan — peruutus vapauttaa ruudun heti.</p></div>
+    <div class="faqItem">
+      <button class="faqQ"><span data-i18n="faqQ4">Tarkistetaanko ilmoitukset?</span><span class="faqToggle">+</span></button>
+      <p class="faqA" data-i18n="faqA4">Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.</p></div>
+    <div class="faqItem">
+      <button class="faqQ"><span data-i18n="faqQ5">Näynkö heti Google-haussa?</span><span class="faqToggle">+</span></button>
+      <p class="faqA" data-i18n="faqA5">Sivusi julkaistaan heti, mutta hakukoneiden indeksointi voi viedä muutamasta päivästä pariin viikkoon — emme voi luvata tarkkaa aikataulua tai sijoitusta hakutuloksissa.</p></div>
+    <div class="faqItem">
+      <button class="faqQ"><span data-i18n="faqQ6">Kuukausitilaus vai kertamaksu — kumpi kannattaa?</span><span class="faqToggle">+</span></button>
+      <p class="faqA" data-i18n="faqA6">Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.</p></div>
   </div>
 </main>
 
@@ -911,8 +948,7 @@ const STRINGS = {
     localFeedNote: '🤖 Automaattisesti koottu — emme takaa täydellistä tarkkuutta, tarkista lähteestä.',
     newsSectionTitle: 'Uutiset',
     eventsSectionTitle: 'Tapahtumat',
-    showMore: 'Näytä lisää',
-    showLess: 'Näytä vähemmän',
+    noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
     otherTown: 'Etsitkö toista kaupunkia? →',
     townPlaceholder: 'Kaupungin nimi (esim. Tampere)',
     viewBoard: 'Katso taulu →',
@@ -1021,8 +1057,7 @@ const STRINGS = {
     localFeedNote: '🤖 Automatically curated — accuracy isn\'t guaranteed, check the source.',
     newsSectionTitle: 'News',
     eventsSectionTitle: 'Events',
-    showMore: 'Show more',
-    showLess: 'Show less',
+    noEventsThisWeek: 'No known events for this week.',
     otherTown: 'Looking for another town? →',
     townPlaceholder: 'Enter your town (e.g. Tampere)',
     viewBoard: 'View board →',
@@ -1251,14 +1286,34 @@ async function loadBoard(){
   const data = await res.json();
   currentSquares = data.squares || [];
   currentFeedItems = data.feed || { news: [], events: [] };
-  eventsExpanded = false;
+  currentWeekOffset = 0;
   updateClaimedMeta();
   renderGrid();
   renderLocalFeed(currentFeedItems);
 }
 
-let eventsExpanded = false;
-const EVENTS_COLLAPSED_COUNT = 4;
+let currentWeekOffset = 0; // 0 = this week, 1 = next week, etc.
+
+// Monday-Sunday week bounds for a given offset from the current week --
+// matches the Finnish week convention (weeks start Monday, not Sunday).
+function getWeekBounds(offset){
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun..6=Sat
+  const diffToMonday = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(now);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(now.getDate() + diffToMonday + offset * 7);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { start: monday, end: sunday };
+}
+function formatWeekLabel(offset, start, end){
+  const fmt = d => `${d.getDate()}.${d.getMonth() + 1}.`;
+  if (offset === 0) return lang === 'fi' ? `Tämä viikko (${fmt(start)}–${fmt(end)})` : `This week (${fmt(start)}–${fmt(end)})`;
+  if (offset === 1) return lang === 'fi' ? `Ensi viikko (${fmt(start)}–${fmt(end)})` : `Next week (${fmt(start)}–${fmt(end)})`;
+  return `${fmt(start)}–${fmt(end)}`;
+}
 
 function makeFeedItemEl(item){
   const el = document.createElement('div');
@@ -1329,29 +1384,53 @@ function renderLocalFeed(feed){
     news.forEach(item => newsBox.appendChild(makeFeedItemEl(item)));
   }
 
-  // events, sorted chronologically, with show-more
+  // events, filtered to the currently browsed week
   const eventsSection = document.getElementById('eventsSection');
   if (events.length === 0){ eventsSection.style.display = 'none'; }
   else {
     eventsSection.style.display = 'block';
     const sorted = [...events].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
-    const eventsBox = document.getElementById('eventItems');
-    eventsBox.innerHTML = '';
-    const visibleCount = eventsExpanded ? sorted.length : Math.min(EVENTS_COLLAPSED_COUNT, sorted.length);
-    sorted.slice(0, visibleCount).forEach(item => eventsBox.appendChild(makeFeedItemEl(item)));
-
-    const moreBtn = document.getElementById('showMoreEventsBtn');
-    if (sorted.length > EVENTS_COLLAPSED_COUNT){
-      moreBtn.style.display = 'inline-block';
-      moreBtn.textContent = eventsExpanded ? t('showLess') : t('showMore');
-    } else {
-      moreBtn.style.display = 'none';
-    }
+    renderEventsWeek(sorted);
   }
 }
-document.getElementById('showMoreEventsBtn').addEventListener('click', ()=>{
-  eventsExpanded = !eventsExpanded;
-  renderLocalFeed(currentFeedItems);
+
+function renderEventsWeek(sortedEvents){
+  const { start, end } = getWeekBounds(currentWeekOffset);
+  document.getElementById('weekLabel').textContent = formatWeekLabel(currentWeekOffset, start, end);
+
+  const inWeek = sortedEvents.filter(e => {
+    if (!e.event_date) return false;
+    const d = new Date(e.event_date + 'T12:00:00');
+    return d >= start && d <= end;
+  });
+
+  const eventsBox = document.getElementById('eventItems');
+  const noneMsg = document.getElementById('noEventsThisWeek');
+  eventsBox.innerHTML = '';
+  if (inWeek.length === 0){
+    noneMsg.style.display = 'block';
+    noneMsg.textContent = t('noEventsThisWeek');
+  } else {
+    noneMsg.style.display = 'none';
+    inWeek.forEach(item => eventsBox.appendChild(makeFeedItemEl(item)));
+  }
+
+  // prev disabled at "this week" (these are upcoming events, not history);
+  // next disabled once we're past every event we actually have data for
+  document.getElementById('weekPrevBtn').disabled = (currentWeekOffset <= 0);
+  const lastEventDate = sortedEvents.length > 0 ? new Date(sortedEvents[sortedEvents.length - 1].event_date + 'T12:00:00') : null;
+  document.getElementById('weekNextBtn').disabled = !lastEventDate || end >= lastEventDate;
+}
+document.getElementById('weekPrevBtn').addEventListener('click', ()=>{
+  if (currentWeekOffset <= 0) return;
+  currentWeekOffset--;
+  const sorted = [...(currentFeedItems.events || [])].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
+  renderEventsWeek(sorted);
+});
+document.getElementById('weekNextBtn').addEventListener('click', ()=>{
+  currentWeekOffset++;
+  const sorted = [...(currentFeedItems.events || [])].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
+  renderEventsWeek(sorted);
 });
 
 // Cell sizing is now handled entirely by CSS (aspect-ratio on #grid),
@@ -1979,6 +2058,22 @@ function showSuccessBannerIfNeeded(){
     + ` <span style="cursor:pointer;text-decoration:underline;margin-left:10px;" onclick="this.parentElement.remove()">✕</span>`;
   document.body.prepend(banner);
 }
+document.querySelectorAll('.faqQ').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.closest('.faqItem');
+    const wasOpen = item.classList.contains('open');
+    // only one open at a time -- closing the others keeps the FAQ short
+    document.querySelectorAll('.faqItem.open').forEach(el => {
+      el.classList.remove('open');
+      el.querySelector('.faqToggle').textContent = '+';
+    });
+    if (!wasOpen){
+      item.classList.add('open');
+      item.querySelector('.faqToggle').textContent = '−';
+    }
+  });
+});
+
 init();
 </script>
 </body>
