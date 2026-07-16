@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
   // Local news/events feed -- news refreshes often (cheap, real RSS),
   // events refresh roughly daily (AI-generated). Never blocks the board
   // itself from loading -- a failure here just means empty feed sections.
-  let feed = { news: [], events: [] };
+  let feed = { news: [], events: [], offers: [] };
   try {
     const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
     if (town) feed = await getLocalFeed(supabase, townId, town.name);

@@ -180,12 +180,76 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
   }
 }
 
+async function generateOfferItems(townName) {
+  if (!ANTHROPIC_API_KEY) return [];
+
+  // Deliberately a harder category than news or events: weekly grocery
+  // and retail deals are usually published as app-only or image/PDF
+  // flyers, not clean indexable text. This will genuinely find less,
+  // and less reliably, than the other two feed types -- that's expected,
+  // not a bug, given what's actually searchable.
+  const prompt = `Search the web for genuinely current local discounts, sales, or special offers from real businesses in ${townName}, Finland -- grocery stores, retail shops, restaurants, or local services running an active promotion right now. Skip anything expired, generic/national chain-wide advertising with no local angle, or anything you can't verify is currently running.
+
+Write up to 8 offers. Each needs a title, a 1-2 sentence description IN YOUR OWN WORDS (never a direct quote) in both Finnish and English, an ISO date "YYYY-MM-DD" for when it expires if you can determine one (omit the field entirely if you can't -- do not guess), and the single most relevant source URL.
+
+Do not narrate your search process or explain your reasoning. Do not write anything like "I'll search for..." or "Based on my search results...". Just search, then respond with only the JSON below -- nothing before it, nothing after it.
+
+If you can't find anything genuinely current and verifiable, respond with exactly: {"items": []}
+
+Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
+{"items": [{"title_fi": "...", "title_en": "...", "summary_fi": "...", "summary_en": "...", "event_date": "YYYY-MM-DD or omit", "source_url": "..."}]}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content || [])
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('\n');
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
+    if (!jsonStr) {
+      console.error('Offer generation: empty response from model. Full response:', JSON.stringify(data));
+      return [];
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      console.error('Offer generation: could not parse model output as JSON. Raw text was:', cleaned);
+      return [];
+    }
+    if (!Array.isArray(parsed.items)) return [];
+    return parsed.items
+      .slice(0, 8)
+      .filter(i => i.title_fi && i.title_en && i.summary_fi && i.summary_en)
+      .map(i => ({ ...i, item_type: 'offer', source_name: null, event_date: i.event_date || null }));
+  } catch (err) {
+    console.error('Offer generation failed:', err);
+    return [];
+  }
+}
+
 // Returns { news, events }, each refreshed independently on its own
 // schedule since one is cheap/fast (RSS) and the other costs real API
 // calls (AI search). Best-effort throughout: any failure just means an
 // empty/stale section, never a broken board page.
 async function getLocalFeed(supabase, townId, townName) {
-  const result = { news: [], events: [] };
+  const result = { news: [], events: [], offers: [] };
 
   try {
     const { data: existingNews } = await supabase
@@ -243,6 +307,33 @@ async function getLocalFeed(supabase, townId, townName) {
     }
   } catch (err) {
     console.error('Events feed lookup failed:', err);
+  }
+
+  try {
+    const { data: existingOffers } = await supabase
+      .from('local_feed_items').select('*')
+      .eq('town_id', townId).eq('item_type', 'offer')
+      .order('created_at', { ascending: false });
+    const newestCreated = existingOffers && existingOffers.length > 0
+      ? Math.max(...existingOffers.map(e => new Date(e.created_at).getTime())) : 0;
+    const offersAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
+
+    if (existingOffers && existingOffers.length > 0 && offersAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
+      result.offers = existingOffers;
+    } else {
+      const fresh = await generateOfferItems(townName);
+      if (fresh.length > 0) {
+        const enriched = await enrichWithImages(fresh, supabase);
+        await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'offer');
+        const rows = enriched.map(i => ({ town_id: townId, ...i }));
+        const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
+        result.offers = inserted || [];
+      } else {
+        result.offers = existingOffers || [];
+      }
+    }
+  } catch (err) {
+    console.error('Offers feed lookup failed:', err);
   }
 
   return result;

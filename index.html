@@ -12,7 +12,7 @@
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PaikallisCanvas — Oulun yritysten ilmoitustaulu</title>
-<meta name="description" content="Varaa yrityksellesi ruutu Oulun ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen ruutu saa oman verkkosivun, joka voi näkyä Googlen hakutuloksissa." />
+<meta name="description" content="Varaa yrityksellesi ruutu Oulun ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen ruutu saa oman esittelysivun, joka voi näkyä Googlen hakutuloksissa." />
 
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
@@ -245,7 +245,8 @@
   #newsSection{margin-bottom:0;}
   .feedSubhead{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--amber);
     text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
-  #newsItems, #eventItems{display:grid;gap:12px;margin-top:12px;}
+  #newsItems, #eventItems, #offerItems{display:grid;gap:12px;margin-top:12px;}
+  #offersSection{margin-top:36px;}
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;}
   .feedItem .feedImg{flex:none;width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--panel);}
@@ -411,6 +412,15 @@
         <p class="note" id="noEventsThisWeek" style="text-align:center;display:none;"></p>
       </div>
     </div>
+
+    <div id="offersSection">
+      <h3 class="feedSubhead" data-i18n="offersSectionTitle">Tarjoukset</h3>
+      <p class="note" data-i18n="offersNote" style="text-align:center;margin:0 0 14px;">🤖 Automaattisesti koottu — tarjoukset voivat olla vanhentuneita, tarkista aina lähteestä.</p>
+      <div id="offerItems"></div>
+      <div style="text-align:center;margin-top:14px;">
+        <button id="showMoreOffersBtn" class="logoBtn" style="display:none;"></button>
+      </div>
+    </div>
   </div>
 
   <div id="factsSection">
@@ -439,10 +449,10 @@
       <p class="faqA" data-i18n="faqA1">Maksut käsittelee Stripe, jota käyttävät miljoonat yritykset ympäri maailman — emme koskaan näe tai tallenna korttitietojasi.</p></div>
     <div class="faqItem">
       <button class="faqQ"><span data-i18n="faqQ2">Mitä oikeasti saan rahalleni?</span><span class="faqToggle">+</span></button>
-      <p class="faqA" data-i18n="faqA2">Ruudun ilmoitustaululla omalla logollasi, sekä oman verkkosivun, joka linkittää suoraan yrityksesi sivustolle.</p></div>
+      <p class="faqA" data-i18n="faqA2">Ruudun ilmoitustaululla omalla logollasi, sekä oman esittelysivun, joka linkittää suoraan yrityksesi omalle verkkosivulle.</p></div>
     <div class="faqItem">
       <button class="faqQ"><span data-i18n="faqQ3">Voinko peruuttaa milloin vain?</span><span class="faqToggle">+</span></button>
-      <p class="faqA" data-i18n="faqA3">Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan — peruutus vapauttaa ruudun heti.</p></div>
+      <p class="faqA" data-i18n="faqA3">Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan. Kun peruutat, ruutu pysyy näkyvissä jo maksetun jakson loppuun asti, minkä jälkeen se vapautuu.</p></div>
     <div class="faqItem">
       <button class="faqQ"><span data-i18n="faqQ4">Tarkistetaanko ilmoitukset?</span><span class="faqToggle">+</span></button>
       <p class="faqA" data-i18n="faqA4">Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.</p></div>
@@ -922,7 +932,7 @@ const STRINGS = {
     heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.',
     value1b: '5€/kk',
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
-    value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
+    value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
     value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
     volumeNote: 'Osta 4 tai useampi ruutu ja säästä: 4€/kk per ruutu.',
     factsTitle: 'Miksi paikallinen näkyvyys kannattaa',
@@ -934,14 +944,14 @@ const STRINGS = {
     hiwTitle: 'Näin se toimii',
     hiw2: 'Klikkaa yksi tai useampi vapaa ruutu',
     hiw3: 'Täytä yrityksesi tiedot ja maksa turvallisesti Stripen kautta',
-    hiw4: 'Ruutu ja oma verkkosivusi ovat käytössä heti maksun jälkeen',
+    hiw4: 'Ruutu ja sen esittelysivu ovat käytössä heti maksun jälkeen',
     faqTitle: 'Usein kysyttyä',
     faqQ1: 'Onko tämä luotettava palvelu?',
     faqA1: 'Maksut käsittelee Stripe, jota käyttävät miljoonat yritykset ympäri maailman — emme koskaan näe tai tallenna korttitietojasi.',
     faqQ2: 'Mitä oikeasti saan rahalleni?',
-    faqA2: 'Ruudun ilmoitustaululla omalla logollasi, sekä oman verkkosivun, joka linkittää suoraan yrityksesi sivustolle.',
+    faqA2: 'Ruudun ilmoitustaululla omalla logollasi, sekä oman esittelysivun, joka linkittää suoraan yrityksesi omalle verkkosivulle.',
     faqQ3: 'Voinko peruuttaa milloin vain?',
-    faqA3: 'Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan — peruutus vapauttaa ruudun heti.',
+    faqA3: 'Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan. Kun peruutat, ruutu pysyy näkyvissä jo maksetun jakson loppuun asti, minkä jälkeen se vapautuu.',
     faqQ4: 'Tarkistetaanko ilmoitukset?',
     faqA4: 'Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.',
     faqQ5: 'Näynkö heti Google-haussa?',
@@ -951,6 +961,8 @@ const STRINGS = {
     localFeedNote: '🤖 Automaattisesti koottu — emme takaa täydellistä tarkkuutta, tarkista lähteestä.',
     newsSectionTitle: 'Uutiset',
     eventsSectionTitle: 'Tapahtumat',
+    offersSectionTitle: 'Tarjoukset',
+    offersNote: '🤖 Automaattisesti koottu — tarjoukset voivat olla vanhentuneita, tarkista aina lähteestä.',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
     showMore: 'Näytä lisää',
     showLess: 'Näytä vähemmän',
@@ -1033,7 +1045,7 @@ const STRINGS = {
     heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every square on the board is a different company. Buy your own square, add your logo and a link to your site, and customers can find you both on the board and on Google. Cancel anytime.",
     value1b: '€5/month',
     value1: 'a fraction of a typical monthly social media ad budget',
-    value2b: 'Findable on Google', value2: 'your business gets its own page that can appear in search results, even if nobody browses the board itself',
+    value2b: 'Findable on Google', value2: 'your business gets its own showcase page on our site that can appear in search results, even if nobody browses the board itself',
     value3b: 'Cancel anytime', value3: 'no contract period, no notice period',
     volumeNote: 'Buy 4 or more squares and save: €4/mo each.',
     factsTitle: 'Why local visibility matters',
@@ -1045,14 +1057,14 @@ const STRINGS = {
     hiwTitle: 'How it works',
     hiw2: 'Click one or more empty squares',
     hiw3: 'Fill in your business details and pay securely via Stripe',
-    hiw4: 'Your square and your own webpage go live right after payment',
+    hiw4: 'Your square and its showcase page go live right after payment',
     faqTitle: 'Frequently asked questions',
     faqQ1: 'Is this a legitimate service?',
     faqA1: 'Payments are processed by Stripe, used by millions of businesses worldwide — we never see or store your card details.',
     faqQ2: 'What do I actually get for my money?',
-    faqA2: 'A square on the community board with your own logo, plus your own webpage linking directly to your business site.',
+    faqA2: 'A square on the community board with your own logo, plus your own showcase page on our site that links directly to your actual business website.',
     faqQ3: 'Can I cancel anytime?',
-    faqA3: 'Yes. It\'s a monthly subscription with no fixed term — cancelling frees your square immediately.',
+    faqA3: 'Yes. It\'s a monthly subscription with no fixed term. When you cancel, your square stays live until the end of the period you\'ve already paid for, then it\'s freed up.',
     faqQ4: 'Are listings checked?',
     faqA4: 'Yes — every listing is automatically screened before it goes live, and inappropriate content can be removed at any time.',
     faqQ5: 'Will I show up on Google right away?',
@@ -1062,6 +1074,8 @@ const STRINGS = {
     localFeedNote: '🤖 Automatically curated — accuracy isn\'t guaranteed, check the source.',
     newsSectionTitle: 'News',
     eventsSectionTitle: 'Events',
+    offersSectionTitle: 'Offers',
+    offersNote: '🤖 Automatically curated — offers may be outdated, always check the source.',
     noEventsThisWeek: 'No known events for this week.',
     showMore: 'Show more',
     showLess: 'Show less',
@@ -1286,15 +1300,16 @@ async function openBoard(name, country, population){
   }
 }
 
-let currentFeedItems = { news: [], events: [] };
+let currentFeedItems = { news: [], events: [], offers: [] };
 
 async function loadBoard(){
   const res = await fetch(`${API_BASE}/board?townId=${currentTown.id}`);
   const data = await res.json();
   currentSquares = data.squares || [];
-  currentFeedItems = data.feed || { news: [], events: [] };
+  currentFeedItems = data.feed || { news: [], events: [], offers: [] };
   currentWeekOffset = 0;
   newsExpanded = false;
+  offersExpanded = false;
   updateClaimedMeta();
   renderGrid();
   renderLocalFeed(currentFeedItems);
@@ -1302,6 +1317,8 @@ async function loadBoard(){
 
 let newsExpanded = false;
 const NEWS_COLLAPSED_COUNT = 5;
+let offersExpanded = false;
+const OFFERS_COLLAPSED_COUNT = 5;
 let currentWeekOffset = 0; // 0 = this week, 1 = next week, etc.
 
 // Monday-Sunday week bounds for a given offset from the current week --
@@ -1375,9 +1392,10 @@ function makeFeedItemEl(item){
 function renderLocalFeed(feed){
   const news = (feed && feed.news) || [];
   const events = (feed && feed.events) || [];
+  const offers = (feed && feed.offers) || [];
   const wrap = document.getElementById('localFeed');
 
-  if (news.length === 0 && events.length === 0){ wrap.style.display = 'none'; return; }
+  if (news.length === 0 && events.length === 0 && offers.length === 0){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
   document.getElementById('localFeedTitle').textContent =
     (lang === 'fi' ? `Ajankohtaista — ${currentTown.name}` : `Happening now — ${currentTown.name}`);
@@ -1411,6 +1429,25 @@ function renderLocalFeed(feed){
     const sorted = [...events].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
     renderEventsWeek(sorted);
   }
+
+  // offers
+  const offersSection = document.getElementById('offersSection');
+  if (offers.length === 0){ offersSection.style.display = 'none'; }
+  else {
+    offersSection.style.display = 'block';
+    const offersBox = document.getElementById('offerItems');
+    offersBox.innerHTML = '';
+    const visibleCount = offersExpanded ? offers.length : Math.min(OFFERS_COLLAPSED_COUNT, offers.length);
+    offers.slice(0, visibleCount).forEach(item => offersBox.appendChild(makeFeedItemEl(item)));
+
+    const moreBtn = document.getElementById('showMoreOffersBtn');
+    if (offers.length > OFFERS_COLLAPSED_COUNT){
+      moreBtn.style.display = 'inline-block';
+      moreBtn.textContent = offersExpanded ? t('showLess') : t('showMore');
+    } else {
+      moreBtn.style.display = 'none';
+    }
+  }
 }
 
 function renderEventsWeek(sortedEvents){
@@ -1442,6 +1479,10 @@ function renderEventsWeek(sortedEvents){
 }
 document.getElementById('showMoreNewsBtn').addEventListener('click', ()=>{
   newsExpanded = !newsExpanded;
+  renderLocalFeed(currentFeedItems);
+});
+document.getElementById('showMoreOffersBtn').addEventListener('click', ()=>{
+  offersExpanded = !offersExpanded;
   renderLocalFeed(currentFeedItems);
 });
 document.getElementById('weekPrevBtn').addEventListener('click', ()=>{

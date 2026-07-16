@@ -753,3 +753,26 @@ now filters out any dateless rows first — if that leaves nothing usable,
 it's treated as an empty cache regardless of age, which immediately
 triggers a fresh generation on the very next board load. Self-healing,
 no manual database cleanup needed for this one.
+
+## AI-curated local offers/deals — a genuine attempt, honest about its limits
+
+A third feed category, same mechanism as events (Claude + web search), now
+searches for current local discounts/sales from real Oulu businesses —
+groceries, retail, restaurants, services. Shown as its own "Tarjoukset"
+section below News/Events, with the same show-more pattern as news (5
+by default).
+
+**Worth knowing honestly, not just as a footnote:** this is a genuinely
+harder category for AI search than news or events. Weekly grocery/retail
+deals are usually published as app-only or image/PDF flyers, not clean
+indexable text — meaning this will find less, and less reliably, than the
+rock-solid RSS-based news or the moderately-reliable events search. That's
+expected behavior given what's actually searchable, not a bug to chase.
+Same fail-open design as everywhere else: if nothing genuine turns up,
+the section just doesn't show, never breaks the board.
+
+**Date handling is different from events on purpose** — a discount rarely
+has one clean single date the way an event does, so a date is optional
+here (shown if the model can genuinely determine an expiry, omitted
+rather than guessed otherwise), and offers display as a flat list rather
+than the weekly browser events use.
