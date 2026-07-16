@@ -171,7 +171,7 @@ async function fetchOuluEventsFromAPI() {
         if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
         return !!findUpcomingDate(p);
       })
-      .slice(0, 10)
+      .slice(0, 30) // raised from 10 -- a low cap meant a busy week could crowd out real events happening further out in the lookahead window
       .map(p => {
         const upcoming = findUpcomingDate(p);
         return {
