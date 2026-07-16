@@ -153,6 +153,8 @@
   #modal input[type=text],#modal input[type=email],#modal input[type=url]{
     width:100%;padding:11px 12px;border:1px solid #d8cfb4;border-radius:7px;
     font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fffdf8;}
+  #modal textarea{width:100%;padding:11px 12px;border:1px solid #d8cfb4;border-radius:7px;
+    font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fffdf8;resize:vertical;min-height:44px;}
   #modal select{width:100%;padding:11px 12px;border:1px solid #d8cfb4;border-radius:7px;
     font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fffdf8;color:#26210f;cursor:pointer;}
   #modal select:focus{outline:none;border-color:var(--amber-deep);box-shadow:0 0 0 3px rgba(242,166,90,0.18);}
@@ -240,6 +242,10 @@
 
   #localFeed{margin:44px auto 0;max-width:1000px;}
   #localFeed h2{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 24px;}
+  #weatherWidget{display:flex;align-items:center;justify-content:center;gap:8px;width:fit-content;margin:44px auto 0;
+    background:var(--panelT4);border:1px solid var(--line);border-radius:999px;padding:7px 16px;}
+  #weatherIcon{font-size:20px;line-height:1;}
+  #weatherTemp{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--ink);}
   #feedColumns{display:grid;grid-template-columns:1fr;gap:36px;align-items:start;}
   @media (min-width:900px){ #feedColumns{grid-template-columns:1fr 1fr;} }
   #newsSection{margin-bottom:0;}
@@ -247,7 +253,6 @@
     text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
   #newsItems, #eventItems, #offerItems{display:grid;gap:12px;margin-top:12px;}
   @media (min-width:1200px){ #eventItems.twoCol{grid-template-columns:1fr 1fr;} }
-  #offersSection{margin-top:36px;}
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;}
   .feedItem .feedImg{flex:none;width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--panel);}
@@ -388,6 +393,11 @@
     </div>
   </div>
 
+  <div id="weatherWidget" style="display:none;">
+    <span id="weatherIcon"></span>
+    <span id="weatherTemp"></span>
+  </div>
+
   <div id="localFeed" style="display:none;">
     <h2 id="localFeedTitle"></h2>
 
@@ -411,15 +421,6 @@
         </div>
         <div id="eventItems"></div>
         <p class="note" id="noEventsThisWeek" style="text-align:center;display:none;"></p>
-      </div>
-    </div>
-
-    <div id="offersSection">
-      <h3 class="feedSubhead" data-i18n="offersSectionTitle">Tarjoukset</h3>
-      <p class="note" data-i18n="offersNote" style="text-align:center;margin:0 0 14px;">🤖 Automaattisesti koottu — tarjoukset voivat olla vanhentuneita, tarkista aina lähteestä.</p>
-      <div id="offerItems"></div>
-      <div style="text-align:center;margin-top:14px;">
-        <button id="showMoreOffersBtn" class="logoBtn" style="display:none;"></button>
       </div>
     </div>
   </div>
@@ -510,7 +511,7 @@
     <input type="url" id="fLogo" placeholder="https://yrityksesi.fi/logo.png" />
 
     <label data-i18n="lTagline">Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span></label>
-    <input type="text" id="fTagline" placeholder="Oulun paras kahvi vuodesta 2015" />
+    <textarea id="fTagline" placeholder="Oulun paras kahvi vuodesta 2015" rows="2"></textarea>
 
     <label data-i18n="lIndustry">Toimiala</label>
     <select id="fIndustry">
@@ -963,8 +964,6 @@ const STRINGS = {
     eventsSourceNote: 'Lähde: Kaleva',
     newsSectionTitle: 'Uutiset',
     eventsSectionTitle: 'Tapahtumat',
-    offersSectionTitle: 'Tarjoukset',
-    offersNote: '🤖 Automaattisesti koottu — tarjoukset voivat olla vanhentuneita, tarkista aina lähteestä.',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
     showMore: 'Näytä lisää',
     showLess: 'Näytä vähemmän',
@@ -1077,8 +1076,6 @@ const STRINGS = {
     eventsSourceNote: 'Source: Kaleva',
     newsSectionTitle: 'News',
     eventsSectionTitle: 'Events',
-    offersSectionTitle: 'Offers',
-    offersNote: '🤖 Automatically curated — offers may be outdated, always check the source.',
     noEventsThisWeek: 'No known events for this week.',
     showMore: 'Show more',
     showLess: 'Show less',
@@ -1310,25 +1307,36 @@ async function openBoard(name, country, population){
   }
 }
 
-let currentFeedItems = { news: [], events: [], offers: [] };
+let currentFeedItems = { news: [], events: [] };
 
 async function loadBoard(){
   const res = await fetch(`${API_BASE}/board?townId=${currentTown.id}`);
   const data = await res.json();
   currentSquares = data.squares || [];
-  currentFeedItems = data.feed || { news: [], events: [], offers: [] };
-  currentWeekOffset = 0;
-  newsExpanded = false;
-  offersExpanded = false;
   updateClaimedMeta();
   renderGrid();
+
+  // Loaded separately, after the grid is already visible -- this can
+  // take a few seconds on a cache miss, but it should never make someone
+  // wait to see and use the board itself.
+  currentWeekOffset = 0;
+  newsExpanded = false;
+  loadFeed();
+}
+
+async function loadFeed(){
+  try {
+    const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}`);
+    const data = await res.json();
+    currentFeedItems = { news: data.news || [], events: data.events || [] };
+  } catch (e) {
+    currentFeedItems = { news: [], events: [] };
+  }
   renderLocalFeed(currentFeedItems);
 }
 
 let newsExpanded = false;
 const NEWS_COLLAPSED_COUNT = 5;
-let offersExpanded = false;
-const OFFERS_COLLAPSED_COUNT = 5;
 let currentWeekOffset = 0; // 0 = this week, 1 = next week, etc.
 
 // Monday-Sunday week bounds for a given offset from the current week --
@@ -1402,10 +1410,9 @@ function makeFeedItemEl(item){
 function renderLocalFeed(feed){
   const news = (feed && feed.news) || [];
   const events = (feed && feed.events) || [];
-  const offers = (feed && feed.offers) || [];
   const wrap = document.getElementById('localFeed');
 
-  if (news.length === 0 && events.length === 0 && offers.length === 0){ wrap.style.display = 'none'; return; }
+  if (news.length === 0 && events.length === 0){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
   document.getElementById('localFeedTitle').textContent =
     (lang === 'fi' ? `Ajankohtaista — ${currentTown.name}` : `Happening now — ${currentTown.name}`);
@@ -1440,24 +1447,6 @@ function renderLocalFeed(feed){
     renderEventsWeek(sorted);
   }
 
-  // offers
-  const offersSection = document.getElementById('offersSection');
-  if (offers.length === 0){ offersSection.style.display = 'none'; }
-  else {
-    offersSection.style.display = 'block';
-    const offersBox = document.getElementById('offerItems');
-    offersBox.innerHTML = '';
-    const visibleCount = offersExpanded ? offers.length : Math.min(OFFERS_COLLAPSED_COUNT, offers.length);
-    offers.slice(0, visibleCount).forEach(item => offersBox.appendChild(makeFeedItemEl(item)));
-
-    const moreBtn = document.getElementById('showMoreOffersBtn');
-    if (offers.length > OFFERS_COLLAPSED_COUNT){
-      moreBtn.style.display = 'inline-block';
-      moreBtn.textContent = offersExpanded ? t('showLess') : t('showMore');
-    } else {
-      moreBtn.style.display = 'none';
-    }
-  }
 }
 
 function renderEventsWeek(sortedEvents){
@@ -1490,10 +1479,6 @@ function renderEventsWeek(sortedEvents){
 }
 document.getElementById('showMoreNewsBtn').addEventListener('click', ()=>{
   newsExpanded = !newsExpanded;
-  renderLocalFeed(currentFeedItems);
-});
-document.getElementById('showMoreOffersBtn').addEventListener('click', ()=>{
-  offersExpanded = !offersExpanded;
   renderLocalFeed(currentFeedItems);
 });
 document.getElementById('weekPrevBtn').addEventListener('click', ()=>{
@@ -2105,6 +2090,37 @@ async function init(){
   } else {
     // covers both the new clean "/oulu" URL and the bare homepage
     await openBoard('Oulu', 'FI', 215000);
+  }
+  loadWeather();
+}
+
+// Free, keyless, CORS-enabled weather API -- called directly from the
+// browser, no backend endpoint needed at all. Hardcoded to Oulu's
+// coordinates for now since the site is Oulu-only; would need to become
+// town-aware if more towns open up later.
+const WEATHER_ICONS = {
+  0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+  45: '🌫️', 48: '🌫️',
+  51: '🌦️', 53: '🌦️', 55: '🌦️',
+  61: '🌧️', 63: '🌧️', 65: '🌧️',
+  71: '❄️', 73: '❄️', 75: '❄️', 77: '❄️',
+  80: '🌦️', 81: '🌦️', 82: '🌧️',
+  85: '❄️', 86: '❄️',
+  95: '⛈️', 96: '⛈️', 99: '⛈️'
+};
+async function loadWeather(){
+  try {
+    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code&timezone=Europe%2FHelsinki');
+    const data = await res.json();
+    const temp = data.current && data.current.temperature_2m;
+    const code = data.current && data.current.weather_code;
+    if (temp === undefined || temp === null) return;
+
+    document.getElementById('weatherIcon').textContent = WEATHER_ICONS[code] || '🌡️';
+    document.getElementById('weatherTemp').textContent = `${Math.round(temp)}°C`;
+    document.getElementById('weatherWidget').style.display = 'flex';
+  } catch (e) {
+    // fail quietly -- a missing weather widget is not worth showing an error for
   }
 }
 

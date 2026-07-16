@@ -382,9 +382,7 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
 // schedule since one is cheap/fast (RSS) and the other costs real API
 // calls (AI search). Best-effort throughout: any failure just means an
 // empty/stale section, never a broken board page.
-async function getLocalFeed(supabase, townId, townName) {
-  const result = { news: [], events: [], offers: [] };
-
+async function getNewsSection(supabase, townId) {
   try {
     const { data: existingNews } = await supabase
       .from('local_feed_items').select('*')
@@ -394,23 +392,24 @@ async function getLocalFeed(supabase, townId, townName) {
       ? (Date.now() - new Date(existingNews[0].created_at).getTime()) / 3600000 : Infinity;
 
     if (existingNews && existingNews.length > 0 && newsAgeHours < NEWS_REFRESH_AFTER_HOURS) {
-      result.news = existingNews;
-    } else {
-      const fresh = await fetchOuluNewsFromRSS();
-      if (fresh.length > 0) {
-        const enriched = await enrichWithImages(fresh, supabase);
-        await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'news');
-        const rows = enriched.map(i => ({ town_id: townId, ...i }));
-        const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
-        result.news = inserted || [];
-      } else {
-        result.news = existingNews || [];
-      }
+      return existingNews;
     }
+    const fresh = await fetchOuluNewsFromRSS();
+    if (fresh.length > 0) {
+      const enriched = await enrichWithImages(fresh, supabase);
+      await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'news');
+      const rows = enriched.map(i => ({ town_id: townId, ...i }));
+      const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
+      return inserted || [];
+    }
+    return existingNews || [];
   } catch (err) {
     console.error('News feed lookup failed:', err);
+    return [];
   }
+}
 
+async function getEventsSection(supabase, townId, townName) {
   try {
     const { data: existingRaw } = await supabase
       .from('local_feed_items').select('*')
@@ -426,27 +425,28 @@ async function getLocalFeed(supabase, townId, townName) {
     const eventsAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
 
     if (existingEvents.length > 0 && eventsAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
-      result.events = existingEvents;
-    } else {
-      const fresh = await generateEventItems(townName);
-      if (fresh.length > 0) {
-        // Deliberately NOT running enrichWithImages here -- each Kaleva
-        // event page is itself a JS-rendered app, so fetching it only
-        // sees a generic template shell, not the real per-event image.
-        // That produced the same misleading photo on every single event.
-        // No image is a better outcome than a wrong, duplicated one.
-        await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'event');
-        const rows = fresh.map(i => ({ town_id: townId, ...i }));
-        const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select().order('event_date', { ascending: true });
-        result.events = inserted || [];
-      } else {
-        result.events = existingEvents; // still useless if this is also empty, but never worse than what we had
-      }
+      return existingEvents;
     }
+    const fresh = await generateEventItems(townName);
+    if (fresh.length > 0) {
+      // Deliberately NOT running enrichWithImages here -- each Kaleva
+      // event page is itself a JS-rendered app, so fetching it only
+      // sees a generic template shell, not the real per-event image.
+      // That produced the same misleading photo on every single event.
+      // No image is a better outcome than a wrong, duplicated one.
+      await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'event');
+      const rows = fresh.map(i => ({ town_id: townId, ...i }));
+      const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select().order('event_date', { ascending: true });
+      return inserted || [];
+    }
+    return existingEvents; // still useless if this is also empty, but never worse than what we had
   } catch (err) {
     console.error('Events feed lookup failed:', err);
+    return [];
   }
+}
 
+async function getOffersSection(supabase, townId, townName) {
   try {
     const { data: existingOffers } = await supabase
       .from('local_feed_items').select('*')
@@ -457,24 +457,36 @@ async function getLocalFeed(supabase, townId, townName) {
     const offersAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
 
     if (existingOffers && existingOffers.length > 0 && offersAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
-      result.offers = existingOffers;
-    } else {
-      const fresh = await generateOfferItems(townName);
-      if (fresh.length > 0) {
-        const enriched = await enrichWithImages(fresh, supabase);
-        await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'offer');
-        const rows = enriched.map(i => ({ town_id: townId, ...i }));
-        const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
-        result.offers = inserted || [];
-      } else {
-        result.offers = existingOffers || [];
-      }
+      return existingOffers;
     }
+    const fresh = await generateOfferItems(townName);
+    if (fresh.length > 0) {
+      const enriched = await enrichWithImages(fresh, supabase);
+      await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'offer');
+      const rows = enriched.map(i => ({ town_id: townId, ...i }));
+      const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
+      return inserted || [];
+    }
+    return existingOffers || [];
   } catch (err) {
     console.error('Offers feed lookup failed:', err);
+    return [];
   }
-
-  return result;
 }
 
-module.exports = { getLocalFeed };
+// Runs all three sections in PARALLEL, not one after another -- when more
+// than one happens to be stale at the same time (e.g. right after a
+// manual cache clear), sequential execution meant the total wait was the
+// SUM of all three regeneration times, which produced response times as
+// long as 18-19 seconds in practice. Parallel execution cuts the
+// worst-case wait down to roughly the slowest single one instead.
+async function getLocalFeed(supabase, townId, townName) {
+  const [news, events, offers] = await Promise.all([
+    getNewsSection(supabase, townId),
+    getEventsSection(supabase, townId, townName),
+    getOffersSection(supabase, townId, townName)
+  ]);
+  return { news, events, offers };
+}
+
+module.exports = { getLocalFeed, getNewsSection, getEventsSection };

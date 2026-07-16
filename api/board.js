@@ -1,6 +1,13 @@
 const { supabase } = require('./_db');
-const { getLocalFeed } = require('./_localFeed');
 
+// Deliberately squares-only and fast -- news/events load separately via
+// /api/feed, called by the frontend AFTER the grid is already rendered.
+// Previously this endpoint also computed the whole local feed (news,
+// events, offers) before responding at all, meaning the grid sat ready
+// but unsent while feed generation was still running -- a real cause of
+// slow-feeling page loads, confirmed directly in Vercel logs (18+ second
+// responses). Splitting these apart means the grid is never blocked by
+// feed generation again, regardless of how long that ever takes.
 module.exports = async (req, res) => {
   if (req.method !== 'GET') return res.status(405).end();
 
@@ -16,17 +23,6 @@ module.exports = async (req, res) => {
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not load board.' }); }
 
-  // Local news/events feed -- news refreshes often (cheap, real RSS),
-  // events refresh roughly daily (AI-generated). Never blocks the board
-  // itself from loading -- a failure here just means empty feed sections.
-  let feed = { news: [], events: [], offers: [] };
-  try {
-    const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
-    if (town) feed = await getLocalFeed(supabase, townId, town.name);
-  } catch (err) {
-    console.error('Local feed lookup failed (non-fatal):', err);
-  }
-
   res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=60');
-  res.status(200).json({ squares: data, feed });
+  res.status(200).json({ squares: data });
 };

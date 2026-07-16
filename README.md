@@ -915,3 +915,85 @@ keep the normal single-column list, which is safer than cramming things
 into narrow cards.
 
 Date badge numbers are noticeably larger now (16px → 22px) for readability.
+
+## Fixed the real "N/A" event, and likely fixed offers disappearing
+
+**"N/A" event text** — confirmed this was genuinely present in Kaleva's
+own data for one event (their organizer left the short description
+blank and it defaulted to the literal text "N/A"). Now falls back to a
+stripped excerpt of the event's long description when the short one is
+missing or is this exact junk placeholder, and events with no usable
+summary from either field are filtered out entirely rather than shown
+with nothing meaningful to say.
+
+**Offers likely over-corrected into returning nothing** — the previous
+round stacked several strict requirements at once (well-known AND
+verified-Oulu-based AND max-2-per-source AND currently running),
+probably making it too hard for the AI to find anything satisfying all
+of them together, especially with no cached fallback since the cache had
+just been manually cleared. Loosened back to preferences rather than
+hard requirements for popularity and diversity — a real, verifiable
+offer from a smaller business is better than nothing. The code-level
+"max 2 per domain" cap is still enforced regardless of prompt wording,
+so diversity is still guaranteed even though the prompt itself is less
+absolute about it now.
+
+## Found and fixed the real cause of slow page loads (18-19 second responses)
+
+The Vercel log you sent showed `/api/board` taking 18.44 seconds to
+respond — that's the real explanation for both "the site feels slow" and
+"offers don't seem to load" (if the full response takes that long, a
+visitor who doesn't wait it out never sees any of it, offers included).
+
+**Root cause:** news, events, and offers were each checked and
+regenerated one after another, not at the same time. If more than one
+happened to be stale simultaneously — very likely right after manually
+clearing a cache, as we did a few times tonight — the total wait was the
+*sum* of all three regeneration times, not the slowest single one.
+
+**Fixed:** restructured into three independent functions run together
+with `Promise.all()`. Worst-case wait is now roughly the slowest single
+section, not the combined total of all three. This should meaningfully
+cut down on-cache-miss load times going forward, though a genuinely slow
+individual AI call (e.g. if events falls back to AI search) can still
+take several seconds on its own — that's an inherent cost of that path,
+not something parallelization alone fixes.
+
+## Offers removed, and the grid no longer waits on any feed data
+
+**Offers are gone** — they were the slowest, least reliable section (an
+AI search call, usually a real cache miss since offers don't have a
+cheap fast-path the way news does), and a confirmed real contributor to
+slow page loads. The underlying code still exists in `_localFeed.js` in
+case this is worth revisiting later with a different approach, but
+nothing calls it anymore.
+
+**Bigger structural fix, not just removing offers:** `/api/board` now
+returns *only* squares — fast, simple, no feed generation involved at
+all. News and events moved to a brand new, separate `/api/feed` endpoint,
+which the frontend calls only *after* the grid has already rendered.
+Previously, the grid sat ready but unsent while the entire combined
+response (squares + news + events + offers) was still being assembled —
+meaning however long feed generation took, the grid was blocked on it
+too, even though they're logically unrelated. Now the grid is never
+blocked by feed generation again, however long that ever takes; news and
+events simply pop in a moment later once they're ready.
+
+This used the last available serverless function slot (12 of 12 on
+Vercel Hobby) — any future new endpoint would need consolidating into an
+existing file rather than adding another standalone one.
+
+## Weather widget, and a resizable tagline field
+
+**Weather widget** — a small pill showing current Oulu temperature and a
+weather icon, placed between the board and the news/events section.
+Uses Open-Meteo, a genuinely free, keyless weather API with permissive
+CORS — called directly from the browser, no backend endpoint needed at
+all (handy, since all 12 serverless function slots are already used).
+Deliberately placed as its own independent element, not nested inside
+the news/events section, since weather should always show regardless of
+whether that section happens to have content that day.
+
+**Tagline field is now a resizable textarea** instead of a single-line
+input — you can drag the corner to make it taller and see the whole
+text, rather than it scrolling off to one side.
