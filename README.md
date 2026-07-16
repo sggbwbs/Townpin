@@ -1175,3 +1175,35 @@ stripping markdown code fences before parsing the response — the exact
 same class of bug fixed elsewhere in this file before, just missed here.
 Unrelated to the date-range issue, but a real bug nonetheless, now fixed
 the same way.
+
+## Simplified to current-week-only, with the reliable "show more" pattern
+
+Took the simpler path offered, since the more ambitious version depended
+on correctly guessing an undocumented API's pagination behavior — a real
+risk found directly in the data (field names like `"defaultShowCount":
+24` strongly suggest this API returns a limited default batch, sorted
+chronologically, which likely explains why next week's real events never
+even reached this site: they were probably past whatever the API's
+default page size is).
+
+**Removed entirely**: day-by-day navigation, the "next week" window, and
+the multi-week popularity-per-day logic — all of it depended on getting
+more data out of this API than could be reliably confirmed without
+seeing it live.
+
+**Replaced with**: events scoped to just the current week (Monday
+through Sunday, Helsinki time), sorted chronologically then by real
+popularity, shown as a simple flat list — **5 by default, "Show more"
+reveals the rest** — the exact same pattern already used for news.
+Simpler, and doesn't depend on an unverified assumption about how much
+data a single request actually returns.
+
+**Also fixed a real, unrelated bug found in the same investigation**:
+event translation (Finnish → English) was failing every time due to not
+stripping markdown code fences before parsing — now fixed the same way
+it's handled correctly everywhere else in this file.
+
+A `limit=100` parameter was added to the API request as a low-risk
+attempt to get more data per request regardless — it may or may not
+actually be respected by this undocumented endpoint, but can't hurt to
+include.

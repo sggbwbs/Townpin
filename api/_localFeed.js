@@ -124,13 +124,19 @@ async function fetchOuluNewsFromRSS() {
   }
 }
 
-const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72edb9364237309bf/content/63198844806f262926e72683?country=FI&lang=fi&mode=event&sort=startDate';
-const EVENTS_PER_DAY_CAP = 10;
+const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72edb9364237309bf/content/63198844806f262926e72683?country=FI&lang=fi&mode=event&sort=startDate&limit=100';
 
-// End of "next Sunday" (Finnish week convention: Monday-Sunday),
-// calculated in Europe/Helsinki local time -- NOT just "now + 14 days",
-// which drifts depending what day of the week it happens to be right
-// now and doesn't actually align with calendar week boundaries.
+// End of THIS week (Sunday, Finnish week convention: Monday-Sunday),
+// calculated in Europe/Helsinki local time. Deliberately scoped to just
+// the current week, not multiple weeks -- this API appears to paginate
+// (field names like "defaultShowCount": 24 suggest a fairly small
+// default page size), so a wider multi-week request risks silently
+// missing later events if the current week alone fills that page. The
+// `limit=100` above is a reasonable attempt at requesting more, but
+// since this is an undocumented, reverse-engineered endpoint (not
+// something with real API docs to confirm against), staying within one
+// week keeps this reliable regardless of whether that parameter is
+// actually respected.
 function getEventsWindowCutoff() {
   const helsinkiParts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
@@ -139,10 +145,10 @@ function getEventsWindowCutoff() {
   const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   const todayWeekday = weekdayMap[get('weekday')];
   const todayUTC = Date.UTC(Number(get('year')), Number(get('month')) - 1, Number(get('day')));
-  // if today is already Sunday, next Sunday is exactly 7 days away;
-  // otherwise it's (14 - today's weekday number) days away
-  const daysUntilNextSunday = todayWeekday === 0 ? 7 : (14 - todayWeekday);
-  return todayUTC + daysUntilNextSunday * 24 * 60 * 60 * 1000 + (24 * 60 * 60 * 1000 - 1); // end of that day
+  // if today is already Sunday, that IS the end of this week (0 days
+  // further); otherwise it's (7 - today's weekday number) days away
+  const daysUntilSunday = todayWeekday === 0 ? 0 : (7 - todayWeekday);
+  return todayUTC + daysUntilSunday * 24 * 60 * 60 * 1000 + (24 * 60 * 60 * 1000 - 1); // end of that day
 }
 
 // Real, structured event data from Kaleva's own event platform -- covers
@@ -152,12 +158,10 @@ function getEventsWindowCutoff() {
 // endpoint, not a private API). Far more reliable than asking AI to guess
 // at events -- same upgrade already made for news via Kaleva's RSS feed.
 //
-// Fetched sorted by date (not popularity) so every day in the window is
-// genuinely represented, then grouped by day and trimmed to the 10 most
-// popular events *within that specific day* (using Kaleva's own
-// countViews figure) -- gives consistent, comprehensive day-by-day
-// coverage rather than a handful of globally-popular events crowding out
-// quieter days.
+// Scoped to just the current week (see note above on why), sorted
+// chronologically, ranked by Kaleva's own real countViews popularity
+// figure, capped at a reasonable total for the week -- the frontend
+// handles anything beyond the first 5 with its own "show more" button.
 async function fetchOuluEventsFromAPI() {
   try {
     const controller = new AbortController();
@@ -190,37 +194,24 @@ async function fetchOuluEventsFromAPI() {
       return long.slice(0, 300);
     };
 
-    const inWindow = pages.filter(p => {
-      const addr = (p.locations && p.locations[0] && p.locations[0].address) || '';
-      if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
-      return !!findUpcomingDate(p);
-    });
+    const inWindow = pages
+      .filter(p => {
+        const addr = (p.locations && p.locations[0] && p.locations[0].address) || '';
+        if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
+        return !!findUpcomingDate(p);
+      })
+      .map(p => ({ page: p, upcoming: findUpcomingDate(p), views: p.countViews || 0 }))
+      .sort((a, b) => new Date(a.upcoming.start) - new Date(b.upcoming.start) || b.views - a.views);
 
-    // Group by day, then keep only the top N most popular per day
-    const byDay = {};
-    for (const p of inWindow) {
-      const upcoming = findUpcomingDate(p);
-      const dayKey = upcoming.start.slice(0, 10);
-      if (!byDay[dayKey]) byDay[dayKey] = [];
-      byDay[dayKey].push({ page: p, upcoming, views: p.countViews || 0 });
-    }
-
-    const result = [];
-    for (const dayKey of Object.keys(byDay)) {
-      const topForDay = byDay[dayKey]
-        .sort((a, b) => b.views - a.views)
-        .slice(0, EVENTS_PER_DAY_CAP);
-      for (const { page: p, upcoming } of topForDay) {
-        result.push({
-          title_fi: p.name,
-          summary_fi: getSummary(p),
-          event_date: upcoming.start.slice(0, 10),
-          source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`
-        });
-      }
-    }
-
-    return result.filter(e => e.title_fi && e.event_date && e.summary_fi);
+    return inWindow
+      .slice(0, 30) // generous for one week; the frontend's own show-more handles display
+      .map(({ page: p, upcoming }) => ({
+        title_fi: p.name,
+        summary_fi: getSummary(p),
+        event_date: upcoming.start.slice(0, 10),
+        source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`
+      }))
+      .filter(e => e.title_fi && e.event_date && e.summary_fi);
   } catch (err) {
     console.error('Oulu events API fetch failed:', err);
     return [];
