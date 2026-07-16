@@ -125,7 +125,8 @@ async function fetchOuluNewsFromRSS() {
 }
 
 const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72edb9364237309bf/content/63198844806f262926e72683?country=FI&lang=fi&mode=event&sort=startDate';
-const EVENTS_LOOKAHEAD_DAYS = 28;
+const EVENTS_LOOKAHEAD_DAYS = 14; // current week + all of next week
+const EVENTS_PER_DAY_CAP = 10;
 
 // Real, structured event data from Kaleva's own event platform -- covers
 // all of Northern Finland, so this filters down to Oulu-area venues and
@@ -133,6 +134,13 @@ const EVENTS_LOOKAHEAD_DAYS = 28;
 // requests of tapahtumat.kaleva.fi's own page (a public, unauthenticated
 // endpoint, not a private API). Far more reliable than asking AI to guess
 // at events -- same upgrade already made for news via Kaleva's RSS feed.
+//
+// Fetched sorted by date (not popularity) so every day in the window is
+// genuinely represented, then grouped by day and trimmed to the 10 most
+// popular events *within that specific day* (using Kaleva's own
+// countViews figure) -- gives consistent, comprehensive day-by-day
+// coverage rather than a handful of globally-popular events crowding out
+// quieter days.
 async function fetchOuluEventsFromAPI() {
   try {
     const controller = new AbortController();
@@ -165,23 +173,37 @@ async function fetchOuluEventsFromAPI() {
       return long.slice(0, 300);
     };
 
-    return pages
-      .filter(p => {
-        const addr = (p.locations && p.locations[0] && p.locations[0].address) || '';
-        if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
-        return !!findUpcomingDate(p);
-      })
-      .slice(0, 100) // generous cap -- daily browsing + per-day "show more" handles genuinely busy days, so this just needs to comfortably cover the full lookahead window, not guess at a "normal" weekly number
-      .map(p => {
-        const upcoming = findUpcomingDate(p);
-        return {
+    const inWindow = pages.filter(p => {
+      const addr = (p.locations && p.locations[0] && p.locations[0].address) || '';
+      if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
+      return !!findUpcomingDate(p);
+    });
+
+    // Group by day, then keep only the top N most popular per day
+    const byDay = {};
+    for (const p of inWindow) {
+      const upcoming = findUpcomingDate(p);
+      const dayKey = upcoming.start.slice(0, 10);
+      if (!byDay[dayKey]) byDay[dayKey] = [];
+      byDay[dayKey].push({ page: p, upcoming, views: p.countViews || 0 });
+    }
+
+    const result = [];
+    for (const dayKey of Object.keys(byDay)) {
+      const topForDay = byDay[dayKey]
+        .sort((a, b) => b.views - a.views)
+        .slice(0, EVENTS_PER_DAY_CAP);
+      for (const { page: p, upcoming } of topForDay) {
+        result.push({
           title_fi: p.name,
           summary_fi: getSummary(p),
           event_date: upcoming.start.slice(0, 10),
           source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`
-        };
-      })
-      .filter(e => e.title_fi && e.event_date && e.summary_fi);
+        });
+      }
+    }
+
+    return result.filter(e => e.title_fi && e.event_date && e.summary_fi);
   } catch (err) {
     console.error('Oulu events API fetch failed:', err);
     return [];
