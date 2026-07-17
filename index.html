@@ -257,13 +257,14 @@
   #weatherTemp{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--ink);}
   #weatherToggleArrow{font-size:11px;color:var(--ink-dim);transition:transform .15s ease;}
   #weatherWidget.open #weatherToggleArrow{transform:rotate(180deg);}
-  #weatherForecast{display:flex;gap:8px;overflow-x:auto;max-width:600px;margin:14px auto 0;padding:2px;}
-  .forecastDay{flex:none;width:78px;background:var(--panelT4);border:1px solid var(--line);border-radius:10px;
+  #weatherForecast{display:flex;flex-direction:column;gap:12px;max-width:600px;margin:14px auto 0;padding:2px;}
+  #weatherHourlyRow, #weatherDaysRow{display:flex;gap:8px;overflow-x:auto;padding:2px;}
+  .forecastDay, .forecastHour{flex:none;width:78px;background:var(--panelT4);border:1px solid var(--line);border-radius:10px;
     padding:10px 6px;text-align:center;}
-  .forecastDay .dName{font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:700;color:var(--ink);}
-  .forecastDay .dIcon{font-size:22px;margin:4px 0;}
-  .forecastDay .dTemps{font-size:12px;color:var(--ink-dim);}
-  .forecastDay .dTemps b{color:var(--ink);}
+  .forecastDay .dName, .forecastHour .hTime{font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:700;color:var(--ink);}
+  .forecastDay .dIcon, .forecastHour .dIcon{font-size:22px;margin:4px 0;}
+  .forecastDay .dTemps, .forecastHour .dTemps{font-size:12px;color:var(--ink-dim);}
+  .forecastDay .dTemps b, .forecastHour .dTemps b{color:var(--ink);}
   #feedColumns{display:grid;grid-template-columns:1fr;gap:36px;align-items:start;margin-top:24px;}
   @media (min-width:900px){ #feedColumns{grid-template-columns:1fr 1fr;} }
   #newsSection{margin-bottom:0;}
@@ -1338,7 +1339,7 @@ async function loadBoard(){
   // take a few seconds on a cache miss, but it should never make someone
   // wait to see and use the board itself.
   newsExpanded = false;
-  eventsExpanded = false;
+  eventsVisibleCount = 5;
   loadFeed();
 }
 
@@ -1355,8 +1356,8 @@ async function loadFeed(){
 
 let newsExpanded = false;
 const NEWS_COLLAPSED_COUNT = 5;
-let eventsExpanded = false;
-const EVENTS_COLLAPSED_COUNT = 5;
+let eventsVisibleCount = 5;
+const EVENTS_PAGE_SIZE = 5;
 
 function makeFeedItemEl(item){
   const el = document.createElement('div');
@@ -1436,45 +1437,43 @@ function renderLocalFeed(feed){
     }
   }
 
-  // events, filtered to the currently browsed week
+  // events, already sorted by popularity from the backend, scoped to today
   const eventsSection = document.getElementById('eventsSection');
   if (events.length === 0){ eventsSection.style.display = 'none'; }
   else {
     eventsSection.style.display = 'block';
-    const sorted = [...events].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
-    renderEventsList(sorted);
+    renderEventsList(events);
   }
 
 }
 
-function renderEventsList(sortedEvents){
+function renderEventsList(events){
   const eventsBox = document.getElementById('eventItems');
   const noneMsg = document.getElementById('noEventsThisWeek');
   const moreBtn = document.getElementById('showMoreEventsBtn');
   eventsBox.innerHTML = '';
   eventsBox.classList.remove('twoCol');
 
-  if (sortedEvents.length === 0){
+  if (events.length === 0){
     noneMsg.style.display = 'block';
     noneMsg.textContent = t('noEventsThisWeek');
     moreBtn.style.display = 'none';
   } else {
     noneMsg.style.display = 'none';
-    const visibleCount = eventsExpanded ? sortedEvents.length : Math.min(EVENTS_COLLAPSED_COUNT, sortedEvents.length);
-    sortedEvents.slice(0, visibleCount).forEach(item => eventsBox.appendChild(makeFeedItemEl(item)));
+    const visibleCount = Math.min(eventsVisibleCount, events.length);
+    events.slice(0, visibleCount).forEach(item => eventsBox.appendChild(makeFeedItemEl(item)));
 
-    if (sortedEvents.length > EVENTS_COLLAPSED_COUNT){
+    if (visibleCount < events.length){
       moreBtn.style.display = 'inline-block';
-      moreBtn.textContent = eventsExpanded ? t('showLess') : t('showMore');
+      moreBtn.textContent = t('showMore');
     } else {
       moreBtn.style.display = 'none';
     }
   }
 }
 document.getElementById('showMoreEventsBtn').addEventListener('click', ()=>{
-  eventsExpanded = !eventsExpanded;
-  const sorted = [...(currentFeedItems.events || [])].sort((a, b) => (a.event_date || '').localeCompare(b.event_date || ''));
-  renderEventsList(sorted);
+  eventsVisibleCount += EVENTS_PAGE_SIZE;
+  renderEventsList(currentFeedItems.events || []);
 });
 document.getElementById('showMoreNewsBtn').addEventListener('click', ()=>{
   newsExpanded = !newsExpanded;
@@ -2097,10 +2096,11 @@ const WEATHER_ICONS = {
   95: '⛈️', 96: '⛈️', 99: '⛈️'
 };
 let weatherForecastData = null;
+let weatherHourlyData = null;
 
 async function loadWeather(){
   try {
-    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Europe%2FHelsinki&forecast_days=7');
+    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Europe%2FHelsinki&forecast_days=7');
     const data = await res.json();
     const temp = data.current && data.current.temperature_2m;
     const code = data.current && data.current.weather_code;
@@ -2110,6 +2110,7 @@ async function loadWeather(){
     document.getElementById('weatherTemp').textContent = `${Math.round(temp)}°C`;
     document.getElementById('weatherWidget').style.display = 'flex';
     weatherForecastData = data.daily || null;
+    weatherHourlyData = data.hourly || null;
   } catch (e) {
     // fail quietly -- a missing weather widget is not worth showing an error for
   }
@@ -2131,6 +2132,29 @@ document.getElementById('weatherWidget').addEventListener('click', () => {
   const names = lang === 'fi' ? dayNamesFi : dayNamesEn;
 
   panel.innerHTML = '';
+
+  // Today's hourly forecast, every 3 hours -- shown first, above the 7-day view
+  if (weatherHourlyData && weatherHourlyData.time){
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const hourlyRow = document.createElement('div');
+    hourlyRow.id = 'weatherHourlyRow';
+    weatherHourlyData.time.forEach((timeStr, i) => {
+      if (!timeStr.startsWith(todayStr)) return;
+      const hour = Number(timeStr.slice(11, 13));
+      if (hour % 3 !== 0) return; // every 3 hours, matches a typical compact hourly strip
+      const card = document.createElement('div');
+      card.className = 'forecastHour';
+      const hcode = weatherHourlyData.weather_code[i];
+      const htemp = Math.round(weatherHourlyData.temperature_2m[i]);
+      card.innerHTML = `<div class="hTime">${String(hour).padStart(2, '0')}:00</div><div class="dIcon">${WEATHER_ICONS[hcode] || '🌡️'}</div><div class="dTemps"><b>${htemp}°</b></div>`;
+      hourlyRow.appendChild(card);
+    });
+    if (hourlyRow.children.length > 0) panel.appendChild(hourlyRow);
+  }
+
+  // 7-day forecast
+  const daysRow = document.createElement('div');
+  daysRow.id = 'weatherDaysRow';
   const times = weatherForecastData.time || [];
   times.forEach((dateStr, i) => {
     const d = new Date(dateStr + 'T12:00:00');
@@ -2140,8 +2164,10 @@ document.getElementById('weatherWidget').addEventListener('click', () => {
     const max = Math.round(weatherForecastData.temperature_2m_max[i]);
     const min = Math.round(weatherForecastData.temperature_2m_min[i]);
     card.innerHTML = `<div class="dName">${names[d.getDay()]}</div><div class="dIcon">${WEATHER_ICONS[code] || '🌡️'}</div><div class="dTemps"><b>${max}°</b> ${min}°</div>`;
-    panel.appendChild(card);
+    daysRow.appendChild(card);
   });
+  panel.appendChild(daysRow);
+
   panel.style.display = 'flex';
   widget.classList.add('open');
 });

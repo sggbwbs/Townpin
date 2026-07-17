@@ -1292,3 +1292,19 @@ A `limit=100` parameter was added to the API request as a low-risk
 attempt to get more data per request regardless — it may or may not
 actually be respected by this undocumented endpoint, but can't hurt to
 include.
+
+## Events simplified to today-only, popularity-sorted, incremental show-more
+
+Removed the "current week" scope entirely — events are now just today's,
+ranked purely by Kaleva's own real popularity figure (not chronological
+order at all, since there's only one day to sort within). Shown 5 at a
+time; clicking "Show more" reveals 5 *additional* each click (not "reveal
+everything at once" like news does) — genuinely incremental pagination.
+
+## Weather widget: added today's hourly forecast
+
+Clicking the weather pill now shows two things stacked: an hourly strip
+for today (every 3 hours: 00:00, 03:00, 06:00...) above the existing
+7-day forecast. Same Open-Meteo request as before, just also requesting
+`hourly` data alongside `current` and `daily` — no extra API calls
+needed.
