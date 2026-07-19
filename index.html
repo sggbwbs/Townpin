@@ -251,12 +251,9 @@
   #localFeed{margin:44px auto 0;max-width:1000px;}
   #localFeed h2{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 20px;}
   #weatherWidget{display:flex;align-items:center;justify-content:center;gap:8px;width:fit-content;margin:0 auto;
-    background:var(--panelT4);border:1px solid var(--line);border-radius:999px;padding:7px 16px;
-    cursor:pointer;font-family:inherit;}
+    background:var(--panelT4);border:1px solid var(--line);border-radius:999px;padding:7px 16px;}
   #weatherIcon{font-size:20px;line-height:1;}
   #weatherTemp{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--ink);}
-  #weatherToggleArrow{font-size:11px;color:var(--ink-dim);transition:transform .15s ease;}
-  #weatherWidget.open #weatherToggleArrow{transform:rotate(180deg);}
   #weatherForecast{display:flex;flex-direction:column;gap:12px;max-width:600px;margin:14px auto 0;padding:2px;}
   #weatherHourlyRow, #weatherDaysRow{display:flex;gap:8px;overflow-x:auto;padding:2px;}
   .forecastDay, .forecastHour{flex:none;width:78px;background:var(--panelT4);border:1px solid var(--line);border-radius:10px;
@@ -416,11 +413,10 @@
   <div id="localFeed" style="display:none;">
     <h2 id="localFeedTitle"></h2>
 
-    <button id="weatherWidget" style="display:none;">
+    <div id="weatherWidget" style="display:none;">
       <span id="weatherIcon"></span>
       <span id="weatherTemp"></span>
-      <span id="weatherToggleArrow">▾</span>
-    </button>
+    </div>
     <div id="weatherForecast" style="display:none;"></div>
 
     <div id="feedColumns">
@@ -434,7 +430,7 @@
       </div>
 
       <div id="eventsSection">
-        <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat</h3>
+        <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat tänään</h3>
         <p class="note" style="text-align:center;margin:0 0 14px;">
           <span data-i18n="eventsSourceNote">Lähde: Kaleva</span> —
           <a href="https://tapahtumat.kaleva.fi/fi-FI" target="_blank" rel="noopener" data-i18n="viewAllEventsLink">katso kaikki tapahtumat ↗</a>
@@ -981,7 +977,7 @@ const STRINGS = {
     eventsSourceNote: 'Lähde: Kaleva',
     viewAllEventsLink: 'katso kaikki tapahtumat ↗',
     newsSectionTitle: 'Uutiset',
-    eventsSectionTitle: 'Tapahtumat',
+    eventsSectionTitle: 'Tapahtumat tänään',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
     showMore: 'Näytä lisää',
     showLess: 'Näytä vähemmän',
@@ -1094,7 +1090,7 @@ const STRINGS = {
     eventsSourceNote: 'Source: Kaleva',
     viewAllEventsLink: 'see all events ↗',
     newsSectionTitle: 'News',
-    eventsSectionTitle: 'Events',
+    eventsSectionTitle: 'Events today',
     noEventsThisWeek: 'No known events for this week.',
     showMore: 'Show more',
     showLess: 'Show less',
@@ -1218,6 +1214,7 @@ function setLang(l){
   updateSelectionBar();
   renderGrid();
   renderLocalFeed(currentFeedItems);
+  renderWeatherForecast();
 }
 
 // Alphabetically sorts a <select>'s options using proper locale rules for
@@ -2111,21 +2108,15 @@ async function loadWeather(){
     document.getElementById('weatherWidget').style.display = 'flex';
     weatherForecastData = data.daily || null;
     weatherHourlyData = data.hourly || null;
+    renderWeatherForecast();
   } catch (e) {
     // fail quietly -- a missing weather widget is not worth showing an error for
   }
 }
 
-document.getElementById('weatherWidget').addEventListener('click', () => {
+function renderWeatherForecast(){
   const panel = document.getElementById('weatherForecast');
-  const widget = document.getElementById('weatherWidget');
-  const isOpen = panel.style.display === 'flex';
-  if (isOpen){
-    panel.style.display = 'none';
-    widget.classList.remove('open');
-    return;
-  }
-  if (!weatherForecastData){ return; }
+  if (!weatherForecastData) return;
 
   const dayNamesFi = ['Su','Ma','Ti','Ke','To','Pe','La'];
   const dayNamesEn = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -2169,8 +2160,7 @@ document.getElementById('weatherWidget').addEventListener('click', () => {
   panel.appendChild(daysRow);
 
   panel.style.display = 'flex';
-  widget.classList.add('open');
-});
+}
 
 async function checkMaintenanceMode(){
   try{
