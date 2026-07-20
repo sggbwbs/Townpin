@@ -1362,7 +1362,7 @@ async function loadBoard(){
   // take a few seconds on a cache miss, but it should never make someone
   // wait to see and use the board itself.
   newsExpanded = false;
-  eventsVisibleCount = 5;
+  eventsVisibleCount = 4;
   loadFeed();
 }
 
@@ -1378,9 +1378,9 @@ async function loadFeed(){
 }
 
 let newsExpanded = false;
-const NEWS_COLLAPSED_COUNT = 5;
-let eventsVisibleCount = 5;
-const EVENTS_PAGE_SIZE = 5;
+const NEWS_COLLAPSED_COUNT = 6;
+let eventsVisibleCount = 4;
+const EVENTS_PAGE_SIZE = 4;
 
 function makeFeedItemEl(item){
   const el = document.createElement('div');
