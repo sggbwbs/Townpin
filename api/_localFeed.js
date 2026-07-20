@@ -255,11 +255,11 @@ async function generateEventItems(townName) {
 async function generateEventItemsViaAISearch(townName) {
   if (!ANTHROPIC_API_KEY) return [];
 
-  const prompt = `Search the web for genuinely current upcoming events in ${townName}, Finland -- things happening in the next 4 weeks (festivals, markets, concerts, sports, exhibitions, council/community events). Skip anything that already happened or is too generic/national.
+  const prompt = `Search the web for genuinely current events happening TODAY specifically in ${townName}, Finland (festivals, markets, concerts, sports, exhibitions, council/community events) -- not this week, not this month, only today. Skip anything from a different day, already happened, or too generic/national.
 
 Good sources to check specifically for Oulu-area events: tapahtumat.kaleva.fi, ouka.fi/tapahtumapalvelut/tapahtumakalenteri, and tapahtumat.munoulu.fi -- these are real local event calendars, likely to have better and more current results than a generic search.
 
-Write up to 10 events. Each needs a title, a 1-2 sentence description IN YOUR OWN WORDS (never a direct quote) in both Finnish and English, the actual date (as an ISO date "YYYY-MM-DD" -- your best accurate reading of the real date, required for every event), and the single most relevant source URL.
+Write up to 10 events, ranked by how popular/well-known each one seems. Each needs a title, a 1-2 sentence description IN YOUR OWN WORDS (never a direct quote) in both Finnish and English, today's actual date (as an ISO date "YYYY-MM-DD" -- every event must be dated today, not any other day), and the single most relevant source URL.
 
 Do not narrate your search process or explain your reasoning. Do not write anything like "I'll search for..." or "Based on my search results...". Just search, then respond with only the JSON below -- nothing before it, nothing after it.
 
@@ -303,9 +303,10 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
       return [];
     }
     if (!Array.isArray(parsed.items)) return [];
+    const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
     return parsed.items
       .slice(0, 10)
-      .filter(i => i.title_fi && i.title_en && i.summary_fi && i.summary_en && i.event_date)
+      .filter(i => i.title_fi && i.title_en && i.summary_fi && i.summary_en && i.event_date === helsinkiToday)
       .map(i => ({ ...i, item_type: 'event', source_name: null }));
   } catch (err) {
     console.error('Event generation (fallback) failed:', err);
