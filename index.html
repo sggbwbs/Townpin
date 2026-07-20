@@ -55,7 +55,7 @@
     font-size:12px;font-weight:500;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .12s ease;}
   #langToggle button.active{background:var(--amber);color:#2a1c0d;font-weight:700;}
 
-  main{max-width:1240px;margin:0 auto;padding:0 24px 100px;}
+  main{max-width:1320px;margin:0 auto;padding:0 24px 100px;}
   #topGrid{display:grid;grid-template-columns:1fr;gap:8px;align-items:start;}
   #newsCol, #boardCol{min-width:0;}
 
@@ -296,7 +296,10 @@
      mobile's single stacked list. Order (events above news) applies at all
      widths -- see #eventsSection/#newsSection above. */
   @media (min-width:1000px){
-    #eventItems, #newsItems{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+    #eventItems{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+    #newsItems{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);}
+    #newsItems .feedItem{padding:12px;gap:10px;}
+    #newsItems .feedImg{width:44px;height:44px;}
   }
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;}
@@ -333,7 +336,7 @@
     max-height:0;overflow:hidden;transition:max-height .2s ease, padding .2s ease;}
   .faqItem.open .faqA{max-height:400px;padding-bottom:16px;}
   @media (min-width:1000px){
-    #topGrid{grid-template-columns:0.9fr 1.1fr;gap:40px;}
+    #topGrid{grid-template-columns:1.05fr 0.95fr;gap:40px;}
     #newsCol{padding-top:24px;}
   }
 </style>
