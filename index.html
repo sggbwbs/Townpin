@@ -287,12 +287,17 @@
   .forecastDay .dTemps, .forecastHour .dTemps{font-size:12px;color:var(--ink-dim);}
   .forecastDay .dTemps b, .forecastHour .dTemps b{color:var(--ink);}
   #feedColumns{display:grid;grid-template-columns:minmax(0,1fr);gap:36px;align-items:start;margin-top:24px;}
-  @media (min-width:1700px){ #feedColumns{grid-template-columns:minmax(0,1fr) minmax(0,1fr);} }
-  #newsSection{margin-bottom:0;}
+  #eventsSection{order:1;}
+  #newsSection{order:2;margin-bottom:0;}
   .feedSubhead{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--amber);
     text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
   #newsItems, #eventItems, #offerItems{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:12px;}
-  @media (min-width:1200px){ #eventItems.twoCol{grid-template-columns:minmax(0,1fr) minmax(0,1fr);} }
+  /* Desktop: events and news both use a two-column card layout instead of
+     mobile's single stacked list. Order (events above news) applies at all
+     widths -- see #eventsSection/#newsSection above. */
+  @media (min-width:1000px){
+    #eventItems, #newsItems{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+  }
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;}
   .feedItem .feedImg{flex:none;width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--panel);}
