@@ -102,7 +102,9 @@
   #homeErr{color:var(--danger);margin:-24px auto 20px;font-size:13.5px;display:none;text-align:center;max-width:460px;}
 
   /* ---- board ---- */
-  #boardHeader{padding:18px 0 8px;text-align:center;}
+  #boardCol{background:var(--panelT4);border:1px solid var(--line);border-radius:16px;
+    padding:20px 18px 24px;}
+  #boardHeader{padding:2px 0 8px;text-align:center;}
   #boardHeader h2{font-family:'Space Grotesk',sans-serif;font-size:24px;margin:0 0 4px;}
   #boardHeader .meta{color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
   #industryFilter{margin-top:10px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);
@@ -116,7 +118,7 @@
   #grid{
     display:grid; grid-template-columns:repeat(var(--cols,10), 1fr); grid-template-rows:repeat(var(--cols,10), 1fr);
     gap:4px; background:var(--panelT4); padding:10px; border-radius:12px; border:1px solid var(--line);
-    width:100%; max-width:800px; aspect-ratio:1/1; margin:0 auto;
+    width:100%; max-width:440px; aspect-ratio:1/1; margin:0 auto;
   }
   .sq{
     border-radius:4px; cursor:pointer; position:relative; overflow:hidden;
@@ -136,7 +138,17 @@
 
   @media (max-width:640px){
     header{padding:16px 18px;}
+    #boardCol{padding:16px 14px 20px;}
+    #grid{max-width:360px;gap:3px;padding:8px;}
   }
+
+  /* board stays in view while the (often much longer) news column
+     scrolls past, instead of sitting stranded next to empty space */
+  @media (min-width:1000px){
+    #boardCol{position:sticky;top:20px;align-self:start;}
+    #grid{max-width:600px;}
+  }
+
 
   /* ---- floating selection bar ---- */
   #selectionBar{
