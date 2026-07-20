@@ -128,13 +128,23 @@ const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72ed
 
 // End of TODAY, calculated in Europe/Helsinki local time -- not the
 // server's default timezone, which is not necessarily Finland's.
-function getEventsWindowCutoff() {
-  const helsinkiParts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit'
+// Real UTC instant of the start and end of TODAY in Europe/Helsinki
+// time. Deliberately NOT just "Date.UTC(year, month, day)" using
+// Helsinki's calendar date -- that silently ignores Helsinki's UTC+2/+3
+// offset entirely, treating the date as if it were already UTC midnight,
+// which is a few hours wrong. Gets the real offset directly from
+// Intl instead of assuming one.
+function getHelsinkiDayBounds() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit', timeZoneName: 'shortOffset'
   }).formatToParts(new Date());
-  const get = (type) => helsinkiParts.find(p => p.type === type).value;
-  const todayUTC = Date.UTC(Number(get('year')), Number(get('month')) - 1, Number(get('day')));
-  return todayUTC + (24 * 60 * 60 * 1000 - 1); // end of today
+  const get = (type) => parts.find(p => p.type === type).value;
+  const offsetMatch = get('timeZoneName').match(/GMT([+-]\d+)/);
+  const offsetHours = offsetMatch ? Number(offsetMatch[1]) : 3; // fall back to EEST (+3) if parsing somehow fails
+  const y = Number(get('year')), mo = Number(get('month')) - 1, d = Number(get('day'));
+  const start = Date.UTC(y, mo, d) - offsetHours * 60 * 60 * 1000;
+  const end = start + 24 * 60 * 60 * 1000 - 1;
+  return { start, end };
 }
 
 // Real, structured event data from Kaleva's own event platform -- covers
@@ -157,14 +167,13 @@ async function fetchOuluEventsFromAPI() {
 
     const data = await res.json();
     const pages = data.pages || [];
-    const now = Date.now();
-    const cutoff = getEventsWindowCutoff();
+    const { start, end: cutoff } = getHelsinkiDayBounds();
 
     const findUpcomingDate = (page) => {
       const dates = (page.event && page.event.dates) || [];
       return dates.find(d => {
         const t = new Date(d.start).getTime();
-        return t >= now && t <= cutoff;
+        return t >= start && t <= cutoff;
       });
     };
 
