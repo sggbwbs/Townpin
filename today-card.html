@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tänään Oulussa — jaettava kuva | PaikallisCanvas</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#f7f2e7; --paper:#fffdf8; --ink:#2a2110; --ink-dim:#6b6248;
+    --amber:#e08a3c; --amber-deep:#c1712a; --line:#e4dcc4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg-0);font-family:'IBM Plex Sans',sans-serif;color:var(--ink);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 16px 60px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0 0 6px;text-align:center;}
+  p.sub{color:var(--ink-dim);font-size:14px;text-align:center;margin:0 0 28px;max-width:420px;}
+  #cardWrap{width:100%;max-width:440px;aspect-ratio:1/1;border-radius:16px;overflow:hidden;
+    box-shadow:0 12px 32px rgba(42,33,16,0.18);background:var(--paper);}
+  #cardCanvas{width:100%;height:100%;display:block;}
+  #status{margin-top:18px;font-size:13px;color:var(--ink-dim);text-align:center;min-height:18px;}
+  #downloadBtn{margin-top:16px;background:var(--amber);color:#2a1c0d;border:none;border-radius:999px;
+    padding:14px 32px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;
+    cursor:pointer;box-shadow:0 4px 14px rgba(224,138,60,0.35);}
+  #downloadBtn:disabled{opacity:0.5;cursor:default;}
+  #downloadBtn:hover:not(:disabled){background:var(--amber-deep);}
+  #backLink{margin-top:22px;font-size:13px;color:var(--ink-dim);text-decoration:none;border-bottom:1px solid var(--line);}
+</style>
+</head>
+<body>
+
+  <h1>Tänään Oulussa</h1>
+  <p class="sub">Lataa kuva ja jaa se somessa tai paikallisessa Facebook-ryhmässä — nopea, hyödyllinen tapa saada kävijöitä sivulle joka päivä.</p>
+
+  <div id="cardWrap">
+    <canvas id="cardCanvas" width="1080" height="1080"></canvas>
+  </div>
+
+  <div id="status">Ladataan tietoja…</div>
+  <button id="downloadBtn" disabled>Lataa kuvana</button>
+  <a id="backLink" href="/oulu">← Takaisin taululle</a>
+
+<script>
+const WEATHER_ICONS = {
+  0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+  45: '🌫️', 48: '🌫️',
+  51: '🌦️', 53: '🌦️', 55: '🌦️',
+  61: '🌧️', 63: '🌧️', 65: '🌧️',
+  71: '❄️', 73: '❄️', 75: '❄️', 77: '❄️',
+  80: '🌦️', 81: '🌦️', 82: '🌧️',
+  85: '❄️', 86: '❄️',
+  95: '⛈️', 96: '⛈️', 99: '⛈️'
+};
+const MONTHS_FI = ['tammikuuta','helmikuuta','maaliskuuta','huhtikuuta','toukokuuta','kesäkuuta',
+  'heinäkuuta','elokuuta','syyskuuta','lokakuuta','marraskuuta','joulukuuta'];
+const WEEKDAYS_FI = ['sunnuntai','maanantai','tiistai','keskiviikko','torstai','perjantai','lauantai'];
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines){
+  const words = text.split(' ');
+  let line = '';
+  let lines = [];
+  for (const word of words){
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line){
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  if (lines.length > maxLines){
+    lines = lines.slice(0, maxLines);
+    lines[maxLines - 1] = lines[maxLines - 1].replace(/\s*\S*$/, '') + '…';
+  }
+  lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
+  return lines.length * lineHeight;
+}
+
+function drawGridMotif(ctx, originX, originY, cols, rows, cell, gap, filledSet){
+  for (let r = 0; r < rows; r++){
+    for (let c = 0; c < cols; c++){
+      const i = r * cols + c;
+      const x = originX + c * (cell + gap);
+      const y = originY + r * (cell + gap);
+      ctx.fillStyle = filledSet.has(i) ? 'rgba(224,138,60,0.55)' : 'rgba(42,33,16,0.07)';
+      const radius = 6;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + cell, y, x + cell, y + cell, radius);
+      ctx.arcTo(x + cell, y + cell, x, y + cell, radius);
+      ctx.arcTo(x, y + cell, x, y, radius);
+      ctx.arcTo(x, y, x + cell, y, radius);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+async function buildCard(){
+  const statusEl = document.getElementById('status');
+  const canvas = document.getElementById('cardCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // ---- fetch real data (weather direct from Open-Meteo, top event via our own /api/feed) ----
+  let temp = null, weatherCode = 0, topEvent = null;
+  try {
+    const wRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code&timezone=Europe%2FHelsinki');
+    const wData = await wRes.json();
+    temp = wData.current ? Math.round(wData.current.temperature_2m) : null;
+    weatherCode = wData.current ? wData.current.weather_code : 0;
+  } catch (e) { /* fail quietly -- card still works without weather */ }
+
+  try {
+    const tRes = await fetch(`/api/town?name=Oulu&country=FI`);
+    const tData = await tRes.json();
+    if (tData.town){
+      const fRes = await fetch(`/api/feed?townId=${tData.town.id}`);
+      const fData = await fRes.json();
+      if (fData.events && fData.events.length > 0) topEvent = fData.events[0]; // already ranked by popularity
+    }
+  } catch (e) { /* fail quietly -- card still works without an event */ }
+
+  statusEl.textContent = '';
+
+  // ---- draw ----
+  const now = new Date();
+
+  // background
+  ctx.fillStyle = '#f7f2e7';
+  ctx.fillRect(0, 0, W, H);
+
+  // signature grid motif, echoing the actual board -- bottom-right corner, a few squares "filled"
+  const filled = new Set([2, 5, 9, 13, 18, 21]);
+  drawGridMotif(ctx, W - 330, H - 330, 6, 6, 42, 8, filled);
+
+  // wordmark
+  ctx.fillStyle = '#2a2110';
+  ctx.font = "700 40px 'Space Grotesk'";
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('PAIKALLIS', 72, 110);
+  const w1 = ctx.measureText('PAIKALLIS').width;
+  ctx.fillStyle = '#c1712a';
+  ctx.fillText('CANVAS', 72 + w1, 110);
+
+  // date
+  ctx.fillStyle = '#6b6248';
+  ctx.font = "600 28px 'IBM Plex Sans'";
+  const dateLabel = `${WEEKDAYS_FI[now.getDay()].charAt(0).toUpperCase() + WEEKDAYS_FI[now.getDay()].slice(1)} ${now.getDate()}. ${MONTHS_FI[now.getMonth()]}`;
+  ctx.fillText(dateLabel, 72, 168);
+
+  // weather
+  if (temp !== null){
+    ctx.font = "120px sans-serif";
+    ctx.fillText(WEATHER_ICONS[weatherCode] || '🌡️', 72, 340);
+    ctx.fillStyle = '#2a2110';
+    ctx.font = "700 92px 'Space Grotesk'";
+    ctx.fillText(`${temp}°C`, 260, 320);
+    ctx.fillStyle = '#6b6248';
+    ctx.font = "600 26px 'IBM Plex Sans'";
+    ctx.fillText('Oulussa nyt', 262, 358);
+  }
+
+  // divider
+  ctx.strokeStyle = '#e4dcc4';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(72, 430); ctx.lineTo(W - 72, 430); ctx.stroke();
+
+  // today's top event
+  ctx.fillStyle = '#c1712a';
+  ctx.font = "700 26px 'Space Grotesk'";
+  ctx.fillText('TÄNÄÄN OULUSSA', 72, 490);
+
+  if (topEvent){
+    ctx.fillStyle = '#2a2110';
+    ctx.font = "700 46px 'Space Grotesk'";
+    const titleHeight = wrapText(ctx, topEvent.title_fi, 72, 550, W - 400, 54, 3);
+
+    ctx.fillStyle = '#4a4330';
+    ctx.font = "400 28px 'IBM Plex Sans'";
+    wrapText(ctx, topEvent.summary_fi, 72, 550 + titleHeight + 40, W - 144, 38, 4);
+  } else {
+    ctx.fillStyle = '#6b6248';
+    ctx.font = "400 28px 'IBM Plex Sans'";
+    ctx.fillText('Ei tiedossa erityistä tapahtumaa juuri nyt.', 72, 550);
+  }
+
+  // footer CTA
+  ctx.fillStyle = '#2a2110';
+  ctx.font = "700 32px 'Space Grotesk'";
+  ctx.fillText('paikalliscanvas.fi/oulu', 72, H - 70);
+  ctx.fillStyle = '#6b6248';
+  ctx.font = "400 22px 'IBM Plex Sans'";
+  ctx.fillText('Oulun oma näyteikkuna verkossa', 72, H - 38);
+
+  document.getElementById('downloadBtn').disabled = false;
+}
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const canvas = document.getElementById('cardCanvas');
+  const link = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.download = `tanaan-oulussa-${dateStr}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+// wait for the display font to actually be loaded before drawing -- canvas
+// text falls back to a default font silently otherwise, even if the CSS
+// font is already applied to the rest of the page
+document.fonts.load("700 40px 'Space Grotesk'").then(() => {
+  document.fonts.load("400 28px 'IBM Plex Sans'").then(buildCard);
+});
+</script>
+</body>
+</html>

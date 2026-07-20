@@ -76,6 +76,14 @@
   <p class="sub" style="margin-top:12px;font-size:11.5px;">Only hides the main homepage — existing customer pages, /manage, and this admin panel keep working normally the whole time.</p>
 </div>
 
+<div class="card" id="shareCardCard" style="display:none;">
+  <h1>Daily share card</h1>
+  <p class="sub" style="margin-bottom:12px;">A downloadable image with today's weather and top event — built for posting in local Facebook groups or social media to bring in real visitors.</p>
+  <a href="/today-card.html" target="_blank" style="text-decoration:none;">
+    <button type="button">Open today's card →</button>
+  </a>
+</div>
+
 <div class="card" id="editCard" style="display:none;">
   <h1>Edit site copy</h1>
   <p class="sub">Changes go live within a few seconds — no redeploy needed. Only the main marketing copy is editable here.</p>
@@ -268,6 +276,7 @@ async function showEditor(){
   document.getElementById('moveCard').style.display = 'block';
   document.getElementById('townsCard').style.display = 'block';
   document.getElementById('maintenanceCard').style.display = 'block';
+  document.getElementById('shareCardCard').style.display = 'block';
 
   const res = await fetch(`${API}/content`);
   const data = await res.json();

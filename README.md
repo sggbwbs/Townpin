@@ -1308,3 +1308,124 @@ for today (every 3 hours: 00:00, 03:00, 06:00...) above the existing
 7-day forecast. Same Open-Meteo request as before, just also requesting
 `hourly` data alongside `current` and `daily` — no extra API calls
 needed.
+
+## Weather widget always shown, no click needed; events title reflects today-only scope
+
+Weather now shows the hourly-today + 7-day forecast immediately once
+loaded — no click required, the toggle behavior was removed entirely
+(the element is now a plain, non-interactive div).
+
+Events section title changed to "Tapahtumat tänään" / "Events today" to
+accurately reflect the today-only scope from the previous change.
+
+**On a real question asked, not a change made**: whether removing
+English translations or dark mode would speed up the site — no, neither
+would meaningfully help. Both are cheap (a few KB of text, CSS variable
+overrides), and the actual performance issues found earlier tonight were
+backend data-fetching architecture (sequential vs. parallel feed
+generation, the offers feature), already fixed. Kept both features as-is
+rather than cutting real value for no real gain.
+
+## Fixed: stale cached events showing wrong dates entirely
+
+Real bug, confirmed directly from a screenshot showing five different
+day numbers (5, 12, 3, 3, 4) all claiming to be "today." Root cause: the
+cache-freshness check only verified *age* (under 20 hours old), never
+whether the cached rows' actual dates still matched today. Once events
+were scoped to "today only," a cache that happened to still be within
+its 20-hour window — but was generated before that change, or simply
+before the calendar day flipped — kept getting served as valid, mixing
+in dates from whatever days were cached across earlier versions of this
+logic.
+
+**Fixed properly**: cached event rows are now only considered usable if
+their `event_date` genuinely equals today's real date in Europe/Helsinki
+time — not just "recent enough." Any mismatch (including all the
+current stale multi-day rows) is treated as an empty cache, forcing an
+immediate fresh fetch. This is now self-correcting going forward: it
+can't silently drift stale again the same way, since every check
+re-validates against the actual current calendar day, every time.
+
+## Found the actual remaining bug: the AI fallback was never updated
+
+The previous cache fix was correct but incomplete — it explains why *old*
+cached rows could persist, but the screenshot showed a *fresh* set of
+wildly scattered dates (1st through 24th of the month) even after a
+confirmed clean cache clear. That pattern is the signature of the
+AI-search fallback, not the real Kaleva API — its prompt still said
+"next 4 weeks," left over from before events were scoped to today only.
+
+**What was actually happening**: the real API was very likely returning
+zero results for "just today" specifically (a single day is a narrow
+window, and it may genuinely have nothing listed some days), so the code
+fell through to the fallback — which then generated events spread across
+the whole month, since nothing had told it to scope down to today.
+
+**Fixed two ways, not just one**: the fallback prompt now explicitly asks
+for today only, AND there's a hard code-level filter afterward that
+rejects anything not dated exactly today — regardless of whether the AI
+follows the instruction perfectly. Same "don't just trust the prompt"
+principle applied elsewhere in this file.
+
+## Found a third real bug: timezone offset + "floor" excluding today's earlier events
+
+The logs confirmed the request was succeeding (200, no errors, real
+Kaleva API called) — just legitimately returning zero results. Two real
+bugs combined to cause that:
+
+1. **Timezone offset was silently ignored.** The "end of today" cutoff
+   was built from Helsinki's calendar date but treated as if it were
+   already a UTC timestamp — never actually applying Helsinki's UTC+2/+3
+   offset. Off by a few hours, every time.
+2. **The window's floor was "right now," not "start of today."** As the
+   day goes on, more of today's events have already started relative to
+   the current moment, and were being excluded as if they were in the
+   past — even though they're still genuinely "today's" events. By
+   evening, most of a day's events would already be filtered out this way.
+
+**Fixed properly**: a new `getHelsinkiDayBounds()` function gets
+Helsinki's actual UTC offset directly from `Intl` (not assumed or
+ignored), and the window now runs from the true start of today through
+its true end — regardless of what time of day the request happens to
+run.
+
+## Rewrote the main copy to explain the mechanism, not just the pitch
+
+The hero subhead now explicitly explains the two distinct ways
+visibility actually happens: real Oulu locals browsing the board itself
+(checking today's news/events/weather — a genuine reason to visit, not
+just a business directory), and each business's own indexed page
+appearing in Google independently of board traffic. Previously it just
+said "customers find you on the board and Google" without explaining
+*why* anyone would be on the board in the first place.
+
+Also fixed a real static/STRINGS divergence found along the way — the
+static HTML default for the "findable on Google" value card still said
+"oman sivun" (a page) instead of the corrected "oman esittelysivun" (a
+showcase page) from an earlier clarity fix, meaning it only displayed
+correctly once the JS had already replaced it, not on first paint.
+
+## New: "Today in Oulu" shareable card generator
+
+A new page, `/today-card.html`, generates a real downloadable PNG image
+(1080×1080, feed-post friendly for Facebook/Instagram) combining:
+- Today's real weather (same Open-Meteo source as the site's widget)
+- Today's single most popular event (reuses `/api/feed`, already sorted
+  by real popularity — just takes the first result)
+- PaikallisCanvas branding, including a signature grid-of-squares motif
+  in the corner that echoes the actual board itself, rather than a
+  generic weather-card look
+
+**Built as a genuine daily-use tool, not a one-off**: click "Lataa
+kuvana" and it downloads immediately as a dated PNG file, ready to post
+directly — no manual screenshotting needed. Regenerates fresh every time
+the page loads, since it's pulling real current data each time.
+
+**Linked from `/admin`** (a new "Daily share card" section, gated behind
+login like everything else there) rather than the public site — this is
+a tool for outreach, not something public visitors need to find.
+
+No new serverless function needed — `today-card.html` is a static page
+(same category as `admin.html`/`manage.html`), and it calls the
+*existing* `/api/town` and `/api/feed` endpoints directly from the
+browser.
