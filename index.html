@@ -56,22 +56,32 @@
   #langToggle button.active{background:var(--amber);color:#2a1c0d;font-weight:700;}
 
   main{max-width:1240px;margin:0 auto;padding:0 24px 100px;}
-  #heroBoardGrid{display:grid;grid-template-columns:1fr;gap:8px;align-items:start;}
+  #topGrid{display:grid;grid-template-columns:1fr;gap:8px;align-items:start;}
 
-  /* ---- hero ---- */
-  #hero{text-align:center;padding:44px 20px 8px;}
-  .locBadge{display:inline-flex;align-items:center;gap:6px;background:rgba(242,166,90,0.14);
+  /* ---- company pitch (moved below the news+board section) ---- */
+  #companyPitch{margin-top:48px;padding:36px 28px;background:var(--panelT4);
+    border:1px solid var(--line);border-radius:16px;text-align:center;}
+  .pitchEyebrow{display:inline-flex;align-items:center;gap:6px;background:rgba(242,166,90,0.14);
     border:1px solid rgba(242,166,90,0.35);color:var(--amber);font-family:'IBM Plex Mono',monospace;
-    font-size:12px;padding:6px 14px;border-radius:999px;margin-bottom:22px;}
-  #hero h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(28px,5vw,44px);margin:0 0 16px;line-height:1.1;}
-  #hero h1 span{color:var(--amber);}
-  #hero p.sub{color:var(--ink-dim);font-size:16px;max-width:560px;margin:0 auto 30px;line-height:1.6;}
+    font-size:12px;padding:6px 14px;border-radius:999px;margin-bottom:18px;}
+  #companyPitch h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,4.4vw,38px);margin:0 0 16px;line-height:1.15;}
+  #companyPitch h1 span{color:var(--amber);}
+  #companyPitch p.sub{color:var(--ink-dim);font-size:15.5px;max-width:640px;margin:0 auto 28px;line-height:1.65;}
 
   .valueRow{display:flex;gap:28px;justify-content:center;margin:8px 0 20px;flex-wrap:wrap;}
   #volumeNote{text-align:center;font-size:12.5px;color:var(--amber);font-family:'IBM Plex Mono',monospace;
-    margin:0 0 32px;}
-  .valueCard{max-width:220px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
+    margin:0 0 8px;}
+  .valueCard{max-width:220px;font-size:13px;color:var(--ink-dim);line-height:1.5;text-align:left;}
   .valueCard b{display:block;color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:22px;margin-bottom:6px;}
+
+  /* ---- news column (top-left, what visitors actually come to see) ---- */
+  #newsCol{text-align:left;}
+  #newsCol #localFeed{margin:0;max-width:none;}
+  #newsCol #localFeed h2{text-align:left;margin:0 0 16px;}
+  #newsCol #weatherWidget{margin:0;width:fit-content;justify-content:flex-start;}
+  #newsCol #weatherForecast{margin:12px 0 0;max-width:none;}
+  #newsCol .feedSubhead{text-align:left;}
+  #newsCol #newsSourceNote, #newsCol .note{text-align:left !important;}
 
   #searchWrap{max-width:460px;margin:0 auto 40px;position:relative;}
   #searchRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
@@ -137,7 +147,7 @@
   }
   #selectionBar.open{display:flex;}
   /* On wider screens the board sits in its own column (see
-     #heroBoardGrid) -- a viewport-centered fixed bar ends up disconnected
+     #topGrid) -- a viewport-centered fixed bar ends up disconnected
      from the grid and can visually land over unrelated content below.
      Above that breakpoint, it's a normal element directly under the
      grid instead: always in the right place, never floating loose. */
@@ -263,7 +273,7 @@
   .forecastDay .dTemps, .forecastHour .dTemps{font-size:12px;color:var(--ink-dim);}
   .forecastDay .dTemps b, .forecastHour .dTemps b{color:var(--ink);}
   #feedColumns{display:grid;grid-template-columns:1fr;gap:36px;align-items:start;margin-top:24px;}
-  @media (min-width:900px){ #feedColumns{grid-template-columns:1fr 1fr;} }
+  @media (min-width:1700px){ #feedColumns{grid-template-columns:1fr 1fr;} }
   #newsSection{margin-bottom:0;}
   .feedSubhead{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--amber);
     text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
@@ -303,15 +313,9 @@
   .faqA{margin:0;font-size:13px;color:var(--ink-dim);line-height:1.55;
     max-height:0;overflow:hidden;transition:max-height .2s ease, padding .2s ease;}
   .faqItem.open .faqA{max-height:400px;padding-bottom:16px;}
-  /* Placed last deliberately -- these override earlier same-specificity
-     rules (#hero, .valueRow, #volumeNote each set their own text-align)
-     only on wider screens, for the side-by-side hero+board layout. */
   @media (min-width:1000px){
-    #heroBoardGrid{grid-template-columns:0.85fr 1.15fr;gap:40px;}
-    #heroPitchCol{padding-top:24px;}
-    #hero{text-align:left;}
-    .valueRow{justify-content:flex-start;gap:22px;}
-    #volumeNote{text-align:left;}
+    #topGrid{grid-template-columns:0.9fr 1.1fr;gap:40px;}
+    #newsCol{padding-top:24px;}
   }
 </style>
 </head>
@@ -340,34 +344,44 @@
 </header>
 
 <main>
-  <div id="heroBoardGrid">
-    <div id="heroPitchCol">
-      <div id="hero">
-        <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h1>
-        <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun oma näyteikkuna verkossa — yksi ruutu, yksi yritys. Näkyvyys syntyy kahdella tavalla: taulua selaavat oikeat oululaiset, jotka käyvät sivulla katsomassa päivän uutisia, tapahtumia ja säätä — ja lisäksi yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta ihan itsekseen. Ostat ruudun, lisäät logosi ja linkkisi verkkosivullesi, ja loppu hoituu taustalla. Peruuta milloin vain.</p>
-      </div>
+  <div id="topGrid">
+    <div id="newsCol">
+      <div id="localFeed">
+        <h2 id="localFeedTitle"></h2>
 
-      <div class="valueRow">
-        <div class="valueCard"><b data-i18n="value1b">5€/kk</b> <span data-i18n="value1">murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa</span></div>
-        <div class="valueCard"><b data-i18n="value2b">Löydettävissä Googlesta</b> <span data-i18n="value2">yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua</span></div>
-        <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
-      </div>
-
-      <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi ruutu ja säästä: 4€/kk per ruutu.</div>
-
-      <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
-
-      <div id="searchWrap" class="open" style="display:none;">
-        <div id="searchRow">
-          <input type="text" id="townInput" autocomplete="off" data-i18n-placeholder="townPlaceholder" placeholder="Kaupungin nimi (esim. Tampere)" />
-          <button id="searchBtn" data-i18n="viewBoard">Katso taulu →</button>
+        <div id="weatherWidget" style="display:none;">
+          <span id="weatherIcon"></span>
+          <span id="weatherTemp"></span>
         </div>
-        <div id="suggestions"></div>
+        <div id="weatherForecast" style="display:none;"></div>
+
+        <div id="feedColumns">
+          <div id="newsSection">
+            <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
+            <p class="note" id="newsSourceNote"></p>
+            <div id="newsItems"></div>
+            <div style="margin-top:14px;">
+              <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
+            </div>
+          </div>
+
+          <div id="eventsSection">
+            <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat tänään</h3>
+            <p class="note">
+              <span data-i18n="eventsSourceNote">Lähde: Kaleva</span> —
+              <a href="https://tapahtumat.kaleva.fi/fi-FI" target="_blank" rel="noopener" data-i18n="viewAllEventsLink">katso kaikki tapahtumat ↗</a>
+            </p>
+            <div id="eventItems"></div>
+            <p class="note" id="noEventsThisWeek" style="display:none;"></p>
+            <div style="margin-top:14px;">
+              <button id="showMoreEventsBtn" class="logoBtn" style="display:none;"></button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div id="homeErr"></div>
     </div>
 
-    <div id="boardProductCol">
+    <div id="boardCol">
       <div id="boardHeader">
         <h2 id="boardTitle">Oulu</h2>
         <div class="meta"><span id="claimedMeta"></span></div>
@@ -410,38 +424,29 @@
     </div>
   </div>
 
-  <div id="localFeed" style="display:none;">
-    <h2 id="localFeedTitle"></h2>
+  <div id="companyPitch">
+    <span class="pitchEyebrow" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</span>
+    <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h1>
+    <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Ruutu maksaa silti vain 5€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.</p>
 
-    <div id="weatherWidget" style="display:none;">
-      <span id="weatherIcon"></span>
-      <span id="weatherTemp"></span>
+    <div class="valueRow">
+      <div class="valueCard"><b data-i18n="value1b">5€/kk</b> <span data-i18n="value1">murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa</span></div>
+      <div class="valueCard"><b data-i18n="value2b">Löydettävissä Googlesta</b> <span data-i18n="value2">yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua</span></div>
+      <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
     </div>
-    <div id="weatherForecast" style="display:none;"></div>
 
-    <div id="feedColumns">
-      <div id="newsSection">
-        <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
-        <p class="note" style="text-align:center;margin:0 0 14px;" id="newsSourceNote"></p>
-        <div id="newsItems"></div>
-        <div style="text-align:center;margin-top:14px;">
-          <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
-        </div>
-      </div>
+    <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi ruutu ja säästä: 4€/kk per ruutu.</div>
 
-      <div id="eventsSection">
-        <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat tänään</h3>
-        <p class="note" style="text-align:center;margin:0 0 14px;">
-          <span data-i18n="eventsSourceNote">Lähde: Kaleva</span> —
-          <a href="https://tapahtumat.kaleva.fi/fi-FI" target="_blank" rel="noopener" data-i18n="viewAllEventsLink">katso kaikki tapahtumat ↗</a>
-        </p>
-        <div id="eventItems"></div>
-        <p class="note" id="noEventsThisWeek" style="text-align:center;display:none;"></p>
-        <div style="text-align:center;margin-top:14px;">
-          <button id="showMoreEventsBtn" class="logoBtn" style="display:none;"></button>
-        </div>
+    <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
+
+    <div id="searchWrap" class="open" style="display:none;">
+      <div id="searchRow">
+        <input type="text" id="townInput" autocomplete="off" data-i18n-placeholder="townPlaceholder" placeholder="Kaupungin nimi (esim. Tampere)" />
+        <button id="searchBtn" data-i18n="viewBoard">Katso taulu →</button>
       </div>
+      <div id="suggestions"></div>
     </div>
+    <div id="homeErr"></div>
   </div>
 
   <div id="factsSection">
@@ -944,8 +949,9 @@ let lang = 'fi';
 
 const STRINGS = {
   fi: {
+    pitchEyebrow: 'Oma yrityksesi tähän?',
     heroTitle: 'Näytä yrityksesi <span>koko Oululle.</span>',
-    heroSub: 'PaikallisCanvas on Oulun oma näyteikkuna verkossa — yksi ruutu, yksi yritys. Näkyvyys syntyy kahdella tavalla: taulua selaavat oikeat oululaiset, jotka käyvät sivulla katsomassa päivän uutisia, tapahtumia ja säätä — ja lisäksi yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta ihan itsekseen. Ostat ruudun, lisäät logosi ja linkkisi verkkosivullesi, ja loppu hoituu taustalla. Peruuta milloin vain.',
+    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Ruutu maksaa silti vain 5€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.',
     value1b: '5€/kk',
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
@@ -1057,8 +1063,9 @@ const STRINGS = {
     noSuggestion: 'Kaupunkia ei löytynyt tietokannasta — voit silti hakea sitä, taulu luodaan automaattisesti.'
   },
   en: {
+    pitchEyebrow: 'Room for your business here?',
     heroTitle: 'Put your business in front of <span>all of Oulu.</span>',
-    heroSub: "PaikallisCanvas is Oulu's own online showcase — one square, one business. Visibility happens two ways: real Oulu locals browse the board itself, checking today's news, events, and weather — and your business also gets its own page that can turn up in Google on its own. Buy a square, add your logo and a link to your site, and the rest happens in the background. Cancel anytime.",
+    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every square is a different company. Visibility comes from two places: real Oulu residents browsing the board for the day's news, events and weather, and your business getting its own showcase page that can turn up on Google entirely on its own — even if nobody ever opens the board itself. We can't guarantee either one: board traffic depends on site usage, and Google visibility on the search engine's own rules. Either way, a square is just €5/month, you add your own logo and link, and there's no contract to lock you in.",
     value1b: '€5/month',
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: 'Findable on Google', value2: 'your business gets its own showcase page on our site that can appear in search results, even if nobody browses the board itself',
