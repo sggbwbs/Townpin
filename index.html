@@ -36,7 +36,7 @@
     --sq-empty-bg:rgba(36,31,20,0.035); --sq-empty-border:rgba(36,31,20,0.10); --sq-plus:rgba(36,31,20,0.28);
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;min-height:100%;
+  html,body{margin:0;min-height:100%;max-width:100%;overflow-x:hidden;
     background:radial-gradient(1200px 800px at 15% -10%, var(--glow), transparent 60%), var(--bg-0);
     font-family:'IBM Plex Sans',sans-serif;color:var(--ink); transition:background .2s ease, color .2s ease;}
   a{color:inherit;}
@@ -108,7 +108,8 @@
   #boardHeader h2{font-family:'Space Grotesk',sans-serif;font-size:24px;margin:0 0 4px;}
   #boardHeader .meta{color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
   #industryFilter{margin-top:10px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);
-    background:var(--panelT7);color:var(--ink);font-size:12.5px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;}
+    background:var(--panelT7);color:var(--ink);font-size:12.5px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;
+    max-width:100%;text-overflow:ellipsis;}
   .sq.filled.dimmed{opacity:0.22;filter:grayscale(0.85);}
   #selectHint{color:var(--ink-dim);font-size:12px;margin-top:8px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.5;}
   #rectError{display:none;color:var(--danger);font-size:12.5px;font-weight:600;margin-top:6px;}
@@ -2143,21 +2144,40 @@ function renderWeatherForecast(){
 
   panel.innerHTML = '';
 
-  // Today's hourly forecast, every 3 hours -- shown first, above the 7-day view
+  // Today's hourly forecast, every 3 hours, starting from the current hour --
+  // shown first, above the 7-day view
   if (weatherHourlyData && weatherHourlyData.time){
-    const todayStr = new Date().toISOString().slice(0, 10);
+    // Open-Meteo returns time strings in the requested timezone (Europe/Helsinki),
+    // e.g. "2026-07-20T00:00" -- no UTC offset in them. Deriving "today" from
+    // new Date().toISOString() compares that against a UTC date instead, which
+    // is wrong for several hours around midnight (Helsinki is UTC+2/+3), so the
+    // filter would show no hours -- or the wrong day -- for that stretch.
+    // Format "now" in the same timezone instead so the comparison lines up.
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', hour12: false
+    });
+    const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
+    const todayStr = `${parts.year}-${parts.month}-${parts.day}`;
+    const nowHour = Number(parts.hour) % 24; // Intl can return "24" for midnight in some environments
+
     const hourlyRow = document.createElement('div');
     hourlyRow.id = 'weatherHourlyRow';
+    let shown = 0;
     weatherHourlyData.time.forEach((timeStr, i) => {
-      if (!timeStr.startsWith(todayStr)) return;
+      if (shown >= 8) return; // one compact strip's worth, matching the old 8-card width
       const hour = Number(timeStr.slice(11, 13));
       if (hour % 3 !== 0) return; // every 3 hours, matches a typical compact hourly strip
+      const isToday = timeStr.startsWith(todayStr);
+      if (isToday && hour < nowHour - 2) return; // drop hours already well in the past
+      if (!isToday && timeStr.slice(0, 10) < todayStr) return; // never show yesterday
       const card = document.createElement('div');
       card.className = 'forecastHour';
       const hcode = weatherHourlyData.weather_code[i];
       const htemp = Math.round(weatherHourlyData.temperature_2m[i]);
       card.innerHTML = `<div class="hTime">${String(hour).padStart(2, '0')}:00</div><div class="dIcon">${WEATHER_ICONS[hcode] || '🌡️'}</div><div class="dTemps"><b>${htemp}°</b></div>`;
       hourlyRow.appendChild(card);
+      shown++;
     });
     if (hourlyRow.children.length > 0) panel.appendChild(hourlyRow);
   }
