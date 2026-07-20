@@ -429,11 +429,16 @@ async function getEventsSection(supabase, townId, townName) {
       .from('local_feed_items').select('*')
       .eq('town_id', townId).eq('item_type', 'event')
       .order('event_date', { ascending: true });
-    // Undated rows can only be leftovers from before event_date was
-    // required -- useless to the weekly browser, which needs a real date
-    // to place anything in a week. Treat them as if the cache were empty
-    // rather than let them sit around indefinitely showing as "nothing".
-    const existingEvents = (existingRaw || []).filter(e => e.event_date);
+
+    // Real bug this fixes: events are scoped to "today" only, but a
+    // cache that's merely "less than 20 hours old" can still be showing
+    // yesterday's (or an even older) "today" once the calendar day has
+    // actually flipped, or leftover multi-day data from before this
+    // scoping existed. A row is only usable if its event_date is
+    // GENUINELY today, in real Europe/Helsinki time -- age alone isn't
+    // enough to trust it.
+    const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
+    const existingEvents = (existingRaw || []).filter(e => e.event_date === helsinkiToday);
     const newestCreated = existingEvents.length > 0
       ? Math.max(...existingEvents.map(e => new Date(e.created_at).getTime())) : 0;
     const eventsAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
