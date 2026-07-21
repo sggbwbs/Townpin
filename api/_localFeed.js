@@ -1,8 +1,10 @@
 // Local feed = three genuinely different things, sourced differently:
 //
-// NEWS: pulled directly from Kaleva's real, public RSS feed for Oulu.
-// Real headlines, real journalism, zero AI involved, zero hallucination
-// risk, completely free (RSS feeds are explicitly published for this).
+// NEWS: pulled directly from Kaleva's real, public RSS feeds. Real
+// headlines, real journalism, zero AI involved, zero hallucination risk,
+// completely free (RSS feeds are explicitly published for this). Oulu's
+// own board defaults to the Oulu-region feed, with a few other Kaleva
+// feeds selectable from the frontend.
 //
 // EVENTS: pulled directly from Kaleva's real event platform API
 // (tapahtumat.kaleva.fi) -- real titles, dates, venues, and descriptions
@@ -21,7 +23,20 @@ const MODEL = 'claude-haiku-4-5-20251001';
 const NEWS_REFRESH_AFTER_HOURS = 2;   // cheap to refresh often -- just an XML fetch, no AI cost
 const EVENTS_REFRESH_AFTER_HOURS = 20; // AI-generated -- refresh roughly once a day
 
-const OULU_NEWS_RSS = 'https://kaleva.fi/feedit/rss/managed-listing/oulun-seutu/';
+// Kaleva publishes several public RSS feeds beyond just the Oulu-region
+// one -- these are the ones surfaced as a selector on the frontend.
+// "oulun-seutu" is the default/original one and deliberately keeps the
+// plain 'news' item_type below (see getNewsSection) so existing cached
+// rows and the refresh cadence for the common case aren't disrupted by
+// this feature's addition.
+const NEWS_RSS_FEEDS = {
+  'oulun-seutu': 'https://kaleva.fi/feedit/rss/managed-listing/oulun-seutu/',
+  'rss-uusimmat': 'https://kaleva.fi/feedit/rss/managed-listing/rss-uusimmat/',
+  'pohjois-suomi': 'https://kaleva.fi/feedit/rss/managed-listing/pohjois-suomi/',
+  'kotimaa': 'https://kaleva.fi/feedit/rss/managed-listing/kotimaa/',
+  'ulkomaat': 'https://kaleva.fi/feedit/rss/managed-listing/ulkomaat/'
+};
+const DEFAULT_NEWS_CATEGORY = 'oulun-seutu';
 
 function stripCDATA(str) {
   return (str || '').replace(/<!\[CDATA\[/, '').replace(/\]\]>$/, '').trim();
@@ -94,11 +109,12 @@ async function enrichWithImages(items, supabase) {
   return results;
 }
 
-async function fetchOuluNewsFromRSS() {
+async function fetchNewsFromRSS(category) {
+  const feedUrl = NEWS_RSS_FEEDS[category] || NEWS_RSS_FEEDS[DEFAULT_NEWS_CATEGORY];
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);
-    const res = await fetch(OULU_NEWS_RSS, { signal: controller.signal });
+    const res = await fetch(feedUrl, { signal: controller.signal });
     clearTimeout(timeout);
     if (!res.ok) return [];
 
@@ -110,7 +126,6 @@ async function fetchOuluNewsFromRSS() {
       let description = extractTag(block, 'description') || '';
       if (description.length > 180) description = description.slice(0, 177) + '...';
       return {
-        item_type: 'news',
         title_fi: title, title_en: title, // Kaleva's own headline, not translated -- it's their real reporting, not ours to rewrite
         summary_fi: description, summary_en: description,
         source_url: link,
@@ -119,7 +134,7 @@ async function fetchOuluNewsFromRSS() {
       };
     }).filter(i => i.title_fi && i.source_url);
   } catch (err) {
-    console.error('Oulu news RSS fetch failed:', err);
+    console.error(`News RSS fetch failed for category "${category}":`, err);
     return [];
   }
 }
@@ -155,8 +170,8 @@ function getHelsinkiDayBounds() {
 // at events -- same upgrade already made for news via Kaleva's RSS feed.
 //
 // Scoped to just today, ranked purely by Kaleva's own real countViews
-// popularity figure -- the frontend shows 5 at a time with an
-// incremental "show more" (5 more each click).
+// popularity figure -- the frontend shows a handful at a time with a
+// show more/show less toggle.
 async function fetchOuluEventsFromAPI() {
   try {
     const controller = new AbortController();
@@ -196,7 +211,7 @@ async function fetchOuluEventsFromAPI() {
       })
       .map(p => ({ page: p, upcoming: findUpcomingDate(p), views: p.countViews || 0 }))
       .sort((a, b) => b.views - a.views) // popularity only, not date-first
-      .slice(0, 30) // generous for one day; the frontend's incremental show-more handles display
+      .slice(0, 30) // generous for one day; the frontend's show more/show less toggle handles display
       .map(({ page: p, upcoming }) => ({
         title_fi: p.name,
         summary_fi: getSummary(p),
@@ -406,11 +421,28 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
 // schedule since one is cheap/fast (RSS) and the other costs real API
 // calls (AI search). Best-effort throughout: any failure just means an
 // empty/stale section, never a broken board page.
-async function getNewsSection(supabase, townId) {
+//
+// `category` selects which of Kaleva's RSS feeds to show (see
+// NEWS_RSS_FEEDS above) -- defaults to DEFAULT_NEWS_CATEGORY
+// ("oulun-seutu") if omitted or unrecognized, so every existing caller
+// that doesn't know about categories keeps working exactly as before.
+async function getNewsSection(supabase, townId, category) {
+  const validCategory = NEWS_RSS_FEEDS[category] ? category : DEFAULT_NEWS_CATEGORY;
+
+  // The default category deliberately keeps the original plain 'news'
+  // item_type -- not 'news:oulun-seutu' -- so existing cached rows from
+  // before this feature existed are still found and used, instead of
+  // every board's first load after this deploy paying for an unnecessary
+  // refetch. Other categories each get their own compound item_type so
+  // they cache and refresh independently of the default and of each
+  // other (switching between them repeatedly doesn't thrash the cache
+  // or refetch on every request).
+  const itemType = validCategory === DEFAULT_NEWS_CATEGORY ? 'news' : `news:${validCategory}`;
+
   try {
     const { data: existingNews } = await supabase
       .from('local_feed_items').select('*')
-      .eq('town_id', townId).eq('item_type', 'news')
+      .eq('town_id', townId).eq('item_type', itemType)
       .order('created_at', { ascending: false });
     const newsAgeHours = existingNews && existingNews.length > 0
       ? (Date.now() - new Date(existingNews[0].created_at).getTime()) / 3600000 : Infinity;
@@ -418,11 +450,11 @@ async function getNewsSection(supabase, townId) {
     if (existingNews && existingNews.length > 0 && newsAgeHours < NEWS_REFRESH_AFTER_HOURS) {
       return existingNews;
     }
-    const fresh = await fetchOuluNewsFromRSS();
+    const fresh = await fetchNewsFromRSS(validCategory);
     if (fresh.length > 0) {
       const enriched = await enrichWithImages(fresh, supabase);
-      await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'news');
-      const rows = enriched.map(i => ({ town_id: townId, ...i }));
+      await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', itemType);
+      const rows = enriched.map(i => ({ town_id: townId, ...i, item_type: itemType }));
       const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
       return inserted || [];
     }
@@ -509,13 +541,13 @@ async function getOffersSection(supabase, townId, townName) {
 // SUM of all three regeneration times, which produced response times as
 // long as 18-19 seconds in practice. Parallel execution cuts the
 // worst-case wait down to roughly the slowest single one instead.
-async function getLocalFeed(supabase, townId, townName) {
+async function getLocalFeed(supabase, townId, townName, newsCategory) {
   const [news, events, offers] = await Promise.all([
-    getNewsSection(supabase, townId),
+    getNewsSection(supabase, townId, newsCategory),
     getEventsSection(supabase, townId, townName),
     getOffersSection(supabase, townId, townName)
   ]);
   return { news, events, offers };
 }
 
-module.exports = { getLocalFeed, getNewsSection, getEventsSection };
+module.exports = { getLocalFeed, getNewsSection, getEventsSection, NEWS_RSS_FEEDS, DEFAULT_NEWS_CATEGORY };
