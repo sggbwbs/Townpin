@@ -109,7 +109,7 @@ function render(squares, towns){
         <button type="button" class="primary" id="cropConfirmBtn" style="width:auto;">✓ Use this crop</button>
       </div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
-        <img id="logoUrlPreview" src="${(s.logo_url||'').replace(/"/g,'&quot;')}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #d8cfb4;${s.logo_url ? '' : 'display:none;'}" />
+        <img id="logoUrlPreview" src="${(s.logo_url||'').replace(/"/g,'&quot;')}" style="width:44px;height:44px;object-fit:contain;border-radius:6px;border:1px solid #d8cfb4;background:#eae3d3;${s.logo_url ? '' : 'display:none;'}" />
         <span class="note" id="currentLogoNote" style="margin:0;">${s.logo_url ? 'Current logo shown above.' : 'No logo set yet.'}</span>
       </div>
       <input type="url" id="logoUrl" value="${(s.logo_url||'').replace(/"/g,'&quot;')}" style="display:none;" />
@@ -195,7 +195,29 @@ function render(squares, towns){
       img.src = ev.target.result;
       document.getElementById('cropperWrap').style.display = 'block';
       if (cropper) cropper.destroy();
-      cropper = new Cropper(img, { aspectRatio, viewMode: 1, autoCropArea: 1, background: false });
+      cropper = new Cropper(img, {
+        aspectRatio,
+        viewMode: 0, // lets the image zoom OUT smaller than the crop box, instead of being forced to fill it and cropping off whatever doesn't fit
+        autoCropArea: 1,
+        background: false,
+        ready: function(){
+          // Default to showing the WHOLE logo shrunk to fit, not filling
+          // the box and cropping off the rest -- see index.html for the
+          // full explanation of why this changed.
+          const imageData = cropper.getImageData();
+          const cropBoxData = cropper.getCropBoxData();
+          const fitScale = Math.min(
+            cropBoxData.width / imageData.naturalWidth,
+            cropBoxData.height / imageData.naturalHeight
+          );
+          cropper.zoomTo(fitScale);
+          const canvasData = cropper.getCanvasData();
+          cropper.setCanvasData({
+            left: cropBoxData.left - (canvasData.width - cropBoxData.width) / 2,
+            top: cropBoxData.top - (canvasData.height - cropBoxData.height) / 2
+          });
+        }
+      });
     };
     reader.readAsDataURL(file);
   });
@@ -211,7 +233,7 @@ function render(squares, towns){
         try{
           const res = await fetch('/api/upload-logo', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ imageBase64: base64, contentType: 'image/jpeg' })
+            body: JSON.stringify({ imageBase64: base64, contentType: 'image/png' })
           });
           const data = await res.json();
           if (!res.ok){ alert(data.error || 'Upload failed.'); btn.disabled = false; btn.textContent = '✓ Use this crop'; return; }
@@ -228,7 +250,7 @@ function render(squares, towns){
         }
       };
       reader.readAsDataURL(blob);
-    }, 'image/jpeg', 0.85);
+    }, 'image/png');
   });
 }
 

@@ -140,7 +140,7 @@
     transition:color .12s ease;}
   .sq.empty:hover .plusIcon{color:var(--amber);}
   .sq.selected{background:rgba(242,166,90,0.35) !important; border-color:var(--amber) !important;}
-  .sq img{width:100%;height:100%;object-fit:cover;}
+  .sq img{width:100%;height:100%;object-fit:contain;}
   .sq.filled{border-color:rgba(0,0,0,0.15);cursor:pointer;}
 
 
@@ -549,7 +549,7 @@
     </div>
 
     <div id="logoPreview" style="display:none;margin-top:10px;align-items:center;gap:10px;">
-      <img id="logoPreviewImg" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #d8cfb4;" />
+      <img id="logoPreviewImg" style="width:72px;height:72px;object-fit:contain;border-radius:6px;border:1px solid #d8cfb4;background:#eae3d3;" />
       <span style="font-size:12.5px;color:#3a331d;" data-i18n="logoSelected">Logo valittu ✓</span>
       <span id="logoRemoveBtn" style="font-size:11.5px;color:#8a8168;text-decoration:underline;cursor:pointer;" data-i18n="removeLogo">Poista</span>
     </div>
@@ -1817,7 +1817,10 @@ function updateModalPricing(){
     : t('confirmTextNoTrial').replace('{price}', price);
 }
 document.getElementById('modalClose').addEventListener('click', ()=> document.getElementById('overlay').style.display='none');
-document.getElementById('overlay').addEventListener('click', (e)=>{ if (e.target.id==='overlay') e.currentTarget.style.display='none'; });
+// Deliberately no click-outside-to-close here -- this modal holds a whole
+// purchase form (company info, logo, payment plan); a single accidental
+// click on the dimmed backdrop shouldn't be able to wipe it all out. The
+// X button is the only way to close it now.
 
 /* ---- "post to additional towns" (one auto-placed square each) ---- */
 let additionalTowns = []; // {id, name}
@@ -1920,9 +1923,29 @@ function buildCropper(img){
   if (cropper) cropper.destroy();
   cropper = new Cropper(img, {
     aspectRatio: getSelectionAspectRatio(),
-    viewMode: 1,
+    viewMode: 0, // 0, not 1 -- lets the image be zoomed OUT smaller than the crop box, so a logo shaped very differently from the selected area doesn't get force-cropped just to fill it
     autoCropArea: 1,
-    background: false
+    background: false,
+    ready: function(){
+      // Default framing: shrink the WHOLE logo to fit inside the box
+      // (like CSS "contain"), rather than Cropper's usual default of
+      // filling the box and letting whatever doesn't fit its shape get
+      // cropped off. This is what was clipping logos like a wide car
+      // logo's arc/wordmark when the selected squares formed a squarer
+      // or taller shape than the logo itself.
+      const imageData = cropper.getImageData();
+      const cropBoxData = cropper.getCropBoxData();
+      const fitScale = Math.min(
+        cropBoxData.width / imageData.naturalWidth,
+        cropBoxData.height / imageData.naturalHeight
+      );
+      cropper.zoomTo(fitScale);
+      const canvasData = cropper.getCanvasData();
+      cropper.setCanvasData({
+        left: cropBoxData.left - (canvasData.width - cropBoxData.width) / 2,
+        top: cropBoxData.top - (canvasData.height - cropBoxData.height) / 2
+      });
+    }
   });
 }
 
@@ -2046,7 +2069,7 @@ document.getElementById('cropConfirmBtn').addEventListener('click', ()=>{
         try{
           const res = await fetch('/api/upload-logo', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ imageBase64: base64, contentType: 'image/jpeg' })
+            body: JSON.stringify({ imageBase64: base64, contentType: 'image/png' })
           });
           const data = await res.json();
           if (!res.ok){
@@ -2069,7 +2092,7 @@ document.getElementById('cropConfirmBtn').addEventListener('click', ()=>{
         }
       };
       reader.readAsDataURL(blob);
-    }, 'image/jpeg', 0.85);
+    }, 'image/png');
   }catch(err){
     finishWithFallback();
   }
