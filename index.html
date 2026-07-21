@@ -555,7 +555,11 @@
     </div>
 
     <label style="margin-top:16px;" data-i18n="lLogoUrl">Tai liitä kuvan osoite <span style="font-weight:400;color:#8a8168;">(jos et lataa tiedostoa)</span></label>
-    <input type="url" id="fLogo" placeholder="https://yrityksesi.fi/logo.png" />
+    <div style="display:flex;gap:8px;">
+      <input type="url" id="fLogo" placeholder="https://yrityksesi.fi/logo.png" style="flex:1;" />
+      <button type="button" class="logoBtn" id="logoUrlAdjustBtn" data-i18n="adjustUrlBtn" style="white-space:nowrap;">✂️ Sovita</button>
+    </div>
+    <div id="logoUrlErr" class="note" style="display:none;color:#b8452f;"></div>
 
     <label data-i18n="lTagline">Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span></label>
     <textarea id="fTagline" placeholder="Oulun paras kahvi vuodesta 2015" rows="2"></textarea>
@@ -1031,6 +1035,11 @@ const STRINGS = {
     autofillFound: 'Löysimme tietoja sivultasi ja täytimme ne puolestasi ✓',
     cropHint: 'Siirrä ja zoomaa kuvaa niin, että se sopii valitsemasi alueen muotoon.',
     useThisCrop: '✓ Käytä tätä rajausta',
+    adjustUrlBtn: '✂️ Sovita',
+    fetchingImage: 'Haetaan kuvaa…',
+    logoFoundHint: 'Löysimme logon sivultasi — siirrä ja zoomaa se sopivaksi alla, ja paina sitten "Käytä tätä rajausta".',
+    logoUrlLoadErr: 'Kuvaa ei voitu ladata tästä osoitteesta. Tarkista osoite, tai lataa kuva tiedostona sen sijaan.',
+    logoUrlTaintedErr: 'Tätä kuvaa ei voitu rajata suoraan (osa sivustoista estää sen). Se lisätään sellaisenaan — voit myös ladata kuvan tiedostona saadaksesi rajausmahdollisuuden.',
     logoSelected: 'Logo valittu ✓',
     removeLogo: 'Poista',
     lLogoUrl: 'Tai liitä kuvan osoite <span style="font-weight:400;color:#8a8168;">(jos et lataa tiedostoa)</span>',
@@ -1147,6 +1156,11 @@ const STRINGS = {
     autofillFound: 'Found info on your site and filled it in for you ✓',
     cropHint: 'Drag and zoom the image to fit the shape of the area you selected.',
     useThisCrop: '✓ Use this crop',
+    adjustUrlBtn: '✂️ Adjust',
+    fetchingImage: 'Fetching image…',
+    logoFoundHint: 'We found a logo on your site — drag and zoom it to fit below, then click "Use this crop".',
+    logoUrlLoadErr: "Couldn't load an image from that address. Double-check the URL, or upload the image as a file instead.",
+    logoUrlTaintedErr: "This image couldn't be cropped directly (some sites block that). It's been added as-is — you can also upload it as a file to get the crop/position controls.",
     logoSelected: 'Logo selected ✓',
     removeLogo: 'Remove',
     lLogoUrl: 'Or paste an image URL <span style="font-weight:400;color:#8a8168;">(if you don\'t upload a file)</span>',
@@ -1706,13 +1720,16 @@ function openClaimModal(){
 
   // fresh selection -> clear any previous logo upload/crop state
   uploadedLogoUrl = null;
+  cropSourceUrl = null;
   companyWasAutofilled = false;
   taglineWasAutofilled = false;
   logoWasAutofilled = false;
   industryWasAutofilled = false;
   document.getElementById('fIndustry').value = '';
+  document.getElementById('fLogo').value = '';
   document.getElementById('logoPreview').style.display = 'none';
   document.getElementById('cropperWrap').style.display = 'none';
+  document.getElementById('logoUrlErr').style.display = 'none';
   document.getElementById('fLogoFile').value = '';
   if (cropper) { cropper.destroy(); cropper = null; }
 
@@ -1885,6 +1902,7 @@ function renderAdditionalTownsList(){
 /* ---- logo upload + crop ---- */
 let cropper = null;
 let uploadedLogoUrl = null;
+let cropSourceUrl = null; // set when the image currently in the cropper came from a remote URL, so we can fall back to it if the canvas can't be read back
 
 function getSelectionAspectRatio(){
   if (!selectedIndices || selectedIndices.length === 0 || !currentTown) return 1;
@@ -1896,6 +1914,19 @@ function getSelectionAspectRatio(){
   return w / h;
 }
 
+function buildCropper(img){
+  document.getElementById('cropperWrap').style.display = 'block';
+  document.getElementById('logoPreview').style.display = 'none';
+  if (cropper) cropper.destroy();
+  cropper = new Cropper(img, {
+    aspectRatio: getSelectionAspectRatio(),
+    viewMode: 1,
+    autoCropArea: 1,
+    background: false
+  });
+}
+
+// Loads a local file (from the file picker) into the cropper.
 document.getElementById('logoUploadBtn').addEventListener('click', ()=>{
   document.getElementById('fLogoFile').click();
 });
@@ -1905,19 +1936,80 @@ document.getElementById('fLogoFile').addEventListener('change', (e)=>{
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (ev)=>{
+    cropSourceUrl = null; // local file -- nothing to fall back to except re-picking
+    document.getElementById('logoUrlErr').style.display = 'none';
     const img = document.getElementById('cropperImg');
+    img.removeAttribute('crossorigin');
+    img.onload = () => buildCropper(img);
     img.src = ev.target.result;
-    document.getElementById('cropperWrap').style.display = 'block';
-    document.getElementById('logoPreview').style.display = 'none';
-    if (cropper) cropper.destroy();
-    cropper = new Cropper(img, {
-      aspectRatio: getSelectionAspectRatio(),
-      viewMode: 1,
-      autoCropArea: 1,
-      background: false
-    });
   };
   reader.readAsDataURL(file);
+});
+
+// Loads an image that's ALREADY hosted on our own storage (e.g. the logoUrl
+// autofill returns -- fetch-site-info.js already re-hosts it server-side via
+// its own tryStoreImage() helper) straight into the cropper. Safe to crop/
+// export directly since our own storage bucket serves proper CORS headers.
+function openCropperFromStoredUrl(url){
+  const errBox = document.getElementById('logoUrlErr');
+  errBox.style.display = 'none';
+  cropSourceUrl = url;
+  const img = document.getElementById('cropperImg');
+  img.crossOrigin = 'anonymous';
+  img.onload = () => buildCropper(img);
+  img.onerror = () => {
+    errBox.style.color = '#b8452f';
+    errBox.textContent = t('logoUrlLoadErr');
+    errBox.style.display = 'block';
+  };
+  img.src = url;
+}
+
+// Loads a raw external image URL (someone pasted it in) into the SAME
+// cropper used for file uploads. The image is fetched and re-hosted
+// server-side first (via /api/upload-logo's imageUrl mode) so the crop can
+// always be read back off the canvas afterward -- most external sites
+// don't send the CORS headers a browser needs to do that directly.
+async function openCropperFromExternalUrl(url){
+  const errBox = document.getElementById('logoUrlErr');
+  errBox.style.color = '#8a8168';
+  errBox.textContent = t('fetchingImage');
+  errBox.style.display = 'block';
+  document.getElementById('cropperWrap').style.display = 'none';
+
+  try{
+    const res = await fetch('/api/upload-logo', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ imageUrl: url })
+    });
+    const data = await res.json();
+    if (!res.ok){
+      errBox.style.color = '#b8452f';
+      errBox.textContent = data.error || t('logoUrlLoadErr');
+      return;
+    }
+    errBox.style.display = 'none';
+    openCropperFromStoredUrl(data.url);
+  }catch(err){
+    errBox.style.color = '#b8452f';
+    errBox.textContent = t('networkErr');
+    errBox.style.display = 'block';
+  }
+}
+
+document.getElementById('logoUrlAdjustBtn').addEventListener('click', ()=>{
+  const url = document.getElementById('fLogo').value.trim();
+  const errBox = document.getElementById('logoUrlErr');
+  errBox.style.display = 'none';
+  if (!url) return;
+  try { new URL(url); } catch(e){
+    errBox.style.color = '#b8452f';
+    errBox.textContent = t('logoUrlLoadErr');
+    errBox.style.display = 'block';
+    return;
+  }
+  logoWasAutofilled = false; // an explicit paste+adjust is a deliberate choice, same as a manual upload
+  openCropperFromExternalUrl(url);
 });
 
 document.getElementById('cropConfirmBtn').addEventListener('click', ()=>{
@@ -1926,40 +2018,67 @@ document.getElementById('cropConfirmBtn').addEventListener('click', ()=>{
   const btn = document.getElementById('cropConfirmBtn');
   btn.disabled = true; btn.textContent = t('uploading');
 
-  canvas.toBlob((blob)=>{
-    const reader = new FileReader();
-    reader.onload = async ()=>{
-      const base64 = reader.result.split(',')[1];
-      try{
-        const res = await fetch('/api/upload-logo', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ imageBase64: base64, contentType: 'image/jpeg' })
-        });
-        const data = await res.json();
-        if (!res.ok){
-          alert(data.error || 'Upload failed.');
+  const finishWithFallback = () => {
+    // Some remote images can't be read back off the canvas (the source site
+    // doesn't allow it) -- use the original URL uncropped rather than fail outright.
+    const errBox = document.getElementById('logoUrlErr');
+    if (cropSourceUrl){
+      uploadedLogoUrl = cropSourceUrl;
+      logoWasAutofilled = false;
+      document.getElementById('logoPreviewImg').src = cropSourceUrl;
+      document.getElementById('logoPreview').style.display = 'flex';
+      document.getElementById('cropperWrap').style.display = 'none';
+      errBox.textContent = t('logoUrlTaintedErr');
+      errBox.style.display = 'block';
+      cropper.destroy(); cropper = null;
+    } else {
+      alert(t('networkErr'));
+    }
+    btn.disabled = false; btn.textContent = t('useThisCrop');
+  };
+
+  try{
+    canvas.toBlob((blob)=>{
+      if (!blob){ finishWithFallback(); return; }
+      const reader = new FileReader();
+      reader.onload = async ()=>{
+        const base64 = reader.result.split(',')[1];
+        try{
+          const res = await fetch('/api/upload-logo', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ imageBase64: base64, contentType: 'image/jpeg' })
+          });
+          const data = await res.json();
+          if (!res.ok){
+            alert(data.error || 'Upload failed.');
+            btn.disabled = false; btn.textContent = t('useThisCrop');
+            return;
+          }
+          uploadedLogoUrl = data.url;
+          logoWasAutofilled = false; // deliberate crop/confirm -- don't let a later autofill overwrite this
+          cropSourceUrl = null;
+          document.getElementById('logoPreviewImg').src = data.url;
+          document.getElementById('logoPreview').style.display = 'flex';
+          document.getElementById('cropperWrap').style.display = 'none';
+          document.getElementById('logoUrlErr').style.display = 'none';
+          cropper.destroy(); cropper = null;
           btn.disabled = false; btn.textContent = t('useThisCrop');
-          return;
+        }catch(err){
+          alert(t('networkErr'));
+          btn.disabled = false; btn.textContent = t('useThisCrop');
         }
-        uploadedLogoUrl = data.url;
-        logoWasAutofilled = false; // manual upload -- don't let a later autofill overwrite this
-        document.getElementById('logoPreviewImg').src = data.url;
-        document.getElementById('logoPreview').style.display = 'flex';
-        document.getElementById('cropperWrap').style.display = 'none';
-        cropper.destroy(); cropper = null;
-        btn.disabled = false; btn.textContent = t('useThisCrop');
-      }catch(err){
-        alert(t('networkErr'));
-        btn.disabled = false; btn.textContent = t('useThisCrop');
-      }
-    };
-    reader.readAsDataURL(blob);
-  }, 'image/jpeg', 0.85);
+      };
+      reader.readAsDataURL(blob);
+    }, 'image/jpeg', 0.85);
+  }catch(err){
+    finishWithFallback();
+  }
 });
 
 document.getElementById('logoRemoveBtn').addEventListener('click', ()=>{
   uploadedLogoUrl = null;
   logoWasAutofilled = false;
+  cropSourceUrl = null;
   document.getElementById('logoPreview').style.display = 'none';
   document.getElementById('fLogoFile').value = '';
 });
@@ -2005,19 +2124,26 @@ document.getElementById('fWebsite').addEventListener('blur', async ()=>{
       taglineField.value = data.description;
       taglineWasAutofilled = true;
     }
+    let foundLogo = false;
     if (data.logoUrl && (!uploadedLogoUrl || logoWasAutofilled)){
-      uploadedLogoUrl = data.logoUrl;
-      document.getElementById('logoPreviewImg').src = data.logoUrl;
-      document.getElementById('logoPreview').style.display = 'flex';
-      logoWasAutofilled = true;
+      document.getElementById('fLogo').value = data.logoUrl;
+      openCropperFromStoredUrl(data.logoUrl); // already re-hosted server-side by fetch-site-info.js -- safe to crop directly
+      logoWasAutofilled = true; // still just a suggestion until the person confirms the crop
+      foundLogo = true;
     }
     const industryField = document.getElementById('fIndustry');
     if (data.suggestedIndustry && (!industryField.value || industryWasAutofilled)){
       industryField.value = data.suggestedIndustry;
       industryWasAutofilled = true;
     }
-    hint.textContent = t('autofillFound');
-    setTimeout(()=>{ hint.style.display = 'none'; }, 4000);
+    if (foundLogo){
+      // keep this hint visible (not on a timer) since it points at the crop tool below
+      hint.textContent = t('logoFoundHint');
+      hint.style.display = 'block';
+    } else {
+      hint.textContent = t('autofillFound');
+      setTimeout(()=>{ hint.style.display = 'none'; }, 4000);
+    }
   }catch(e){
     hint.style.display = 'none';
   }
