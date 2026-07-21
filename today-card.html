@@ -53,6 +53,16 @@ const WEATHER_ICONS = {
   85: '❄️', 86: '❄️',
   95: '⛈️', 96: '⛈️', 99: '⛈️'
 };
+const WEATHER_DESC_FI = {
+  0: 'selkeää', 1: 'enimmäkseen selkeää', 2: 'puolipilvistä', 3: 'pilvistä',
+  45: 'sumua', 48: 'huurusumua',
+  51: 'heikkoa tihkusadetta', 53: 'tihkusadetta', 55: 'tiheää tihkusadetta',
+  61: 'heikkoa sadetta', 63: 'sadetta', 65: 'rankkaa sadetta',
+  71: 'heikkoa lumisadetta', 73: 'lumisadetta', 75: 'rankkaa lumisadetta', 77: 'lumijyväsiä',
+  80: 'sadekuuroja', 81: 'sadekuuroja', 82: 'rankkoja sadekuuroja',
+  85: 'lumikuuroja', 86: 'runsaita lumikuuroja',
+  95: 'ukkosta', 96: 'ukkosta ja raekuuroja', 99: 'voimakasta ukkosta'
+};
 const MONTHS_FI = ['tammikuuta','helmikuuta','maaliskuuta','huhtikuuta','toukokuuta','kesäkuuta',
   'heinäkuuta','elokuuta','syyskuuta','lokakuuta','marraskuuta','joulukuuta'];
 const WEEKDAYS_FI = ['sunnuntai','maanantai','tiistai','keskiviikko','torstai','perjantai','lauantai'];
@@ -77,6 +87,16 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines){
   }
   lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
   return lines.length * lineHeight;
+}
+
+function roundRect(ctx, x, y, w, h, radius){
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
 }
 
 function drawGridMotif(ctx, originX, originY, cols, rows, cell, gap, filledSet){
@@ -105,13 +125,17 @@ async function buildCard(){
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
 
-  // ---- fetch real data (weather direct from Open-Meteo, top event via our own /api/feed) ----
-  let temp = null, weatherCode = 0, topEvent = null;
+  // ---- fetch real data (weather direct from Open-Meteo, top events via our own /api/feed) ----
+  let temp = null, weatherCode = 0, tempMax = null, tempMin = null, topEvents = [];
   try {
-    const wRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code&timezone=Europe%2FHelsinki');
+    const wRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FHelsinki&forecast_days=1');
     const wData = await wRes.json();
     temp = wData.current ? Math.round(wData.current.temperature_2m) : null;
     weatherCode = wData.current ? wData.current.weather_code : 0;
+    if (wData.daily){
+      tempMax = Math.round(wData.daily.temperature_2m_max[0]);
+      tempMin = Math.round(wData.daily.temperature_2m_min[0]);
+    }
   } catch (e) { /* fail quietly -- card still works without weather */ }
 
   try {
@@ -120,9 +144,9 @@ async function buildCard(){
     if (tData.town){
       const fRes = await fetch(`/api/feed?townId=${tData.town.id}`);
       const fData = await fRes.json();
-      if (fData.events && fData.events.length > 0) topEvent = fData.events[0]; // already ranked by popularity
+      if (fData.events && fData.events.length > 0) topEvents = fData.events.slice(0, 3); // already ranked by popularity
     }
-  } catch (e) { /* fail quietly -- card still works without an event */ }
+  } catch (e) { /* fail quietly -- card still works without events */ }
 
   statusEl.textContent = '';
 
@@ -146,46 +170,77 @@ async function buildCard(){
   ctx.fillStyle = '#c1712a';
   ctx.fillText('CANVAS', 72 + w1, 110);
 
-  // date
-  ctx.fillStyle = '#6b6248';
-  ctx.font = "600 28px 'IBM Plex Sans'";
+  // date -- a filled pill behind bigger, bolder text so it reads as the
+  // card's "when", not just another line of body copy
   const dateLabel = `${WEEKDAYS_FI[now.getDay()].charAt(0).toUpperCase() + WEEKDAYS_FI[now.getDay()].slice(1)} ${now.getDate()}. ${MONTHS_FI[now.getMonth()]}`;
-  ctx.fillText(dateLabel, 72, 168);
+  ctx.font = "700 34px 'Space Grotesk'";
+  const dateWidth = ctx.measureText(dateLabel).width;
+  const datePadX = 22, datePillH = 58, datePillY = 148;
+  ctx.fillStyle = 'rgba(224,138,60,0.16)';
+  roundRect(ctx, 72, datePillY, dateWidth + datePadX * 2, datePillH, datePillH / 2);
+  ctx.fill();
+  ctx.fillStyle = '#c1712a';
+  ctx.fillText(dateLabel, 72 + datePadX, datePillY + 40);
 
-  // weather
+  // weather: icon + current temp + short description + today's high/low
+  const weatherTop = 250;
   if (temp !== null){
+    ctx.fillStyle = '#2a2110';
     ctx.font = "120px sans-serif";
-    ctx.fillText(WEATHER_ICONS[weatherCode] || '🌡️', 72, 340);
+    ctx.fillText(WEATHER_ICONS[weatherCode] || '🌡️', 72, weatherTop + 110);
+
     ctx.fillStyle = '#2a2110';
     ctx.font = "700 92px 'Space Grotesk'";
-    ctx.fillText(`${temp}°C`, 260, 320);
+    ctx.fillText(`${temp}°C`, 260, weatherTop + 90);
+
     ctx.fillStyle = '#6b6248';
     ctx.font = "600 26px 'IBM Plex Sans'";
-    ctx.fillText('Oulussa nyt', 262, 358);
+    ctx.fillText('Oulussa nyt', 262, weatherTop + 128);
+
+    ctx.fillStyle = '#4a4330';
+    ctx.font = "400 26px 'IBM Plex Sans'";
+    ctx.fillText(WEATHER_DESC_FI[weatherCode] || '', 262, weatherTop + 162);
+
+    if (tempMax !== null && tempMin !== null){
+      ctx.fillStyle = '#6b6248';
+      ctx.font = "600 26px 'IBM Plex Sans'";
+      ctx.fillText(`Ylin ${tempMax}° · Alin ${tempMin}°`, 262, weatherTop + 198);
+    }
   }
 
   // divider
   ctx.strokeStyle = '#e4dcc4';
   ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(72, 430); ctx.lineTo(W - 72, 430); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(72, 500); ctx.lineTo(W - 72, 500); ctx.stroke();
 
-  // today's top event
+  // today's most popular events -- up to 3, ranked by Kaleva's real view counts
   ctx.fillStyle = '#c1712a';
   ctx.font = "700 26px 'Space Grotesk'";
-  ctx.fillText('TÄNÄÄN OULUSSA', 72, 490);
+  ctx.fillText('SUOSITUIMMAT TAPAHTUMAT TÄNÄÄN', 72, 550);
 
-  if (topEvent){
-    ctx.fillStyle = '#2a2110';
-    ctx.font = "700 46px 'Space Grotesk'";
-    const titleHeight = wrapText(ctx, topEvent.title_fi, 72, 550, W - 400, 54, 3);
+  if (topEvents.length > 0){
+    let cursorY = 610;
+    topEvents.forEach((ev, i) => {
+      // small numbered marker so 3 items read as a ranked list, not a wall of text
+      ctx.fillStyle = '#e08a3c';
+      ctx.beginPath();
+      ctx.arc(90, cursorY - 14, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fffdf8';
+      ctx.font = "700 22px 'Space Grotesk'";
+      ctx.textAlign = 'center';
+      ctx.fillText(String(i + 1), 90, cursorY - 6);
+      ctx.textAlign = 'left';
 
-    ctx.fillStyle = '#4a4330';
-    ctx.font = "400 28px 'IBM Plex Sans'";
-    wrapText(ctx, topEvent.summary_fi, 72, 550 + titleHeight + 40, W - 144, 38, 4);
+      ctx.fillStyle = '#2a2110';
+      ctx.font = "700 36px 'Space Grotesk'";
+      const titleHeight = wrapText(ctx, ev.title_fi, 138, cursorY, W - 210, 40, 2);
+      cursorY += titleHeight + 26;
+    });
   } else {
     ctx.fillStyle = '#6b6248';
     ctx.font = "400 28px 'IBM Plex Sans'";
-    ctx.fillText('Ei tiedossa erityistä tapahtumaa juuri nyt.', 72, 550);
+    ctx.fillText('Ei tiedossa erityisiä tapahtumia juuri nyt.', 72, 610);
   }
 
   // footer CTA
