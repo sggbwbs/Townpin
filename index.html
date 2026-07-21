@@ -58,6 +58,9 @@
   main{max-width:1320px;margin:0 auto;padding:0 24px 100px;}
   #topGrid{display:grid;grid-template-columns:1fr;gap:8px;align-items:start;}
   #newsCol, #boardCol{min-width:0;}
+  #newsCol{order:1;}
+  #newsSection{order:2;}
+  #boardCol{order:3;}
 
   /* ---- company pitch (moved below the news+board section) ---- */
   #companyPitch{margin-top:48px;padding:36px 28px;background:var(--panelT4);
@@ -82,6 +85,9 @@
   #newsCol #weatherWidget{margin:0;width:fit-content;justify-content:flex-start;}
   #newsCol #weatherForecast{margin:12px 0 0;max-width:none;}
   #newsCol .feedSubhead{text-align:left;}
+  #newsSection{margin-top:32px;}
+  #newsSection .feedSubhead{text-align:left;}
+  #newsSection #newsSourceNote{text-align:left;}
   #newsCol #newsSourceNote, #newsCol .note{text-align:left !important;}
 
   #searchWrap{max-width:460px;margin:0 auto 40px;position:relative;}
@@ -298,8 +304,6 @@
   @media (min-width:1000px){
     #eventItems{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
     #newsItems{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);}
-    #newsItems .feedItem{padding:12px;gap:10px;}
-    #newsItems .feedImg{width:44px;height:44px;}
   }
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;}
@@ -336,7 +340,9 @@
     max-height:0;overflow:hidden;transition:max-height .2s ease, padding .2s ease;}
   .faqItem.open .faqA{max-height:400px;padding-bottom:16px;}
   @media (min-width:1000px){
-    #topGrid{grid-template-columns:1.05fr 0.95fr;gap:40px;}
+    #topGrid{grid-template-columns:0.85fr 1.15fr;gap:40px;}
+    #newsSection{grid-column:1 / -1;order:3;margin-top:0;}
+    #boardCol{order:2;}
     #newsCol{padding-top:24px;}
   }
 </style>
@@ -378,17 +384,9 @@
         <div id="weatherForecast" style="display:none;"></div>
 
         <div id="feedColumns">
-          <div id="newsSection">
-            <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
-            <p class="note" id="newsSourceNote"></p>
-            <div id="newsItems"></div>
-            <div style="margin-top:14px;">
-              <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
-            </div>
-          </div>
-
           <div id="eventsSection">
             <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat tänään</h3>
+            <p class="note" id="eventsCountNote"></p>
             <p class="note">
               <span data-i18n="eventsSourceNote">Lähde: Kaleva</span> —
               <a href="https://tapahtumat.kaleva.fi/fi-FI" target="_blank" rel="noopener" data-i18n="viewAllEventsLink">katso kaikki tapahtumat ↗</a>
@@ -442,6 +440,15 @@
         <span class="count" id="selectionCount">0 ruutua</span>
         <button class="cancel" id="selectionCancel" data-i18n="cancelSelection">Peruuta</button>
         <button class="go" id="selectionGo" data-i18n="continueSelection">Jatka →</button>
+      </div>
+    </div>
+
+    <div id="newsSection" style="display:none;">
+      <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
+      <p class="note" id="newsSourceNote"></p>
+      <div id="newsItems"></div>
+      <div style="margin-top:14px;">
+        <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
       </div>
     </div>
   </div>
@@ -1004,6 +1011,8 @@ const STRINGS = {
     faqA6: 'Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.',
     eventsSourceNote: 'Lähde: Kaleva',
     viewAllEventsLink: 'katso kaikki tapahtumat ↗',
+    eventsCountOne: '1 tapahtuma tänään',
+    eventsCountMany: '{count} tapahtumaa tänään',
     newsSectionTitle: 'Uutiset',
     eventsSectionTitle: 'Tapahtumat tänään',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
@@ -1118,6 +1127,8 @@ const STRINGS = {
     faqA6: 'Both work on the same square. The monthly subscription bills every month and you can cancel anytime. Prepaid lets you pay for a 3, 6, or 12-month term upfront at a discount (12 months = 2 months free) — it doesn\'t auto-renew, so there\'s nothing to remember to cancel.',
     eventsSourceNote: 'Source: Kaleva',
     viewAllEventsLink: 'see all events ↗',
+    eventsCountOne: '1 event today',
+    eventsCountMany: '{count} events today',
     newsSectionTitle: 'News',
     eventsSectionTitle: 'Events today',
     noEventsThisWeek: 'No known events for this week.',
@@ -1365,7 +1376,7 @@ async function loadBoard(){
   // take a few seconds on a cache miss, but it should never make someone
   // wait to see and use the board itself.
   newsExpanded = false;
-  eventsVisibleCount = 4;
+  eventsExpanded = false;
   loadFeed();
 }
 
@@ -1382,8 +1393,8 @@ async function loadFeed(){
 
 let newsExpanded = false;
 const NEWS_COLLAPSED_COUNT = 6;
-let eventsVisibleCount = 4;
-const EVENTS_PAGE_SIZE = 4;
+let eventsExpanded = false;
+const EVENTS_COLLAPSED_COUNT = 4;
 
 function makeFeedItemEl(item){
   const el = document.createElement('div');
@@ -1477,8 +1488,11 @@ function renderEventsList(events){
   const eventsBox = document.getElementById('eventItems');
   const noneMsg = document.getElementById('noEventsThisWeek');
   const moreBtn = document.getElementById('showMoreEventsBtn');
+  const countNote = document.getElementById('eventsCountNote');
   eventsBox.innerHTML = '';
-  eventsBox.classList.remove('twoCol');
+
+  countNote.textContent = events.length === 0 ? '' :
+    (events.length === 1 ? t('eventsCountOne') : t('eventsCountMany').replace('{count}', events.length));
 
   if (events.length === 0){
     noneMsg.style.display = 'block';
@@ -1486,19 +1500,19 @@ function renderEventsList(events){
     moreBtn.style.display = 'none';
   } else {
     noneMsg.style.display = 'none';
-    const visibleCount = Math.min(eventsVisibleCount, events.length);
+    const visibleCount = eventsExpanded ? events.length : Math.min(EVENTS_COLLAPSED_COUNT, events.length);
     events.slice(0, visibleCount).forEach(item => eventsBox.appendChild(makeFeedItemEl(item)));
 
-    if (visibleCount < events.length){
+    if (events.length > EVENTS_COLLAPSED_COUNT){
       moreBtn.style.display = 'inline-block';
-      moreBtn.textContent = t('showMore');
+      moreBtn.textContent = eventsExpanded ? t('showLess') : t('showMore');
     } else {
       moreBtn.style.display = 'none';
     }
   }
 }
 document.getElementById('showMoreEventsBtn').addEventListener('click', ()=>{
-  eventsVisibleCount += EVENTS_PAGE_SIZE;
+  eventsExpanded = !eventsExpanded;
   renderEventsList(currentFeedItems.events || []);
 });
 document.getElementById('showMoreNewsBtn').addEventListener('click', ()=>{
