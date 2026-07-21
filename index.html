@@ -117,6 +117,9 @@
   #industryFilter{margin-top:10px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);
     background:var(--panelT7);color:var(--ink);font-size:12.5px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;
     max-width:100%;text-overflow:ellipsis;}
+  #newsCategoryFilter{margin:6px 0 4px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
+    background:var(--panelT7);color:var(--ink);font-size:12px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;
+    max-width:100%;text-overflow:ellipsis;}
   .sq.filled.dimmed{opacity:0.22;filter:grayscale(0.85);}
   #selectHint{color:var(--ink-dim);font-size:12px;margin-top:8px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.5;}
   #rectError{display:none;color:var(--danger);font-size:12.5px;font-weight:600;margin-top:6px;}
@@ -140,7 +143,7 @@
     transition:color .12s ease;}
   .sq.empty:hover .plusIcon{color:var(--amber);}
   .sq.selected{background:rgba(242,166,90,0.35) !important; border-color:var(--amber) !important;}
-  .sq img{width:100%;height:100%;object-fit:contain;}
+  .sq img{width:100%;height:100%;object-fit:cover;}
   .sq.filled{border-color:rgba(0,0,0,0.15);cursor:pointer;}
 
 
@@ -445,6 +448,13 @@
 
     <div id="newsSection" style="display:none;">
       <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
+      <select id="newsCategoryFilter">
+        <option value="oulun-seutu" data-i18n="newsCatOulu">Oulun seutu</option>
+        <option value="rss-uusimmat" data-i18n="newsCatUusimmat">Uusimmat</option>
+        <option value="pohjois-suomi" data-i18n="newsCatPohjoisSuomi">Pohjois-Suomi</option>
+        <option value="kotimaa" data-i18n="newsCatKotimaa">Kotimaa</option>
+        <option value="ulkomaat" data-i18n="newsCatUlkomaat">Ulkomaat</option>
+      </select>
       <p class="note" id="newsSourceNote"></p>
       <div id="newsItems"></div>
       <div style="margin-top:14px;">
@@ -549,17 +559,13 @@
     </div>
 
     <div id="logoPreview" style="display:none;margin-top:10px;align-items:center;gap:10px;">
-      <img id="logoPreviewImg" style="width:72px;height:72px;object-fit:contain;border-radius:6px;border:1px solid #d8cfb4;background:#eae3d3;" />
+      <img id="logoPreviewImg" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #d8cfb4;" />
       <span style="font-size:12.5px;color:#3a331d;" data-i18n="logoSelected">Logo valittu ✓</span>
       <span id="logoRemoveBtn" style="font-size:11.5px;color:#8a8168;text-decoration:underline;cursor:pointer;" data-i18n="removeLogo">Poista</span>
     </div>
 
     <label style="margin-top:16px;" data-i18n="lLogoUrl">Tai liitä kuvan osoite <span style="font-weight:400;color:#8a8168;">(jos et lataa tiedostoa)</span></label>
-    <div style="display:flex;gap:8px;">
-      <input type="url" id="fLogo" placeholder="https://yrityksesi.fi/logo.png" style="flex:1;" />
-      <button type="button" class="logoBtn" id="logoUrlAdjustBtn" data-i18n="adjustUrlBtn" style="white-space:nowrap;">✂️ Sovita</button>
-    </div>
-    <div id="logoUrlErr" class="note" style="display:none;color:#b8452f;"></div>
+    <input type="url" id="fLogo" placeholder="https://yrityksesi.fi/logo.png" />
 
     <label data-i18n="lTagline">Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span></label>
     <textarea id="fTagline" placeholder="Oulun paras kahvi vuodesta 2015" rows="2"></textarea>
@@ -1017,6 +1023,11 @@ const STRINGS = {
     viewAllEventsLink: 'katso kaikki tapahtumat ↗',
     eventsCountOne: '1 tapahtuma tänään',
     eventsCountMany: '{count} tapahtumaa tänään',
+    newsCatOulu: 'Oulun seutu',
+    newsCatUusimmat: 'Uusimmat',
+    newsCatPohjoisSuomi: 'Pohjois-Suomi',
+    newsCatKotimaa: 'Kotimaa',
+    newsCatUlkomaat: 'Ulkomaat',
     newsSectionTitle: 'Uutiset',
     eventsSectionTitle: 'Tapahtumat tänään',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
@@ -1035,11 +1046,6 @@ const STRINGS = {
     autofillFound: 'Löysimme tietoja sivultasi ja täytimme ne puolestasi ✓',
     cropHint: 'Siirrä ja zoomaa kuvaa niin, että se sopii valitsemasi alueen muotoon.',
     useThisCrop: '✓ Käytä tätä rajausta',
-    adjustUrlBtn: '✂️ Sovita',
-    fetchingImage: 'Haetaan kuvaa…',
-    logoFoundHint: 'Löysimme logon sivultasi — siirrä ja zoomaa se sopivaksi alla, ja paina sitten "Käytä tätä rajausta".',
-    logoUrlLoadErr: 'Kuvaa ei voitu ladata tästä osoitteesta. Tarkista osoite, tai lataa kuva tiedostona sen sijaan.',
-    logoUrlTaintedErr: 'Tätä kuvaa ei voitu rajata suoraan (osa sivustoista estää sen). Se lisätään sellaisenaan — voit myös ladata kuvan tiedostona saadaksesi rajausmahdollisuuden.',
     logoSelected: 'Logo valittu ✓',
     removeLogo: 'Poista',
     lLogoUrl: 'Tai liitä kuvan osoite <span style="font-weight:400;color:#8a8168;">(jos et lataa tiedostoa)</span>',
@@ -1138,6 +1144,11 @@ const STRINGS = {
     viewAllEventsLink: 'see all events ↗',
     eventsCountOne: '1 event today',
     eventsCountMany: '{count} events today',
+    newsCatOulu: 'Oulu region',
+    newsCatUusimmat: 'Latest',
+    newsCatPohjoisSuomi: 'Northern Finland',
+    newsCatKotimaa: 'Domestic',
+    newsCatUlkomaat: 'World',
     newsSectionTitle: 'News',
     eventsSectionTitle: 'Events today',
     noEventsThisWeek: 'No known events for this week.',
@@ -1156,11 +1167,6 @@ const STRINGS = {
     autofillFound: 'Found info on your site and filled it in for you ✓',
     cropHint: 'Drag and zoom the image to fit the shape of the area you selected.',
     useThisCrop: '✓ Use this crop',
-    adjustUrlBtn: '✂️ Adjust',
-    fetchingImage: 'Fetching image…',
-    logoFoundHint: 'We found a logo on your site — drag and zoom it to fit below, then click "Use this crop".',
-    logoUrlLoadErr: "Couldn't load an image from that address. Double-check the URL, or upload the image as a file instead.",
-    logoUrlTaintedErr: "This image couldn't be cropped directly (some sites block that). It's been added as-is — you can also upload it as a file to get the crop/position controls.",
     logoSelected: 'Logo selected ✓',
     removeLogo: 'Remove',
     lLogoUrl: 'Or paste an image URL <span style="font-weight:400;color:#8a8168;">(if you don\'t upload a file)</span>',
@@ -1378,6 +1384,7 @@ async function openBoard(name, country, population){
 }
 
 let currentFeedItems = { news: [], events: [] };
+let currentNewsCategory = 'oulun-seutu';
 
 async function loadBoard(){
   const res = await fetch(`${API_BASE}/board?townId=${currentTown.id}`);
@@ -1391,12 +1398,14 @@ async function loadBoard(){
   // wait to see and use the board itself.
   newsExpanded = false;
   eventsExpanded = false;
+  currentNewsCategory = 'oulun-seutu';
+  document.getElementById('newsCategoryFilter').value = 'oulun-seutu';
   loadFeed();
 }
 
 async function loadFeed(){
   try {
-    const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}`);
+    const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${currentNewsCategory}`);
     const data = await res.json();
     currentFeedItems = { news: data.news || [], events: data.events || [] };
   } catch (e) {
@@ -1532,6 +1541,11 @@ document.getElementById('showMoreEventsBtn').addEventListener('click', ()=>{
 document.getElementById('showMoreNewsBtn').addEventListener('click', ()=>{
   newsExpanded = !newsExpanded;
   renderLocalFeed(currentFeedItems);
+});
+document.getElementById('newsCategoryFilter').addEventListener('change', (e)=>{
+  currentNewsCategory = e.target.value;
+  newsExpanded = false;
+  loadFeed();
 });
 
 // Cell sizing is now handled entirely by CSS (aspect-ratio on #grid),
@@ -1720,16 +1734,13 @@ function openClaimModal(){
 
   // fresh selection -> clear any previous logo upload/crop state
   uploadedLogoUrl = null;
-  cropSourceUrl = null;
   companyWasAutofilled = false;
   taglineWasAutofilled = false;
   logoWasAutofilled = false;
   industryWasAutofilled = false;
   document.getElementById('fIndustry').value = '';
-  document.getElementById('fLogo').value = '';
   document.getElementById('logoPreview').style.display = 'none';
   document.getElementById('cropperWrap').style.display = 'none';
-  document.getElementById('logoUrlErr').style.display = 'none';
   document.getElementById('fLogoFile').value = '';
   if (cropper) { cropper.destroy(); cropper = null; }
 
@@ -1817,10 +1828,7 @@ function updateModalPricing(){
     : t('confirmTextNoTrial').replace('{price}', price);
 }
 document.getElementById('modalClose').addEventListener('click', ()=> document.getElementById('overlay').style.display='none');
-// Deliberately no click-outside-to-close here -- this modal holds a whole
-// purchase form (company info, logo, payment plan); a single accidental
-// click on the dimmed backdrop shouldn't be able to wipe it all out. The
-// X button is the only way to close it now.
+document.getElementById('overlay').addEventListener('click', (e)=>{ if (e.target.id==='overlay') e.currentTarget.style.display='none'; });
 
 /* ---- "post to additional towns" (one auto-placed square each) ---- */
 let additionalTowns = []; // {id, name}
@@ -1905,7 +1913,6 @@ function renderAdditionalTownsList(){
 /* ---- logo upload + crop ---- */
 let cropper = null;
 let uploadedLogoUrl = null;
-let cropSourceUrl = null; // set when the image currently in the cropper came from a remote URL, so we can fall back to it if the canvas can't be read back
 
 function getSelectionAspectRatio(){
   if (!selectedIndices || selectedIndices.length === 0 || !currentTown) return 1;
@@ -1917,39 +1924,6 @@ function getSelectionAspectRatio(){
   return w / h;
 }
 
-function buildCropper(img){
-  document.getElementById('cropperWrap').style.display = 'block';
-  document.getElementById('logoPreview').style.display = 'none';
-  if (cropper) cropper.destroy();
-  cropper = new Cropper(img, {
-    aspectRatio: getSelectionAspectRatio(),
-    viewMode: 0, // 0, not 1 -- lets the image be zoomed OUT smaller than the crop box, so a logo shaped very differently from the selected area doesn't get force-cropped just to fill it
-    autoCropArea: 1,
-    background: false,
-    ready: function(){
-      // Default framing: shrink the WHOLE logo to fit inside the box
-      // (like CSS "contain"), rather than Cropper's usual default of
-      // filling the box and letting whatever doesn't fit its shape get
-      // cropped off. This is what was clipping logos like a wide car
-      // logo's arc/wordmark when the selected squares formed a squarer
-      // or taller shape than the logo itself.
-      const imageData = cropper.getImageData();
-      const cropBoxData = cropper.getCropBoxData();
-      const fitScale = Math.min(
-        cropBoxData.width / imageData.naturalWidth,
-        cropBoxData.height / imageData.naturalHeight
-      );
-      cropper.zoomTo(fitScale);
-      const canvasData = cropper.getCanvasData();
-      cropper.setCanvasData({
-        left: cropBoxData.left - (canvasData.width - cropBoxData.width) / 2,
-        top: cropBoxData.top - (canvasData.height - cropBoxData.height) / 2
-      });
-    }
-  });
-}
-
-// Loads a local file (from the file picker) into the cropper.
 document.getElementById('logoUploadBtn').addEventListener('click', ()=>{
   document.getElementById('fLogoFile').click();
 });
@@ -1959,80 +1933,19 @@ document.getElementById('fLogoFile').addEventListener('change', (e)=>{
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (ev)=>{
-    cropSourceUrl = null; // local file -- nothing to fall back to except re-picking
-    document.getElementById('logoUrlErr').style.display = 'none';
     const img = document.getElementById('cropperImg');
-    img.removeAttribute('crossorigin');
-    img.onload = () => buildCropper(img);
     img.src = ev.target.result;
+    document.getElementById('cropperWrap').style.display = 'block';
+    document.getElementById('logoPreview').style.display = 'none';
+    if (cropper) cropper.destroy();
+    cropper = new Cropper(img, {
+      aspectRatio: getSelectionAspectRatio(),
+      viewMode: 1,
+      autoCropArea: 1,
+      background: false
+    });
   };
   reader.readAsDataURL(file);
-});
-
-// Loads an image that's ALREADY hosted on our own storage (e.g. the logoUrl
-// autofill returns -- fetch-site-info.js already re-hosts it server-side via
-// its own tryStoreImage() helper) straight into the cropper. Safe to crop/
-// export directly since our own storage bucket serves proper CORS headers.
-function openCropperFromStoredUrl(url){
-  const errBox = document.getElementById('logoUrlErr');
-  errBox.style.display = 'none';
-  cropSourceUrl = url;
-  const img = document.getElementById('cropperImg');
-  img.crossOrigin = 'anonymous';
-  img.onload = () => buildCropper(img);
-  img.onerror = () => {
-    errBox.style.color = '#b8452f';
-    errBox.textContent = t('logoUrlLoadErr');
-    errBox.style.display = 'block';
-  };
-  img.src = url;
-}
-
-// Loads a raw external image URL (someone pasted it in) into the SAME
-// cropper used for file uploads. The image is fetched and re-hosted
-// server-side first (via /api/upload-logo's imageUrl mode) so the crop can
-// always be read back off the canvas afterward -- most external sites
-// don't send the CORS headers a browser needs to do that directly.
-async function openCropperFromExternalUrl(url){
-  const errBox = document.getElementById('logoUrlErr');
-  errBox.style.color = '#8a8168';
-  errBox.textContent = t('fetchingImage');
-  errBox.style.display = 'block';
-  document.getElementById('cropperWrap').style.display = 'none';
-
-  try{
-    const res = await fetch('/api/upload-logo', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ imageUrl: url })
-    });
-    const data = await res.json();
-    if (!res.ok){
-      errBox.style.color = '#b8452f';
-      errBox.textContent = data.error || t('logoUrlLoadErr');
-      return;
-    }
-    errBox.style.display = 'none';
-    openCropperFromStoredUrl(data.url);
-  }catch(err){
-    errBox.style.color = '#b8452f';
-    errBox.textContent = t('networkErr');
-    errBox.style.display = 'block';
-  }
-}
-
-document.getElementById('logoUrlAdjustBtn').addEventListener('click', ()=>{
-  const url = document.getElementById('fLogo').value.trim();
-  const errBox = document.getElementById('logoUrlErr');
-  errBox.style.display = 'none';
-  if (!url) return;
-  try { new URL(url); } catch(e){
-    errBox.style.color = '#b8452f';
-    errBox.textContent = t('logoUrlLoadErr');
-    errBox.style.display = 'block';
-    return;
-  }
-  logoWasAutofilled = false; // an explicit paste+adjust is a deliberate choice, same as a manual upload
-  openCropperFromExternalUrl(url);
 });
 
 document.getElementById('cropConfirmBtn').addEventListener('click', ()=>{
@@ -2041,67 +1954,40 @@ document.getElementById('cropConfirmBtn').addEventListener('click', ()=>{
   const btn = document.getElementById('cropConfirmBtn');
   btn.disabled = true; btn.textContent = t('uploading');
 
-  const finishWithFallback = () => {
-    // Some remote images can't be read back off the canvas (the source site
-    // doesn't allow it) -- use the original URL uncropped rather than fail outright.
-    const errBox = document.getElementById('logoUrlErr');
-    if (cropSourceUrl){
-      uploadedLogoUrl = cropSourceUrl;
-      logoWasAutofilled = false;
-      document.getElementById('logoPreviewImg').src = cropSourceUrl;
-      document.getElementById('logoPreview').style.display = 'flex';
-      document.getElementById('cropperWrap').style.display = 'none';
-      errBox.textContent = t('logoUrlTaintedErr');
-      errBox.style.display = 'block';
-      cropper.destroy(); cropper = null;
-    } else {
-      alert(t('networkErr'));
-    }
-    btn.disabled = false; btn.textContent = t('useThisCrop');
-  };
-
-  try{
-    canvas.toBlob((blob)=>{
-      if (!blob){ finishWithFallback(); return; }
-      const reader = new FileReader();
-      reader.onload = async ()=>{
-        const base64 = reader.result.split(',')[1];
-        try{
-          const res = await fetch('/api/upload-logo', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ imageBase64: base64, contentType: 'image/png' })
-          });
-          const data = await res.json();
-          if (!res.ok){
-            alert(data.error || 'Upload failed.');
-            btn.disabled = false; btn.textContent = t('useThisCrop');
-            return;
-          }
-          uploadedLogoUrl = data.url;
-          logoWasAutofilled = false; // deliberate crop/confirm -- don't let a later autofill overwrite this
-          cropSourceUrl = null;
-          document.getElementById('logoPreviewImg').src = data.url;
-          document.getElementById('logoPreview').style.display = 'flex';
-          document.getElementById('cropperWrap').style.display = 'none';
-          document.getElementById('logoUrlErr').style.display = 'none';
-          cropper.destroy(); cropper = null;
+  canvas.toBlob((blob)=>{
+    const reader = new FileReader();
+    reader.onload = async ()=>{
+      const base64 = reader.result.split(',')[1];
+      try{
+        const res = await fetch('/api/upload-logo', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ imageBase64: base64, contentType: 'image/jpeg' })
+        });
+        const data = await res.json();
+        if (!res.ok){
+          alert(data.error || 'Upload failed.');
           btn.disabled = false; btn.textContent = t('useThisCrop');
-        }catch(err){
-          alert(t('networkErr'));
-          btn.disabled = false; btn.textContent = t('useThisCrop');
+          return;
         }
-      };
-      reader.readAsDataURL(blob);
-    }, 'image/png');
-  }catch(err){
-    finishWithFallback();
-  }
+        uploadedLogoUrl = data.url;
+        logoWasAutofilled = false; // manual upload -- don't let a later autofill overwrite this
+        document.getElementById('logoPreviewImg').src = data.url;
+        document.getElementById('logoPreview').style.display = 'flex';
+        document.getElementById('cropperWrap').style.display = 'none';
+        cropper.destroy(); cropper = null;
+        btn.disabled = false; btn.textContent = t('useThisCrop');
+      }catch(err){
+        alert(t('networkErr'));
+        btn.disabled = false; btn.textContent = t('useThisCrop');
+      }
+    };
+    reader.readAsDataURL(blob);
+  }, 'image/jpeg', 0.85);
 });
 
 document.getElementById('logoRemoveBtn').addEventListener('click', ()=>{
   uploadedLogoUrl = null;
   logoWasAutofilled = false;
-  cropSourceUrl = null;
   document.getElementById('logoPreview').style.display = 'none';
   document.getElementById('fLogoFile').value = '';
 });
@@ -2147,26 +2033,19 @@ document.getElementById('fWebsite').addEventListener('blur', async ()=>{
       taglineField.value = data.description;
       taglineWasAutofilled = true;
     }
-    let foundLogo = false;
     if (data.logoUrl && (!uploadedLogoUrl || logoWasAutofilled)){
-      document.getElementById('fLogo').value = data.logoUrl;
-      openCropperFromStoredUrl(data.logoUrl); // already re-hosted server-side by fetch-site-info.js -- safe to crop directly
-      logoWasAutofilled = true; // still just a suggestion until the person confirms the crop
-      foundLogo = true;
+      uploadedLogoUrl = data.logoUrl;
+      document.getElementById('logoPreviewImg').src = data.logoUrl;
+      document.getElementById('logoPreview').style.display = 'flex';
+      logoWasAutofilled = true;
     }
     const industryField = document.getElementById('fIndustry');
     if (data.suggestedIndustry && (!industryField.value || industryWasAutofilled)){
       industryField.value = data.suggestedIndustry;
       industryWasAutofilled = true;
     }
-    if (foundLogo){
-      // keep this hint visible (not on a timer) since it points at the crop tool below
-      hint.textContent = t('logoFoundHint');
-      hint.style.display = 'block';
-    } else {
-      hint.textContent = t('autofillFound');
-      setTimeout(()=>{ hint.style.display = 'none'; }, 4000);
-    }
+    hint.textContent = t('autofillFound');
+    setTimeout(()=>{ hint.style.display = 'none'; }, 4000);
   }catch(e){
     hint.style.display = 'none';
   }
