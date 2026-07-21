@@ -72,7 +72,7 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
     display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
   .card{background:#f4efe4;color:#26210f;max-width:420px;width:100%;border-radius:14px;
     padding:36px 32px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.35);}
-  .logo{width:88px;height:88px;border-radius:14px;object-fit:cover;margin-bottom:18px;background:#eae3d3;}
+  .logo{width:88px;height:88px;border-radius:14px;object-fit:contain;margin-bottom:18px;background:#eae3d3;}
   h1{font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0 0 8px;}
   p.tagline{color:#5c5440;font-size:14.5px;margin:0 0 22px;}
   a.visit{display:inline-block;background:#f2a65a;color:#2a1c0d;text-decoration:none;
