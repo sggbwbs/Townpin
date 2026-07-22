@@ -143,7 +143,7 @@ Write your answer as plain, natural prose only -- never include citation markup,
 
 When you name a specific place someone could visit or a website they could check, always try to include a direct link so they can actually go there, not just a name:
 - For a BOARD_BUSINESSES match, put its exact name in "mentioned" (as before) -- the site already knows that business's own page, so don't look up or invent a URL for it yourself.
-- For anything else you recommend by name (a restaurant, shop, trail's official info page, festival site, etc.), add it to "webResults" -- but the URL must be that SPECIFIC place's own website (its homepage or menu page), never a third-party directory, review site, or tourism-board article that merely mentions it alongside others (e.g. a "best restaurants in Oulu" roundup is a source to learn names FROM, not a link to hand someone who wants to visit ONE specific restaurant). If you can't find that specific business's own site, search again with its exact name rather than settling for the roundup article, and if you still can't find it confidently, mention the place in your answer text but leave it out of "webResults" rather than linking to the wrong thing.
+- For anything else you recommend by name (a restaurant, shop, trail's official info page, festival site, etc.), add it to "webResults" -- but the URL must be that SPECIFIC place's own website (its homepage or menu page), never a third-party directory, review site, reservation/booking platform (e.g. a table-booking site that lists many restaurants), or tourism-board article that merely mentions it alongside others (e.g. a "best restaurants in Oulu" roundup, or a site where you'd book a table, is a source to learn names FROM, not a link to hand someone who wants to visit ONE specific place). If you can't find that specific business's own site, search again with its exact name rather than settling for a directory or booking page, and if you still can't find it confidently, mention the place in your answer text but leave it out of "webResults" rather than linking to the wrong thing.
 - Every business you name needs its own entry with its own URL -- don't link multiple named businesses to one shared source.
 - Never list the same place in both "mentioned" and "webResults".
 
@@ -212,13 +212,37 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
     // Never trust a model-provided URL blindly -- only pass through ones
     // that are genuinely well-formed http(s) links, not a place already
     // covered by "mentioned" (that's the board's own promoted link, not
-    // a generic web result), and not a known directory/review/tourism
-    // site -- the prompt asks for each business's own site specifically,
-    // but this is a real check rather than trusting that alone.
+    // a generic web result), and that actually look like the business's
+    // OWN site rather than a third party's.
+    //
+    // A hardcoded list of known directory/review/booking-platform domains
+    // is always a step behind reality -- there's always another one
+    // (dinnerbooking.com, quandoo.fi, resq.club, thefork... the list
+    // never really ends). So the primary check here is a general
+    // heuristic instead: does the business's own name actually show up
+    // in the domain? "Stefan's Steakhouse" -> stefanssteakhouse.fi
+    // passes; "Stefan's Steakhouse" -> dinnerbooking.com does not,
+    // regardless of whether dinnerbooking.com was ever specifically
+    // heard of before. The known-domain list below stays as a fast,
+    // cheap secondary check for the most common repeat offenders.
     const DIRECTORY_DOMAINS = [
       'visitoulu.fi', 'visitfinland.com', 'tripadvisor.', 'yelp.', 'google.com',
-      'facebook.com', 'instagram.com', 'wolt.com', 'foodora.', 'eat.fi', 'happycow.net'
+      'facebook.com', 'instagram.com', 'wolt.com', 'foodora.', 'eat.fi', 'happycow.net',
+      'dinnerbooking.com', 'quandoo.', 'thefork.', 'resq.club', 'opentable.', 'lounaat.info'
     ];
+
+    function nameLikelyMatchesDomain(name, hostname) {
+      const host = hostname.toLowerCase().replace(/^www\./, '');
+      const tokens = name.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents (ä/ö etc.) for matching
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 2); // drop tiny/insignificant tokens (of, s, &, ...)
+      if (tokens.length === 0) return true; // nothing meaningful to check against -- don't block on it
+      const matches = tokens.filter(tok => host.includes(tok)).length;
+      return (matches / tokens.length) >= 0.5; // at least half the business name's real words appear in the domain
+    }
+
     const rawWebResults = Array.isArray(parsed.webResults) ? parsed.webResults : [];
     const webResults = rawWebResults
       .filter(r => r && typeof r.name === 'string' && typeof r.url === 'string' && !mentionedNames.includes(r.name))
@@ -227,6 +251,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
           const parsedUrl = new URL(r.url);
           if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return null;
           if (DIRECTORY_DOMAINS.some(d => parsedUrl.hostname.includes(d))) return null;
+          if (!nameLikelyMatchesDomain(r.name, parsedUrl.hostname)) return null;
           return { name: r.name.slice(0, 120), url: parsedUrl.toString() };
         } catch (e) {
           return null;
