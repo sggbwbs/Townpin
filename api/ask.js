@@ -143,8 +143,8 @@ Write your answer as plain, natural prose only -- never include citation markup,
 
 When you name a specific place someone could visit or a website they could check, always try to include a direct link so they can actually go there, not just a name:
 - For a BOARD_BUSINESSES match, put its exact name in "mentioned" (as before) -- the site already knows that business's own page, so don't look up or invent a URL for it yourself.
-- For anything else you recommend by name (a restaurant, shop, trail's official info page, festival site, etc.), add it to "webResults" -- but the URL must be that SPECIFIC place's own website (its homepage or menu page), never a third-party directory, review site, reservation/booking platform (e.g. a table-booking site that lists many restaurants), or tourism-board article that merely mentions it alongside others (e.g. a "best restaurants in Oulu" roundup, or a site where you'd book a table, is a source to learn names FROM, not a link to hand someone who wants to visit ONE specific place). If you can't find that specific business's own site, search again with its exact name rather than settling for a directory or booking page, and if you still can't find it confidently, mention the place in your answer text but leave it out of "webResults" rather than linking to the wrong thing.
-- Every business you name needs its own entry with its own URL -- don't link multiple named businesses to one shared source.
+- For anything else you recommend by name (a restaurant, shop, trail's official info page, festival site, etc.), add it to "webResults" with a "url" if you found the SPECIFIC place's own website (its homepage or menu page) -- never a third-party directory, review site, reservation/booking platform (e.g. a table-booking site that lists many restaurants), or tourism-board article that merely mentions it alongside others. If you can't confidently find that specific business's own site, just omit "url" (or leave it empty) rather than guessing or linking to a directory/booking page -- the site will offer a sensible fallback on its own, you don't need to solve that yourself.
+- Every business you name needs its own entry -- don't link multiple named businesses to one shared source.
 - Never list the same place in both "mentioned" and "webResults".
 
 LOCAL_NEWS: ${JSON.stringify(newsContext)}
@@ -154,7 +154,7 @@ TODAYS_EVENTS: ${JSON.stringify(eventContext)}
 BOARD_BUSINESSES: ${JSON.stringify(businessContext)}
 
 Respond with ONLY a JSON object, no other text, no markdown fences:
-{"answer": "<your reply, written in the visitor's own language>", "mentioned": ["<exact name from BOARD_BUSINESSES, for each one you recommended -- omit entirely if none>"], "webResults": [{"name": "<place name>", "url": "<real URL you found>"}]}`;
+{"answer": "<your reply, written in the visitor's own language>", "mentioned": ["<exact name from BOARD_BUSINESSES, for each one you recommended -- omit entirely if none>"], "webResults": [{"name": "<place name>", "url": "<real URL of that specific place's own site, if you're confident of one -- omit or leave empty otherwise>"}]}`;
 
     const trimmedHistory = Array.isArray(history)
       ? history
@@ -243,21 +243,38 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       return (matches / tokens.length) >= 0.5; // at least half the business name's real words appear in the domain
     }
 
+    function googleSearchFallback(name, townName) {
+      return `https://www.google.com/search?q=${encodeURIComponent(`${name} ${townName}`.trim())}`;
+    }
+
+    // A place can end up in webResults two ways: the model found a
+    // confident direct URL (validated above), or it named a place but
+    // wasn't confident about a specific link (or didn't include one at
+    // all) -- rather than dropping that place silently, fall back to a
+    // Google search for its name + town, built here rather than trusting
+    // the model to construct a working search URL itself. This also
+    // covers the case where a business genuinely has no website at all:
+    // a search still surfaces whatever DOES exist for them (a Maps
+    // listing, a Facebook page, a phone number), which beats no link.
     const rawWebResults = Array.isArray(parsed.webResults) ? parsed.webResults : [];
     const webResults = rawWebResults
-      .filter(r => r && typeof r.name === 'string' && typeof r.url === 'string' && !mentionedNames.includes(r.name))
+      .filter(r => r && typeof r.name === 'string' && r.name.trim() && !mentionedNames.includes(r.name))
       .map(r => {
-        try {
-          const parsedUrl = new URL(r.url);
-          if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return null;
-          if (DIRECTORY_DOMAINS.some(d => parsedUrl.hostname.includes(d))) return null;
-          if (!nameLikelyMatchesDomain(r.name, parsedUrl.hostname)) return null;
-          return { name: r.name.slice(0, 120), url: parsedUrl.toString() };
-        } catch (e) {
-          return null;
+        let url = null;
+        if (typeof r.url === 'string' && r.url.trim()) {
+          try {
+            const parsedUrl = new URL(r.url);
+            const isHttp = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+            const isDirectory = DIRECTORY_DOMAINS.some(d => parsedUrl.hostname.includes(d));
+            if (isHttp && !isDirectory && nameLikelyMatchesDomain(r.name, parsedUrl.hostname)) {
+              url = parsedUrl.toString();
+            }
+          } catch (e) { /* invalid URL -- falls through to the search fallback below */ }
         }
+        const isSearchFallback = !url;
+        if (!url) url = googleSearchFallback(r.name, town.name);
+        return { name: r.name.slice(0, 120), url, isSearchFallback };
       })
-      .filter(Boolean)
       .slice(0, 4);
 
     res.status(200).json({ answer: cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), mentioned, webResults });
