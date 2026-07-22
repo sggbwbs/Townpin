@@ -167,7 +167,10 @@ function getHelsinkiDayBounds() {
 function formatHelsinkiTime(isoString) {
   if (!isoString) return null;
   try {
-    return new Intl.DateTimeFormat('fi-FI', {
+    // en-GB rather than fi-FI purely for the ":" separator (fi-FI gives
+    // "18.00" with a period, which reads oddly here) -- the timezone
+    // conversion itself is identical either way.
+    return new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Europe/Helsinki', hour: '2-digit', minute: '2-digit', hour12: false
     }).format(new Date(isoString));
   } catch (err) {
@@ -250,8 +253,13 @@ async function fetchOuluEventsFromAPI() {
         summary_fi: getSummary(p),
         event_date: upcoming.start.slice(0, 10),
         event_end_date: upcoming.end ? upcoming.end.slice(0, 10) : null,
-        event_start_time: formatHelsinkiTime(upcoming.start),
-        event_end_time: formatHelsinkiTime(upcoming.end),
+        // Kaleva's own data always populates start/end, even when the
+        // real time isn't known -- in that case it just duplicates
+        // start into end (confirmed against a real API response) and
+        // sets startTimeMissing/endTimeMissing:true instead of leaving
+        // the field blank. Trust those flags, not field presence.
+        event_start_time: upcoming.startTimeMissing ? null : formatHelsinkiTime(upcoming.start),
+        event_end_time: (upcoming.endTimeMissing || upcoming.end === upcoming.start) ? null : formatHelsinkiTime(upcoming.end),
         source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`
       }))
       .filter(e => e.title_fi && e.event_date && e.summary_fi);
