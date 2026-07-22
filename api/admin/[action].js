@@ -353,19 +353,57 @@ async function handleVisitorStats(req, res) {
   }
 }
 
-// Rough cost model for the AI local-guide agent (see api/ask.js) --
-// deliberately NOT real billing data, since that would require a
-// separate, much more sensitive "Admin API key" from Anthropic (broad,
-// revocable read-write access to the whole organization -- a real step
-// up from the regular API key already used elsewhere in this project).
-// This is an honest estimate instead, built from something we already
-// have: how many questions were actually asked this month, times a
-// blended real-world per-question cost (Haiku input/output tokens, plus
-// the ~$0.01/search cost on the fraction of questions that trigger a
-// web search). Good enough to catch "something is clearly wrong" or
-// "we're on track" -- not a substitute for checking the real Anthropic
-// Console and Supabase billing pages periodically for ground truth.
-const ESTIMATED_COST_PER_QUESTION = 0.01;
+// Real cost data from Anthropic's Admin API (requires a separate,
+// broader-scoped "Admin API key" -- see ANTHROPIC_ADMIN_API_KEY below --
+// distinct from the regular ANTHROPIC_API_KEY already used elsewhere in
+// this project). Falls back to a rough estimate (built from our own
+// ask_agent_log row count) if that key isn't configured yet, so this
+// endpoint never just breaks in the meantime.
+//
+// IMPORTANT: Anthropic's cost API always reports in USD -- there is no
+// EUR option, regardless of what currency your card was actually
+// charged in (that conversion happens at Stripe/checkout time, not in
+// Anthropic's own accounting). So every USD figure here is converted to
+// EUR using Frankfurter (api.frankfurter.app) -- a free, no-API-key
+// exchange rate service backed by real European Central Bank reference
+// rates, the same "free public data source, no key needed" pattern
+// already used for weather (Open-Meteo) elsewhere in this project.
+const ANTHROPIC_ADMIN_API_KEY = process.env.ANTHROPIC_ADMIN_API_KEY;
+const ESTIMATED_COST_PER_QUESTION_USD = 0.01; // only used in the no-admin-key fallback path
+
+async function getUsdToEurRate() {
+  try {
+    const res = await fetch('https://api.frankfurter.app/latest?from=USD&to=EUR');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.rates && data.rates.EUR) || null;
+  } catch (err) {
+    console.error('Exchange rate lookup failed:', err);
+    return null;
+  }
+}
+
+async function getRealCostFromAnthropic(monthStartIso) {
+  const res = await fetch(
+    `https://api.anthropic.com/v1/organizations/cost_report?starting_at=${encodeURIComponent(monthStartIso)}&limit=31`,
+    { headers: { 'anthropic-version': '2023-06-01', 'x-api-key': ANTHROPIC_ADMIN_API_KEY } }
+  );
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Anthropic cost API returned ${res.status}: ${body.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  // Sum every line item across every day bucket returned -- a single
+  // month always fits in one page (max 31 one-day buckets, the API's
+  // own limit ceiling), so no pagination is needed here.
+  let totalUsd = 0;
+  for (const bucket of data.data || []) {
+    for (const line of bucket.results || []) {
+      totalUsd += parseFloat(line.amount) || 0;
+    }
+  }
+  return totalUsd;
+}
 
 async function handleCostEstimate(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
@@ -373,31 +411,50 @@ async function handleCostEstimate(req, res) {
   const monthStart = new Date();
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
+  const monthStartIso = monthStart.toISOString();
 
   try {
+    const { data: budgetRow } = await supabase
+      .from('site_settings').select('value').eq('key', 'monthly_ai_budget').maybeSingle();
+    const monthlyBudgetEur = budgetRow ? Number(budgetRow.value) : null;
+
+    const eurRate = await getUsdToEurRate();
+
+    if (ANTHROPIC_ADMIN_API_KEY) {
+      const totalUsd = await getRealCostFromAnthropic(monthStartIso);
+      const spendEur = eurRate ? totalUsd * eurRate : null;
+      return res.status(200).json({
+        isEstimate: false,
+        spendUsd: totalUsd,
+        spendEur,
+        eurRate,
+        monthlyBudgetEur,
+        remainingEur: (spendEur !== null && monthlyBudgetEur !== null) ? monthlyBudgetEur - spendEur : null
+      });
+    }
+
+    // Fallback: no admin key configured yet -- rough estimate from our
+    // own question log instead, also converted to EUR for consistency.
     const { count: questionsThisMonth, error: countErr } = await supabase
       .from('ask_agent_log')
       .select('id', { count: 'exact', head: true })
-      .gt('created_at', monthStart.toISOString());
+      .gt('created_at', monthStartIso);
     if (countErr) throw countErr;
 
-    const { data: budgetRow } = await supabase
-      .from('site_settings').select('value').eq('key', 'monthly_ai_budget').maybeSingle();
-    const monthlyBudget = budgetRow ? Number(budgetRow.value) : null;
-
-    const estimatedSpend = (questionsThisMonth || 0) * ESTIMATED_COST_PER_QUESTION;
-    const remaining = monthlyBudget !== null ? monthlyBudget - estimatedSpend : null;
+    const estimatedSpendUsd = (questionsThisMonth || 0) * ESTIMATED_COST_PER_QUESTION_USD;
+    const estimatedSpendEur = eurRate ? estimatedSpendUsd * eurRate : null;
 
     res.status(200).json({
+      isEstimate: true, // the frontend should always label this clearly -- it is not real billing data
       questionsThisMonth: questionsThisMonth || 0,
-      estimatedSpend,
-      monthlyBudget,
-      remaining,
-      isEstimate: true // the frontend should always label this clearly -- it is not real billing data
+      spendEur: estimatedSpendEur,
+      eurRate,
+      monthlyBudgetEur,
+      remainingEur: (estimatedSpendEur !== null && monthlyBudgetEur !== null) ? monthlyBudgetEur - estimatedSpendEur : null
     });
   } catch (err) {
     console.error('Cost estimate lookup failed:', err);
-    res.status(500).json({ error: 'Could not load cost estimate.' });
+    res.status(500).json({ error: 'Could not load cost data.' });
   }
 }
 

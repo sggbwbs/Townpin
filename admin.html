@@ -87,22 +87,16 @@
 </div>
 
 <div class="card" id="costCard" style="display:none;">
-  <h1>AI-kustannusarvio</h1>
+  <h1>AI-kustannukset</h1>
   <p class="sub" style="margin-bottom:14px;">
-    <b>Tämä on arvio, ei todellinen laskutustieto.</b> Perustuu AI-avustajan
-    kysymysmäärään tässä kuussa × arvioitu keskihinta per kysymys. Kattaa
-    vain AI-avustajan (<code>/api/ask</code>) kustannuksen — ei Supabasea,
-    Vercelia tai muita palveluja. Tarkista todellinen kulutus
-    <a href="https://console.anthropic.com" target="_blank" style="color:#8a8168;">Anthropic Consolesta</a>
-    ja Supabase-laskutuksesta.
-  </p>
+    <p class="sub" id="costDisclaimer" style="margin-bottom:14px;">Ladataan…</p>
   <div id="costStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:#26210f;" id="costQuestions">–</b><span class="sub" style="margin:0;">Kysymyksiä tässä kuussa</span></div>
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:#26210f;" id="costEstimate">–</b><span class="sub" style="margin:0;">Arvioitu kulutus</span></div>
+    <div id="costQuestionsWrap"><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:#26210f;" id="costQuestions">–</b><span class="sub" style="margin:0;">Kysymyksiä tässä kuussa</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:#26210f;" id="costEstimate">–</b><span class="sub" style="margin:0;" id="costEstimateLabel">Kulutus tässä kuussa</span></div>
     <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;" id="costRemaining">–</b><span class="sub" style="margin:0;">Budjettia jäljellä</span></div>
   </div>
   <div class="field" style="margin-bottom:8px;">
-    <label>Kuukausibudjetti ($)</label>
+    <label>Kuukausibudjetti (€)</label>
     <input type="text" id="budgetInput" placeholder="esim. 25" />
   </div>
   <button id="saveBudgetBtn">Tallenna budjetti</button>
@@ -736,20 +730,40 @@ async function loadCostEstimate(){
     const res = await fetch(`${API}/cost-estimate`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'failed');
-    document.getElementById('costQuestions').textContent = data.questionsThisMonth.toLocaleString('fi-FI');
-    document.getElementById('costEstimate').textContent = '~$' + data.estimatedSpend.toFixed(2);
-    document.getElementById('budgetInput').value = data.monthlyBudget !== null ? data.monthlyBudget : '';
+    const prefix = data.isEstimate ? '~€' : '€';
+
+    if (data.isEstimate) {
+      document.getElementById('costDisclaimer').innerHTML =
+        '<b>Tämä on arvio, ei todellinen laskutustieto</b> — ANTHROPIC_ADMIN_API_KEY ei ole vielä asetettu palvelimella. ' +
+        'Perustuu AI-avustajan kysymysmäärään tässä kuussa × arvioitu keskihinta per kysymys. ' +
+        'Kattaa vain AI-avustajan (<code>/api/ask</code>) kustannuksen — ei Supabasea, Vercelia tai muita palveluja.';
+      document.getElementById('costQuestionsWrap').style.display = 'block';
+      document.getElementById('costQuestions').textContent = data.questionsThisMonth.toLocaleString('fi-FI');
+      document.getElementById('costEstimateLabel').textContent = 'Arvioitu kulutus tässä kuussa';
+    } else {
+      document.getElementById('costDisclaimer').innerHTML =
+        '<b>Todellinen kulutus Anthropicin Admin API:sta</b> — muunnettu dollareista euroiksi ' +
+        (data.eurRate ? `(kurssi ${data.eurRate.toFixed(4)}, EKB)` : '') +
+        '. Kattaa vain AI-avustajan (<code>/api/ask</code>) ja muiden Anthropic-kutsujen kustannuksen — ei Supabasea, Vercelia tai muita palveluja. ' +
+        'Vertaa <a href="https://console.anthropic.com" target="_blank" style="color:#8a8168;">Anthropic Consoleen</a> tarvittaessa.';
+      document.getElementById('costQuestionsWrap').style.display = 'none';
+      document.getElementById('costEstimateLabel').textContent = 'Kulutus tässä kuussa';
+    }
+
+    document.getElementById('costEstimate').textContent =
+      data.spendEur !== null ? prefix + data.spendEur.toFixed(2) : '–';
+    document.getElementById('budgetInput').value = data.monthlyBudgetEur !== null ? data.monthlyBudgetEur : '';
 
     const remainingEl = document.getElementById('costRemaining');
-    if (data.monthlyBudget === null) {
+    if (data.remainingEur === null) {
       remainingEl.textContent = '–';
       remainingEl.style.color = '#26210f';
     } else {
-      remainingEl.textContent = '~$' + data.remaining.toFixed(2);
-      remainingEl.style.color = data.remaining < 0 ? '#b8452f' : '#26210f';
+      remainingEl.textContent = prefix + data.remainingEur.toFixed(2);
+      remainingEl.style.color = data.remainingEur < 0 ? '#b8452f' : '#26210f';
     }
   } catch (e) {
-    document.getElementById('costStatsRow').innerHTML = '<p class="sub">Could not load cost estimate.</p>';
+    document.getElementById('costStatsRow').innerHTML = '<p class="sub">Could not load cost data.</p>';
   }
 }
 
@@ -757,7 +771,7 @@ document.getElementById('saveBudgetBtn').addEventListener('click', async () => {
   const val = document.getElementById('budgetInput').value.trim();
   const num = Number(val);
   if (val === '' || !Number.isFinite(num) || num < 0) {
-    alert('Anna kelvollinen budjetti (esim. 25).');
+    alert('Anna kelvollinen budjetti euroina (esim. 25).');
     return;
   }
   try {
