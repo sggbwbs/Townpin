@@ -183,12 +183,32 @@ async function fetchOuluEventsFromAPI() {
     const data = await res.json();
     const pages = data.pages || [];
     const { start, end: cutoff } = getHelsinkiDayBounds();
+    const now = Date.now();
 
-    const findUpcomingDate = (page) => {
+    // An event occurrence is relevant if it's either still ongoing right
+    // now, or hasn't started yet today -- NOT if it's already fully over.
+    // The previous version only checked whether the occurrence's START
+    // fell within today's bounds, which had two real bugs: (1) a
+    // multi-day event that started yesterday and is still running today
+    // was wrongly excluded (its start isn't "today"), and (2) a
+    // same-day event that already ended hours ago was wrongly still
+    // shown (nothing checked its end time at all).
+    //
+    // ASSUMPTION worth verifying against real API responses: this
+    // assumes each date entry has an `end` field alongside `start`
+    // (a standard shape for this kind of data, but not something this
+    // sandbox can confirm against Kaleva's live API directly). If an
+    // entry has no `end` at all, this falls back to the old "starts
+    // today" behavior for that entry specifically, rather than guessing
+    // at when an unknown-length event finishes.
+    const findRelevantDate = (page) => {
       const dates = (page.event && page.event.dates) || [];
       return dates.find(d => {
-        const t = new Date(d.start).getTime();
-        return t >= start && t <= cutoff;
+        const startT = new Date(d.start).getTime();
+        if (startT > cutoff) return false; // starts later than today -- not part of "today"
+        const endT = d.end ? new Date(d.end).getTime() : null;
+        if (endT !== null) return endT >= now; // ongoing or upcoming later today; excluded once truly over
+        return startT >= start; // no end known -- keep the original same-day-start behavior
       });
     };
 
@@ -207,15 +227,16 @@ async function fetchOuluEventsFromAPI() {
       .filter(p => {
         const addr = (p.locations && p.locations[0] && p.locations[0].address) || '';
         if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
-        return !!findUpcomingDate(p);
+        return !!findRelevantDate(p);
       })
-      .map(p => ({ page: p, upcoming: findUpcomingDate(p), views: p.countViews || 0 }))
+      .map(p => ({ page: p, upcoming: findRelevantDate(p), views: p.countViews || 0 }))
       .sort((a, b) => b.views - a.views) // popularity only, not date-first
       .slice(0, 30) // generous for one day; the frontend's show more/show less toggle handles display
       .map(({ page: p, upcoming }) => ({
         title_fi: p.name,
         summary_fi: getSummary(p),
         event_date: upcoming.start.slice(0, 10),
+        event_end_date: upcoming.end ? upcoming.end.slice(0, 10) : null,
         source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`
       }))
       .filter(e => e.title_fi && e.event_date && e.summary_fi);
@@ -472,15 +493,16 @@ async function getEventsSection(supabase, townId, townName) {
       .eq('town_id', townId).eq('item_type', 'event')
       .order('event_date', { ascending: true });
 
-    // Real bug this fixes: events are scoped to "today" only, but a
-    // cache that's merely "less than 20 hours old" can still be showing
-    // yesterday's (or an even older) "today" once the calendar day has
-    // actually flipped, or leftover multi-day data from before this
-    // scoping existed. A row is only usable if its event_date is
-    // GENUINELY today, in real Europe/Helsinki time -- age alone isn't
-    // enough to trust it.
+    // Real bug this fixes: events are scoped to "still relevant" (ongoing
+    // or upcoming today), but a cache that's merely "less than 20 hours
+    // old" can still be showing an event that's already fully ended, or
+    // -- the flip side of the same bug -- wrongly discarding a multi-day
+    // event that's still genuinely running just because its event_date
+    // (its START date) isn't literally today. What actually matters is
+    // whether the event's END date (falling back to its start date for
+    // single-day events with no recorded end) is today or later.
     const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
-    const existingEvents = (existingRaw || []).filter(e => e.event_date === helsinkiToday);
+    const existingEvents = (existingRaw || []).filter(e => (e.event_end_date || e.event_date) >= helsinkiToday);
     const newestCreated = existingEvents.length > 0
       ? Math.max(...existingEvents.map(e => new Date(e.created_at).getTime())) : 0;
     const eventsAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
@@ -489,18 +511,38 @@ async function getEventsSection(supabase, townId, townName) {
       return existingEvents;
     }
     const fresh = await generateEventItems(townName);
-    if (fresh.length > 0) {
-      // Deliberately NOT running enrichWithImages here -- each Kaleva
-      // event page is itself a JS-rendered app, so fetching it only
-      // sees a generic template shell, not the real per-event image.
-      // That produced the same misleading photo on every single event.
-      // No image is a better outcome than a wrong, duplicated one.
-      await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', 'event');
-      const rows = fresh.map(i => ({ town_id: townId, ...i }));
-      const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select().order('event_date', { ascending: true });
-      return inserted || [];
+
+    // Always clear genuinely stale rows (fully ended, by event_end_date
+    // if known, otherwise by event_date for single-day events) regardless
+    // of whether the fresh fetch found anything -- no reason to let those
+    // pile up.
+    await supabase.from('local_feed_items')
+      .delete().eq('town_id', townId).eq('item_type', 'event')
+      .or(`event_end_date.lt.${helsinkiToday},and(event_end_date.is.null,event_date.lt.${helsinkiToday})`);
+
+    if (fresh.length === 0) {
+      return existingEvents; // still useless if this is also empty, but never worse than what we had
     }
-    return existingEvents; // still useless if this is also empty, but never worse than what we had
+
+    // Merge with what's already known for TODAY rather than replacing it
+    // outright -- see comment above. An event already found earlier
+    // today is still a real, valid "happening today" event even if
+    // Kaleva's own live listing no longer surfaces it as "upcoming".
+    const alreadyKnown = new Set(existingEvents.map(e => e.source_url || e.title_fi));
+    const genuinelyNew = fresh.filter(e => !alreadyKnown.has(e.source_url || e.title_fi));
+
+    if (genuinelyNew.length === 0) {
+      return existingEvents; // nothing new to add, what we had is still complete
+    }
+
+    // Deliberately NOT running enrichWithImages here -- each Kaleva
+    // event page is itself a JS-rendered app, so fetching it only
+    // sees a generic template shell, not the real per-event image.
+    // That produced the same misleading photo on every single event.
+    // No image is a better outcome than a wrong, duplicated one.
+    const rows = genuinelyNew.map(i => ({ town_id: townId, ...i }));
+    const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
+    return [...existingEvents, ...(inserted || [])];
   } catch (err) {
     console.error('Events feed lookup failed:', err);
     return [];
