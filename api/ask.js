@@ -27,6 +27,19 @@ const MAX_HISTORY_TURNS = 6; // trailing turns only -- keeps a long-running chat
 const MAX_QUESTION_LENGTH = 500;
 const MAX_BUSINESSES_IN_CONTEXT = 200; // defensive cap even for a hypothetical fully-booked board
 
+// Web-search-grounded responses can include inline citation markup like
+// <cite index="1-4">...</cite> as part of how the model attributes
+// claims to sources. That's useful in a research/document context, but
+// this is a plain conversational answer box with no citation UI to
+// render it in -- so strip it back to plain prose before it ever
+// reaches the visitor.
+function cleanAnswerText(text) {
+  return String(text || '')
+    .replace(/<\/?cite[^>]*>/gi, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 // Same category labels shown on pin pages (api/pin/[id].js) -- duplicated
 // here rather than imported, since it's small, static, and this keeps the
 // two endpoints from being coupled to each other's internals.
@@ -106,6 +119,8 @@ You have two sources of information, in priority order:
 
 Don't search if TODAYS_EVENTS or BOARD_BUSINESSES already answers the question well -- that costs time and money for no benefit. Keep answers short and conversational: 2-4 sentences, at most 2-3 specific named recommendations (trails, businesses, or both). Never invent a business, event, trail name, opening hours, or price you don't actually have data for -- if you're genuinely not sure, say so plainly instead of guessing.
 
+Write your answer as plain, natural prose only -- never include citation markup, footnote-style references, or tags like <cite>...</cite> around anything, even when search results informed what you wrote.
+
 TODAYS_EVENTS: ${JSON.stringify(eventContext)}
 
 BOARD_BUSINESSES: ${JSON.stringify(businessContext)}
@@ -131,7 +146,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 500,
+        max_tokens: 700,
         system: systemPrompt,
         messages,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }]
@@ -147,8 +162,15 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       parsed = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
     } catch (parseErr) {
       console.error('Ask agent: could not parse model output as JSON. Raw text was:', cleaned);
+      // Best-effort salvage: when web search is used, the model sometimes
+      // writes ordinary prose first and only then attempts (and
+      // sometimes botches, e.g. gets cut off mid-JSON) the {"answer":...}
+      // wrapper. Keep just the leading prose in that case, rather than
+      // showing the visitor a raw, half-formed JSON fragment.
+      const jsonAttemptStart = cleaned.search(/```json|\{\s*"answer"/i);
+      const salvaged = jsonAttemptStart > 0 ? cleaned.slice(0, jsonAttemptStart) : cleaned;
       return res.status(200).json({
-        answer: text.trim() || 'Pahoittelut, en osannut vastata juuri nyt. / Sorry, I couldn\'t answer that just now.',
+        answer: cleanAnswerText(salvaged) || 'Pahoittelut, en osannut vastata juuri nyt. / Sorry, I couldn\'t answer that just now.',
         mentioned: []
       });
     }
@@ -158,7 +180,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       .filter(b => mentionedNames.includes(b.company_name))
       .map(b => ({ name: b.company_name, squareId: b.id }));
 
-    res.status(200).json({ answer: typeof parsed.answer === 'string' ? parsed.answer : '', mentioned });
+    res.status(200).json({ answer: cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), mentioned });
   } catch (err) {
     console.error('Ask agent failed:', err);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
