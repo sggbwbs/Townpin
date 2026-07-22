@@ -348,6 +348,9 @@
   .feedItem .eventDate{flex:none;background:var(--amber);color:#2a1c0d;font-family:'Space Grotesk',sans-serif;
     font-weight:700;font-size:12px;border-radius:6px;padding:6px 8px;text-align:center;line-height:1.15;min-width:48px;}
   .feedItem .eventDate .day{display:block;font-size:22px;}
+  .feedItem .eventDate.eventDateRange{font-size:13px;min-width:64px;white-space:nowrap;padding:10px 8px;}
+  .feedItem .eventTime{font-size:12px;font-weight:700;color:var(--amber-deep);margin-bottom:3px;
+    font-family:'IBM Plex Mono',monospace;}
   .feedItem .feedBody{flex:1;min-width:0;}
   .feedItem b{display:block;font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin-bottom:4px;overflow-wrap:break-word;}
   .feedItem p{margin:0 0 6px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
@@ -1652,13 +1655,25 @@ function makeFeedItemEl(item){
   const summary = lang === 'fi' ? item.summary_fi : item.summary_en;
 
   if (item.event_date){
-    const d = new Date(item.event_date + 'T00:00:00');
+    const startD = new Date(item.event_date + 'T00:00:00');
     const dateBadge = document.createElement('div');
     dateBadge.className = 'eventDate';
-    const weekdays = lang === 'fi'
-      ? ['su','ma','ti','ke','to','pe','la']
-      : ['sun','mon','tue','wed','thu','fri','sat'];
-    dateBadge.innerHTML = `<span class="day">${d.getDate()}</span>${weekdays[d.getDay()]}`;
+
+    const isMultiDay = item.event_end_date && item.event_end_date !== item.event_date;
+    if (isMultiDay){
+      const endD = new Date(item.event_end_date + 'T00:00:00');
+      dateBadge.classList.add('eventDateRange');
+      // "20.–22.7." when both dates fall in the same month, otherwise
+      // "28.7.–2.8." so the month is never ambiguous
+      dateBadge.textContent = startD.getMonth() === endD.getMonth()
+        ? `${startD.getDate()}.–${endD.getDate()}.${endD.getMonth() + 1}.`
+        : `${startD.getDate()}.${startD.getMonth() + 1}.–${endD.getDate()}.${endD.getMonth() + 1}.`;
+    } else {
+      const weekdays = lang === 'fi'
+        ? ['su','ma','ti','ke','to','pe','la']
+        : ['sun','mon','tue','wed','thu','fri','sat'];
+      dateBadge.innerHTML = `<span class="day">${startD.getDate()}</span>${weekdays[startD.getDay()]}`;
+    }
     el.appendChild(dateBadge);
   }
 
@@ -1673,6 +1688,17 @@ function makeFeedItemEl(item){
 
   const body = document.createElement('div');
   body.className = 'feedBody';
+
+  if (item.event_start_time){
+    const timeEl = document.createElement('div');
+    timeEl.className = 'eventTime';
+    const prefix = lang === 'fi' ? 'klo ' : '';
+    timeEl.textContent = item.event_end_time
+      ? `${prefix}${item.event_start_time}–${item.event_end_time}`
+      : `${prefix}${item.event_start_time}`;
+    body.appendChild(timeEl);
+  }
+
   const titleEl = document.createElement('b');
   titleEl.textContent = title;
   const summaryEl = document.createElement('p');
