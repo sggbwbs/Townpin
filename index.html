@@ -1787,7 +1787,7 @@ async function askAsk(question, sendBtn){
     }
     if (Array.isArray(data.webResults) && data.webResults.length > 0){
       html += '<div class="askWebResults">' + data.webResults.map(r =>
-        `<a class="askWebResultChip" href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ↗</a>`
+        `<a class="askWebResultChip" href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? '🔍' : '↗'}</a>`
       ).join('') + '</div>';
     }
     askAppendResult(html);
