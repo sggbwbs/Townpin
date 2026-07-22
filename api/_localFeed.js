@@ -162,6 +162,19 @@ function getHelsinkiDayBounds() {
   return { start, end };
 }
 
+// "HH:MM" in real Europe/Helsinki local time, for showing the actual
+// time of day an event starts/ends -- not just its date.
+function formatHelsinkiTime(isoString) {
+  if (!isoString) return null;
+  try {
+    return new Intl.DateTimeFormat('fi-FI', {
+      timeZone: 'Europe/Helsinki', hour: '2-digit', minute: '2-digit', hour12: false
+    }).format(new Date(isoString));
+  } catch (err) {
+    return null;
+  }
+}
+
 // Real, structured event data from Kaleva's own event platform -- covers
 // all of Northern Finland, so this filters down to Oulu-area venues and
 // genuinely upcoming dates specifically. Found by inspecting the network
@@ -237,6 +250,8 @@ async function fetchOuluEventsFromAPI() {
         summary_fi: getSummary(p),
         event_date: upcoming.start.slice(0, 10),
         event_end_date: upcoming.end ? upcoming.end.slice(0, 10) : null,
+        event_start_time: formatHelsinkiTime(upcoming.start),
+        event_end_time: formatHelsinkiTime(upcoming.end),
         source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`
       }))
       .filter(e => e.title_fi && e.event_date && e.summary_fi);
