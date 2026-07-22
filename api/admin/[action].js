@@ -305,6 +305,54 @@ async function handleMaintenanceStatus(req, res) {
   res.status(200).json({ maintenanceMode: data ? data.value === 'true' : false });
 }
 
+// Deliberately public, no auth check -- fired as a fire-and-forget ping
+// from every real page load (see index.html). Best-effort only: a
+// visitor should never notice or be blocked by anything going wrong
+// here, so failures are swallowed rather than surfaced.
+async function handleTrackVisit(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const { townId } = req.body || {};
+  try {
+    await supabase.from('page_views').insert({ town_id: townId || null });
+  } catch (err) {
+    console.error('Visit tracking failed (non-fatal):', err);
+  }
+  res.status(204).end();
+}
+
+// Simple kävijälaskuri for the admin dashboard -- total, today, and last
+// 7 days. Deliberately basic (no unique-visitor dedup, no per-page
+// breakdown) since that's not what was asked for; just "how much
+// traffic are we getting" at a glance.
+async function handleVisitorStats(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setUTCHours(0, 0, 0, 0);
+  const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  try {
+    const { count: total, error: totalErr } = await supabase
+      .from('page_views').select('id', { count: 'exact', head: true });
+    if (totalErr) throw totalErr;
+
+    const { count: today, error: todayErr } = await supabase
+      .from('page_views').select('id', { count: 'exact', head: true })
+      .gt('created_at', todayStart.toISOString());
+    if (todayErr) throw todayErr;
+
+    const { count: last7Days, error: weekErr } = await supabase
+      .from('page_views').select('id', { count: 'exact', head: true })
+      .gt('created_at', weekStart.toISOString());
+    if (weekErr) throw weekErr;
+
+    res.status(200).json({ total: total || 0, today: today || 0, last7Days: last7Days || 0 });
+  } catch (err) {
+    console.error('Visitor stats lookup failed:', err);
+    res.status(500).json({ error: 'Could not load visitor stats.' });
+  }
+}
+
 async function handleSetMaintenance(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
@@ -332,6 +380,8 @@ module.exports = async (req, res) => {
     case 'enable-town': return handleEnableTown(req, res);
     case 'disable-town': return handleDisableTown(req, res);
     case 'maintenance-status': return handleMaintenanceStatus(req, res);
+    case 'track-visit': return handleTrackVisit(req, res);
+    case 'visitor-stats': return handleVisitorStats(req, res);
     case 'set-maintenance': return handleSetMaintenance(req, res);
     default: return res.status(404).json({ error: 'Unknown admin action.' });
   }

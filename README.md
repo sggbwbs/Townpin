@@ -23,6 +23,8 @@ The site is Finnish-first with an English toggle.
   between them — works the same on phone, tablet, and desktop. Squares
   bought together render as one block with a single logo spanning the
   area.
+- **An AI local-guide search** — a hero search box ("Mitä haluaisit tehdä tänään?") at the top of the page, not a hidden chat widget. Answers are grounded first in this town's real active board businesses and today's real news/events, with web search only as a fallback for things that data doesn't cover (a trail, a museum, a one-off festival). Board businesses are actively promoted when relevant (linked to their own `/pin/{id}` page); anything else recommended gets a real direct link to its own site specifically — never a directory, review site, or booking platform, checked both by instruction and by a real server-side heuristic (does the business's own name actually appear in the domain?) — falling back to a Google search rather than a wrong link or a dead end. Rate-limited per IP (~25 questions/day) since, unlike the RSS-based feeds, every question is a real API call.
+- **Installable as an app (PWA)** — a manifest + service worker mean visitors can install PaikallisCanvas to their home screen like a native app, on Android/Chrome via a real install button, or on iOS via the manual "Add to Home Screen" share-sheet flow (which Safari never exposes a programmatic button for). The service worker deliberately only caches the static shell, never `/api/*` — this is a live-data site, not a good candidate for aggressive offline caching.
 - **A local weather widget** — current Oulu temperature, click to expand
   a 7-day forecast. Uses Open-Meteo (free, no API key, no backend
   endpoint needed — called directly from the browser).
@@ -56,6 +58,9 @@ The site is Finnish-first with an English toggle.
 - **Maintenance mode** — one click puts the homepage under construction
   (a simple "back soon" message) without touching `/manage`, individual
   business pin pages, or this admin panel itself
+- **Kävijälaskuri** — a simple page-load counter (today / last 7 days /
+  all-time). Deliberately basic: no unique-visitor dedup, no per-page
+  breakdown, just "how much traffic are we getting" at a glance.
 
 ## Anti-abuse protections worth knowing about
 
@@ -1429,3 +1434,103 @@ No new serverless function needed — `today-card.html` is a static page
 (same category as `admin.html`/`manage.html`), and it calls the
 *existing* `/api/town` and `/api/feed` endpoints directly from the
 browser.
+
+Card since expanded to show more: today's high/low alongside the
+current temperature, a short plain-language weather description, and up
+to 3 of today's most popular events (previously just 1) instead of one
+long single-event summary.
+
+## New: AI local-guide search (`/api/ask.js`)
+
+A hero search box at the very top of the page — "Mitä haluaisit tehdä
+tänään?" — not a hidden chat bubble. Deliberately the first thing a
+visitor sees, since this is meant to become the site's primary way of
+finding things, not a secondary feature bolted onto the board.
+
+Grounded in real local data, in priority order: this town's active
+board businesses (name, industry, tagline, AI blurb), today's real news
+and events, and — only when that doesn't cover the question — a real
+web search. Board businesses are recommended first when genuinely
+relevant and linked to their own `/pin/{id}` page; that's the whole
+point of the site, not an awkward ad read.
+
+**Anything else recommended by name gets a real, direct link too** —
+not just a name with nothing to click. The URL has to be that specific
+business's own site, never a directory, review site, or reservation/
+booking platform (dinnerbooking.com, TripAdvisor, Visit Oulu, etc.) that
+merely mentions it alongside others — checked both by instruction and
+by an actual server-side heuristic (does the business's real name show
+up in the domain at all?), plus a small known-domain denylist as a fast
+secondary check. When no confident direct link exists — including when
+a business genuinely has no website — it falls back to a Google search
+for that business's name + town, built server-side rather than trusted
+from the model.
+
+**Anchored to the real current date** (Europe/Helsinki time, injected
+into every request) — without this, "this weekend" / "last week"
+reasoning was pure guesswork built from whatever a search result
+happened to say, which is dated to whenever *that page* was written,
+not to right now. Also strips citation markup (`<cite>` tags) that
+web-search-grounded responses include by default, which isn't
+meaningful in a plain chat box with no citation UI to render it in.
+
+Rate-limited at ~25 questions/IP/day (`_rateLimit.js`, same pattern as
+admin login brute-force protection) — normal use is genuinely cheap
+(roughly $0.005–0.015/question on Haiku), but an unattended script
+hammering the endpoint has no other natural ceiling.
+
+## Stayed under Vercel Hobby's 12-serverless-function cap
+
+Adding `ask.js` pushed the real count of non-`_`-prefixed `/api/*.js`
+files to 13 (each file = one function, regardless of internal
+complexity, regardless of `_`-prefixed helpers which don't count).
+Merged two pairs, both zero real-world risk:
+
+- `cleanup.js` + `recheck-squares.js` → `maintenance.js` — both are
+  cron-only, never called from the frontend, distinguished via Vercel's
+  own `x-vercel-cron-schedule` header rather than a query param.
+- `board.js` + `feed.js` → `data.js` — the frontend still calls the
+  exact same `/api/board` and `/api/feed` URLs, completely unchanged,
+  routed to the merged file via `vercel.json` rewrites (which merge the
+  original query params in automatically). Still two separate requests
+  at two separate times, so feed generation still never blocks the
+  board itself from rendering.
+
+Currently at 11 functions — one slot of headroom, not sitting exactly
+at the ceiling.
+
+## Installable as an app (PWA)
+
+`manifest.json` + `sw.js`, wired into `index.html`. Icons generated
+from the existing brand mark (the pin + amber grid SVG in the header),
+not a new design — plain + "maskable" variants (extra padding so
+Android's circular/squircle crop never clips it) at 512/192px, plus a
+180px apple-touch-icon and a 32px favicon.
+
+The service worker is deliberately conservative: it only caches the
+static shell (the HTML document + manifest) for a faster repeat load
+and a basic offline fallback, and explicitly never touches anything
+under `/api/*`. This is a live-data site — board availability, news,
+events, weather, chat answers — and a cache-first service worker is
+exactly how you end up with someone stuck looking at yesterday's board
+after a deploy.
+
+**A real install button, not just a browser-menu option** — a
+dismissible banner under the header shows a genuine "Asenna" button on
+Chrome/Edge/Android (via `beforeinstallprompt`, with the browser's own
+default mini-infobar suppressed in favor of this). iOS Safari never
+fires that event at all, so it gets manual instructions instead ("tap
+the share button → Add to Home Screen") rather than nothing.
+
+## Simple visitor counter (kävijälaskuri) on `/admin`
+
+A new `page_views` table (one row per page load, fired best-effort from
+the frontend once the town resolves) and a new admin dashboard card
+showing today / last 7 days / all-time counts. Deliberately basic — no
+unique-visitor dedup, no IP storage, no per-page breakdown — a rough
+"how much traffic are we getting" number, not an analytics platform.
+
+No new serverless function needed — both the public tracking endpoint
+and the admin-only stats endpoint were added as two new cases in the
+existing `admin/[action].js` dispatcher, the same pattern already used
+for login/logout/content/grant/etc.

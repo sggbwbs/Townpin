@@ -76,6 +76,16 @@
   <p class="sub" style="margin-top:12px;font-size:11.5px;">Only hides the main homepage — existing customer pages, /manage, and this admin panel keep working normally the whole time.</p>
 </div>
 
+<div class="card" id="visitorsCard" style="display:none;">
+  <h1>Kävijälaskuri</h1>
+  <p class="sub" style="margin-bottom:12px;">Simple page-load counter — not unique visitors, just total loads.</p>
+  <div id="visitorStatsRow" style="display:flex;gap:24px;">
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="visitorsToday">–</b><span class="sub" style="margin:0;">Tänään</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="visitorsWeek">–</b><span class="sub" style="margin:0;">7 päivää</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="visitorsTotal">–</b><span class="sub" style="margin:0;">Yhteensä</span></div>
+  </div>
+</div>
+
 <div class="card" id="shareCardCard" style="display:none;">
   <h1>Daily share card</h1>
   <p class="sub" style="margin-bottom:12px;">A downloadable image with today's weather and top event — built for posting in local Facebook groups or social media to bring in real visitors.</p>
@@ -276,6 +286,7 @@ async function showEditor(){
   document.getElementById('moveCard').style.display = 'block';
   document.getElementById('townsCard').style.display = 'block';
   document.getElementById('maintenanceCard').style.display = 'block';
+  document.getElementById('visitorsCard').style.display = 'block';
   document.getElementById('shareCardCard').style.display = 'block';
 
   const res = await fetch(`${API}/content`);
@@ -307,6 +318,7 @@ async function showEditor(){
   loadCompedList();
   loadTownsList();
   loadMaintenanceStatus();
+  loadVisitorStats();
 }
 
 function getFieldValue(key, lang){
@@ -680,6 +692,19 @@ async function loadTownsList(){
 }
 
 let maintenanceIsOn = false;
+
+async function loadVisitorStats(){
+  try {
+    const res = await fetch(`${API}/visitor-stats`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'failed');
+    document.getElementById('visitorsToday').textContent = data.today.toLocaleString('fi-FI');
+    document.getElementById('visitorsWeek').textContent = data.last7Days.toLocaleString('fi-FI');
+    document.getElementById('visitorsTotal').textContent = data.total.toLocaleString('fi-FI');
+  } catch (e) {
+    document.getElementById('visitorStatsRow').innerHTML = '<p class="sub">Could not load visitor stats.</p>';
+  }
+}
 
 async function loadMaintenanceStatus(){
   try {

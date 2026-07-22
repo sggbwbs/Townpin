@@ -1544,6 +1544,14 @@ async function openBoard(name, country, population){
       return;
     }
     currentTown = data.town;
+
+    // Fire-and-forget visit counter for the admin dashboard -- never
+    // awaited, never allowed to affect the real page load either way.
+    fetch(`${API_BASE}/admin/track-visit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ townId: currentTown.id })
+    }).catch(() => {});
     // Clean, shareable URL -- strips the "-fi" country suffix from the
     // internal database slug (e.g. "oulu-fi" -> "/oulu"). Vercel needs a
     // matching explicit rewrite entry for each town's clean slug (see

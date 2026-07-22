@@ -163,3 +163,14 @@ create table if not exists ask_agent_log (
 );
 create index if not exists ask_agent_log_ip_idx on ask_agent_log (ip, created_at);
 
+-- ==== Simple visitor counter (admin dashboard) ====
+-- One row per page load, fired best-effort from the frontend. Deliberately
+-- minimal -- no IP, no session, no per-visitor de-duplication -- this is a
+-- rough "how much traffic are we getting" counter, not analytics.
+create table if not exists page_views (
+  id bigserial primary key,
+  town_id integer references towns(id),
+  created_at timestamptz not null default now()
+);
+create index if not exists page_views_town_created_idx on page_views (town_id, created_at);
+
