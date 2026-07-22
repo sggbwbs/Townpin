@@ -69,15 +69,42 @@
   #newsSection{order:2;}
   #boardCol{order:3;}
 
-  /* ---- company pitch (moved below the news+board section) ---- */
-  #companyPitch{margin-top:48px;padding:36px 28px;background:var(--panelT4);
-    border:1px solid var(--line);border-radius:16px;text-align:center;}
+  /* ---- company info trigger badge (on the board card) + modal ---- */
+  #companyInfoTrigger{display:block;margin:18px auto 0;background:rgba(242,166,90,0.14);
+    border:1px solid rgba(242,166,90,0.35);color:var(--amber);font-family:'IBM Plex Mono',monospace;
+    font-size:12px;padding:8px 16px;border-radius:999px;cursor:pointer;}
+  #companyInfoTrigger:hover{background:rgba(242,166,90,0.24);}
+
+  #companyInfoOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
+    align-items:center;justify-content:center;padding:20px;}
+  #companyInfoModal{position:relative;background:var(--paper);color:#26210f;width:100%;max-width:780px;
+    border-radius:14px;padding:40px 32px 32px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-lg);
+    font-family:'IBM Plex Sans',sans-serif;text-align:center;}
+  #companyInfoModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:#8a8168;
+    background:none;border:none;width:28px;height:28px;border-radius:50%;}
+  #companyInfoModal .close:hover{background:rgba(0,0,0,0.06);}
+
+  /* This modal is always a light card, regardless of the site's own
+     dark/light theme toggle (same convention as #legalModal) -- so
+     everything inside it needs fixed colors, not the theme variables
+     (--ink, --ink-dim, --panelT4, --line) used when this content used
+     to live inline on the page and shared the page's own background. */
+  #companyInfoModal h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,4vw,34px);margin:8px 0 16px;line-height:1.15;color:#26210f;}
+  #companyInfoModal h1 span{color:#b9773a;}
+  #companyInfoModal p.sub{color:#5c5440;font-size:15px;max-width:640px;margin:0 auto 24px;line-height:1.6;}
+  #companyInfoModal h2{color:#26210f !important;}
+  #companyInfoModal .valueCard{color:#5c5440;}
+  #companyInfoModal .valueCard b{color:#26210f;}
+  #companyInfoModal .factCard, #companyInfoModal .hiwStep{background:rgba(0,0,0,0.035);border-color:#e4dcc4;}
+  #companyInfoModal .factCard span, #companyInfoModal .hiwStep span, #companyInfoModal .factsNote{color:#5c5440;}
+  #companyInfoModal .faqItem{border-bottom-color:#e4dcc4;}
+  #companyInfoModal .faqQ{color:#26210f;}
+  #companyInfoModal .faqA{color:#5c5440;}
+  #companyInfoModal #earlyBanner{color:#26210f;}
+
   .pitchEyebrow{display:inline-flex;align-items:center;gap:6px;background:rgba(242,166,90,0.14);
     border:1px solid rgba(242,166,90,0.35);color:var(--amber);font-family:'IBM Plex Mono',monospace;
     font-size:12px;padding:6px 14px;border-radius:999px;margin-bottom:18px;}
-  #companyPitch h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,4.4vw,38px);margin:0 0 16px;line-height:1.15;}
-  #companyPitch h1 span{color:var(--amber);}
-  #companyPitch p.sub{color:var(--ink-dim);font-size:15.5px;max-width:640px;margin:0 auto 28px;line-height:1.65;}
 
   .valueRow{display:flex;gap:28px;justify-content:center;margin:8px 0 20px;flex-wrap:wrap;}
   #volumeNote{text-align:center;font-size:12.5px;color:var(--amber);font-family:'IBM Plex Mono',monospace;
@@ -521,6 +548,8 @@
         <button class="cancel" id="selectionCancel" data-i18n="cancelSelection">Peruuta</button>
         <button class="go" id="selectionGo" data-i18n="continueSelection">Jatka →</button>
       </div>
+
+      <button id="companyInfoTrigger" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</button>
     </div>
 
     <div id="newsSection" style="display:none;">
@@ -538,72 +567,6 @@
         <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
       </div>
     </div>
-  </div>
-
-  <div id="companyPitch">
-    <span class="pitchEyebrow" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</span>
-    <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h1>
-    <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Ruutu maksaa silti vain 5€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.</p>
-
-    <div class="valueRow">
-      <div class="valueCard"><b data-i18n="value1b">5€/kk</b> <span data-i18n="value1">murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa</span></div>
-      <div class="valueCard"><b data-i18n="value2b">Löydettävissä Googlesta</b> <span data-i18n="value2">yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua</span></div>
-      <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
-    </div>
-
-    <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi ruutu ja säästä: 4€/kk per ruutu.</div>
-
-    <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
-
-    <div id="searchWrap" class="open" style="display:none;">
-      <div id="searchRow">
-        <input type="text" id="townInput" autocomplete="off" data-i18n-placeholder="townPlaceholder" placeholder="Kaupungin nimi (esim. Tampere)" />
-        <button id="searchBtn" data-i18n="viewBoard">Katso taulu →</button>
-      </div>
-      <div id="suggestions"></div>
-    </div>
-    <div id="homeErr"></div>
-  </div>
-
-  <div id="factsSection">
-    <h2 data-i18n="factsTitle">Miksi paikallinen näkyvyys kannattaa</h2>
-    <div class="factsRow">
-      <div class="factCard"><b>46%</b><span data-i18n="fact1">kaikista Google-hauista koskee jotain paikallista</span></div>
-      <div class="factCard"><b>76%</b><span data-i18n="fact2">hakijoista, jotka etsivät jotain "lähellä", käy yrityksessä 24 tunnin sisällä</span></div>
-      <div class="factCard"><b>98%</b><span data-i18n="fact3">kuluttajista etsii paikallisia yrityksiä netistä ennen kuin asioi niiden kanssa</span></div>
-    </div>
-    <p class="factsNote" data-i18n="factsNote">Lähde: Google / Think with Google, BrightLocal. Luvut kuvaavat yleistä hakukäyttäytymistä Suomessa ja muualla — emme väitä, että ne kuvaavat suoraan tämän palvelun tuomaa liikennettä juuri sinun yrityksellesi.</p>
-  </div>
-
-  <div id="howItWorks">
-    <h2 data-i18n="hiwTitle">Näin se toimii</h2>
-    <div class="hiwSteps">
-      <div class="hiwStep"><b>1</b><span data-i18n="hiw2">Klikkaa yksi tai useampi vapaa ruutu</span></div>
-      <div class="hiwStep"><b>2</b><span data-i18n="hiw3">Täytä yrityksesi tiedot ja maksa turvallisesti Stripen kautta</span></div>
-      <div class="hiwStep"><b>3</b><span data-i18n="hiw4">Ruutu ja oma verkkosivusi ovat käytössä heti maksun jälkeen</span></div>
-    </div>
-  </div>
-
-  <div id="faq">
-    <h2 data-i18n="faqTitle">Usein kysyttyä</h2>
-    <div class="faqItem">
-      <button class="faqQ"><span data-i18n="faqQ1">Onko tämä luotettava palvelu?</span><span class="faqToggle">+</span></button>
-      <p class="faqA" data-i18n="faqA1">Maksut käsittelee Stripe, jota käyttävät miljoonat yritykset ympäri maailman — emme koskaan näe tai tallenna korttitietojasi.</p></div>
-    <div class="faqItem">
-      <button class="faqQ"><span data-i18n="faqQ2">Mitä oikeasti saan rahalleni?</span><span class="faqToggle">+</span></button>
-      <p class="faqA" data-i18n="faqA2">Ruudun ilmoitustaululla omalla logollasi, sekä oman esittelysivun, joka linkittää suoraan yrityksesi omalle verkkosivulle.</p></div>
-    <div class="faqItem">
-      <button class="faqQ"><span data-i18n="faqQ3">Voinko peruuttaa milloin vain?</span><span class="faqToggle">+</span></button>
-      <p class="faqA" data-i18n="faqA3">Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan. Kun peruutat, ruutu pysyy näkyvissä jo maksetun jakson loppuun asti, minkä jälkeen se vapautuu.</p></div>
-    <div class="faqItem">
-      <button class="faqQ"><span data-i18n="faqQ4">Tarkistetaanko ilmoitukset?</span><span class="faqToggle">+</span></button>
-      <p class="faqA" data-i18n="faqA4">Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.</p></div>
-    <div class="faqItem">
-      <button class="faqQ"><span data-i18n="faqQ5">Näynkö heti Google-haussa?</span><span class="faqToggle">+</span></button>
-      <p class="faqA" data-i18n="faqA5">Sivusi julkaistaan heti, mutta hakukoneiden indeksointi voi viedä muutamasta päivästä pariin viikkoon — emme voi luvata tarkkaa aikataulua tai sijoitusta hakutuloksissa.</p></div>
-    <div class="faqItem">
-      <button class="faqQ"><span data-i18n="faqQ6">Kuukausitilaus vai kertamaksu — kumpi kannattaa?</span><span class="faqToggle">+</span></button>
-      <p class="faqA" data-i18n="faqA6">Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.</p></div>
   </div>
 </main>
 
@@ -718,6 +681,76 @@
   <a href="mailto:paikalliscanvas@gmail.com">paikalliscanvas@gmail.com</a>
   <span class="sep">·</span>
   <a href="#" id="legalLink" data-i18n="legalLinkText">Ehdot ja tietosuoja</a>
+</div>
+
+<div id="companyInfoOverlay">
+  <div id="companyInfoModal">
+    <button class="close" id="companyInfoClose">✕</button>
+
+    <span class="pitchEyebrow" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</span>
+    <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h1>
+    <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Ruutu maksaa silti vain 5€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.</p>
+
+    <div class="valueRow">
+      <div class="valueCard"><b data-i18n="value1b">5€/kk</b> <span data-i18n="value1">murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa</span></div>
+      <div class="valueCard"><b data-i18n="value2b">Löydettävissä Googlesta</b> <span data-i18n="value2">yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua</span></div>
+      <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
+    </div>
+
+    <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi ruutu ja säästä: 4€/kk per ruutu.</div>
+
+    <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
+
+    <div id="searchWrap" class="open" style="display:none;">
+      <div id="searchRow">
+        <input type="text" id="townInput" autocomplete="off" data-i18n-placeholder="townPlaceholder" placeholder="Kaupungin nimi (esim. Tampere)" />
+        <button id="searchBtn" data-i18n="viewBoard">Katso taulu →</button>
+      </div>
+      <div id="suggestions"></div>
+    </div>
+    <div id="homeErr"></div>
+
+    <div id="factsSection">
+      <h2 data-i18n="factsTitle">Miksi paikallinen näkyvyys kannattaa</h2>
+      <div class="factsRow">
+        <div class="factCard"><b>46%</b><span data-i18n="fact1">kaikista Google-hauista koskee jotain paikallista</span></div>
+        <div class="factCard"><b>76%</b><span data-i18n="fact2">hakijoista, jotka etsivät jotain "lähellä", käy yrityksessä 24 tunnin sisällä</span></div>
+        <div class="factCard"><b>98%</b><span data-i18n="fact3">kuluttajista etsii paikallisia yrityksiä netistä ennen kuin asioi niiden kanssa</span></div>
+      </div>
+      <p class="factsNote" data-i18n="factsNote">Lähde: Google / Think with Google, BrightLocal. Luvut kuvaavat yleistä hakukäyttäytymistä Suomessa ja muualla — emme väitä, että ne kuvaavat suoraan tämän palvelun tuomaa liikennettä juuri sinun yrityksellesi.</p>
+    </div>
+
+    <div id="howItWorks">
+      <h2 data-i18n="hiwTitle">Näin se toimii</h2>
+      <div class="hiwSteps">
+        <div class="hiwStep"><b>1</b><span data-i18n="hiw2">Klikkaa yksi tai useampi vapaa ruutu</span></div>
+        <div class="hiwStep"><b>2</b><span data-i18n="hiw3">Täytä yrityksesi tiedot ja maksa turvallisesti Stripen kautta</span></div>
+        <div class="hiwStep"><b>3</b><span data-i18n="hiw4">Ruutu ja oma verkkosivusi ovat käytössä heti maksun jälkeen</span></div>
+      </div>
+    </div>
+
+    <div id="faq">
+      <h2 data-i18n="faqTitle">Usein kysyttyä</h2>
+      <div class="faqItem">
+        <button class="faqQ"><span data-i18n="faqQ1">Onko tämä luotettava palvelu?</span><span class="faqToggle">+</span></button>
+        <p class="faqA" data-i18n="faqA1">Maksut käsittelee Stripe, jota käyttävät miljoonat yritykset ympäri maailman — emme koskaan näe tai tallenna korttitietojasi.</p></div>
+      <div class="faqItem">
+        <button class="faqQ"><span data-i18n="faqQ2">Mitä oikeasti saan rahalleni?</span><span class="faqToggle">+</span></button>
+        <p class="faqA" data-i18n="faqA2">Ruudun ilmoitustaululla omalla logollasi, sekä oman esittelysivun, joka linkittää suoraan yrityksesi omalle verkkosivulle.</p></div>
+      <div class="faqItem">
+        <button class="faqQ"><span data-i18n="faqQ3">Voinko peruuttaa milloin vain?</span><span class="faqToggle">+</span></button>
+        <p class="faqA" data-i18n="faqA3">Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan. Kun peruutat, ruutu pysyy näkyvissä jo maksetun jakson loppuun asti, minkä jälkeen se vapautuu.</p></div>
+      <div class="faqItem">
+        <button class="faqQ"><span data-i18n="faqQ4">Tarkistetaanko ilmoitukset?</span><span class="faqToggle">+</span></button>
+        <p class="faqA" data-i18n="faqA4">Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.</p></div>
+      <div class="faqItem">
+        <button class="faqQ"><span data-i18n="faqQ5">Näynkö heti Google-haussa?</span><span class="faqToggle">+</span></button>
+        <p class="faqA" data-i18n="faqA5">Sivusi julkaistaan heti, mutta hakukoneiden indeksointi voi viedä muutamasta päivästä pariin viikkoon — emme voi luvata tarkkaa aikataulua tai sijoitusta hakutuloksissa.</p></div>
+      <div class="faqItem">
+        <button class="faqQ"><span data-i18n="faqQ6">Kuukausitilaus vai kertamaksu — kumpi kannattaa?</span><span class="faqToggle">+</span></button>
+        <p class="faqA" data-i18n="faqA6">Molemmat toimivat samalla ruudulla. Kuukausitilaus veloittaa kuukausittain ja voit peruuttaa milloin vain. Kertamaksulla maksat 3, 6 tai 12 kuukauden jakson kerralla etukäteen ja saat alennuksen (12 kk = 2 kuukautta ilmaiseksi) — jakso ei uusiudu automaattisesti, joten et joudu muistamaan peruuttaa.</p></div>
+    </div>
+  </div>
 </div>
 
 <div id="legalOverlay">
@@ -1431,6 +1464,16 @@ document.getElementById('legalClose').addEventListener('click', ()=>{
 });
 document.getElementById('legalOverlay').addEventListener('click', (e)=>{
   if (e.target.id === 'legalOverlay') e.currentTarget.style.display = 'none';
+});
+
+document.getElementById('companyInfoTrigger').addEventListener('click', ()=>{
+  document.getElementById('companyInfoOverlay').style.display = 'flex';
+});
+document.getElementById('companyInfoClose').addEventListener('click', ()=>{
+  document.getElementById('companyInfoOverlay').style.display = 'none';
+});
+document.getElementById('companyInfoOverlay').addEventListener('click', (e)=>{
+  if (e.target.id === 'companyInfoOverlay') e.currentTarget.style.display = 'none';
 });
 
 function setLang(l){
