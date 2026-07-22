@@ -396,13 +396,18 @@ async function getRealCostFromAnthropic(monthStartIso) {
   // Sum every line item across every day bucket returned -- a single
   // month always fits in one page (max 31 one-day buckets, the API's
   // own limit ceiling), so no pagination is needed here.
-  let totalUsd = 0;
+  //
+  // IMPORTANT: "amount" is reported in the currency's lowest unit --
+  // cents for USD, not whole dollars (confirmed the hard way: an
+  // earlier version of this summed it as whole dollars and reported
+  // ~100x real spend). Divide by 100 to get actual USD.
+  let totalUsdCents = 0;
   for (const bucket of data.data || []) {
     for (const line of bucket.results || []) {
-      totalUsd += parseFloat(line.amount) || 0;
+      totalUsdCents += parseFloat(line.amount) || 0;
     }
   }
-  return totalUsd;
+  return totalUsdCents / 100;
 }
 
 async function handleCostEstimate(req, res) {
