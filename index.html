@@ -386,9 +386,13 @@
   .askResultBlock.askQuestionEcho{background:none;border:none;padding:4px 4px 4px 18px;margin-bottom:6px;
     font-weight:700;font-family:'Space Grotesk',sans-serif;color:var(--ink-dim);font-size:13.5px;}
   .askMentions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
-  .askMentionChip{font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);
-    background:var(--panelT7);color:var(--ink);text-decoration:none;}
-  .askMentionChip:hover{border-color:var(--amber);color:var(--amber-deep);}
+  .askMentionChip{font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid var(--amber);
+    background:var(--amber);color:#2a1c0d;font-weight:700;text-decoration:none;}
+  .askMentionChip:hover{background:var(--amber-deep);border-color:var(--amber-deep);}
+  .askWebResults{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .askWebResultChip{font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);
+    background:none;color:var(--ink-dim);text-decoration:none;}
+  .askWebResultChip:hover{border-color:var(--ink-dim);color:var(--ink);}
   #askFollowupRow{display:flex;gap:8px;margin-top:4px;}
   #askFollowupInput{flex:1;padding:10px 16px;border-radius:999px;border:1px solid var(--line);
     background:var(--panelT7);color:var(--ink);font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;}
@@ -1779,6 +1783,11 @@ async function askAsk(question, sendBtn){
     if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
       html += '<div class="askMentions">' + data.mentioned.map(m =>
         `<a class="askMentionChip" href="/pin/${m.squareId}" target="_blank" rel="noopener">${escapeAskText(m.name)} ↗</a>`
+      ).join('') + '</div>';
+    }
+    if (Array.isArray(data.webResults) && data.webResults.length > 0){
+      html += '<div class="askWebResults">' + data.webResults.map(r =>
+        `<a class="askWebResultChip" href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ↗</a>`
       ).join('') + '</div>';
     }
     askAppendResult(html);
