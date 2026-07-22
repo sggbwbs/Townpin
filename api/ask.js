@@ -40,6 +40,19 @@ function cleanAnswerText(text) {
     .trim();
 }
 
+// The model is never otherwise told what "today" actually is -- without
+// this, date reasoning ("this weekend", "next week") is pure guesswork
+// built from whatever a search result happens to say, and search results
+// describing an event as "this weekend" are dated to when THAT PAGE was
+// written, not to right now. Computed in Europe/Helsinki time, matching
+// how the rest of the site (weather, events cutoff) already anchors
+// "today" -- see getHelsinkiDayBounds in _localFeed.js.
+function getHelsinkiTodayLabel() {
+  return new Intl.DateTimeFormat('fi-FI', {
+    timeZone: 'Europe/Helsinki', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  }).format(new Date());
+}
+
 // Same category labels shown on pin pages (api/pin/[id].js) -- duplicated
 // here rather than imported, since it's small, static, and this keeps the
 // two endpoints from being coupled to each other's internals.
@@ -112,6 +125,8 @@ module.exports = async (req, res) => {
     const newsContext = (news || []).map(n => ({ title: n.title_fi, summary: n.summary_fi }));
 
     const systemPrompt = `You are a friendly, knowledgeable local guide for ${town.name}, Finland, embedded as the main search/ask box on PaikallisCanvas, a local business directory site. Someone just typed what they'd like to do -- an activity ("go hiking", "swim somewhere"), a craving ("where to eat sushi"), or a general question about local events or things to do.
+
+Today's real date is ${getHelsinkiTodayLabel()} (Europe/Helsinki time). Treat this as ground truth for ANY relative date reasoning -- today, this weekend, tomorrow, last week, next month, and so on. Never infer today's date from a search result: a page saying an event is happening "this weekend" is describing the weekend relative to whenever that page was written, not relative to right now -- always re-derive whether something is upcoming, ongoing, or already over by comparing its actual date against the real date above, not by repeating a search result's own relative phrasing.
 
 Answer in the SAME language the visitor asked in (Finnish or English) -- detect it from their question, don't ask which they prefer.
 
