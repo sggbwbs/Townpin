@@ -86,6 +86,29 @@
   </div>
 </div>
 
+<div class="card" id="costCard" style="display:none;">
+  <h1>AI-kustannusarvio</h1>
+  <p class="sub" style="margin-bottom:14px;">
+    <b>Tämä on arvio, ei todellinen laskutustieto.</b> Perustuu AI-avustajan
+    kysymysmäärään tässä kuussa × arvioitu keskihinta per kysymys. Kattaa
+    vain AI-avustajan (<code>/api/ask</code>) kustannuksen — ei Supabasea,
+    Vercelia tai muita palveluja. Tarkista todellinen kulutus
+    <a href="https://console.anthropic.com" target="_blank" style="color:#8a8168;">Anthropic Consolesta</a>
+    ja Supabase-laskutuksesta.
+  </p>
+  <div id="costStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:#26210f;" id="costQuestions">–</b><span class="sub" style="margin:0;">Kysymyksiä tässä kuussa</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:#26210f;" id="costEstimate">–</b><span class="sub" style="margin:0;">Arvioitu kulutus</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;" id="costRemaining">–</b><span class="sub" style="margin:0;">Budjettia jäljellä</span></div>
+  </div>
+  <div class="field" style="margin-bottom:8px;">
+    <label>Kuukausibudjetti ($)</label>
+    <input type="text" id="budgetInput" placeholder="esim. 25" />
+  </div>
+  <button id="saveBudgetBtn">Tallenna budjetti</button>
+  <span class="saved" id="budgetSaved">Tallennettu ✓</span>
+</div>
+
 <div class="card" id="shareCardCard" style="display:none;">
   <h1>Daily share card</h1>
   <p class="sub" style="margin-bottom:12px;">A downloadable image with today's weather and top event — built for posting in local Facebook groups or social media to bring in real visitors.</p>
@@ -287,6 +310,7 @@ async function showEditor(){
   document.getElementById('townsCard').style.display = 'block';
   document.getElementById('maintenanceCard').style.display = 'block';
   document.getElementById('visitorsCard').style.display = 'block';
+  document.getElementById('costCard').style.display = 'block';
   document.getElementById('shareCardCard').style.display = 'block';
 
   const res = await fetch(`${API}/content`);
@@ -319,6 +343,7 @@ async function showEditor(){
   loadTownsList();
   loadMaintenanceStatus();
   loadVisitorStats();
+  loadCostEstimate();
 }
 
 function getFieldValue(key, lang){
@@ -705,6 +730,50 @@ async function loadVisitorStats(){
     document.getElementById('visitorStatsRow').innerHTML = '<p class="sub">Could not load visitor stats.</p>';
   }
 }
+
+async function loadCostEstimate(){
+  try {
+    const res = await fetch(`${API}/cost-estimate`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'failed');
+    document.getElementById('costQuestions').textContent = data.questionsThisMonth.toLocaleString('fi-FI');
+    document.getElementById('costEstimate').textContent = '~$' + data.estimatedSpend.toFixed(2);
+    document.getElementById('budgetInput').value = data.monthlyBudget !== null ? data.monthlyBudget : '';
+
+    const remainingEl = document.getElementById('costRemaining');
+    if (data.monthlyBudget === null) {
+      remainingEl.textContent = '–';
+      remainingEl.style.color = '#26210f';
+    } else {
+      remainingEl.textContent = '~$' + data.remaining.toFixed(2);
+      remainingEl.style.color = data.remaining < 0 ? '#b8452f' : '#26210f';
+    }
+  } catch (e) {
+    document.getElementById('costStatsRow').innerHTML = '<p class="sub">Could not load cost estimate.</p>';
+  }
+}
+
+document.getElementById('saveBudgetBtn').addEventListener('click', async () => {
+  const val = document.getElementById('budgetInput').value.trim();
+  const num = Number(val);
+  if (val === '' || !Number.isFinite(num) || num < 0) {
+    alert('Anna kelvollinen budjetti (esim. 25).');
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/set-budget`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ monthlyBudget: num })
+    });
+    if (!res.ok) throw new Error();
+    const msg = document.getElementById('budgetSaved');
+    msg.style.display = 'inline';
+    setTimeout(() => msg.style.display = 'none', 2500);
+    loadCostEstimate();
+  } catch (e) {
+    alert('Tallennus epäonnistui — yritä uudelleen.');
+  }
+});
 
 async function loadMaintenanceStatus(){
   try {

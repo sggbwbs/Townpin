@@ -353,6 +353,69 @@ async function handleVisitorStats(req, res) {
   }
 }
 
+// Rough cost model for the AI local-guide agent (see api/ask.js) --
+// deliberately NOT real billing data, since that would require a
+// separate, much more sensitive "Admin API key" from Anthropic (broad,
+// revocable read-write access to the whole organization -- a real step
+// up from the regular API key already used elsewhere in this project).
+// This is an honest estimate instead, built from something we already
+// have: how many questions were actually asked this month, times a
+// blended real-world per-question cost (Haiku input/output tokens, plus
+// the ~$0.01/search cost on the fraction of questions that trigger a
+// web search). Good enough to catch "something is clearly wrong" or
+// "we're on track" -- not a substitute for checking the real Anthropic
+// Console and Supabase billing pages periodically for ground truth.
+const ESTIMATED_COST_PER_QUESTION = 0.01;
+
+async function handleCostEstimate(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+
+  const monthStart = new Date();
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+
+  try {
+    const { count: questionsThisMonth, error: countErr } = await supabase
+      .from('ask_agent_log')
+      .select('id', { count: 'exact', head: true })
+      .gt('created_at', monthStart.toISOString());
+    if (countErr) throw countErr;
+
+    const { data: budgetRow } = await supabase
+      .from('site_settings').select('value').eq('key', 'monthly_ai_budget').maybeSingle();
+    const monthlyBudget = budgetRow ? Number(budgetRow.value) : null;
+
+    const estimatedSpend = (questionsThisMonth || 0) * ESTIMATED_COST_PER_QUESTION;
+    const remaining = monthlyBudget !== null ? monthlyBudget - estimatedSpend : null;
+
+    res.status(200).json({
+      questionsThisMonth: questionsThisMonth || 0,
+      estimatedSpend,
+      monthlyBudget,
+      remaining,
+      isEstimate: true // the frontend should always label this clearly -- it is not real billing data
+    });
+  } catch (err) {
+    console.error('Cost estimate lookup failed:', err);
+    res.status(500).json({ error: 'Could not load cost estimate.' });
+  }
+}
+
+async function handleSetBudget(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { monthlyBudget } = req.body || {};
+  const num = Number(monthlyBudget);
+  if (!Number.isFinite(num) || num < 0) {
+    return res.status(400).json({ error: 'Budget must be a non-negative number.' });
+  }
+  const { error } = await supabase
+    .from('site_settings')
+    .upsert({ key: 'monthly_ai_budget', value: String(num), updated_at: new Date().toISOString() });
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not save budget.' }); }
+  res.status(200).json({ ok: true });
+}
+
 async function handleSetMaintenance(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
@@ -382,6 +445,8 @@ module.exports = async (req, res) => {
     case 'maintenance-status': return handleMaintenanceStatus(req, res);
     case 'track-visit': return handleTrackVisit(req, res);
     case 'visitor-stats': return handleVisitorStats(req, res);
+    case 'cost-estimate': return handleCostEstimate(req, res);
+    case 'set-budget': return handleSetBudget(req, res);
     case 'set-maintenance': return handleSetMaintenance(req, res);
     default: return res.status(404).json({ error: 'Unknown admin action.' });
   }
