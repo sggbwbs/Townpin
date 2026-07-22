@@ -13,6 +13,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PaikallisCanvas — Oulun yritysten ilmoitustaulu</title>
 <meta name="description" content="Varaa yrityksellesi ruutu Oulun ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen ruutu saa oman esittelysivun, joka voi näkyä Googlen hakutuloksissa." />
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#e08e3e" />
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="PaikallisCanvas" />
 
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
@@ -348,6 +355,41 @@
     #boardCol{order:2;}
     #newsCol{padding-top:24px;}
   }
+
+  /* ---- AI local-guide chat widget ---- */
+  #askWidget{position:fixed;right:20px;bottom:20px;z-index:200;}
+  #askBubbleBtn{width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
+    background:var(--amber);box-shadow:0 6px 20px rgba(224,138,60,0.45);
+    font-size:26px;display:flex;align-items:center;justify-content:center;
+    transition:transform .15s ease;}
+  #askBubbleBtn:hover{transform:scale(1.06);}
+  #askPanel{position:fixed;right:20px;bottom:90px;width:360px;max-width:calc(100vw - 40px);
+    height:min(560px, 70vh);background:var(--paper);border:1px solid var(--line);
+    border-radius:16px;box-shadow:0 16px 48px rgba(42,33,16,0.25);
+    display:flex;flex-direction:column;overflow:hidden;}
+  #askPanelHeader{flex:none;display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;border-bottom:1px solid var(--line);
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14.5px;color:var(--ink);}
+  #askCloseBtn{background:none;border:none;cursor:pointer;font-size:16px;color:var(--ink-dim);padding:2px 6px;}
+  #askMessages{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px;}
+  .askMsg{max-width:85%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.5;}
+  .askMsg.assistant{align-self:flex-start;background:var(--panelT4);color:var(--ink);border-bottom-left-radius:4px;}
+  .askMsg.user{align-self:flex-end;background:var(--amber);color:#2a1c0d;border-bottom-right-radius:4px;}
+  .askMsg.pending{color:var(--ink-dim);font-style:italic;}
+  .askMentions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .askMentionChip{font-size:11.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);
+    background:var(--panelT7);color:var(--ink);text-decoration:none;}
+  .askMentionChip:hover{border-color:var(--amber);color:var(--amber-deep);}
+  #askInputRow{flex:none;display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);}
+  #askInput{flex:1;padding:10px 14px;border-radius:999px;border:1px solid var(--line);
+    background:var(--panelT7);color:var(--ink);font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;}
+  #askSendBtn{flex:none;width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
+    background:var(--amber);color:#2a1c0d;font-size:16px;font-weight:700;}
+  #askSendBtn:disabled{opacity:0.5;cursor:default;}
+  @media (max-width:480px){
+    #askPanel{right:12px;left:12px;width:auto;bottom:158px;}
+    #askWidget{right:14px;bottom:90px;}
+  }
 </style>
 </head>
 <body>
@@ -661,8 +703,35 @@
 
 <footer data-i18n="footerText">PaikallisCanvas · varaa ruutu, saat sivun, peruuta milloin vain</footer>
 
+<div id="askWidget">
+  <button id="askBubbleBtn" aria-label="Kysy paikallisilta">
+    <span id="askBubbleIcon">💬</span>
+  </button>
+
+  <div id="askPanel" style="display:none;">
+    <div id="askPanelHeader">
+      <span data-i18n="askTitle">Kysy paikallisilta</span>
+      <button id="askCloseBtn" aria-label="Sulje">✕</button>
+    </div>
+    <div id="askMessages"></div>
+    <div id="askInputRow">
+      <input type="text" id="askInput" autocomplete="off" data-i18n-placeholder="askPlaceholder" placeholder="Mitä tänään tapahtuu Oulussa?" />
+      <button id="askSendBtn" aria-label="Lähetä">↑</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API_BASE = '/api';
+
+// PWA installability -- see sw.js for exactly what it does and doesn't
+// cache (short version: never touches /api/, only speeds up repeat
+// loads of the static shell).
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 // Paired with FOUNDING_COUPON_ID in api/create-checkout-session.js -- when
 // you remove that coupon there (or unset the env var), also flip this to
 // false so the on-site badge/copy stops promising a discount checkout no
@@ -1028,6 +1097,12 @@ const STRINGS = {
     newsCatPohjoisSuomi: 'Pohjois-Suomi',
     newsCatKotimaa: 'Kotimaa',
     newsCatUlkomaat: 'Ulkomaat',
+    askTitle: 'Kysy paikallisilta',
+    askPlaceholder: 'Mitä tänään tapahtuu Oulussa?',
+    askGreeting: 'Hei! Kysy minulta vaikka tämän päivän tapahtumista, hyvistä ruokapaikoista tai tekemisestä Oulussa.',
+    askThinking: 'Mietitään…',
+    askError: 'Jokin meni pieleen. Kokeile hetken kuluttua uudelleen.',
+    askRateLimited: 'Liian monta kysymystä tänään -- kokeile huomenna uudelleen.',
     newsSectionTitle: 'Uutiset',
     eventsSectionTitle: 'Tapahtumat tänään',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
@@ -1149,6 +1224,12 @@ const STRINGS = {
     newsCatPohjoisSuomi: 'Northern Finland',
     newsCatKotimaa: 'Domestic',
     newsCatUlkomaat: 'World',
+    askTitle: 'Ask a local',
+    askPlaceholder: "What's on in Oulu today?",
+    askGreeting: "Hi! Ask me about today's events, good places to eat, or things to do in Oulu.",
+    askThinking: 'Thinking…',
+    askError: 'Something went wrong. Please try again in a moment.',
+    askRateLimited: 'Too many questions today -- try again tomorrow.',
     newsSectionTitle: 'News',
     eventsSectionTitle: 'Events today',
     noEventsThisWeek: 'No known events for this week.',
@@ -1546,6 +1627,102 @@ document.getElementById('newsCategoryFilter').addEventListener('change', (e)=>{
   currentNewsCategory = e.target.value;
   newsExpanded = false;
   loadFeed();
+});
+
+// ---- AI local-guide chat widget ----
+let askHistory = [];      // {role:'user'|'assistant', content:string}[] sent to /api/ask as context
+let askGreeted = false;   // show the greeting once per page load, not stored in askHistory (purely client-side copy)
+let askPending = false;
+
+function askAppendMessage(role, html, extraClass){
+  const box = document.getElementById('askMessages');
+  const el = document.createElement('div');
+  el.className = `askMsg ${role}${extraClass ? ' ' + extraClass : ''}`;
+  el.innerHTML = html;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  return el;
+}
+
+function askOpenPanel(){
+  document.getElementById('askPanel').style.display = 'flex';
+  if (!askGreeted){
+    askGreeted = true;
+    askAppendMessage('assistant', escapeAskText(t('askGreeting')));
+  }
+  document.getElementById('askInput').focus();
+}
+function askClosePanel(){
+  document.getElementById('askPanel').style.display = 'none';
+}
+function escapeAskText(str){
+  return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+document.getElementById('askBubbleBtn').addEventListener('click', ()=>{
+  const panel = document.getElementById('askPanel');
+  if (panel.style.display === 'none') askOpenPanel(); else askClosePanel();
+});
+document.getElementById('askCloseBtn').addEventListener('click', askClosePanel);
+
+async function askSend(){
+  const input = document.getElementById('askInput');
+  const question = input.value.trim();
+  if (!question || askPending || !currentTown) return;
+
+  askPending = true;
+  document.getElementById('askSendBtn').disabled = true;
+  input.value = '';
+  askAppendMessage('user', escapeAskText(question));
+  const pendingEl = askAppendMessage('assistant', escapeAskText(t('askThinking')), 'pending');
+
+  try {
+    const res = await fetch(`${API_BASE}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ townId: currentTown.id, question, history: askHistory })
+    });
+
+    if (res.status === 429){
+      pendingEl.remove();
+      askAppendMessage('assistant', escapeAskText(t('askRateLimited')));
+      return;
+    }
+    if (!res.ok){
+      pendingEl.remove();
+      askAppendMessage('assistant', escapeAskText(t('askError')));
+      return;
+    }
+
+    const data = await res.json();
+    pendingEl.remove();
+
+    const answer = data.answer || t('askError');
+    let html = escapeAskText(answer);
+    if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
+      html += '<div class="askMentions">' + data.mentioned.map(m =>
+        `<a class="askMentionChip" href="/pin/${m.squareId}" target="_blank" rel="noopener">${escapeAskText(m.name)} ↗</a>`
+      ).join('') + '</div>';
+    }
+    askAppendMessage('assistant', html);
+
+    // Keep server-side context bounded too (see MAX_HISTORY_TURNS in
+    // api/ask.js) -- trimming here as well just avoids sending an
+    // ever-growing payload on every single message as a chat goes long.
+    askHistory.push({ role: 'user', content: question });
+    askHistory.push({ role: 'assistant', content: answer });
+    askHistory = askHistory.slice(-6);
+  } catch (err) {
+    pendingEl.remove();
+    askAppendMessage('assistant', escapeAskText(t('askError')));
+  } finally {
+    askPending = false;
+    document.getElementById('askSendBtn').disabled = false;
+  }
+}
+document.getElementById('askSendBtn').addEventListener('click', askSend);
+document.getElementById('askInput').addEventListener('keydown', (e)=>{
+  if (e.key === 'Enter') askSend();
 });
 
 // Cell sizing is now handled entirely by CSS (aspect-ratio on #grid),

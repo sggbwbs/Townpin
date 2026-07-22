@@ -150,3 +150,16 @@ alter table local_feed_items add column if not exists image_url text;
 -- ==== IP-based reservation rate limiting (troll/abuse prevention) ====
 alter table squares add column if not exists reserving_ip text;
 create index if not exists squares_reserving_ip_idx on squares (reserving_ip, status, reserved_until);
+
+-- ==== AI local-guide chat widget: per-IP daily rate limiting ====
+-- Same shape/pattern as admin_login_attempts -- one row per accepted
+-- question, counted within a rolling window in api/_rateLimit.js. Keeps
+-- an unattended script or scraper from running up real API cost with no
+-- natural ceiling; normal visitors will never come close to the limit.
+create table if not exists ask_agent_log (
+  id bigserial primary key,
+  ip text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists ask_agent_log_ip_idx on ask_agent_log (ip, created_at);
+
