@@ -143,7 +143,8 @@ Write your answer as plain, natural prose only -- never include citation markup,
 
 When you name a specific place someone could visit or a website they could check, always try to include a direct link so they can actually go there, not just a name:
 - For a BOARD_BUSINESSES match, put its exact name in "mentioned" (as before) -- the site already knows that business's own page, so don't look up or invent a URL for it yourself.
-- For anything else you recommend by name (a restaurant, shop, trail's official info page, festival site, etc. found via web search or your own knowledge), add it to "webResults" with the real URL you found. Never invent or guess a URL -- only include one you're actually confident is correct; if you're not sure, mention the place in your answer text but leave it out of "webResults" rather than guessing a link.
+- For anything else you recommend by name (a restaurant, shop, trail's official info page, festival site, etc.), add it to "webResults" -- but the URL must be that SPECIFIC place's own website (its homepage or menu page), never a third-party directory, review site, or tourism-board article that merely mentions it alongside others (e.g. a "best restaurants in Oulu" roundup is a source to learn names FROM, not a link to hand someone who wants to visit ONE specific restaurant). If you can't find that specific business's own site, search again with its exact name rather than settling for the roundup article, and if you still can't find it confidently, mention the place in your answer text but leave it out of "webResults" rather than linking to the wrong thing.
+- Every business you name needs its own entry with its own URL -- don't link multiple named businesses to one shared source.
 - Never list the same place in both "mentioned" and "webResults".
 
 LOCAL_NEWS: ${JSON.stringify(newsContext)}
@@ -209,9 +210,15 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       .map(b => ({ name: b.company_name, squareId: b.id }));
 
     // Never trust a model-provided URL blindly -- only pass through ones
-    // that are genuinely well-formed http(s) links, and never a place
-    // already covered by "mentioned" (that's the board's own promoted
-    // link, not a generic web result).
+    // that are genuinely well-formed http(s) links, not a place already
+    // covered by "mentioned" (that's the board's own promoted link, not
+    // a generic web result), and not a known directory/review/tourism
+    // site -- the prompt asks for each business's own site specifically,
+    // but this is a real check rather than trusting that alone.
+    const DIRECTORY_DOMAINS = [
+      'visitoulu.fi', 'visitfinland.com', 'tripadvisor.', 'yelp.', 'google.com',
+      'facebook.com', 'instagram.com', 'wolt.com', 'foodora.', 'eat.fi', 'happycow.net'
+    ];
     const rawWebResults = Array.isArray(parsed.webResults) ? parsed.webResults : [];
     const webResults = rawWebResults
       .filter(r => r && typeof r.name === 'string' && typeof r.url === 'string' && !mentionedNames.includes(r.name))
@@ -219,6 +226,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
         try {
           const parsedUrl = new URL(r.url);
           if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return null;
+          if (DIRECTORY_DOMAINS.some(d => parsedUrl.hostname.includes(d))) return null;
           return { name: r.name.slice(0, 120), url: parsedUrl.toString() };
         } catch (e) {
           return null;
