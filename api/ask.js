@@ -141,6 +141,11 @@ Keep answers short and conversational: 2-4 sentences, at most 2-3 specific named
 
 Write your answer as plain, natural prose only -- never include citation markup, footnote-style references, or tags like <cite>...</cite> around anything, even when search results informed what you wrote.
 
+When you name a specific place someone could visit or a website they could check, always try to include a direct link so they can actually go there, not just a name:
+- For a BOARD_BUSINESSES match, put its exact name in "mentioned" (as before) -- the site already knows that business's own page, so don't look up or invent a URL for it yourself.
+- For anything else you recommend by name (a restaurant, shop, trail's official info page, festival site, etc. found via web search or your own knowledge), add it to "webResults" with the real URL you found. Never invent or guess a URL -- only include one you're actually confident is correct; if you're not sure, mention the place in your answer text but leave it out of "webResults" rather than guessing a link.
+- Never list the same place in both "mentioned" and "webResults".
+
 LOCAL_NEWS: ${JSON.stringify(newsContext)}
 
 TODAYS_EVENTS: ${JSON.stringify(eventContext)}
@@ -148,7 +153,7 @@ TODAYS_EVENTS: ${JSON.stringify(eventContext)}
 BOARD_BUSINESSES: ${JSON.stringify(businessContext)}
 
 Respond with ONLY a JSON object, no other text, no markdown fences:
-{"answer": "<your reply, written in the visitor's own language>", "mentioned": ["<exact name from BOARD_BUSINESSES, for each one you recommended -- omit entirely if none>"]}`;
+{"answer": "<your reply, written in the visitor's own language>", "mentioned": ["<exact name from BOARD_BUSINESSES, for each one you recommended -- omit entirely if none>"], "webResults": [{"name": "<place name>", "url": "<real URL you found>"}]}`;
 
     const trimmedHistory = Array.isArray(history)
       ? history
@@ -193,7 +198,8 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       const salvaged = jsonAttemptStart > 0 ? cleaned.slice(0, jsonAttemptStart) : cleaned;
       return res.status(200).json({
         answer: cleanAnswerText(salvaged) || 'Pahoittelut, en osannut vastata juuri nyt. / Sorry, I couldn\'t answer that just now.',
-        mentioned: []
+        mentioned: [],
+        webResults: []
       });
     }
 
@@ -202,7 +208,26 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       .filter(b => mentionedNames.includes(b.company_name))
       .map(b => ({ name: b.company_name, squareId: b.id }));
 
-    res.status(200).json({ answer: cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), mentioned });
+    // Never trust a model-provided URL blindly -- only pass through ones
+    // that are genuinely well-formed http(s) links, and never a place
+    // already covered by "mentioned" (that's the board's own promoted
+    // link, not a generic web result).
+    const rawWebResults = Array.isArray(parsed.webResults) ? parsed.webResults : [];
+    const webResults = rawWebResults
+      .filter(r => r && typeof r.name === 'string' && typeof r.url === 'string' && !mentionedNames.includes(r.name))
+      .map(r => {
+        try {
+          const parsedUrl = new URL(r.url);
+          if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return null;
+          return { name: r.name.slice(0, 120), url: parsedUrl.toString() };
+        } catch (e) {
+          return null;
+        }
+      })
+      .filter(Boolean)
+      .slice(0, 4);
+
+    res.status(200).json({ answer: cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), mentioned, webResults });
   } catch (err) {
     console.error('Ask agent failed:', err);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
