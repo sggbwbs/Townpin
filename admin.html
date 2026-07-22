@@ -730,7 +730,7 @@ async function loadCostEstimate(){
     const res = await fetch(`${API}/cost-estimate`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'failed');
-    const prefix = data.isEstimate ? '~€' : '€';
+    const tilde = data.isEstimate ? '~' : '';
 
     if (data.isEstimate) {
       document.getElementById('costDisclaimer').innerHTML =
@@ -751,7 +751,7 @@ async function loadCostEstimate(){
     }
 
     document.getElementById('costEstimate').textContent =
-      data.spendEur !== null ? prefix + data.spendEur.toFixed(2) : '–';
+      data.spendEur !== null ? tilde + data.spendEur.toFixed(2) + '€' : '–';
     document.getElementById('budgetInput').value = data.monthlyBudgetEur !== null ? data.monthlyBudgetEur : '';
 
     const remainingEl = document.getElementById('costRemaining');
@@ -759,7 +759,7 @@ async function loadCostEstimate(){
       remainingEl.textContent = '–';
       remainingEl.style.color = '#26210f';
     } else {
-      remainingEl.textContent = prefix + data.remainingEur.toFixed(2);
+      remainingEl.textContent = tilde + data.remainingEur.toFixed(2) + '€';
       remainingEl.style.color = data.remainingEur < 0 ? '#b8452f' : '#26210f';
     }
   } catch (e) {
