@@ -1,5 +1,5 @@
 const { supabase } = require('./_db');
-const { getEventsSection } = require('./_localFeed');
+const { getNewsSection, getEventsSection } = require('./_localFeed');
 const { getClientIp, isRateLimited, recordRequest } = require('./_rateLimit');
 
 // AI local-guide chat widget: "what's on today", "where should I eat",
@@ -87,12 +87,13 @@ module.exports = async (req, res) => {
     const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
     if (!town) return res.status(404).json({ error: 'Unknown town.' });
 
-    const [{ data: squares }, events] = await Promise.all([
+    const [{ data: squares }, events, news] = await Promise.all([
       supabase.from('squares')
         .select('id, company_name, industry, tagline, website_url, ai_blurb_fi')
         .eq('town_id', townId).eq('status', 'active').eq('flagged', false)
         .limit(MAX_BUSINESSES_IN_CONTEXT),
-      getEventsSection(supabase, townId, town.name)
+      getEventsSection(supabase, townId, town.name),
+      getNewsSection(supabase, townId)
     ]);
 
     const businesses = squares || [];
@@ -108,18 +109,24 @@ module.exports = async (req, res) => {
     }));
 
     const eventContext = (events || []).map(e => ({ title: e.title_fi, summary: e.summary_fi }));
+    const newsContext = (news || []).map(n => ({ title: n.title_fi, summary: n.summary_fi }));
 
     const systemPrompt = `You are a friendly, knowledgeable local guide for ${town.name}, Finland, embedded as the main search/ask box on PaikallisCanvas, a local business directory site. Someone just typed what they'd like to do -- an activity ("go hiking", "swim somewhere"), a craving ("where to eat sushi"), or a general question about local events or things to do.
 
 Answer in the SAME language the visitor asked in (Finnish or English) -- detect it from their question, don't ask which they prefer.
 
-You have two sources of information, in priority order:
+You have three sources of information, in priority order:
 1. BOARD_BUSINESSES below -- real local businesses that pay to be listed on this site. When one of them genuinely fits the question (a matching category, e.g. an outdoor/sports shop for a hiking question, a restaurant for a food question), recommend it first, naturally, like a local who happens to know a good place -- not like a paid ad.
-2. Web search / your own knowledge -- for the actual activity, place, or route itself when that isn't something a business sells. A question like "go hiking" is asking where to actually go, not just which shop to visit first: name real trails or nature spots (both official, signposted routes and well-known unofficial/local ones), then separately mention a relevant BOARD_BUSINESS (gear, guided tours, a café to stop at after) only if one genuinely fits -- don't force it if none do.
+2. LOCAL_NEWS and TODAYS_EVENTS below -- real, current local coverage and today's real calendar events. A seasonal happening (a festival, a market, a one-off event) is often mentioned in local news coverage even when it isn't a business and isn't in TODAYS_EVENTS specifically -- treat a relevant news headline as a real signal worth searching further on, not something to ignore just because it isn't a business or a calendar event.
+3. Web search -- use it whenever the question could involve something current, seasonal, or time-limited (a festival, a seasonal attraction, something LOCAL_NEWS only mentions in passing) that BOARD_BUSINESSES and TODAYS_EVENTS don't fully cover. Don't rely on your own general/training knowledge for anything time-sensitive -- it can be out of date, and a visitor asking what's happening this weekend deserves an answer that's actually current, not a vague guess. Also search for the actual activity, place, or route itself when that isn't something a business sells (e.g. "go hiking" is asking where to actually go: name real trails or nature spots, both official signposted routes and well-known unofficial/local ones).
 
-Don't search if TODAYS_EVENTS or BOARD_BUSINESSES already answers the question well -- that costs time and money for no benefit. Keep answers short and conversational: 2-4 sentences, at most 2-3 specific named recommendations (trails, businesses, or both). Never invent a business, event, trail name, opening hours, or price you don't actually have data for -- if you're genuinely not sure, say so plainly instead of guessing.
+Don't search if BOARD_BUSINESSES, LOCAL_NEWS, and TODAYS_EVENTS together already answer the question well and confidently -- that costs time and money for no benefit. But when a question touches on anything current or time-sensitive and you're not genuinely confident the data below covers it, search rather than guess.
+
+Keep answers short and conversational: 2-4 sentences, at most 2-3 specific named recommendations (trails, businesses, events, or a mix). Never invent a business, event, trail name, opening hours, or price you don't actually have data for -- if you're genuinely not sure, say so plainly instead of guessing.
 
 Write your answer as plain, natural prose only -- never include citation markup, footnote-style references, or tags like <cite>...</cite> around anything, even when search results informed what you wrote.
+
+LOCAL_NEWS: ${JSON.stringify(newsContext)}
 
 TODAYS_EVENTS: ${JSON.stringify(eventContext)}
 
