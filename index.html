@@ -356,6 +356,16 @@
     #newsCol{padding-top:24px;}
   }
 
+  /* ---- PWA install banner ---- */
+  #installBanner{display:none;align-items:center;gap:12px;justify-content:center;
+    background:rgba(224,138,60,0.14);border-bottom:1px solid var(--line);
+    padding:10px 20px;font-size:13px;color:var(--ink);text-align:center;flex-wrap:wrap;}
+  #installBannerBtn{background:var(--amber);color:#2a1c0d;border:none;border-radius:999px;
+    padding:6px 16px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:'Space Grotesk',sans-serif;
+    flex:none;}
+  #installBannerClose{background:none;border:none;color:var(--ink-dim);cursor:pointer;font-size:14px;
+    padding:2px 6px;flex:none;}
+
   /* ---- AI local guide: hero search (top of page, not a hidden corner bubble) ---- */
   #askHero{background:var(--panelT4);border:1px solid var(--line);border-radius:16px;
     padding:32px 28px;margin-bottom:32px;text-align:center;}
@@ -414,6 +424,12 @@
     </div>
   </div>
 </header>
+
+<div id="installBanner">
+  <span id="installBannerText"></span>
+  <button id="installBannerBtn" style="display:none;" data-i18n="installBannerButton">Asenna</button>
+  <button id="installBannerClose" aria-label="Sulje">✕</button>
+</div>
 
 <main>
   <div id="askHero">
@@ -1099,6 +1115,9 @@ const STRINGS = {
     askHeroPlaceholder: 'Esim. "lähde vaeltamaan" tai "missä syödä sushia"',
     askHeroButton: 'Kysy →',
     askFollowupPlaceholder: 'Kysy jotain muuta…',
+    installBannerTextChrome: 'Asenna PaikallisCanvas puhelimeesi nopeampaa käyttöä varten.',
+    installBannerButton: 'Asenna',
+    installBannerTextIOS: 'Lisää PaikallisCanvas kotinäytöllesi: napauta jakamispainiketta ja valitse "Lisää Koti-valikkoon".',
     askThinking: 'Mietitään…',
     askError: 'Jokin meni pieleen. Kokeile hetken kuluttua uudelleen.',
     askRateLimited: 'Liian monta kysymystä tänään -- kokeile huomenna uudelleen.',
@@ -1228,6 +1247,9 @@ const STRINGS = {
     askHeroPlaceholder: 'e.g. "go hiking" or "where to eat sushi"',
     askHeroButton: 'Ask →',
     askFollowupPlaceholder: 'Ask something else…',
+    installBannerTextChrome: 'Install PaikallisCanvas on your phone for faster access.',
+    installBannerButton: 'Install',
+    installBannerTextIOS: 'Add PaikallisCanvas to your home screen: tap the share button, then choose "Add to Home Screen".',
     askThinking: 'Thinking…',
     askError: 'Something went wrong. Please try again in a moment.',
     askRateLimited: 'Too many questions today -- try again tomorrow.',
@@ -1315,6 +1337,74 @@ const STRINGS = {
 
 function t(key){ return STRINGS[lang][key] || key; }
 
+/* ---- PWA install banner ---- */
+const INSTALL_DISMISS_KEY = 'installBannerDismissed';
+let deferredInstallPrompt = null;
+let installBannerMode = null;
+
+function isStandaloneApp(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function isIOSDevice(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+function installBannerDismissed(){
+  try { return localStorage.getItem(INSTALL_DISMISS_KEY) === '1'; } catch (e) { return false; }
+}
+
+function showInstallBanner(mode){
+  if (isStandaloneApp() || installBannerDismissed()) return;
+  installBannerMode = mode;
+  const banner = document.getElementById('installBanner');
+  const textEl = document.getElementById('installBannerText');
+  const btn = document.getElementById('installBannerBtn');
+  if (mode === 'prompt'){
+    textEl.textContent = t('installBannerTextChrome');
+    btn.textContent = t('installBannerButton');
+    btn.style.display = 'inline-block';
+  } else {
+    textEl.textContent = t('installBannerTextIOS');
+    btn.style.display = 'none';
+  }
+  banner.style.display = 'flex';
+}
+
+// Chrome/Edge/Android: this fires only once the browser's own
+// installability criteria are met (manifest + service worker present,
+// served over https). We suppress the browser's default mini-infobar
+// and show our own banner instead, so there's an actual, discoverable
+// "Install" option on the page rather than relying on people finding it
+// buried in the browser's own menu.
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner('prompt');
+});
+
+document.getElementById('installBannerBtn').addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  document.getElementById('installBanner').style.display = 'none';
+});
+
+document.getElementById('installBannerClose').addEventListener('click', () => {
+  document.getElementById('installBanner').style.display = 'none';
+  try { localStorage.setItem(INSTALL_DISMISS_KEY, '1'); } catch (e) {}
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').style.display = 'none';
+});
+
+// iOS Safari never fires beforeinstallprompt at all -- "Add to Home
+// Screen" only exists behind the manual share-sheet there, so this is
+// the only way those visitors ever find out it's possible.
+if (isIOSDevice() && !isStandaloneApp()) {
+  showInstallBanner('ios');
+}
+
 /* ---- light/dark theme toggle ---- */
 function applyTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
@@ -1357,6 +1447,7 @@ function setLang(l){
   renderGrid();
   renderLocalFeed(currentFeedItems);
   renderWeatherForecast();
+  if (installBannerMode) showInstallBanner(installBannerMode);
 }
 
 // Alphabetically sorts a <select>'s options using proper locale rules for
