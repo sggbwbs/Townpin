@@ -1,0 +1,14 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/pin/:id", "destination": "/api/pin/:id" },
+    { "source": "/board/:slug", "destination": "/" },
+    { "source": "/oulu", "destination": "/" },
+    { "source": "/api/board", "destination": "/api/data?endpoint=board" },
+    { "source": "/api/feed", "destination": "/api/data?endpoint=feed" }
+  ],
+  "crons": [
+    { "path": "/api/maintenance", "schedule": "0 4 * * *" },
+    { "path": "/api/maintenance", "schedule": "0 3 * * 0" }
+  ]
+}
