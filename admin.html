@@ -43,11 +43,12 @@
   #previewLangToggle button{background:none;border:1px solid #8fa3bd;color:#8fa3bd;font-size:11px;
     padding:4px 10px;border-radius:999px;cursor:pointer;}
   #previewLangToggle button.active{background:#f2a65a;border-color:#f2a65a;color:#2a1c0d;font-weight:700;}
-  .grantGrid{display:grid;grid-template-columns:repeat(var(--gcols,20),1fr);gap:3px;margin:12px 0;
-    background:#e4dcc4;padding:8px;border-radius:8px;max-height:340px;overflow:auto;}
-  .gsq{aspect-ratio:1;border-radius:3px;cursor:pointer;background:#d8cfb4;}
-  .gsq.taken{background:#a89a78;cursor:not-allowed;}
-  .gsq.picked{background:var(--amber) !important;}
+  .qtyRow{display:flex;align-items:center;gap:16px;margin-top:6px;}
+  .qtyRow button{width:36px;height:36px;border-radius:50%;border:1px solid #d8cfb4;background:#fffdf8;
+    color:#26210f;font-size:18px;font-weight:700;cursor:pointer;}
+  .qtyRow button:hover{border-color:var(--amber);}
+  .qtyRow button:disabled{opacity:0.4;cursor:default;}
+  .qtyRow span{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;min-width:32px;text-align:center;}
   .compedRow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;
     border-bottom:1px solid #e4dcc4;font-size:13px;}
   .compedRow:last-child{border-bottom:none;}
@@ -139,18 +140,26 @@
 </div>
 
 <div class="card" id="grantCard" style="display:none;">
-  <h1>Grant a free square</h1>
-  <p class="sub">Reserve one or more squares for a company of your choice — no payment, no subscription. Click a town's board below to pick empty squares.</p>
+  <h1>Grant free squares</h1>
+  <p class="sub">Reserve one or more squares for a company of your choice — no payment, no subscription.</p>
 
   <div class="field">
     <label>Town name</label>
     <input type="text" id="grantTownInput" placeholder="e.g. Oulu" />
-    <button id="grantLoadBtn" style="margin-top:8px;">Load board</button>
+    <button id="grantLoadBtn" style="margin-top:8px;">Load town</button>
   </div>
 
   <div id="grantGridWrap" style="display:none;">
-    <div class="grantGrid" id="grantGrid"></div>
-    <p class="sub" id="grantPickCount" style="margin:0 0 14px;">0 squares selected</p>
+    <p class="sub" id="grantTownStatus" style="margin:12px 0;"></p>
+
+    <div class="field">
+      <label>How many free squares?</label>
+      <div class="qtyRow">
+        <button id="grantQtyMinus" type="button" aria-label="Fewer">−</button>
+        <span id="grantQtyDisplay">1</span>
+        <button id="grantQtyPlus" type="button" aria-label="More">+</button>
+      </div>
+    </div>
 
     <div class="field">
       <label>Company name</label>
@@ -172,7 +181,7 @@
       <label>Color (used if no logo)</label>
       <div class="grantColorRow" id="grantColorRow"></div>
     </div>
-    <button id="grantSubmitBtn">Grant selected squares free</button>
+    <button id="grantSubmitBtn">Grant free square(s)</button>
     <span class="saved" id="grantSavedMsg">✓ Granted</span>
     <div class="err" id="grantErr"></div>
   </div>
@@ -199,10 +208,9 @@
     <div class="field">
       <label>Destination town</label>
       <input type="text" id="moveDestTownInput" placeholder="e.g. Tampere" />
-      <button id="moveDestLoadBtn" style="margin-top:8px;">Load board</button>
+      <button id="moveDestLoadBtn" style="margin-top:8px;">Load town</button>
     </div>
     <div id="moveGridWrap" style="display:none;">
-      <div class="grantGrid" id="moveGrid"></div>
       <p class="sub" id="movePickCount"></p>
       <button id="moveConfirmBtn">Confirm move</button>
       <span class="saved" id="moveSavedMsg">✓ Moved</span>
@@ -395,7 +403,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 const GRANT_SWATCHES = ["#f2a65a","#d9694f","#5b8c5a","#3d6b94","#8a6fb0","#2b2718","#e0d9c4"];
 let grantTown = null;
 let grantSquares = [];
-let grantPicked = [];
+let grantQty = 1;
 let grantColor = GRANT_SWATCHES[0];
 
 function initGrantSection(){
@@ -428,40 +436,32 @@ document.getElementById('grantLoadBtn').addEventListener('click', async () => {
     const boardRes = await fetch(`/api/board?townId=${grantTown.id}`);
     const boardData = await boardRes.json();
     grantSquares = boardData.squares || [];
-    grantPicked = [];
-    renderGrantGrid();
+    grantQty = 1;
+    updateGrantQtyDisplay();
+
+    const total = grantTown.grid_size * grantTown.grid_size;
+    document.getElementById('grantTownStatus').textContent =
+      `${grantTown.name}: ${grantSquares.length} / ${total} squares claimed, ${total - grantSquares.length} free.`;
     document.getElementById('grantGridWrap').style.display = 'block';
   } catch (e) {
     errBox.textContent = 'Network error.';
   }
 });
 
-function renderGrantGrid(){
-  const grid = document.getElementById('grantGrid');
-  grid.style.setProperty('--gcols', grantTown.grid_size);
-  grid.innerHTML = '';
-  const takenIdx = new Set(grantSquares.map(s => s.idx));
-  const total = grantTown.grid_size * grantTown.grid_size;
-  for (let i = 0; i < total; i++){
-    const sq = document.createElement('div');
-    const taken = takenIdx.has(i);
-    sq.className = 'gsq' + (taken ? ' taken' : '') + (grantPicked.includes(i) ? ' picked' : '');
-    if (!taken){
-      sq.addEventListener('click', () => {
-        const idx = grantPicked.indexOf(i);
-        if (idx === -1) grantPicked.push(i); else grantPicked.splice(idx, 1);
-        renderGrantGrid();
-      });
-    }
-    grid.appendChild(sq);
-  }
-  document.getElementById('grantPickCount').textContent = `${grantPicked.length} square${grantPicked.length === 1 ? '' : 's'} selected`;
+function updateGrantQtyDisplay(){
+  document.getElementById('grantQtyDisplay').textContent = grantQty;
+  document.getElementById('grantQtyMinus').disabled = grantQty <= 1;
 }
+document.getElementById('grantQtyMinus').addEventListener('click', () => {
+  if (grantQty > 1){ grantQty--; updateGrantQtyDisplay(); }
+});
+document.getElementById('grantQtyPlus').addEventListener('click', () => {
+  grantQty++; updateGrantQtyDisplay();
+});
 
 document.getElementById('grantSubmitBtn').addEventListener('click', async () => {
   const errBox = document.getElementById('grantErr');
   errBox.textContent = '';
-  if (grantPicked.length === 0) { errBox.textContent = 'Pick at least one square first.'; return; }
   const companyName = document.getElementById('grantCompany').value.trim();
   const websiteUrl = document.getElementById('grantWebsite').value.trim();
   if (!companyName || !websiteUrl) { errBox.textContent = 'Company name and website are required.'; return; }
@@ -471,7 +471,7 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         townId: grantTown.id,
-        indices: grantPicked,
+        squareCount: grantQty,
         companyName, websiteUrl,
         logoUrl: document.getElementById('grantLogo').value.trim() || null,
         tagline: document.getElementById('grantTagline').value.trim() || null,
@@ -482,12 +482,12 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
     if (!res.ok) { errBox.textContent = data.error || 'Grant failed.'; return; }
     const msg = document.getElementById('grantSavedMsg');
     msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
-    grantPicked = [];
+    grantQty = 1;
     document.getElementById('grantCompany').value = '';
     document.getElementById('grantWebsite').value = '';
     document.getElementById('grantLogo').value = '';
     document.getElementById('grantTagline').value = '';
-    document.getElementById('grantLoadBtn').click(); // refresh the board
+    document.getElementById('grantLoadBtn').click(); // refresh the free-count status
     loadCompedList();
   } catch (e) {
     errBox.textContent = 'Network error.';
@@ -534,8 +534,6 @@ async function loadCompedList(){
 
 let moveSelectedGroup = null;
 let moveDestTown = null;
-let moveDestSquares = [];
-let movePicked = [];
 
 document.getElementById('moveSearchBtn').addEventListener('click', async () => {
   const query = document.getElementById('moveSearchInput').value.trim();
@@ -567,10 +565,9 @@ document.getElementById('moveSearchBtn').addEventListener('click', async () => {
 
 function selectGroupToMove(g){
   moveSelectedGroup = g;
-  movePicked = [];
   moveDestTown = null;
   document.getElementById('moveSummary').textContent =
-    `Moving ${g.companyName}'s ${g.count} square${g.count === 1 ? '' : 's'} out of ${g.townName} — pick ${g.count} empty square${g.count === 1 ? '' : 's'} in the destination town below.`;
+    `Moving ${g.companyName}'s ${g.count} square${g.count === 1 ? '' : 's'} out of ${g.townName} — pick a destination town below. The same number of squares will be auto-assigned there.`;
   document.getElementById('moveDestWrap').style.display = 'block';
   document.getElementById('moveGridWrap').style.display = 'none';
   document.getElementById('moveErr').textContent = '';
@@ -594,52 +591,25 @@ document.getElementById('moveDestLoadBtn').addEventListener('click', async () =>
 
     const boardRes = await fetch(`/api/board?townId=${moveDestTown.id}`);
     const boardData = await boardRes.json();
-    moveDestSquares = boardData.squares || [];
-    movePicked = [];
-    renderMoveGrid();
+    const total = moveDestTown.grid_size * moveDestTown.grid_size;
+    const free = total - (boardData.squares || []).length;
+    document.getElementById('movePickCount').textContent =
+      `${moveDestTown.name}: ${free} free square${free === 1 ? '' : 's'} — need ${moveSelectedGroup.count}.`;
     document.getElementById('moveGridWrap').style.display = 'block';
   } catch (e) {
     errBox.textContent = 'Network error.';
   }
 });
 
-function renderMoveGrid(){
-  const grid = document.getElementById('moveGrid');
-  grid.style.setProperty('--gcols', moveDestTown.grid_size);
-  grid.innerHTML = '';
-  const takenIdx = new Set(moveDestSquares.map(s => s.idx));
-  const total = moveDestTown.grid_size * moveDestTown.grid_size;
-  for (let i = 0; i < total; i++){
-    const sq = document.createElement('div');
-    const taken = takenIdx.has(i);
-    sq.className = 'gsq' + (taken ? ' taken' : '') + (movePicked.includes(i) ? ' picked' : '');
-    if (!taken){
-      sq.addEventListener('click', () => {
-        const idx = movePicked.indexOf(i);
-        if (idx === -1) movePicked.push(i); else movePicked.splice(idx, 1);
-        renderMoveGrid();
-      });
-    }
-    grid.appendChild(sq);
-  }
-  document.getElementById('movePickCount').textContent =
-    `${movePicked.length} / ${moveSelectedGroup.count} needed selected`;
-}
-
 document.getElementById('moveConfirmBtn').addEventListener('click', async () => {
   const errBox = document.getElementById('moveErr');
   errBox.textContent = '';
-  if (movePicked.length !== moveSelectedGroup.count) {
-    errBox.textContent = `Pick exactly ${moveSelectedGroup.count} square(s) — you have ${movePicked.length}.`;
-    return;
-  }
   try {
     const res = await fetch(`${API}/move`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         groupId: moveSelectedGroup.groupId,
-        destinationTownId: moveDestTown.id,
-        newIndices: movePicked
+        destinationTownId: moveDestTown.id
       })
     });
     const data = await res.json();
