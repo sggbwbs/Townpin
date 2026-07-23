@@ -6,7 +6,7 @@
 const bcrypt = require('bcryptjs');
 const { supabase } = require('../_db');
 const { isAuthenticated, setSessionCookie, clearSessionCookie, getClientIp } = require('./_auth');
-const { pickRandomEmptySquares } = require('../_squares');
+const { pickRandomEmptySquares, insertSquaresWithRetry } = require('../_squares');
 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MINUTES = 15;
@@ -120,36 +120,26 @@ async function handleGrant(req, res) {
 
   // The board is a scrolling logo banner now, not a clickable grid -- the
   // admin picks a quantity, not specific positions. Same auto-assignment
-  // helper the real purchase flow and "move to another town" both use.
-  const indices = await pickRandomEmptySquares(townId, wanted);
-  if (indices.length < wanted) {
-    return res.status(409).json({
-      error: indices.length > 0
-        ? `Only ${indices.length} free square(s) available in that town right now.`
-        : 'No free squares available in that town right now.'
-    });
-  }
-
+  // helper the real purchase flow and "move to another town" both use --
+  // retries with a fresh pick if a concurrent request (or a double-click)
+  // grabbed one of the same positions in the meantime.
   const groupId = crypto.randomUUID();
-  const rows = indices.map(idx => ({
-    town_id: townId,
-    idx,
-    company_name: companyName,
-    website_url: websiteUrl,
-    logo_url: logoUrl || null,
-    color: color || '#f2a65a',
-    tagline: tagline || null,
-    status: 'active',
-    is_comped: true,
-    group_id: groupId
-  }));
-
-  const { error: insertErr } = await supabase.from('squares').insert(rows);
-  if (insertErr) {
-    console.error(insertErr);
-    return res.status(500).json({ error: `Could not grant squares: ${insertErr.message || insertErr.code || 'unknown database error'}` });
-  }
-  res.status(200).json({ ok: true, count: rows.length });
+  const { error: grantErr, rows: insertedRows } = await insertSquaresWithRetry(townId, wanted, (indices) =>
+    indices.map(idx => ({
+      town_id: townId,
+      idx,
+      company_name: companyName,
+      website_url: websiteUrl,
+      logo_url: logoUrl || null,
+      color: color || '#f2a65a',
+      tagline: tagline || null,
+      status: 'active',
+      is_comped: true,
+      group_id: groupId
+    }))
+  );
+  if (grantErr) return res.status(409).json({ error: grantErr });
+  res.status(200).json({ ok: true, count: insertedRows.length });
 }
 
 async function handleRevoke(req, res) {
@@ -232,19 +222,37 @@ async function handleMove(req, res) {
   // need for the admin to manually pick matching destination positions
   // on a second grid. Auto-assign the same count in the destination town
   // instead, same helper the grant flow and the real purchase flow use.
-  const newIndices = await pickRandomEmptySquares(destinationTownId, existing.length);
-  if (newIndices.length < existing.length) {
-    return res.status(409).json({
-      error: `This company has ${existing.length} square(s), but the destination town only has ${newIndices.length} free right now.`
-    });
-  }
+  //
+  // Picking and then updating isn't atomic -- retry with a fresh pick if
+  // a concurrent request grabbed one of the same destination positions
+  // in the meantime, same race the grant flow just hit in practice.
+  let moved = false;
+  let lastErr = null;
+  for (let attempt = 0; attempt < 4 && !moved; attempt++) {
+    const newIndices = await pickRandomEmptySquares(destinationTownId, existing.length);
+    if (newIndices.length < existing.length) {
+      return res.status(409).json({
+        error: `This company has ${existing.length} square(s), but the destination town only has ${newIndices.length} free right now.`
+      });
+    }
 
-  for (let i = 0; i < existing.length; i++) {
-    const { error: updateErr } = await supabase
-      .from('squares')
-      .update({ town_id: destinationTownId, idx: newIndices[i] })
-      .eq('id', existing[i].id);
-    if (updateErr) { console.error(updateErr); return res.status(500).json({ error: 'Move failed partway through — check the board manually.' }); }
+    let collided = false;
+    for (let i = 0; i < existing.length; i++) {
+      const { error: updateErr } = await supabase
+        .from('squares')
+        .update({ town_id: destinationTownId, idx: newIndices[i] })
+        .eq('id', existing[i].id);
+      if (updateErr) {
+        if (updateErr.code === '23505') { collided = true; lastErr = updateErr; break; } // race -- retry with a fresh pick
+        console.error(updateErr);
+        return res.status(500).json({ error: 'Move failed partway through — check the board manually.' });
+      }
+    }
+    if (!collided) moved = true;
+  }
+  if (!moved) {
+    console.error(lastErr);
+    return res.status(409).json({ error: 'Could not find available destination squares after several attempts — please try again.' });
   }
 
   res.status(200).json({ ok: true, moved: existing.length });
