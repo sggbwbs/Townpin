@@ -1,18 +1,20 @@
-{
-  "name": "PaikallisCanvas — Oulu",
-  "short_name": "PaikallisCanvas",
-  "description": "Oulun oma näyteikkuna verkossa — päivän uutiset, tapahtumat ja paikalliset yritykset.",
-  "start_url": "/oulu",
-  "scope": "/",
-  "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#faf6ec",
-  "theme_color": "#e08e3e",
-  "lang": "fi",
-  "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
+// Run this locally to generate the value for ADMIN_PASSWORD_HASH.
+// Your real password never leaves your own computer this way — only the
+// resulting hash gets pasted into Vercel's environment variables.
+//
+// Usage:
+//   npm install bcryptjs
+//   node scripts/hash-password.js "your-chosen-password"
+
+const bcrypt = require('bcryptjs');
+
+const password = process.argv[2];
+if (!password) {
+  console.error('Usage: node scripts/hash-password.js "your-chosen-password"');
+  process.exit(1);
 }
+
+const hash = bcrypt.hashSync(password, 12);
+console.log('\nAdd this as ADMIN_PASSWORD_HASH in Vercel:\n');
+console.log(hash);
+console.log('');
