@@ -150,6 +150,8 @@ When web search turns up options, prefer genuinely independent, local ${town.nam
 
 If BOARD_BUSINESSES already covers what's being asked, don't also search for and list several unrelated chains alongside it as if they were equally good local alternatives -- either the board business genuinely answers the question well (in which case say so and stop there), or it doesn't fully cover it (in which case search for other genuinely local, independent options, not a wall of national chains). Every entry in "webResults" should be a different real business, never the same business you already put in "mentioned".
 
+Tag each "webResults" entry with a "tier": "local" for a genuinely independent, ${town.name}-based business, or "other" for anything else worth mentioning but less certainly local (a regional or national business, a well-known chain the visitor specifically asked for by name, or something you're just not sure is independently local). Lead with local when you can -- most of what you recommend by search should be "local" unless the question genuinely doesn't have good local options.
+
 Don't search if BOARD_BUSINESSES, LOCAL_NEWS, and TODAYS_EVENTS together already answer the question well and confidently -- that costs time and money for no benefit. But when a question touches on anything current or time-sensitive and you're not genuinely confident the data below covers it, search rather than guess.
 
 Keep answers short and conversational: 2-4 sentences, at most 2-3 specific named recommendations (trails, businesses, events, or a mix). Never invent a business, event, trail name, opening hours, or price you don't actually have data for -- if you're genuinely not sure, say so plainly instead of guessing.
@@ -170,7 +172,7 @@ TODAYS_EVENTS: ${JSON.stringify(eventContext)}
 BOARD_BUSINESSES: ${JSON.stringify(businessContext)}
 
 Respond with ONLY a JSON object, no other text, no markdown fences:
-{"answer": "<your reply, written in the visitor's own language>", "mentioned": ["<exact name from BOARD_BUSINESSES, for each one you recommended -- omit entirely if none>"], "webResults": [{"name": "<place name>", "url": "<real URL of that specific place's own site, if you're confident of one -- omit or leave empty otherwise>"}]}`;
+{"answer": "<your reply, written in the visitor's own language>", "mentioned": ["<exact name from BOARD_BUSINESSES, for each one you recommended -- omit entirely if none>"], "webResults": [{"name": "<place name>", "url": "<real URL of that specific place's own site, if you're confident of one -- omit or leave empty otherwise>", "tier": "local or other -- see below"}]}`;
 
     const trimmedHistory = Array.isArray(history)
       ? history
@@ -314,9 +316,11 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
         }
         const isSearchFallback = !url;
         if (!url) url = googleSearchFallback(r.name, town.name);
-        return { name: r.name.slice(0, 120), url, isSearchFallback };
+        const tier = r.tier === 'other' ? 'other' : 'local'; // default to local -- matches "lead with local" guidance
+        return { name: r.name.slice(0, 120), url, isSearchFallback, tier };
       })
-      .slice(0, 4);
+      .sort((a, b) => (a.tier === 'local' ? 0 : 1) - (b.tier === 'local' ? 0 : 1))
+      .slice(0, 8); // frontend shows 4 at a time with show more/less -- this leaves room for a second page
 
     res.status(200).json({ answer: cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), mentioned, webResults });
   } catch (err) {
