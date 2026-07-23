@@ -693,6 +693,17 @@ async function loadCompedList(){
       const row = document.createElement('div');
       row.className = 'compedRow';
       row.innerHTML = `<span>${g.company} — ${g.count} ad slot${g.count === 1 ? '' : 's'} in ${g.town}</span>`;
+      const btnWrap = document.createElement('div');
+      btnWrap.style.display = 'flex';
+      btnWrap.style.gap = '6px';
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.style.padding = '6px 12px';
+      editBtn.style.fontSize = '12px';
+      editBtn.addEventListener('click', async () => {
+        await selectGroupToEdit({ groupId });
+        document.getElementById('editWrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
       const btn = document.createElement('button');
       btn.className = 'revokeBtn';
       btn.textContent = 'Revoke';
@@ -705,7 +716,9 @@ async function loadCompedList(){
         loadCompedList();
         if (grantTown) document.getElementById('grantLoadBtn').click();
       });
-      row.appendChild(btn);
+      btnWrap.appendChild(editBtn);
+      btnWrap.appendChild(btn);
+      row.appendChild(btnWrap);
       box.appendChild(row);
     });
   } catch (e) {
