@@ -3,6 +3,7 @@ const { supabase } = require('./_db');
 const { isSuspicious } = require('./_linkCheck');
 const { moderate } = require('./_moderate');
 const { pickRandomEmptySquares } = require('./_squares');
+const { geocodeAddress } = require('./_geocode');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
@@ -70,7 +71,7 @@ module.exports = async (req, res) => {
   try {
     const {
       townId, indices, squareCount, additionalTowns, companyName, websiteUrl, email,
-      logoUrl, color, tagline, industry, planType, prepaidMonths
+      logoUrl, color, tagline, industry, planType, prepaidMonths, address
     } = req.body;
 
     if (typeof townId !== 'number' && typeof townId !== 'string') {
@@ -142,9 +143,16 @@ module.exports = async (req, res) => {
     if (!logoUrl) {
       return res.status(400).json({ error: 'A logo is required.' });
     }
+    if (!address || !address.trim()) {
+      return res.status(400).json({ error: 'A business address is required.' });
+    }
     if (industry && !ALLOWED_INDUSTRIES.includes(industry)) {
       return res.status(400).json({ error: 'Invalid industry value.' });
     }
+    // Geocoding failure is never fatal to the purchase itself -- a
+    // business whose address Nominatim can't resolve just doesn't get a
+    // map pin, same as if they'd left it blank.
+    const geocoded = await geocodeAddress(address);
     const isPrepaid = planType === 'prepaid';
     if (isPrepaid && !PREPAID_TERMS[prepaidMonths]) {
       return res.status(400).json({ error: 'Invalid prepaid term -- choose 3, 6, or 12 months.' });
@@ -205,6 +213,9 @@ module.exports = async (req, res) => {
       color: color || '#f2a65a',
       tagline: tagline || null,
       industry: industry || null,
+      address: address.trim(),
+      lat: geocoded ? geocoded.lat : null,
+      lng: geocoded ? geocoded.lng : null,
       status: 'pending',
       reserved_until: reservedUntil,
       reserving_ip: clientIp !== 'unknown' ? clientIp : null,

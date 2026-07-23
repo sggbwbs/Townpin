@@ -202,6 +202,10 @@
       <input type="text" id="grantTagline" placeholder="A short line" />
     </div>
     <div class="field">
+      <label>Address (required, for the map)</label>
+      <input type="text" id="grantAddress" placeholder="Street address, city" />
+    </div>
+    <div class="field">
       <label>Industry (optional)</label>
       <select id="grantIndustry">
         <option value="">— No industry set —</option>
@@ -266,6 +270,10 @@
     <div class="field">
       <label>Tagline (optional)</label>
       <input type="text" id="editTagline" placeholder="A short line" />
+    </div>
+    <div class="field">
+      <label>Address (required, for the map)</label>
+      <input type="text" id="editAddress" placeholder="Street address, city" />
     </div>
     <div class="field">
       <label>Industry (optional)</label>
@@ -571,8 +579,10 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
   const companyName = document.getElementById('grantCompany').value.trim();
   const websiteUrl = document.getElementById('grantWebsite').value.trim();
   const logoUrl = document.getElementById('grantLogo').value.trim();
+  const address = document.getElementById('grantAddress').value.trim();
   if (!companyName || !websiteUrl) { showErr(errBox, 'Company name and website are required.'); return; }
   if (!logoUrl) { showErr(errBox, 'A logo URL is required.'); return; }
+  if (!address) { showErr(errBox, 'An address is required.'); return; }
 
   btn.disabled = true;
   try {
@@ -581,7 +591,7 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
       body: JSON.stringify({
         townId: grantTown.id,
         squareCount: grantQty,
-        companyName, websiteUrl, logoUrl,
+        companyName, websiteUrl, logoUrl, address,
         tagline: document.getElementById('grantTagline').value.trim() || null,
         industry: document.getElementById('grantIndustry').value || null
       })
@@ -595,6 +605,7 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
     document.getElementById('grantWebsite').value = '';
     document.getElementById('grantLogo').value = '';
     document.getElementById('grantTagline').value = '';
+    document.getElementById('grantAddress').value = '';
     document.getElementById('grantIndustry').value = '';
     document.getElementById('grantLoadBtn').click(); // refresh the free-count status
     loadCompedList();
@@ -786,6 +797,7 @@ async function selectGroupToEdit(g){
     document.getElementById('editWebsite').value = data.websiteUrl || '';
     document.getElementById('editLogo').value = data.logoUrl || '';
     document.getElementById('editTagline').value = data.tagline || '';
+    document.getElementById('editAddress').value = data.address || '';
     document.getElementById('editIndustry').value = data.industry || '';
 
     editQty = data.count || 1;
@@ -804,8 +816,10 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
   const companyName = document.getElementById('editCompany').value.trim();
   const websiteUrl = document.getElementById('editWebsite').value.trim();
   const logoUrl = document.getElementById('editLogo').value.trim();
+  const address = document.getElementById('editAddress').value.trim();
   if (!companyName || !websiteUrl) { showErr(errBox, 'Company name and website are required.'); return; }
   if (!logoUrl) { showErr(errBox, 'A logo URL is required.'); return; }
+  if (!address) { showErr(errBox, 'An address is required.'); return; }
 
   btn.disabled = true;
   try {
@@ -813,7 +827,7 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         groupId: editSelectedGroup.groupId,
-        companyName, websiteUrl, logoUrl,
+        companyName, websiteUrl, logoUrl, address,
         tagline: document.getElementById('editTagline').value.trim() || null,
         industry: document.getElementById('editIndustry').value || null,
         squareCount: editQty

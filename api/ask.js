@@ -1,6 +1,7 @@
 const { supabase } = require('./_db');
 const { getNewsSection, getEventsSection } = require('./_localFeed');
 const { getClientIp, isRateLimited, recordRequest } = require('./_rateLimit');
+const { geocodeAddress } = require('./_geocode');
 
 // AI local-guide chat widget: "what's on today", "where should I eat",
 // "things to do this weekend" -- grounded first in this town's own real
@@ -53,6 +54,19 @@ function getHelsinkiTodayLabel() {
   }).format(new Date());
 }
 
+// Deliberately pre-computed here, not left for the model to work out from
+// "today" -- a real, observed failure was the model getting today's date
+// right but still miscalculating "tomorrow" (off by a day) when asked to
+// reason about it itself. Handing over the already-computed answer
+// removes that arithmetic step entirely rather than hoping it gets the
+// math right.
+function getHelsinkiTomorrowLabel() {
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat('fi-FI', {
+    timeZone: 'Europe/Helsinki', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  }).format(tomorrow);
+}
+
 // Same category labels shown on pin pages (api/pin/[id].js) -- duplicated
 // here rather than imported, since it's small, static, and this keeps the
 // two endpoints from being coupled to each other's internals.
@@ -102,7 +116,7 @@ module.exports = async (req, res) => {
 
     const [{ data: rawSquares }, events, news, { data: aiHints }] = await Promise.all([
       supabase.from('squares')
-        .select('id, group_id, company_name, industry, tagline, website_url, ai_blurb_fi')
+        .select('id, group_id, company_name, industry, tagline, website_url, ai_blurb_fi, lat, lng')
         .eq('town_id', townId).eq('status', 'active').eq('flagged', false)
         .limit(MAX_BUSINESSES_IN_CONTEXT),
       getEventsSection(supabase, townId, town.name),
@@ -138,7 +152,7 @@ module.exports = async (req, res) => {
 
     const systemPrompt = `You are a friendly, knowledgeable local guide for ${town.name}, Finland, embedded as the main search/ask box on PaikallisCanvas, a local business directory site. Someone just typed what they'd like to do -- an activity ("go hiking", "swim somewhere"), a craving ("where to eat sushi"), or a general question about local events or things to do.
 
-Today's real date is ${getHelsinkiTodayLabel()} (Europe/Helsinki time). Treat this as ground truth for ANY relative date reasoning -- today, this weekend, tomorrow, last week, next month, and so on. Never infer today's date from a search result: a page saying an event is happening "this weekend" is describing the weekend relative to whenever that page was written, not relative to right now -- always re-derive whether something is upcoming, ongoing, or already over by comparing its actual date against the real date above, not by repeating a search result's own relative phrasing.
+Today's real date is ${getHelsinkiTodayLabel()} (Europe/Helsinki time), and tomorrow is ${getHelsinkiTomorrowLabel()} -- both given to you already calculated, so use these directly rather than computing "tomorrow" (or any other relative date) yourself from today's date. Treat both as ground truth for ANY relative date reasoning -- today, this weekend, tomorrow, last week, next month, and so on. Never infer today's date from a search result: a page saying an event is happening "this weekend" is describing the weekend relative to whenever that page was written, not relative to right now -- always re-derive whether something is upcoming, ongoing, or already over by comparing its actual date against the real dates above, not by repeating a search result's own relative phrasing.
 
 Answer in the SAME language the visitor asked in (Finnish or English) -- detect it from their question, don't ask which they prefer.
 
@@ -154,6 +168,8 @@ When web search turns up options, prefer genuinely independent, local ${town.nam
 If BOARD_BUSINESSES already covers what's being asked, don't also search for and list several unrelated chains alongside it as if they were equally good local alternatives -- either the board business genuinely answers the question well (in which case say so and stop there), or it doesn't fully cover it (in which case search for other genuinely local, independent options, not a wall of national chains). Every entry in "webResults" should be a different real business, never the same business you already put in "mentioned".
 
 Tag each "webResults" entry with a "tier": "local" for a genuinely independent, ${town.name}-based business, or "other" for anything else worth mentioning but less certainly local (a regional or national business, a well-known chain the visitor specifically asked for by name, or something you're just not sure is independently local). Lead with local when you can -- most of what you recommend by search should be "local" unless the question genuinely doesn't have good local options.
+
+If you found the place's real street address through search, include it as "address" -- this gets shown as a pin on a map, so it needs to be a genuine address you actually found, not something recalled from memory or approximated from the place's general area. If you're not confident of the exact address, omit the field entirely rather than guess at one -- a missing pin is fine, a pin in the wrong place is not.
 
 Don't search if BOARD_BUSINESSES, LOCAL_NEWS, and TODAYS_EVENTS together already answer the question well and confidently -- that costs time and money for no benefit. But when a question touches on anything current or time-sensitive and you're not genuinely confident the data below covers it, search rather than guess.
 
@@ -179,7 +195,7 @@ TODAYS_EVENTS: ${JSON.stringify(eventContext)}
 BOARD_BUSINESSES: ${JSON.stringify(businessContext)}
 
 Respond with ONLY a JSON object, no other text, no markdown fences:
-{"answer": "<your reply, written in the visitor's own language>", "mentioned": ["<exact name from BOARD_BUSINESSES, for each one you recommended -- omit entirely if none>"], "webResults": [{"name": "<place name>", "url": "<real URL of that specific place's own site, if you're confident of one -- omit or leave empty otherwise>", "tier": "local or other -- see below"}]}`;
+{"answer": "<your reply, written in the visitor's own language>", "mentioned": ["<exact name from BOARD_BUSINESSES, for each one you recommended -- omit entirely if none>"], "webResults": [{"name": "<place name>", "url": "<real URL of that specific place's own site, if you're confident of one -- omit or leave empty otherwise>", "tier": "local or other -- see below", "address": "<the place's real street address if you found one via search, for showing it on a map -- omit entirely if you don't genuinely know it, never guess or approximate one>"}]}`;
 
     const trimmedHistory = Array.isArray(history)
       ? history
@@ -258,7 +274,14 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
 
     const mentioned = businesses
       .filter(b => mentionedNames.has(b.company_name))
-      .map(b => ({ name: b.company_name, squareId: b.id }));
+      .map(b => ({
+        name: b.company_name,
+        squareId: b.id,
+        // Real, stored coordinates -- never AI-supplied for board
+        // businesses, so there's no hallucination risk here specifically.
+        lat: typeof b.lat === 'number' ? b.lat : null,
+        lng: typeof b.lng === 'number' ? b.lng : null
+      }));
 
     // Never trust a model-provided URL blindly -- only pass through ones
     // that are genuinely well-formed http(s) links, not a place already
@@ -317,7 +340,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
     // a search still surfaces whatever DOES exist for them (a Maps
     // listing, a Facebook page, a phone number), which beats no link.
     const rawWebResults = Array.isArray(parsed.webResults) ? parsed.webResults : [];
-    const webResults = rawWebResults
+    let webResults = rawWebResults
       .filter(r => r && typeof r.name === 'string' && r.name.trim() && !mentionedNames.has(r.name))
       .map(r => {
         let url = null;
@@ -334,10 +357,83 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
         const isSearchFallback = !url;
         if (!url) url = googleSearchFallback(r.name, town.name);
         const tier = r.tier === 'other' ? 'other' : 'local'; // default to local -- matches "lead with local" guidance
-        return { name: r.name.slice(0, 120), url, isSearchFallback, tier };
+        const rawAddress = typeof r.address === 'string' ? r.address.trim() : '';
+        return { name: r.name.slice(0, 120), url, isSearchFallback, tier, _rawAddress: rawAddress || null };
       })
       .sort((a, b) => (a.tier === 'local' ? 0 : 1) - (b.tier === 'local' ? 0 : 1))
       .slice(0, 8); // frontend shows 4 at a time with show more/less -- this leaves room for a second page
+
+    // Geocode any address the model found via search -- never trust raw
+    // AI-supplied coordinates directly (models are much more prone to
+    // fabricating precise lat/lng numbers than a real street address
+    // found through search), so this always goes through the same real
+    // geocoder as the purchase/grant/edit flows. A failed or missing
+    // address just means no pin, never a wrong one.
+    webResults = await Promise.all(webResults.map(async (wr) => {
+      const { _rawAddress, ...rest } = wr;
+      if (!_rawAddress) return rest;
+      const geocoded = await geocodeAddress(_rawAddress);
+      return { ...rest, lat: geocoded ? geocoded.lat : null, lng: geocoded ? geocoded.lng : null };
+    }));
+
+    // Real backstop for a pattern prompt reinforcement alone hasn't
+    // reliably fixed: a substantial answer (an itinerary, several named
+    // stops) coming back with zero links at all. Rather than trust the
+    // SAME call to both write the prose and keep two arrays in sync with
+    // it, this makes a second, narrowly-scoped call whose only job is
+    // extraction -- a much simpler, more reliably-followed task on its
+    // own than "write a good answer AND remember the bookkeeping."
+    const totalLinked = mentioned.length + webResults.length;
+    const rawAnswerText = typeof parsed.answer === 'string' ? parsed.answer : '';
+    if (totalLinked === 0 && rawAnswerText.length > 150 && ANTHROPIC_API_KEY) {
+      try {
+        const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({
+            model: MODEL,
+            max_tokens: 400,
+            temperature: 0,
+            system: 'Extract every specific named business, restaurant, cafe, museum, park, or venue mentioned by name in the text below. Respond with ONLY a JSON array, no other text, no markdown fences: [{"name": "<exact name as written in the text>", "url": "<its own website if you are confident of one, otherwise an empty string>", "address": "<its real street address if you genuinely know it, otherwise an empty string -- never guess or approximate one>"}]. If nothing specific is named, respond with [].',
+            messages: [{ role: 'user', content: rawAnswerText }]
+          })
+        });
+        if (extractRes.ok) {
+          const extractData = await extractRes.json();
+          const extractText = (extractData.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+          const jsonMatch = extractText.match(/\[[\s\S]*\]/);
+          const extracted = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+          const newItems = await Promise.all((Array.isArray(extracted) ? extracted : [])
+            .filter(item => item && typeof item.name === 'string' && item.name.trim() && !mentionedNames.has(item.name))
+            .map(async (item) => {
+              let url = null;
+              if (typeof item.url === 'string' && item.url.trim()) {
+                try {
+                  const parsedUrl = new URL(item.url);
+                  const isHttp = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+                  const isDirectory = DIRECTORY_DOMAINS.some(d => parsedUrl.hostname.includes(d));
+                  if (isHttp && !isDirectory && nameLikelyMatchesDomain(item.name, parsedUrl.hostname)) url = parsedUrl.toString();
+                } catch (e) { /* falls through to search fallback */ }
+              }
+              const isSearchFallback = !url;
+              if (!url) url = googleSearchFallback(item.name, town.name);
+              const rawAddress = typeof item.address === 'string' ? item.address.trim() : '';
+              const geocoded = rawAddress ? await geocodeAddress(rawAddress) : null;
+              return {
+                name: item.name.slice(0, 120), url, isSearchFallback, tier: 'local',
+                lat: geocoded ? geocoded.lat : null, lng: geocoded ? geocoded.lng : null
+              };
+            }));
+          if (newItems.length > 0) {
+            webResults = webResults.concat(newItems)
+              .sort((a, b) => (a.tier === 'local' ? 0 : 1) - (b.tier === 'local' ? 0 : 1))
+              .slice(0, 8);
+          }
+        }
+      } catch (err) {
+        console.error('Link-extraction backstop failed (non-fatal):', err);
+      }
+    }
 
     res.status(200).json({ answer: cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), mentioned, webResults });
   } catch (err) {

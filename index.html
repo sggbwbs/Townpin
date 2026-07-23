@@ -409,6 +409,7 @@
     background:var(--amber);color:#2a1c0d;font-weight:700;text-decoration:none;}
   .askMentionChip:hover{background:var(--amber-deep);border-color:var(--amber-deep);}
   .askWebResults{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .askMap{height:220px;border-radius:10px;margin-top:12px;overflow:hidden;border:1px solid var(--line);}
   .askWebResultChip{font-size:14px;padding:9px 18px;border-radius:999px;border:1px solid var(--line);
     background:none;color:var(--ink-dim);text-decoration:none;}
   .askWebResultChip:hover{border-color:var(--ink-dim);color:var(--ink);}
@@ -423,6 +424,8 @@
     #askHeroRow{flex-direction:column;}
   }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body>
 
@@ -562,6 +565,9 @@
 
     <label data-i18n="lTagline">Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span></label>
     <textarea id="fTagline" placeholder="Oulun paras kahvi vuodesta 2015" rows="2"></textarea>
+
+    <label data-i18n="lAddress">Yrityksen osoite <span style="font-weight:400;color:#8a8168;">(pakollinen, näkyy kartalla)</span></label>
+    <input type="text" id="fAddress" data-i18n-placeholder="addressPlaceholder" placeholder="Katuosoite, kaupunki" />
 
     <label data-i18n="lIndustry">Toimiala</label>
     <select id="fIndustry">
@@ -1153,6 +1159,8 @@ const STRINGS = {
     lLogoUrl: 'Tai liitä kuvan osoite <span style="font-weight:400;color:#8a8168;">(jos et lataa tiedostoa)</span>',
     uploading: 'Ladataan…',
     lTagline: 'Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span>',
+    lAddress: 'Yrityksen osoite <span style="font-weight:400;color:#8a8168;">(pakollinen, näkyy kartalla)</span>',
+    addressPlaceholder: 'Katuosoite, kaupunki',
     lPlanType: 'Maksutapa',
     planMonthly: 'Kuukausitilaus',
     planPrepaid: 'Maksa etukäteen',
@@ -1193,6 +1201,7 @@ const STRINGS = {
     footerText: 'PaikallisCanvas · varaa mainospaikka, saat sivun, peruuta milloin vain',
     fillRequired: 'Täytä yrityksen nimi, verkkosivu ja sähköposti.',
     logoRequiredErr: 'Logo on pakollinen — lataa kuva tai liitä sen osoite.',
+    addressRequiredErr: 'Yrityksen osoite on pakollinen — se näkyy kartalla.',
     confirmRequired: 'Vahvista, että tämä on yritystilaus, ennen kuin jatkat.',
     invalidUrl: 'Verkkosivun osoite vaikuttaa virheelliseltä — muista https://',
     redirecting: 'Ohjataan maksuun…',
@@ -1286,6 +1295,8 @@ const STRINGS = {
     lLogoUrl: 'Or paste an image URL <span style="font-weight:400;color:#8a8168;">(if you don\'t upload a file)</span>',
     uploading: 'Uploading…',
     lTagline: 'Short tagline <span style="font-weight:400;color:#8a8168;">(optional, shown on your page)</span>',
+    lAddress: 'Business address <span style="font-weight:400;color:#8a8168;">(required, shown on the map)</span>',
+    addressPlaceholder: 'Street address, city',
     lPlanType: 'Payment plan',
     planMonthly: 'Monthly subscription',
     planPrepaid: 'Pay upfront',
@@ -1326,6 +1337,7 @@ const STRINGS = {
     footerText: 'PaikallisCanvas · claim a slot, get a page, cancel anytime',
     fillRequired: 'Please fill in company name, website and email.',
     logoRequiredErr: 'A logo is required — upload an image or paste its URL.',
+    addressRequiredErr: 'A business address is required — it will be shown on the map.',
     confirmRequired: 'Please confirm this is a business subscription before continuing.',
     invalidUrl: 'Website URL looks invalid — include https://',
     redirecting: 'Redirecting to payment…',
@@ -1974,6 +1986,44 @@ document.getElementById('newsCategoryFilter').addEventListener('change', (e)=>{
 let askHistory = [];   // {role:'user'|'assistant', content:string}[] sent to /api/ask as context
 let askResultBlockCounter = 0; // gives each chat result's webResults block a unique id for show-more/less
 
+// Leaflet's default marker icon paths assume it's bundled locally (via
+// webpack etc.) and silently fail to load when it's just a CDN script
+// tag like this -- pointing them at the same CDN's own image files is
+// the standard fix, not something specific to this app.
+let leafletIconsFixed = false;
+function ensureLeafletIcons(){
+  if (leafletIconsFixed || typeof L === 'undefined') return;
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+  });
+  leafletIconsFixed = true;
+}
+
+function renderAskMap(mapId, points){
+  if (typeof L === 'undefined' || points.length === 0) return;
+  const container = document.getElementById(mapId);
+  if (!container) return;
+  ensureLeafletIcons();
+
+  const map = L.map(mapId, { scrollWheelZoom: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  const markers = points.map(p => L.marker([p.lat, p.lng]).bindPopup(escapeAskText(p.name)));
+  markers.forEach(m => m.addTo(map));
+
+  if (points.length === 1){
+    map.setView([points[0].lat, points[0].lng], 15);
+  } else {
+    map.fitBounds(L.featureGroup(markers).getBounds().pad(0.2));
+  }
+}
+
 function toggleAskWebResults(resultId, btn){
   const container = document.getElementById(resultId);
   if (!container) return;
@@ -2058,7 +2108,25 @@ async function askAsk(question, sendBtn){
         html += `<button class="askShowMoreBtn logoBtn" data-expanded="false" onclick="toggleAskWebResults('${resultId}', this)">${t('showMore')}</button>`;
       }
     }
+
+    // A light map of wherever real coordinates exist -- board businesses
+    // always have real, stored ones (never AI-supplied); general places
+    // only get a pin when the model found (and we successfully geocoded)
+    // a genuine address, never a guessed one. No pin for something is
+    // normal and expected, not an error.
+    const mapPoints = [
+      ...(Array.isArray(data.mentioned) ? data.mentioned : []),
+      ...(Array.isArray(data.webResults) ? data.webResults : [])
+    ].filter(p => typeof p.lat === 'number' && typeof p.lng === 'number');
+
+    let mapId = null;
+    if (mapPoints.length > 0){
+      mapId = 'askMap' + (askResultBlockCounter++);
+      html += `<div class="askMap" id="${mapId}"></div>`;
+    }
+
     askAppendResult(html);
+    if (mapId) renderAskMap(mapId, mapPoints);
 
     // Keep server-side context bounded too (see MAX_HISTORY_TURNS in
     // api/ask.js) -- trimming here as well just avoids sending an
@@ -2510,6 +2578,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
   const email = document.getElementById('fEmail').value.trim();
   const logo = uploadedLogoUrl || document.getElementById('fLogo').value.trim();
   const tagline = document.getElementById('fTagline').value.trim();
+  const address = document.getElementById('fAddress').value.trim();
   const industry = document.getElementById('fIndustry').value;
   const errBox = document.getElementById('formErr');
 
@@ -2520,6 +2589,11 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
   }
   if (!logo){
     errBox.textContent = t('logoRequiredErr');
+    errBox.style.display = 'block';
+    return;
+  }
+  if (!address){
+    errBox.textContent = t('addressRequiredErr');
     errBox.style.display = 'block';
     return;
   }
@@ -2553,6 +2627,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
         logoUrl: logo || null,
         color: null,
         tagline: tagline || null,
+        address,
         industry: industry || null
       })
     });

@@ -198,3 +198,12 @@ create table if not exists ai_agent_hints (
   created_at timestamptz not null default now()
 );
 
+-- ==== Business address + geocoded coordinates, for the map feature ====
+-- address is what the business/admin actually typed; lat/lng are
+-- computed once via OpenStreetMap's Nominatim geocoder whenever the
+-- address is set or changed (see api/_geocode.js). Nullable since
+-- existing businesses (from before this) don't have one yet.
+alter table squares add column if not exists address text;
+alter table squares add column if not exists lat double precision;
+alter table squares add column if not exists lng double precision;
+

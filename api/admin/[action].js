@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const { supabase } = require('../_db');
 const { isAuthenticated, setSessionCookie, clearSessionCookie, getClientIp } = require('./_auth');
 const { pickRandomEmptySquares, insertSquaresWithRetry } = require('../_squares');
+const { geocodeAddress } = require('../_geocode');
 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MINUTES = 15;
@@ -104,7 +105,7 @@ async function handleGrant(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
 
-  const { townId, squareCount, companyName, websiteUrl, logoUrl, tagline, industry } = req.body || {};
+  const { townId, squareCount, companyName, websiteUrl, logoUrl, tagline, industry, address } = req.body || {};
   if (typeof townId !== 'number' && typeof townId !== 'string') {
     return res.status(400).json({ error: 'Missing town.' });
   }
@@ -118,8 +119,15 @@ async function handleGrant(req, res) {
   if (!logoUrl) {
     return res.status(400).json({ error: 'A logo is required.' });
   }
+  if (!address || !address.trim()) {
+    return res.status(400).json({ error: 'An address is required.' });
+  }
   const linkProblem = isSuspicious(websiteUrl);
   if (linkProblem) return res.status(400).json({ error: linkProblem });
+
+  // Geocoding failure is never fatal -- a business whose address
+  // Nominatim can't resolve just doesn't get a map pin.
+  const geocoded = await geocodeAddress(address);
 
   // The board is a scrolling logo banner now, not a clickable grid -- the
   // admin picks a quantity, not specific positions. Same auto-assignment
@@ -136,6 +144,9 @@ async function handleGrant(req, res) {
       logo_url: logoUrl,
       tagline: tagline || null,
       industry: industry || null,
+      address: address.trim(),
+      lat: geocoded ? geocoded.lat : null,
+      lng: geocoded ? geocoded.lng : null,
       status: 'active',
       is_comped: true,
       group_id: groupId
@@ -246,7 +257,7 @@ async function handleCompanyDetails(req, res) {
 
   const { data, error } = await supabase
     .from('squares')
-    .select('group_id, company_name, email, website_url, logo_url, tagline, color, industry, is_comped, town_id, towns(name)')
+    .select('group_id, company_name, email, website_url, logo_url, tagline, color, industry, address, is_comped, town_id, towns(name)')
     .eq('group_id', groupId)
     .eq('status', 'active');
   if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }
@@ -262,6 +273,7 @@ async function handleCompanyDetails(req, res) {
     tagline: rep.tagline,
     color: rep.color,
     industry: rep.industry,
+    address: rep.address,
     isComped: rep.is_comped,
     townId: rep.town_id,
     townName: rep.towns ? rep.towns.name : '',
@@ -276,7 +288,7 @@ async function handleEditCompany(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
 
-  const { groupId, companyName, websiteUrl, logoUrl, tagline, industry, squareCount } = req.body || {};
+  const { groupId, companyName, websiteUrl, logoUrl, tagline, industry, squareCount, address } = req.body || {};
   if (!groupId) return res.status(400).json({ error: 'Missing groupId.' });
   if (!companyName || !websiteUrl) {
     return res.status(400).json({ error: 'Company name and website are required.' });
@@ -284,12 +296,15 @@ async function handleEditCompany(req, res) {
   if (!logoUrl) {
     return res.status(400).json({ error: 'A logo is required.' });
   }
+  if (!address || !address.trim()) {
+    return res.status(400).json({ error: 'An address is required.' });
+  }
   const linkProblem = isSuspicious(websiteUrl);
   if (linkProblem) return res.status(400).json({ error: linkProblem });
 
   const { data: existing, error: existingErr } = await supabase
     .from('squares')
-    .select('id, town_id, is_comped')
+    .select('id, town_id, is_comped, address')
     .eq('group_id', groupId)
     .eq('status', 'active');
   if (existingErr) { console.error(existingErr); return res.status(500).json({ error: 'Lookup failed.' }); }
@@ -301,6 +316,13 @@ async function handleEditCompany(req, res) {
   const isComped = existing[0].is_comped; // preserve the group's existing paid-vs-free status for any newly added slots
   const currentCount = existing.length;
   const wanted = typeof squareCount === 'number' && squareCount > 0 ? Math.floor(squareCount) : currentCount;
+  const trimmedAddress = address.trim();
+
+  // Only hit the geocoder if the address actually changed -- no reason
+  // to re-geocode on every unrelated save (a tagline tweak, adding a
+  // slot) when the address itself is untouched.
+  const addressChanged = trimmedAddress !== (existing[0].address || '');
+  const geocoded = addressChanged ? await geocodeAddress(trimmedAddress) : null;
 
   if (wanted > currentCount){
     const toAdd = wanted - currentCount;
@@ -313,6 +335,9 @@ async function handleEditCompany(req, res) {
         logo_url: logoUrl,
         tagline: tagline || null,
         industry: industry || null,
+        address: trimmedAddress,
+        lat: geocoded ? geocoded.lat : null,
+        lng: geocoded ? geocoded.lng : null,
         status: 'active',
         is_comped: isComped,
         group_id: groupId
@@ -327,15 +352,22 @@ async function handleEditCompany(req, res) {
     if (expireErr) { console.error(expireErr); return res.status(500).json({ error: 'Could not remove excess slots.' }); }
   }
 
+  const updatePayload = {
+    company_name: companyName,
+    website_url: websiteUrl,
+    logo_url: logoUrl,
+    tagline: tagline || null,
+    industry: industry || null,
+    address: trimmedAddress
+  };
+  if (addressChanged) {
+    updatePayload.lat = geocoded ? geocoded.lat : null;
+    updatePayload.lng = geocoded ? geocoded.lng : null;
+  }
+
   const { data: updatedRows, error } = await supabase
     .from('squares')
-    .update({
-      company_name: companyName,
-      website_url: websiteUrl,
-      logo_url: logoUrl,
-      tagline: tagline || null,
-      industry: industry || null
-    })
+    .update(updatePayload)
     .eq('group_id', groupId)
     .eq('status', 'active')
     .select();
