@@ -139,6 +139,9 @@ module.exports = async (req, res) => {
     if (!companyName || !websiteUrl || !email) {
       return res.status(400).json({ error: 'Company name, website and email are required.' });
     }
+    if (!logoUrl) {
+      return res.status(400).json({ error: 'A logo is required.' });
+    }
     if (industry && !ALLOWED_INDUSTRIES.includes(industry)) {
       return res.status(400).json({ error: 'Invalid industry value.' });
     }
