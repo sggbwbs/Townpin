@@ -6,6 +6,7 @@
 const bcrypt = require('bcryptjs');
 const { supabase } = require('../_db');
 const { isAuthenticated, setSessionCookie, clearSessionCookie, getClientIp } = require('./_auth');
+const { pickRandomEmptySquares } = require('../_squares');
 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MINUTES = 15;
@@ -103,12 +104,13 @@ async function handleGrant(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
 
-  const { townId, indices, companyName, websiteUrl, logoUrl, color, tagline } = req.body || {};
+  const { townId, squareCount, companyName, websiteUrl, logoUrl, color, tagline } = req.body || {};
   if (typeof townId !== 'number' && typeof townId !== 'string') {
     return res.status(400).json({ error: 'Missing town.' });
   }
-  if (!Array.isArray(indices) || indices.length === 0) {
-    return res.status(400).json({ error: 'Select at least one square.' });
+  const wanted = typeof squareCount === 'number' ? Math.floor(squareCount) : 0;
+  if (wanted < 1) {
+    return res.status(400).json({ error: 'Grant at least one square.' });
   }
   if (!companyName || !websiteUrl) {
     return res.status(400).json({ error: 'Company name and website are required.' });
@@ -116,15 +118,16 @@ async function handleGrant(req, res) {
   const linkProblem = isSuspicious(websiteUrl);
   if (linkProblem) return res.status(400).json({ error: linkProblem });
 
-  const { data: existing, error: existingErr } = await supabase
-    .from('squares')
-    .select('idx')
-    .eq('town_id', townId)
-    .in('idx', indices)
-    .in('status', ['active', 'pending']);
-  if (existingErr) { console.error(existingErr); return res.status(500).json({ error: 'Lookup failed.' }); }
-  if (existing && existing.length > 0) {
-    return res.status(409).json({ error: 'One or more of those squares are already taken.' });
+  // The board is a scrolling logo banner now, not a clickable grid -- the
+  // admin picks a quantity, not specific positions. Same auto-assignment
+  // helper the real purchase flow and "move to another town" both use.
+  const indices = await pickRandomEmptySquares(townId, wanted);
+  if (indices.length < wanted) {
+    return res.status(409).json({
+      error: indices.length > 0
+        ? `Only ${indices.length} free square(s) available in that town right now.`
+        : 'No free squares available in that town right now.'
+    });
   }
 
   const groupId = crypto.randomUUID();
@@ -206,9 +209,9 @@ async function handleMove(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
 
-  const { groupId, destinationTownId, newIndices } = req.body || {};
-  if (!groupId || !destinationTownId || !Array.isArray(newIndices)) {
-    return res.status(400).json({ error: 'Missing groupId, destinationTownId, or newIndices.' });
+  const { groupId, destinationTownId } = req.body || {};
+  if (!groupId || !destinationTownId) {
+    return res.status(400).json({ error: 'Missing groupId or destinationTownId.' });
   }
 
   const { data: existing, error: existingErr } = await supabase
@@ -221,26 +224,22 @@ async function handleMove(req, res) {
   if (!existing || existing.length === 0) {
     return res.status(404).json({ error: 'No active squares found for that group.' });
   }
-  if (newIndices.length !== existing.length) {
-    return res.status(400).json({ error: `This company has ${existing.length} square(s) — pick exactly that many in the destination town.` });
+
+  // The board is a scrolling logo banner now, not a clickable grid -- no
+  // need for the admin to manually pick matching destination positions
+  // on a second grid. Auto-assign the same count in the destination town
+  // instead, same helper the grant flow and the real purchase flow use.
+  const newIndices = await pickRandomEmptySquares(destinationTownId, existing.length);
+  if (newIndices.length < existing.length) {
+    return res.status(409).json({
+      error: `This company has ${existing.length} square(s), but the destination town only has ${newIndices.length} free right now.`
+    });
   }
 
-  const { data: taken, error: takenErr } = await supabase
-    .from('squares')
-    .select('idx')
-    .eq('town_id', destinationTownId)
-    .in('idx', newIndices)
-    .in('status', ['active', 'pending']);
-  if (takenErr) { console.error(takenErr); return res.status(500).json({ error: 'Lookup failed.' }); }
-  if (taken && taken.length > 0) {
-    return res.status(409).json({ error: 'One or more of those destination squares are already taken.' });
-  }
-
-  const sortedNewIndices = [...newIndices].sort((a, b) => a - b);
   for (let i = 0; i < existing.length; i++) {
     const { error: updateErr } = await supabase
       .from('squares')
-      .update({ town_id: destinationTownId, idx: sortedNewIndices[i] })
+      .update({ town_id: destinationTownId, idx: newIndices[i] })
       .eq('id', existing[i].id);
     if (updateErr) { console.error(updateErr); return res.status(500).json({ error: 'Move failed partway through — check the board manually.' }); }
   }
