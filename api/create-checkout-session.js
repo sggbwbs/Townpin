@@ -92,24 +92,51 @@ module.exports = async (req, res) => {
 
   try {
     const {
-      townId, indices, additionalTowns, companyName, websiteUrl, email,
+      townId, indices, squareCount, additionalTowns, companyName, websiteUrl, email,
       logoUrl, color, tagline, industry, planType, prepaidMonths
     } = req.body;
 
     if (typeof townId !== 'number' && typeof townId !== 'string') {
       return res.status(400).json({ error: 'Missing town.' });
     }
-    if (!Array.isArray(indices) || indices.length === 0) {
+
+    // The frontend no longer sends manually-picked grid positions -- it
+    // sends a plain quantity instead (the board is a scrolling logo
+    // banner now, not a clickable grid). Positions are auto-assigned
+    // here, the same way "post to additional towns" already worked
+    // (see pickRandomEmptySquares below) -- `indices` is still accepted
+    // too, in case anything else ever calls this endpoint directly.
+    let finalIndices = indices;
+    if (!Array.isArray(finalIndices) || finalIndices.length === 0) {
+      const wanted = typeof squareCount === 'number' ? Math.floor(squareCount) : 0;
+      if (wanted > 0) {
+        const picked = await pickRandomEmptySquares(townId, Math.min(wanted, MAX_SQUARES_PER_PURCHASE));
+        // Unlike the "additional towns" best-effort case, the primary
+        // purchase must get exactly what was requested (and priced) --
+        // failing cleanly here is much better than silently charging
+        // for N slots while only granting fewer.
+        if (picked.length < wanted) {
+          return res.status(409).json({
+            error: picked.length > 0
+              ? `Vain ${picked.length} vapaata paikkaa jäljellä juuri nyt — kokeile pienemmällä määrällä.`
+              : 'Ei vapaita paikkoja juuri nyt.'
+          });
+        }
+        finalIndices = picked;
+      }
+    }
+
+    if (!Array.isArray(finalIndices) || finalIndices.length === 0) {
       return res.status(400).json({ error: 'Select at least one square.' });
     }
-    if (indices.some(i => typeof i !== 'number' || i < 0)) {
+    if (finalIndices.some(i => typeof i !== 'number' || i < 0)) {
       return res.status(400).json({ error: 'Invalid square selection.' });
     }
     const extraTowns = Array.isArray(additionalTowns)
       ? additionalTowns.filter(a => a.townId !== townId && typeof a.count === 'number' && a.count > 0)
       : [];
     const extraCount = extraTowns.reduce((sum, a) => sum + Math.min(a.count, 20), 0);
-    const totalCount = indices.length + extraCount;
+    const totalCount = finalIndices.length + extraCount;
     if (totalCount > MAX_SQUARES_PER_PURCHASE) {
       return res.status(400).json({ error: `Max ${MAX_SQUARES_PER_PURCHASE} squares per purchase — split larger campaigns into a few buys.` });
     }
@@ -177,18 +204,18 @@ module.exports = async (req, res) => {
       .from('squares')
       .select('idx')
       .eq('town_id', townId)
-      .in('idx', indices)
+      .in('idx', finalIndices)
       .in('status', ['active', 'pending']);
     if (existingErr) throw existingErr;
     if (existing && existing.length > 0) {
-      return res.status(409).json({ error: 'One of those squares was just taken — pick again.' });
+      return res.status(409).json({ error: 'One of the auto-assigned slots was just taken by someone else — please try again.' });
     }
 
     const reservedUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     const editToken = require('crypto').randomUUID();
     const groupId = require('crypto').randomUUID();
 
-    const rows = indices.map(idx => ({
+    const rows = finalIndices.map(idx => ({
       town_id: townId,
       idx,
       company_name: companyName,
@@ -239,7 +266,7 @@ module.exports = async (req, res) => {
       .select();
     if (insertErr) {
       if (insertErr.code === '23505') { // unique constraint race
-        return res.status(409).json({ error: 'One of those squares was just taken — pick again.' });
+        return res.status(409).json({ error: 'One of the auto-assigned slots was just taken by someone else — please try again.' });
       }
       throw insertErr;
     }
