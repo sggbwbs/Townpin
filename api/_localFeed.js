@@ -334,8 +334,13 @@ ${JSON.stringify(events.map(e => ({ title_fi: e.title_fi, summary_fi: e.summary_
 async function generateEventItems(townName) {
   const realEvents = await fetchOuluEventsFromAPI();
   if (realEvents.length > 0) {
-    const translated = await translateEventsToEnglish(realEvents);
-    return translated.map(e => ({ ...e, item_type: 'event', source_name: 'Kaleva' }));
+    // Translation deliberately disabled for now -- it was a real,
+    // recurring AI cost on every events cache refresh. English display
+    // just reuses the Finnish text instead (same fallback already used
+    // above when no API key is configured at all). The function itself
+    // is left in place below, unused, in case this is worth revisiting
+    // later -- same pattern as the offers feature.
+    return realEvents.map(e => ({ ...e, title_en: e.title_fi, summary_en: e.summary_fi, item_type: 'event', source_name: 'Kaleva' }));
   }
   // Fallback only -- the real API above should normally cover this, but
   // AI search is a reasonable safety net if that API is ever down or
