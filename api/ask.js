@@ -100,16 +100,27 @@ module.exports = async (req, res) => {
     const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
     if (!town) return res.status(404).json({ error: 'Unknown town.' });
 
-    const [{ data: squares }, events, news] = await Promise.all([
+    const [{ data: rawSquares }, events, news] = await Promise.all([
       supabase.from('squares')
-        .select('id, company_name, industry, tagline, website_url, ai_blurb_fi')
+        .select('id, group_id, company_name, industry, tagline, website_url, ai_blurb_fi')
         .eq('town_id', townId).eq('status', 'active').eq('flagged', false)
         .limit(MAX_BUSINESSES_IN_CONTEXT),
       getEventsSection(supabase, townId, town.name),
       getNewsSection(supabase, townId)
     ]);
 
-    const businesses = squares || [];
+    // A business can own several slots (see the banner's per-slot pricing
+    // model) -- squares is one row per slot, so dedupe by business here,
+    // once, rather than once per representation downstream. Otherwise a
+    // business with N slots would be sent to the model N times over, and
+    // later show up as N duplicate "mentioned" chips in the chat UI.
+    const seenBusinesses = new Set();
+    const businesses = (rawSquares || []).filter(b => {
+      const key = b.group_id || b.id;
+      if (seenBusinesses.has(key)) return false;
+      seenBusinesses.add(key);
+      return true;
+    });
     const businessContext = businesses.map(b => ({
       name: b.company_name,
       industry: INDUSTRY_LABELS[b.industry] || b.industry || null,
@@ -135,7 +146,9 @@ You have three sources of information, in priority order:
 2. LOCAL_NEWS and TODAYS_EVENTS below -- real, current local coverage and today's real calendar events. A seasonal happening (a festival, a market, a one-off event) is often mentioned in local news coverage even when it isn't a business and isn't in TODAYS_EVENTS specifically -- treat a relevant news headline as a real signal worth searching further on, not something to ignore just because it isn't a business or a calendar event.
 3. Web search -- use it whenever the question could involve something current, seasonal, or time-limited (a festival, a seasonal attraction, something LOCAL_NEWS only mentions in passing) that BOARD_BUSINESSES and TODAYS_EVENTS don't fully cover. Don't rely on your own general/training knowledge for anything time-sensitive -- it can be out of date, and a visitor asking what's happening this weekend deserves an answer that's actually current, not a vague guess. Also search for the actual activity, place, or route itself when that isn't something a business sells (e.g. "go hiking" is asking where to actually go: name real trails or nature spots, both official signposted routes and well-known unofficial/local ones).
 
-When web search turns up options, prefer genuinely independent, local ${town.name} businesses over national or international chains -- someone asking a local guide for a recommendation wants to discover somewhere that's actually part of ${town.name}, not be pointed to the same chain hotel or chain restaurant they could find in any city in the country. Concretely: avoid recommending big hotel chains (Scandic, Sokos Hotels, Radisson, Cumulus, Original Sokos, and similar) or major restaurant/retail chains unless the visitor specifically asks for one by name, or no genuinely local option exists at all for what they asked. If you're not sure whether something is a local independent business or a chain location, lean toward mentioning it in your answer text rather than featuring it prominently in "webResults".
+When web search turns up options, prefer genuinely independent, local ${town.name} businesses over national or international chains -- someone asking a local guide for a recommendation wants to discover somewhere that's actually part of ${town.name}, not be pointed to the same chain hotel, car rental counter, or chain restaurant they could find in any city in the country. Concretely: avoid recommending big hotel chains (Scandic, Sokos Hotels, Radisson, Cumulus, Original Sokos, and similar), major car rental chains (Sixt, Hertz, Avis, Europcar, and similar), or major restaurant/retail chains -- unless the visitor specifically asks for one by name, or no genuinely local option exists at all for what they asked. If you're not sure whether something is a local independent business or a chain location, lean toward mentioning it in your answer text rather than featuring it prominently in "webResults".
+
+If BOARD_BUSINESSES already covers what's being asked, don't also search for and list several unrelated chains alongside it as if they were equally good local alternatives -- either the board business genuinely answers the question well (in which case say so and stop there), or it doesn't fully cover it (in which case search for other genuinely local, independent options, not a wall of national chains). Every entry in "webResults" should be a different real business, never the same business you already put in "mentioned".
 
 Don't search if BOARD_BUSINESSES, LOCAL_NEWS, and TODAYS_EVENTS together already answer the question well and confidently -- that costs time and money for no benefit. But when a question touches on anything current or time-sensitive and you're not genuinely confident the data below covers it, search rather than guess.
 
@@ -253,7 +266,10 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       // that alone, same as the directory/booking-platform check above.
       'scandichotels.', 'sokoshotels.fi', 'radissonhotels.', 'radissonhotel.',
       'cumulus.fi', 'hotellibreak.fi', 'breaksokos.fi', 'hotels.com', 'booking.com',
-      'accorhotels.', 'marriott.', 'hilton.', 'ihg.com', 'bestwestern.'
+      'accorhotels.', 'marriott.', 'hilton.', 'ihg.com', 'bestwestern.',
+      // Major car rental chains -- same principle, same backstop role.
+      'sixt.', 'hertz.', 'avis.', 'europcar.', 'budget.', 'enterprise.',
+      'nationalcar.', 'thrifty.'
     ];
 
     function nameLikelyMatchesDomain(name, hostname) {
