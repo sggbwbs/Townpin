@@ -27,6 +27,13 @@
   #downloadBtn:disabled{opacity:0.5;cursor:default;}
   #downloadBtn:hover:not(:disabled){background:var(--amber-deep);}
   #backLink{margin-top:22px;font-size:13px;color:var(--ink-dim);text-decoration:none;border-bottom:1px solid var(--line);}
+  #eventPicker{width:100%;max-width:440px;margin-top:28px;text-align:left;order:1;}
+  #eventPicker h2{font-family:'Space Grotesk',sans-serif;font-size:16px;margin:0 0 4px;}
+  .pickerSub{color:var(--ink-dim);font-size:12.5px;margin:0 0 14px;}
+  .pickerRow{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
+  .pickerRow input{margin-top:3px;flex:none;width:16px;height:16px;accent-color:var(--amber);cursor:pointer;}
+  .pickerRow label{font-size:13.5px;line-height:1.4;cursor:pointer;}
+  .pickerRow.disabled label{color:var(--ink-dim);}
 </style>
 </head>
 <body>
@@ -40,6 +47,13 @@
 
   <div id="status">Ladataan tietoja…</div>
   <button id="downloadBtn" disabled>Lataa kuvana</button>
+
+  <div id="eventPicker" style="display:none;">
+    <h2>Valitse kortin tapahtumat</h2>
+    <p class="pickerSub">Oletuksena 5 suosituinta on valittu. Enintään 6 mahtuu kortille kunnolla.</p>
+    <div id="eventCheckboxes"></div>
+  </div>
+
   <a id="backLink" href="/oulu">← Takaisin taululle</a>
 
 <script>
@@ -119,22 +133,25 @@ function drawGridMotif(ctx, originX, originY, cols, rows, cell, gap, filledSet){
   }
 }
 
-async function buildCard(){
-  const statusEl = document.getElementById('status');
-  const canvas = document.getElementById('cardCanvas');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
+const MAX_SELECTABLE_EVENTS = 6;
+const DEFAULT_SELECTED_COUNT = 5;
 
-  // ---- fetch real data (weather direct from Open-Meteo, top events via our own /api/feed) ----
-  let temp = null, weatherCode = 0, tempMax = null, tempMin = null, topEvents = [];
+// Cached once after the initial fetch, reused every time the picker
+// selection changes so redrawing never needs a fresh network round-trip.
+let cachedWeather = { temp: null, weatherCode: 0, tempMax: null, tempMin: null };
+let allEvents = [];
+
+async function fetchCardData(){
+  const statusEl = document.getElementById('status');
+
   try {
     const wRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FHelsinki&forecast_days=1');
     const wData = await wRes.json();
-    temp = wData.current ? Math.round(wData.current.temperature_2m) : null;
-    weatherCode = wData.current ? wData.current.weather_code : 0;
+    cachedWeather.temp = wData.current ? Math.round(wData.current.temperature_2m) : null;
+    cachedWeather.weatherCode = wData.current ? wData.current.weather_code : 0;
     if (wData.daily){
-      tempMax = Math.round(wData.daily.temperature_2m_max[0]);
-      tempMin = Math.round(wData.daily.temperature_2m_min[0]);
+      cachedWeather.tempMax = Math.round(wData.daily.temperature_2m_max[0]);
+      cachedWeather.tempMin = Math.round(wData.daily.temperature_2m_min[0]);
     }
   } catch (e) { /* fail quietly -- card still works without weather */ }
 
@@ -144,11 +161,63 @@ async function buildCard(){
     if (tData.town){
       const fRes = await fetch(`/api/feed?townId=${tData.town.id}`);
       const fData = await fRes.json();
-      if (fData.events && fData.events.length > 0) topEvents = fData.events.slice(0, 3); // already ranked by popularity
+      // Fetch more than we'll necessarily use -- these become the picker's
+      // candidate list, already ranked by popularity/today-first from the backend.
+      if (fData.events && fData.events.length > 0) allEvents = fData.events.slice(0, 10);
     }
   } catch (e) { /* fail quietly -- card still works without events */ }
 
   statusEl.textContent = '';
+  renderEventPicker();
+  drawCard(getSelectedEvents());
+}
+
+function getSelectedEvents(){
+  const checked = [...document.querySelectorAll('#eventCheckboxes input:checked')].map(el => Number(el.dataset.index));
+  return allEvents.filter((_, i) => checked.includes(i));
+}
+
+function renderEventPicker(){
+  const picker = document.getElementById('eventPicker');
+  const box = document.getElementById('eventCheckboxes');
+  if (allEvents.length === 0){ picker.style.display = 'none'; return; }
+
+  picker.style.display = 'block';
+  box.innerHTML = allEvents.map((ev, i) => `
+    <div class="pickerRow">
+      <input type="checkbox" id="ev-${i}" data-index="${i}" ${i < DEFAULT_SELECTED_COUNT ? 'checked' : ''} />
+      <label for="ev-${i}">${ev.title_fi}</label>
+    </div>
+  `).join('');
+
+  enforceSelectionCap();
+  box.querySelectorAll('input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      enforceSelectionCap();
+      drawCard(getSelectedEvents());
+    });
+  });
+}
+
+// Disables any unchecked box once MAX_SELECTABLE_EVENTS are already
+// checked, rather than silently drawing an overcrowded card -- the
+// layout below is only verified safe up to this many.
+function enforceSelectionCap(){
+  const boxes = [...document.querySelectorAll('#eventCheckboxes input')];
+  const checkedCount = boxes.filter(cb => cb.checked).length;
+  boxes.forEach(cb => {
+    const row = cb.closest('.pickerRow');
+    const shouldDisable = !cb.checked && checkedCount >= MAX_SELECTABLE_EVENTS;
+    cb.disabled = shouldDisable;
+    row.classList.toggle('disabled', shouldDisable);
+  });
+}
+
+function drawCard(selectedEvents){
+  const canvas = document.getElementById('cardCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const { temp, weatherCode, tempMax, tempMin } = cachedWeather;
 
   // ---- draw ----
   const now = new Date();
@@ -213,29 +282,40 @@ async function buildCard(){
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(72, 500); ctx.lineTo(W - 72, 500); ctx.stroke();
 
-  // today's most popular events -- up to 3, ranked by Kaleva's real view counts
+  // today's most popular events -- picked via the checklist below,
+  // ranked by Kaleva's real view counts. Layout scales down in tiers as
+  // the count grows, verified (worst case: every title wraps to 2
+  // lines) to stay clear of the footer at each tier rather than
+  // assuming a fixed count of 3 the way this used to.
   ctx.fillStyle = '#c1712a';
   ctx.font = "700 26px 'Space Grotesk'";
   ctx.fillText('SUOSITUIMMAT TAPAHTUMAT TÄNÄÄN', 72, 550);
 
-  if (topEvents.length > 0){
+  if (selectedEvents.length > 0){
+    const n = selectedEvents.length;
+    const layout = n <= 3
+      ? { font: 36, lineHeight: 40, gap: 26, markerR: 20, markerFont: 22 }
+      : n <= 5
+        ? { font: 25, lineHeight: 27, gap: 10, markerR: 15, markerFont: 16 }
+        : { font: 19, lineHeight: 21, gap: 6, markerR: 12, markerFont: 13 };
+
     let cursorY = 610;
-    topEvents.forEach((ev, i) => {
-      // small numbered marker so 3 items read as a ranked list, not a wall of text
+    selectedEvents.forEach((ev, i) => {
+      // small numbered marker so the list reads as a ranked list, not a wall of text
       ctx.fillStyle = '#e08a3c';
       ctx.beginPath();
-      ctx.arc(90, cursorY - 14, 20, 0, Math.PI * 2);
+      ctx.arc(90, cursorY - 14, layout.markerR, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#fffdf8';
-      ctx.font = "700 22px 'Space Grotesk'";
+      ctx.font = `700 ${layout.markerFont}px 'Space Grotesk'`;
       ctx.textAlign = 'center';
       ctx.fillText(String(i + 1), 90, cursorY - 6);
       ctx.textAlign = 'left';
 
       ctx.fillStyle = '#2a2110';
-      ctx.font = "700 36px 'Space Grotesk'";
-      const titleHeight = wrapText(ctx, ev.title_fi, 138, cursorY, W - 210, 40, 2);
-      cursorY += titleHeight + 26;
+      ctx.font = `700 ${layout.font}px 'Space Grotesk'`;
+      const titleHeight = wrapText(ctx, ev.title_fi, 138, cursorY, W - 210, layout.lineHeight, 2);
+      cursorY += titleHeight + layout.gap;
     });
   } else {
     ctx.fillStyle = '#6b6248';
@@ -267,7 +347,7 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
 // text falls back to a default font silently otherwise, even if the CSS
 // font is already applied to the rest of the page
 document.fonts.load("700 40px 'Space Grotesk'").then(() => {
-  document.fonts.load("400 28px 'IBM Plex Sans'").then(buildCard);
+  document.fonts.load("400 28px 'IBM Plex Sans'").then(fetchCardData);
 });
 </script>
 </body>
