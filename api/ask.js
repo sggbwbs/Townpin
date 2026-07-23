@@ -173,7 +173,7 @@ If you found the place's real street address through search, include it as "addr
 
 Don't search if BOARD_BUSINESSES, LOCAL_NEWS, and TODAYS_EVENTS together already answer the question well and confidently -- that costs time and money for no benefit. But when a question touches on anything current or time-sensitive and you're not genuinely confident the data below covers it, search rather than guess.
 
-Keep answers short and conversational: 2-4 sentences, at most 2-3 specific named recommendations (trails, businesses, events, or a mix). Never invent a business, event, trail name, opening hours, or price you don't actually have data for -- if you're genuinely not sure, say so plainly instead of guessing.
+Keep answers short and conversational for a normal recommendation question: 2-4 sentences, at most 2-3 specific named recommendations (trails, businesses, events, or a mix). A genuine "plan my day/visit" question is the one real exception -- that can reasonably run longer and name more places (a morning, afternoon, and evening stop, say), since that's actually what was asked for. Either way, never invent a business, event, trail name, opening hours, or price you don't actually have data for -- if you're genuinely not sure, say so plainly instead of guessing.
 
 Write your answer as plain, natural prose only -- never include citation markup, footnote-style references, or tags like <cite>...</cite> around anything, even when search results informed what you wrote.
 
@@ -215,7 +215,14 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 700,
+        // Raised from 700 after a real observed failure: a legitimate
+        // multi-stop day-plan answer (several named places, each now also
+        // carrying an address for the map) ran past 700 tokens mid-JSON,
+        // truncating into invalid output that failed to parse entirely --
+        // the visitor got an answer with zero working links. 700 was
+        // sized for short single-recommendation answers; a genuine
+        // itinerary response needs more room, not a forced-short answer.
+        max_tokens: 1300,
         // Low, not zero -- some variability in phrasing is fine and even
         // desirable, but the default (1.0) was letting the SAME question
         // sometimes mention a genuinely matching board business and
@@ -236,60 +243,6 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
     const cleaned = text.replace(/```json|```/g, '').trim();
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
 
-    let parsed;
-    try {
-      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
-    } catch (parseErr) {
-      console.error('Ask agent: could not parse model output as JSON. Raw text was:', cleaned);
-      // Best-effort salvage: when web search is used, the model sometimes
-      // writes ordinary prose first and only then attempts (and
-      // sometimes botches, e.g. gets cut off mid-JSON) the {"answer":...}
-      // wrapper. Keep just the leading prose in that case, rather than
-      // showing the visitor a raw, half-formed JSON fragment.
-      const jsonAttemptStart = cleaned.search(/```json|\{\s*"answer"/i);
-      const salvaged = jsonAttemptStart > 0 ? cleaned.slice(0, jsonAttemptStart) : cleaned;
-      return res.status(200).json({
-        answer: cleanAnswerText(salvaged) || 'Pahoittelut, en osannut vastata juuri nyt. / Sorry, I couldn\'t answer that just now.',
-        mentioned: [],
-        webResults: []
-      });
-    }
-
-    const rawAnswer = typeof parsed.answer === 'string' ? parsed.answer : '';
-    const mentionedNames = new Set(Array.isArray(parsed.mentioned) ? parsed.mentioned : []);
-
-    // Don't just trust the model remembered to list every board business
-    // it named in the prose -- actually check the answer text itself for
-    // any board business name that appears there but wasn't added to
-    // "mentioned", and add it. Simple case-insensitive substring match;
-    // skips names under 4 characters to avoid false positives on very
-    // short/generic business names matching incidentally.
-    for (const b of businesses) {
-      if (b.company_name && b.company_name.length >= 4 && !mentionedNames.has(b.company_name)) {
-        if (rawAnswer.toLowerCase().includes(b.company_name.toLowerCase())) {
-          mentionedNames.add(b.company_name);
-        }
-      }
-    }
-
-    const mentioned = businesses
-      .filter(b => mentionedNames.has(b.company_name))
-      .map(b => ({
-        name: b.company_name,
-        squareId: b.id,
-        // Real, stored coordinates -- never AI-supplied for board
-        // businesses, so there's no hallucination risk here specifically.
-        lat: typeof b.lat === 'number' ? b.lat : null,
-        lng: typeof b.lng === 'number' ? b.lng : null
-      }));
-
-    // Never trust a model-provided URL blindly -- only pass through ones
-    // that are genuinely well-formed http(s) links, not a place already
-    // covered by "mentioned" (that's the board's own promoted link, not
-    // a generic web result), and that actually look like the business's
-    // OWN site rather than a third party's.
-    //
-    // A hardcoded list of known directory/review/booking-platform domains
     // is always a step behind reality -- there's always another one
     // (dinnerbooking.com, quandoo.fi, resq.club, thefork... the list
     // never really ends). So the primary check here is a general
@@ -329,6 +282,114 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
     function googleSearchFallback(name, townName) {
       return `https://www.google.com/search?q=${encodeURIComponent(`${name} ${townName}`.trim())}`;
     }
+
+
+    // Real backstop for a pattern prompt reinforcement alone hasn't
+    // reliably fixed: a substantial answer (an itinerary, several named
+    // stops) coming back with zero links at all. Rather than trust the
+    // SAME call to both write the prose and keep two arrays in sync with
+    // it, this makes a second, narrowly-scoped call whose only job is
+    // extraction -- a much simpler, more reliably-followed task on its
+    // own than "write a good answer AND remember the bookkeeping."
+    async function extractLinksFromText(rawText, excludeNames){
+      if (!rawText || rawText.length <= 150 || !ANTHROPIC_API_KEY) return [];
+      try {
+        const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({
+            model: MODEL,
+            max_tokens: 400,
+            temperature: 0,
+            system: 'Extract every specific named business, restaurant, cafe, museum, park, or venue mentioned by name in the text below. Respond with ONLY a JSON array, no other text, no markdown fences: [{"name": "<exact name as written in the text>", "url": "<its own website if you are confident of one, otherwise an empty string>", "address": "<its real street address if you genuinely know it, otherwise an empty string -- never guess or approximate one>"}]. If nothing specific is named, respond with [].',
+            messages: [{ role: 'user', content: rawText }]
+          })
+        });
+        if (!extractRes.ok) return [];
+        const extractData = await extractRes.json();
+        const extractText = (extractData.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+        const jsonMatch = extractText.match(/\[[\s\S]*\]/);
+        const extracted = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+        return await Promise.all((Array.isArray(extracted) ? extracted : [])
+          .filter(item => item && typeof item.name === 'string' && item.name.trim() && !excludeNames.has(item.name))
+          .map(async (item) => {
+            let url = null;
+            if (typeof item.url === 'string' && item.url.trim()) {
+              try {
+                const parsedUrl = new URL(item.url);
+                const isHttp = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+                const isDirectory = DIRECTORY_DOMAINS.some(d => parsedUrl.hostname.includes(d));
+                if (isHttp && !isDirectory && nameLikelyMatchesDomain(item.name, parsedUrl.hostname)) url = parsedUrl.toString();
+              } catch (e) { /* falls through to search fallback */ }
+            }
+            const isSearchFallback = !url;
+            if (!url) url = googleSearchFallback(item.name, town.name);
+            const rawAddress = typeof item.address === 'string' ? item.address.trim() : '';
+            const geocoded = rawAddress ? await geocodeAddress(rawAddress) : null;
+            return {
+              name: item.name.slice(0, 120), url, isSearchFallback, tier: 'local',
+              lat: geocoded ? geocoded.lat : null, lng: geocoded ? geocoded.lng : null
+            };
+          }));
+      } catch (err) {
+        console.error('Link-extraction backstop failed (non-fatal):', err);
+        return [];
+      }
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
+    } catch (parseErr) {
+      console.error('Ask agent: could not parse model output as JSON. Raw text was:', cleaned);
+      // Best-effort salvage: when web search is used, the model sometimes
+      // writes ordinary prose first and only then attempts (and
+      // sometimes botches, e.g. gets cut off mid-JSON) the {"answer":...}
+      // wrapper. Keep just the leading prose in that case, rather than
+      // showing the visitor a raw, half-formed JSON fragment.
+      const jsonAttemptStart = cleaned.search(/```json|\{\s*"answer"/i);
+      const salvaged = jsonAttemptStart > 0 ? cleaned.slice(0, jsonAttemptStart) : cleaned;
+      const cleanedSalvaged = cleanAnswerText(salvaged);
+      // A parse failure here previously meant giving up on links entirely,
+      // even though the salvaged prose is often perfectly good text that
+      // names real places -- same extraction backstop as the normal path,
+      // just triggered from this failure branch too instead of only when
+      // parsing succeeds but comes back with nothing linked.
+      const recoveredLinks = await extractLinksFromText(cleanedSalvaged, new Set());
+      return res.status(200).json({
+        answer: cleanedSalvaged || 'Pahoittelut, en osannut vastata juuri nyt. / Sorry, I couldn\'t answer that just now.',
+        mentioned: [],
+        webResults: recoveredLinks
+      });
+    }
+
+    const rawAnswer = typeof parsed.answer === 'string' ? parsed.answer : '';
+    const mentionedNames = new Set(Array.isArray(parsed.mentioned) ? parsed.mentioned : []);
+
+    // Don't just trust the model remembered to list every board business
+    // it named in the prose -- actually check the answer text itself for
+    // any board business name that appears there but wasn't added to
+    // "mentioned", and add it. Simple case-insensitive substring match;
+    // skips names under 4 characters to avoid false positives on very
+    // short/generic business names matching incidentally.
+    for (const b of businesses) {
+      if (b.company_name && b.company_name.length >= 4 && !mentionedNames.has(b.company_name)) {
+        if (rawAnswer.toLowerCase().includes(b.company_name.toLowerCase())) {
+          mentionedNames.add(b.company_name);
+        }
+      }
+    }
+
+    const mentioned = businesses
+      .filter(b => mentionedNames.has(b.company_name))
+      .map(b => ({
+        name: b.company_name,
+        squareId: b.id,
+        // Real, stored coordinates -- never AI-supplied for board
+        // businesses, so there's no hallucination risk here specifically.
+        lat: typeof b.lat === 'number' ? b.lat : null,
+        lng: typeof b.lng === 'number' ? b.lng : null
+      }));
 
     // A place can end up in webResults two ways: the model found a
     // confident direct URL (validated above), or it named a place but
@@ -376,62 +437,22 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       return { ...rest, lat: geocoded ? geocoded.lat : null, lng: geocoded ? geocoded.lng : null };
     }));
 
-    // Real backstop for a pattern prompt reinforcement alone hasn't
-    // reliably fixed: a substantial answer (an itinerary, several named
-    // stops) coming back with zero links at all. Rather than trust the
-    // SAME call to both write the prose and keep two arrays in sync with
-    // it, this makes a second, narrowly-scoped call whose only job is
-    // extraction -- a much simpler, more reliably-followed task on its
-    // own than "write a good answer AND remember the bookkeeping."
+    // Never trust a model-provided URL blindly -- only pass through ones
+    // that are genuinely well-formed http(s) links, not a place already
+    // covered by "mentioned" (that's the board's own promoted link, not
+    // a generic web result), and that actually look like the business's
+    // OWN site rather than a third party's.
+    //
+    // A hardcoded list of known directory/review/booking-platform domains
+
     const totalLinked = mentioned.length + webResults.length;
     const rawAnswerText = typeof parsed.answer === 'string' ? parsed.answer : '';
-    if (totalLinked === 0 && rawAnswerText.length > 150 && ANTHROPIC_API_KEY) {
-      try {
-        const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({
-            model: MODEL,
-            max_tokens: 400,
-            temperature: 0,
-            system: 'Extract every specific named business, restaurant, cafe, museum, park, or venue mentioned by name in the text below. Respond with ONLY a JSON array, no other text, no markdown fences: [{"name": "<exact name as written in the text>", "url": "<its own website if you are confident of one, otherwise an empty string>", "address": "<its real street address if you genuinely know it, otherwise an empty string -- never guess or approximate one>"}]. If nothing specific is named, respond with [].',
-            messages: [{ role: 'user', content: rawAnswerText }]
-          })
-        });
-        if (extractRes.ok) {
-          const extractData = await extractRes.json();
-          const extractText = (extractData.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-          const jsonMatch = extractText.match(/\[[\s\S]*\]/);
-          const extracted = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-          const newItems = await Promise.all((Array.isArray(extracted) ? extracted : [])
-            .filter(item => item && typeof item.name === 'string' && item.name.trim() && !mentionedNames.has(item.name))
-            .map(async (item) => {
-              let url = null;
-              if (typeof item.url === 'string' && item.url.trim()) {
-                try {
-                  const parsedUrl = new URL(item.url);
-                  const isHttp = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
-                  const isDirectory = DIRECTORY_DOMAINS.some(d => parsedUrl.hostname.includes(d));
-                  if (isHttp && !isDirectory && nameLikelyMatchesDomain(item.name, parsedUrl.hostname)) url = parsedUrl.toString();
-                } catch (e) { /* falls through to search fallback */ }
-              }
-              const isSearchFallback = !url;
-              if (!url) url = googleSearchFallback(item.name, town.name);
-              const rawAddress = typeof item.address === 'string' ? item.address.trim() : '';
-              const geocoded = rawAddress ? await geocodeAddress(rawAddress) : null;
-              return {
-                name: item.name.slice(0, 120), url, isSearchFallback, tier: 'local',
-                lat: geocoded ? geocoded.lat : null, lng: geocoded ? geocoded.lng : null
-              };
-            }));
-          if (newItems.length > 0) {
-            webResults = webResults.concat(newItems)
-              .sort((a, b) => (a.tier === 'local' ? 0 : 1) - (b.tier === 'local' ? 0 : 1))
-              .slice(0, 8);
-          }
-        }
-      } catch (err) {
-        console.error('Link-extraction backstop failed (non-fatal):', err);
+    if (totalLinked === 0) {
+      const newItems = await extractLinksFromText(rawAnswerText, mentionedNames);
+      if (newItems.length > 0) {
+        webResults = webResults.concat(newItems)
+          .sort((a, b) => (a.tier === 'local' ? 0 : 1) - (b.tier === 'local' ? 0 : 1))
+          .slice(0, 8);
       }
     }
 
