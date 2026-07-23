@@ -198,6 +198,74 @@ async function handleFindCompany(req, res) {
   res.status(200).json({ groups: Object.values(groups) });
 }
 
+// Fetches one business's full editable details (works the same whether
+// they paid for their slots or had them granted free -- both are just
+// rows in the same table, distinguished only by is_comped).
+async function handleCompanyDetails(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const groupId = (req.query.groupId || '').trim();
+  if (!groupId) return res.status(400).json({ error: 'Missing groupId.' });
+
+  const { data, error } = await supabase
+    .from('squares')
+    .select('group_id, company_name, email, website_url, logo_url, tagline, color, industry, is_comped, town_id, towns(name)')
+    .eq('group_id', groupId)
+    .eq('status', 'active')
+    .limit(1)
+    .maybeSingle();
+  if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }
+  if (!data) return res.status(404).json({ error: 'No active squares found for that group.' });
+
+  res.status(200).json({
+    groupId: data.group_id,
+    companyName: data.company_name,
+    email: data.email,
+    websiteUrl: data.website_url,
+    logoUrl: data.logo_url,
+    tagline: data.tagline,
+    color: data.color,
+    industry: data.industry,
+    isComped: data.is_comped,
+    townName: data.towns ? data.towns.name : ''
+  });
+}
+
+// Updates every active square in the group at once -- a business with
+// several slots is still one edit, not one per slot. Works the same for
+// both paid and comped (granted) squares.
+async function handleEditCompany(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+
+  const { groupId, companyName, websiteUrl, logoUrl, tagline, color, industry } = req.body || {};
+  if (!groupId) return res.status(400).json({ error: 'Missing groupId.' });
+  if (!companyName || !websiteUrl) {
+    return res.status(400).json({ error: 'Company name and website are required.' });
+  }
+  const linkProblem = isSuspicious(websiteUrl);
+  if (linkProblem) return res.status(400).json({ error: linkProblem });
+
+  const { data: updatedRows, error } = await supabase
+    .from('squares')
+    .update({
+      company_name: companyName,
+      website_url: websiteUrl,
+      logo_url: logoUrl || null,
+      tagline: tagline || null,
+      color: color || null,
+      industry: industry || null
+    })
+    .eq('group_id', groupId)
+    .eq('status', 'active')
+    .select();
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not save changes.' }); }
+  if (!updatedRows || updatedRows.length === 0) {
+    return res.status(404).json({ error: 'No active squares found for that group.' });
+  }
+
+  res.status(200).json({ ok: true, updated: updatedRows.length });
+}
+
 async function handleMove(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
@@ -510,6 +578,8 @@ module.exports = async (req, res) => {
     case 'revoke': return handleRevoke(req, res);
     case 'comped-list': return handleCompedList(req, res);
     case 'find-company': return handleFindCompany(req, res);
+    case 'company-details': return handleCompanyDetails(req, res);
+    case 'edit-company': return handleEditCompany(req, res);
     case 'move': return handleMove(req, res);
     case 'towns-list': return handleTownsList(req, res);
     case 'enable-town': return handleEnableTown(req, res);
