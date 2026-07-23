@@ -145,7 +145,10 @@ async function handleGrant(req, res) {
   }));
 
   const { error: insertErr } = await supabase.from('squares').insert(rows);
-  if (insertErr) { console.error(insertErr); return res.status(500).json({ error: 'Could not grant squares.' }); }
+  if (insertErr) {
+    console.error(insertErr);
+    return res.status(500).json({ error: `Could not grant squares: ${insertErr.message || insertErr.code || 'unknown database error'}` });
+  }
   res.status(200).json({ ok: true, count: rows.length });
 }
 
