@@ -148,6 +148,7 @@ When you name a specific place someone could visit or a website they could check
 - For anything else you recommend by name (a restaurant, shop, trail's official info page, festival site, etc.), add it to "webResults" with a "url" if you found the SPECIFIC place's own website (its homepage or menu page) -- never a third-party directory, review site, reservation/booking platform (e.g. a table-booking site that lists many restaurants), or tourism-board article that merely mentions it alongside others. If you can't confidently find that specific business's own site, just omit "url" (or leave it empty) rather than guessing or linking to a directory/booking page -- the site will offer a sensible fallback on its own, you don't need to solve that yourself.
 - Every business you name needs its own entry -- don't link multiple named businesses to one shared source.
 - Never list the same place in both "mentioned" and "webResults".
+- This is a hard requirement, not a nice-to-have: EVERY specific business or named place that appears anywhere in your answer text must have a matching entry in "mentioned" or "webResults" -- exact same name in both places. Never write a business or place name into your answer without also adding it to one of these lists. If you genuinely don't want to link something (e.g. you're just naming a general category like "there are several cafes downtown," not a specific one), don't name it specifically in the first place.
 
 LOCAL_NEWS: ${JSON.stringify(newsContext)}
 
@@ -206,9 +207,25 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       });
     }
 
-    const mentionedNames = Array.isArray(parsed.mentioned) ? parsed.mentioned : [];
+    const rawAnswer = typeof parsed.answer === 'string' ? parsed.answer : '';
+    const mentionedNames = new Set(Array.isArray(parsed.mentioned) ? parsed.mentioned : []);
+
+    // Don't just trust the model remembered to list every board business
+    // it named in the prose -- actually check the answer text itself for
+    // any board business name that appears there but wasn't added to
+    // "mentioned", and add it. Simple case-insensitive substring match;
+    // skips names under 4 characters to avoid false positives on very
+    // short/generic business names matching incidentally.
+    for (const b of businesses) {
+      if (b.company_name && b.company_name.length >= 4 && !mentionedNames.has(b.company_name)) {
+        if (rawAnswer.toLowerCase().includes(b.company_name.toLowerCase())) {
+          mentionedNames.add(b.company_name);
+        }
+      }
+    }
+
     const mentioned = businesses
-      .filter(b => mentionedNames.includes(b.company_name))
+      .filter(b => mentionedNames.has(b.company_name))
       .map(b => ({ name: b.company_name, squareId: b.id }));
 
     // Never trust a model-provided URL blindly -- only pass through ones
@@ -266,7 +283,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
     // listing, a Facebook page, a phone number), which beats no link.
     const rawWebResults = Array.isArray(parsed.webResults) ? parsed.webResults : [];
     const webResults = rawWebResults
-      .filter(r => r && typeof r.name === 'string' && r.name.trim() && !mentionedNames.includes(r.name))
+      .filter(r => r && typeof r.name === 'string' && r.name.trim() && !mentionedNames.has(r.name))
       .map(r => {
         let url = null;
         if (typeof r.url === 'string' && r.url.trim()) {
