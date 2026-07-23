@@ -272,6 +272,14 @@ let previewLang = 'fi';
 
 const API = '/api/admin';
 
+// Every .err box defaults to display:none in CSS -- setting textContent
+// alone does nothing visible. Several error paths in this file were
+// doing exactly that (silently invisible failures), while only the
+// login form happened to toggle display correctly. These two helpers
+// make sure every error path actually shows/hides consistently.
+function showErr(el, msg){ el.textContent = msg; el.style.display = 'block'; }
+function clearErr(el){ el.textContent = ''; el.style.display = 'none'; }
+
 async function checkAuth(){
   const res = await fetch(`${API}/check`);
   const data = await res.json();
@@ -426,11 +434,11 @@ document.getElementById('grantLoadBtn').addEventListener('click', async () => {
   const name = document.getElementById('grantTownInput').value.trim();
   if (!name) return;
   const errBox = document.getElementById('grantErr');
-  errBox.textContent = '';
+  clearErr(errBox);
   try {
     const townRes = await fetch(`/api/town?name=${encodeURIComponent(name)}&country=FI&admin=1`);
     const townData = await townRes.json();
-    if (!townRes.ok) { errBox.textContent = townData.error || 'Could not load town.'; return; }
+    if (!townRes.ok) { showErr(errBox, townData.error || 'Could not load town.'); return; }
     grantTown = townData.town;
 
     const boardRes = await fetch(`/api/board?townId=${grantTown.id}`);
@@ -444,7 +452,7 @@ document.getElementById('grantLoadBtn').addEventListener('click', async () => {
       `${grantTown.name}: ${grantSquares.length} / ${total} squares claimed, ${total - grantSquares.length} free.`;
     document.getElementById('grantGridWrap').style.display = 'block';
   } catch (e) {
-    errBox.textContent = 'Network error.';
+    showErr(errBox, 'Network error.');
   }
 });
 
@@ -461,10 +469,10 @@ document.getElementById('grantQtyPlus').addEventListener('click', () => {
 
 document.getElementById('grantSubmitBtn').addEventListener('click', async () => {
   const errBox = document.getElementById('grantErr');
-  errBox.textContent = '';
+  clearErr(errBox);
   const companyName = document.getElementById('grantCompany').value.trim();
   const websiteUrl = document.getElementById('grantWebsite').value.trim();
-  if (!companyName || !websiteUrl) { errBox.textContent = 'Company name and website are required.'; return; }
+  if (!companyName || !websiteUrl) { showErr(errBox, 'Company name and website are required.'); return; }
 
   try {
     const res = await fetch(`${API}/grant`, {
@@ -479,7 +487,7 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
       })
     });
     const data = await res.json();
-    if (!res.ok) { errBox.textContent = data.error || 'Grant failed.'; return; }
+    if (!res.ok) { showErr(errBox, data.error || 'Grant failed.'); return; }
     const msg = document.getElementById('grantSavedMsg');
     msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
     grantQty = 1;
@@ -490,7 +498,7 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
     document.getElementById('grantLoadBtn').click(); // refresh the free-count status
     loadCompedList();
   } catch (e) {
-    errBox.textContent = 'Network error.';
+    showErr(errBox, 'Network error.');
   }
 });
 
@@ -577,15 +585,15 @@ document.getElementById('moveDestLoadBtn').addEventListener('click', async () =>
   const name = document.getElementById('moveDestTownInput').value.trim();
   if (!name || !moveSelectedGroup) return;
   const errBox = document.getElementById('moveErr');
-  errBox.textContent = '';
+  clearErr(errBox);
   try {
     const townRes = await fetch(`/api/town?name=${encodeURIComponent(name)}&country=FI&admin=1`);
     const townData = await townRes.json();
-    if (!townRes.ok) { errBox.textContent = townData.error || 'Could not load town.'; return; }
+    if (!townRes.ok) { showErr(errBox, townData.error || 'Could not load town.'); return; }
     moveDestTown = townData.town;
 
     if (moveDestTown.id === moveSelectedGroup.townId) {
-      errBox.textContent = "That's the same town this company is already in — pick a different one.";
+      showErr(errBox, "That's the same town this company is already in — pick a different one.");
       return;
     }
 
@@ -597,13 +605,13 @@ document.getElementById('moveDestLoadBtn').addEventListener('click', async () =>
       `${moveDestTown.name}: ${free} free square${free === 1 ? '' : 's'} — need ${moveSelectedGroup.count}.`;
     document.getElementById('moveGridWrap').style.display = 'block';
   } catch (e) {
-    errBox.textContent = 'Network error.';
+    showErr(errBox, 'Network error.');
   }
 });
 
 document.getElementById('moveConfirmBtn').addEventListener('click', async () => {
   const errBox = document.getElementById('moveErr');
-  errBox.textContent = '';
+  clearErr(errBox);
   try {
     const res = await fetch(`${API}/move`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -613,7 +621,7 @@ document.getElementById('moveConfirmBtn').addEventListener('click', async () => 
       })
     });
     const data = await res.json();
-    if (!res.ok) { errBox.textContent = data.error || 'Move failed.'; return; }
+    if (!res.ok) { showErr(errBox, data.error || 'Move failed.'); return; }
     const msg = document.getElementById('moveSavedMsg');
     msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
     document.getElementById('moveDestWrap').style.display = 'none';
@@ -621,14 +629,14 @@ document.getElementById('moveConfirmBtn').addEventListener('click', async () => 
     document.getElementById('moveSearchInput').value = '';
     moveSelectedGroup = null;
   } catch (e) {
-    errBox.textContent = 'Network error.';
+    showErr(errBox, 'Network error.');
   }
 });
 
 document.getElementById('enableTownBtn').addEventListener('click', async () => {
   const name = document.getElementById('newTownInput').value.trim();
   const errBox = document.getElementById('townsErr');
-  errBox.textContent = '';
+  clearErr(errBox);
   if (!name) return;
   try {
     const res = await fetch(`${API}/enable-town`, {
@@ -636,13 +644,13 @@ document.getElementById('enableTownBtn').addEventListener('click', async () => {
       body: JSON.stringify({ name, country: 'FI' })
     });
     const data = await res.json();
-    if (!res.ok) { errBox.textContent = data.error || 'Could not enable town.'; return; }
+    if (!res.ok) { showErr(errBox, data.error || 'Could not enable town.'); return; }
     document.getElementById('newTownInput').value = '';
     const msg = document.getElementById('townsSavedMsg');
     msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
     loadTownsList();
   } catch (e) {
-    errBox.textContent = 'Network error.';
+    showErr(errBox, 'Network error.');
   }
 });
 
