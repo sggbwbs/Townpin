@@ -140,8 +140,8 @@
 </div>
 
 <div class="card" id="grantCard" style="display:none;">
-  <h1>Grant free squares</h1>
-  <p class="sub">Reserve one or more squares for a company of your choice — no payment, no subscription.</p>
+  <h1>Grant free banner slots</h1>
+  <p class="sub">Reserve one or more banner slots for a company of your choice — no payment, no subscription.</p>
 
   <div class="field">
     <label>Town name</label>
@@ -153,7 +153,7 @@
     <p class="sub" id="grantTownStatus" style="margin:12px 0;"></p>
 
     <div class="field">
-      <label>How many free squares?</label>
+      <label>How many free banner slots?</label>
       <div class="qtyRow">
         <button id="grantQtyMinus" type="button" aria-label="Fewer">−</button>
         <span id="grantQtyDisplay">1</span>
@@ -170,7 +170,7 @@
       <input type="url" id="grantWebsite" placeholder="https://company.fi" />
     </div>
     <div class="field">
-      <label>Logo URL (optional)</label>
+      <label>Logo URL (required)</label>
       <input type="url" id="grantLogo" placeholder="https://company.fi/logo.png" />
     </div>
     <div class="field">
@@ -178,22 +178,44 @@
       <input type="text" id="grantTagline" placeholder="A short line" />
     </div>
     <div class="field">
-      <label>Color (used if no logo)</label>
-      <div class="grantColorRow" id="grantColorRow"></div>
+      <label>Industry (optional)</label>
+      <select id="grantIndustry">
+        <option value="">— No industry set —</option>
+        <option value="ajoneuvot">Ajoneuvot ja korjaamo</option>
+        <option value="elainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
+        <option value="it">IT ja digitaaliset palvelut</option>
+        <option value="kauneus">Kauneus ja hyvinvointi</option>
+        <option value="kiinteisto">Kiinteistö ja asuminen</option>
+        <option value="koulutus">Koulutus</option>
+        <option value="kuljetus">Kuljetus ja logistiikka</option>
+        <option value="kasityo">Käsityö ja taide</option>
+        <option value="talous">Lakipalvelut ja talous</option>
+        <option value="maatalous">Maatalous ja puutarha</option>
+        <option value="matkailu">Matkailu ja majoitus</option>
+        <option value="muu">Muu</option>
+        <option value="rakentaminen">Rakentaminen ja remontointi</option>
+        <option value="ravintola">Ravintola ja kahvila</option>
+        <option value="siivous">Siivous ja kotipalvelut</option>
+        <option value="tapahtumat">Tapahtumat ja viihde</option>
+        <option value="terveys">Terveys ja lääkäripalvelut</option>
+        <option value="urheilu">Urheilu ja liikunta</option>
+        <option value="valokuvaus">Valokuvaus ja media</option>
+        <option value="kauppa">Vähittäiskauppa</option>
+      </select>
     </div>
-    <button id="grantSubmitBtn">Grant free square(s)</button>
+    <button id="grantSubmitBtn">Grant free slot(s)</button>
     <span class="saved" id="grantSavedMsg">✓ Granted</span>
     <div class="err" id="grantErr"></div>
   </div>
 
   <hr style="margin:24px 0;border:none;border-top:1px solid #e4dcc4;">
-  <h1 style="font-size:15px;">Currently comped squares</h1>
+  <h1 style="font-size:15px;">Currently comped banner slots</h1>
   <div id="compedList"><p class="sub">Loading…</p></div>
 </div>
 
 <div class="card" id="moveCard" style="display:none;">
   <h1>Manage a company</h1>
-  <p class="sub">Edit a business's details, or move them to another town if they claimed squares in the wrong city. Works the same whether their squares were bought or granted free. Search by company name or email to find them.</p>
+  <p class="sub">Edit a business's details, or move them to another town if they claimed slots in the wrong city. Works the same whether their slots were bought or granted free. Search by company name or email to find them.</p>
 
   <div class="field">
     <label>Search company name or email</label>
@@ -214,7 +236,7 @@
       <input type="url" id="editWebsite" placeholder="https://company.fi" />
     </div>
     <div class="field">
-      <label>Logo URL (optional)</label>
+      <label>Logo URL (required)</label>
       <input type="url" id="editLogo" placeholder="https://company.fi/logo.png" />
     </div>
     <div class="field">
@@ -248,8 +270,13 @@
       </select>
     </div>
     <div class="field">
-      <label>Color (used if no logo)</label>
-      <div class="grantColorRow" id="editColorRow"></div>
+      <label>Number of banner slots</label>
+      <div class="qtyRow">
+        <button id="editQtyMinus" type="button" aria-label="Fewer">−</button>
+        <span id="editQtyDisplay">1</span>
+        <button id="editQtyPlus" type="button" aria-label="More">+</button>
+      </div>
+      <p class="sub" style="margin:6px 0 0;font-size:11.5px;">Changing this adds or removes slots for this business — added slots are auto-assigned from whatever's free in their town.</p>
     </div>
     <button id="editSaveBtn">Save changes</button>
     <span class="saved" id="editSavedMsg">✓ Saved</span>
@@ -307,19 +334,19 @@ const FIELD_DEFS = [
 const DEFAULTS = {
   fi: {
     heroTitle: 'Näytä yrityksesi <span>koko Oululle.</span>',
-    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Osta oma ruutusi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.',
+    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen banneripaikka taulussa on eri yritys. Osta oma banneripaikkasi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.',
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
     value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
-    footerText: 'PaikallisCanvas · varaa ruutu, saat sivun, peruuta milloin vain'
+    footerText: 'PaikallisCanvas · varaa banneripaikka, saat sivun, peruuta milloin vain'
   },
   en: {
     heroTitle: 'Put your business in front of <span>all of Oulu.</span>',
-    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every square on the board is a different company. Buy your own square, add your logo and a link to your site, and customers can find you both on the board and on Google. Cancel anytime.",
+    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every banner slot on the board is a different company. Buy your own slot, add your logo and a link to your site, and customers can find you both on the board and on Google. Cancel anytime.",
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: 'Findable on Google', value2: 'your business gets its own showcase page on our site that can appear in search results, even if nobody browses the board itself',
     value3b: 'Cancel anytime', value3: 'no contract period, no notice period',
-    footerText: 'PaikallisCanvas · claim a square, get a page, cancel anytime'
+    footerText: 'PaikallisCanvas · claim a slot, get a page, cancel anytime'
   }
 };
 let previewLang = 'fi';
@@ -402,7 +429,6 @@ async function showEditor(){
   });
   updatePreview();
 
-  initGrantSection();
   loadCompedList();
   loadTownsList();
   loadMaintenanceStatus();
@@ -462,27 +488,9 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   }
 });
 
-const GRANT_SWATCHES = ["#f2a65a","#d9694f","#5b8c5a","#3d6b94","#8a6fb0","#2b2718","#e0d9c4"];
 let grantTown = null;
 let grantSquares = [];
 let grantQty = 1;
-let grantColor = GRANT_SWATCHES[0];
-
-function initGrantSection(){
-  const row = document.getElementById('grantColorRow');
-  if (row.children.length) return; // only build swatches once
-  GRANT_SWATCHES.forEach((c, i) => {
-    const sw = document.createElement('div');
-    sw.className = 'swatch' + (i === 0 ? ' sel' : '');
-    sw.style.background = c;
-    sw.addEventListener('click', () => {
-      grantColor = c;
-      row.querySelectorAll('.swatch').forEach(el => el.classList.remove('sel'));
-      sw.classList.add('sel');
-    });
-    row.appendChild(sw);
-  });
-}
 
 document.getElementById('grantLoadBtn').addEventListener('click', async () => {
   const name = document.getElementById('grantTownInput').value.trim();
@@ -503,7 +511,7 @@ document.getElementById('grantLoadBtn').addEventListener('click', async () => {
 
     const total = grantTown.grid_size * grantTown.grid_size;
     document.getElementById('grantTownStatus').textContent =
-      `${grantTown.name}: ${grantSquares.length} / ${total} squares claimed, ${total - grantSquares.length} free.`;
+      `${grantTown.name}: ${grantSquares.length} / ${total} banner slots claimed, ${total - grantSquares.length} free.`;
     document.getElementById('grantGridWrap').style.display = 'block';
   } catch (e) {
     showErr(errBox, 'Network error.');
@@ -527,7 +535,9 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
   clearErr(errBox);
   const companyName = document.getElementById('grantCompany').value.trim();
   const websiteUrl = document.getElementById('grantWebsite').value.trim();
+  const logoUrl = document.getElementById('grantLogo').value.trim();
   if (!companyName || !websiteUrl) { showErr(errBox, 'Company name and website are required.'); return; }
+  if (!logoUrl) { showErr(errBox, 'A logo URL is required.'); return; }
 
   btn.disabled = true;
   try {
@@ -536,10 +546,9 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
       body: JSON.stringify({
         townId: grantTown.id,
         squareCount: grantQty,
-        companyName, websiteUrl,
-        logoUrl: document.getElementById('grantLogo').value.trim() || null,
+        companyName, websiteUrl, logoUrl,
         tagline: document.getElementById('grantTagline').value.trim() || null,
-        color: grantColor
+        industry: document.getElementById('grantIndustry').value || null
       })
     });
     const data = await res.json();
@@ -551,6 +560,7 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
     document.getElementById('grantWebsite').value = '';
     document.getElementById('grantLogo').value = '';
     document.getElementById('grantTagline').value = '';
+    document.getElementById('grantIndustry').value = '';
     document.getElementById('grantLoadBtn').click(); // refresh the free-count status
     loadCompedList();
   } catch (e) {
@@ -572,17 +582,17 @@ async function loadCompedList(){
       groups[s.group_id].count++;
     });
     const entries = Object.entries(groups);
-    if (entries.length === 0) { box.innerHTML = '<p class="sub">No comped squares yet.</p>'; return; }
+    if (entries.length === 0) { box.innerHTML = '<p class="sub">No comped banner slots yet.</p>'; return; }
     box.innerHTML = '';
     entries.forEach(([groupId, g]) => {
       const row = document.createElement('div');
       row.className = 'compedRow';
-      row.innerHTML = `<span>${g.company} — ${g.count} square${g.count === 1 ? '' : 's'} in ${g.town}</span>`;
+      row.innerHTML = `<span>${g.company} — ${g.count} banner slot${g.count === 1 ? '' : 's'} in ${g.town}</span>`;
       const btn = document.createElement('button');
       btn.className = 'revokeBtn';
       btn.textContent = 'Revoke';
       btn.addEventListener('click', async () => {
-        if (!confirm(`Remove ${g.company}'s ${g.count} free square(s)?`)) return;
+        if (!confirm(`Remove ${g.company}'s ${g.count} free banner slot(s)?`)) return;
         await fetch(`${API}/revoke`, {
           method: 'POST', headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ groupId })
@@ -615,7 +625,7 @@ document.getElementById('moveSearchBtn').addEventListener('click', async () => {
     data.groups.forEach(g => {
       const row = document.createElement('div');
       row.className = 'compedRow';
-      row.innerHTML = `<span>${g.companyName} — ${g.count} square${g.count === 1 ? '' : 's'} in ${g.townName}</span>`;
+      row.innerHTML = `<span>${g.companyName} — ${g.count} banner slot${g.count === 1 ? '' : 's'} in ${g.townName}</span>`;
       const btnWrap = document.createElement('div');
       btnWrap.style.display = 'flex';
       btnWrap.style.gap = '6px';
@@ -643,7 +653,7 @@ function selectGroupToMove(g){
   moveSelectedGroup = g;
   moveDestTown = null;
   document.getElementById('moveSummary').textContent =
-    `Moving ${g.companyName}'s ${g.count} square${g.count === 1 ? '' : 's'} out of ${g.townName} — pick a destination town below. The same number of squares will be auto-assigned there.`;
+    `Moving ${g.companyName}'s ${g.count} banner slot${g.count === 1 ? '' : 's'} out of ${g.townName} — pick a destination town below. The same number of slots will be auto-assigned there.`;
   document.getElementById('moveDestWrap').style.display = 'block';
   document.getElementById('moveGridWrap').style.display = 'none';
   document.getElementById('editWrap').style.display = 'none';
@@ -651,26 +661,20 @@ function selectGroupToMove(g){
 }
 
 let editSelectedGroup = null;
-let editColor = GRANT_SWATCHES[0];
+let editQty = 1;
 
-function initEditColorRow(){
-  const row = document.getElementById('editColorRow');
-  if (row.children.length) return; // only build swatches once
-  GRANT_SWATCHES.forEach((c, i) => {
-    const sw = document.createElement('div');
-    sw.className = 'swatch' + (i === 0 ? ' sel' : '');
-    sw.style.background = c;
-    sw.addEventListener('click', () => {
-      editColor = c;
-      row.querySelectorAll('.swatch').forEach(el => el.classList.remove('sel'));
-      sw.classList.add('sel');
-    });
-    row.appendChild(sw);
-  });
+function updateEditQtyDisplay(){
+  document.getElementById('editQtyDisplay').textContent = editQty;
+  document.getElementById('editQtyMinus').disabled = editQty <= 1;
 }
+document.getElementById('editQtyMinus').addEventListener('click', () => {
+  if (editQty > 1){ editQty--; updateEditQtyDisplay(); }
+});
+document.getElementById('editQtyPlus').addEventListener('click', () => {
+  editQty++; updateEditQtyDisplay();
+});
 
 async function selectGroupToEdit(g){
-  initEditColorRow();
   const errBox = document.getElementById('editErr');
   clearErr(errBox);
   document.getElementById('moveDestWrap').style.display = 'none';
@@ -682,7 +686,7 @@ async function selectGroupToEdit(g){
 
     editSelectedGroup = data;
     document.getElementById('editSummary').textContent =
-      `Editing ${data.companyName} — ${g.count} square${g.count === 1 ? '' : 's'} in ${data.townName}` +
+      `Editing ${data.companyName} — ${data.count} banner slot${data.count === 1 ? '' : 's'} in ${data.townName}` +
       (data.isComped ? ' (granted free)' : ' (paid)') + '.';
     document.getElementById('editCompany').value = data.companyName || '';
     document.getElementById('editWebsite').value = data.websiteUrl || '';
@@ -690,10 +694,8 @@ async function selectGroupToEdit(g){
     document.getElementById('editTagline').value = data.tagline || '';
     document.getElementById('editIndustry').value = data.industry || '';
 
-    editColor = data.color || GRANT_SWATCHES[0];
-    document.querySelectorAll('#editColorRow .swatch').forEach((el, i) => {
-      el.classList.toggle('sel', GRANT_SWATCHES[i] === editColor);
-    });
+    editQty = data.count || 1;
+    updateEditQtyDisplay();
 
     document.getElementById('editWrap').style.display = 'block';
   } catch (e) {
@@ -707,7 +709,9 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
   clearErr(errBox);
   const companyName = document.getElementById('editCompany').value.trim();
   const websiteUrl = document.getElementById('editWebsite').value.trim();
+  const logoUrl = document.getElementById('editLogo').value.trim();
   if (!companyName || !websiteUrl) { showErr(errBox, 'Company name and website are required.'); return; }
+  if (!logoUrl) { showErr(errBox, 'A logo URL is required.'); return; }
 
   btn.disabled = true;
   try {
@@ -715,11 +719,10 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         groupId: editSelectedGroup.groupId,
-        companyName, websiteUrl,
-        logoUrl: document.getElementById('editLogo').value.trim() || null,
+        companyName, websiteUrl, logoUrl,
         tagline: document.getElementById('editTagline').value.trim() || null,
         industry: document.getElementById('editIndustry').value || null,
-        color: editColor
+        squareCount: editQty
       })
     });
     const data = await res.json();
@@ -754,7 +757,7 @@ document.getElementById('moveDestLoadBtn').addEventListener('click', async () =>
     const total = moveDestTown.grid_size * moveDestTown.grid_size;
     const free = total - (boardData.squares || []).length;
     document.getElementById('movePickCount').textContent =
-      `${moveDestTown.name}: ${free} free square${free === 1 ? '' : 's'} — need ${moveSelectedGroup.count}.`;
+      `${moveDestTown.name}: ${free} free banner slot${free === 1 ? '' : 's'} — need ${moveSelectedGroup.count}.`;
     document.getElementById('moveGridWrap').style.display = 'block';
   } catch (e) {
     showErr(errBox, 'Network error.');
@@ -827,7 +830,7 @@ async function loadTownsList(){
       if (!town.enabled) { btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; }
       btn.textContent = town.enabled ? 'Close to public' : 'Open to public';
       btn.addEventListener('click', async () => {
-        if (town.enabled && !confirm(`Close ${town.name} to new visitors? Existing squares there keep working — this only stops new people from finding or claiming squares there.`)) return;
+        if (town.enabled && !confirm(`Close ${town.name} to new visitors? Existing banner slots there keep working — this only stops new people from finding or claiming slots there.`)) return;
         const action = town.enabled ? 'disable-town' : 'enable-town';
         const body = town.enabled ? { townId: town.id } : { name: town.name, country: town.slug.split('-').pop().toUpperCase() };
         await fetch(`${API}/${action}`, {
