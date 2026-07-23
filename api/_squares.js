@@ -36,4 +36,46 @@ async function pickRandomEmptySquares(townId, count) {
   return emptyIndices.slice(0, count);
 }
 
-module.exports = { pickRandomEmptySquares };
+// Picking empty squares and then inserting them isn't one atomic
+// operation -- there's a real (if usually brief) gap between "read
+// what's currently taken" and "write the new rows". Two concurrent
+// requests (a double-click, a retry, admin + a real customer at the
+// same instant) can both read the same "empty" snapshot and pick
+// overlapping positions, so the second insert then fails with a
+// duplicate-key error on (town_id, idx) -- exactly the bug this fixes.
+//
+// Rather than just failing outright on that, retry with a fresh pick:
+// the second attempt sees the first request's now-completed insert as
+// taken, so it naturally picks around it instead of colliding again.
+//
+// `buildRows(indices)` should return the array of row objects ready to
+// insert (indices already filled in) -- callers differ in exactly what
+// columns they set (a real purchase includes email/reserved_until/etc,
+// a grant is simpler), so row-shape stays their responsibility.
+async function insertSquaresWithRetry(townId, count, buildRows, maxAttempts = 4) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const indices = await pickRandomEmptySquares(townId, count);
+    if (indices.length < count) {
+      return {
+        error: indices.length > 0
+          ? `Only ${indices.length} free square(s) available in that town right now.`
+          : 'No free squares available in that town right now.',
+        rows: null
+      };
+    }
+
+    const { data, error } = await supabase.from('squares').insert(buildRows(indices)).select();
+    if (!error) return { error: null, rows: data };
+
+    // 23505 = Postgres unique-violation -- exactly the race condition
+    // this function exists to handle. Anything else is a real error,
+    // not a "someone else grabbed it first" -- don't retry blindly.
+    if (error.code !== '23505') {
+      return { error: error.message || error.code || 'Database error.', rows: null };
+    }
+    // fall through to the next attempt with a fresh pick
+  }
+  return { error: 'Could not find available squares after several attempts — please try again.', rows: null };
+}
+
+module.exports = { pickRandomEmptySquares, insertSquaresWithRetry };
