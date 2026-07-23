@@ -104,7 +104,7 @@ async function handleGrant(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
 
-  const { townId, squareCount, companyName, websiteUrl, logoUrl, color, tagline } = req.body || {};
+  const { townId, squareCount, companyName, websiteUrl, logoUrl, tagline, industry } = req.body || {};
   if (typeof townId !== 'number' && typeof townId !== 'string') {
     return res.status(400).json({ error: 'Missing town.' });
   }
@@ -114,6 +114,9 @@ async function handleGrant(req, res) {
   }
   if (!companyName || !websiteUrl) {
     return res.status(400).json({ error: 'Company name and website are required.' });
+  }
+  if (!logoUrl) {
+    return res.status(400).json({ error: 'A logo is required.' });
   }
   const linkProblem = isSuspicious(websiteUrl);
   if (linkProblem) return res.status(400).json({ error: linkProblem });
@@ -130,9 +133,9 @@ async function handleGrant(req, res) {
       idx,
       company_name: companyName,
       website_url: websiteUrl,
-      logo_url: logoUrl || null,
-      color: color || '#f2a65a',
+      logo_url: logoUrl,
       tagline: tagline || null,
+      industry: industry || null,
       status: 'active',
       is_comped: true,
       group_id: groupId
@@ -210,23 +213,24 @@ async function handleCompanyDetails(req, res) {
     .from('squares')
     .select('group_id, company_name, email, website_url, logo_url, tagline, color, industry, is_comped, town_id, towns(name)')
     .eq('group_id', groupId)
-    .eq('status', 'active')
-    .limit(1)
-    .maybeSingle();
+    .eq('status', 'active');
   if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }
-  if (!data) return res.status(404).json({ error: 'No active squares found for that group.' });
+  if (!data || data.length === 0) return res.status(404).json({ error: 'No active squares found for that group.' });
 
+  const rep = data[0];
   res.status(200).json({
-    groupId: data.group_id,
-    companyName: data.company_name,
-    email: data.email,
-    websiteUrl: data.website_url,
-    logoUrl: data.logo_url,
-    tagline: data.tagline,
-    color: data.color,
-    industry: data.industry,
-    isComped: data.is_comped,
-    townName: data.towns ? data.towns.name : ''
+    groupId: rep.group_id,
+    companyName: rep.company_name,
+    email: rep.email,
+    websiteUrl: rep.website_url,
+    logoUrl: rep.logo_url,
+    tagline: rep.tagline,
+    color: rep.color,
+    industry: rep.industry,
+    isComped: rep.is_comped,
+    townId: rep.town_id,
+    townName: rep.towns ? rep.towns.name : '',
+    count: data.length
   });
 }
 
@@ -237,22 +241,64 @@ async function handleEditCompany(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
 
-  const { groupId, companyName, websiteUrl, logoUrl, tagline, color, industry } = req.body || {};
+  const { groupId, companyName, websiteUrl, logoUrl, tagline, industry, squareCount } = req.body || {};
   if (!groupId) return res.status(400).json({ error: 'Missing groupId.' });
   if (!companyName || !websiteUrl) {
     return res.status(400).json({ error: 'Company name and website are required.' });
   }
+  if (!logoUrl) {
+    return res.status(400).json({ error: 'A logo is required.' });
+  }
   const linkProblem = isSuspicious(websiteUrl);
   if (linkProblem) return res.status(400).json({ error: linkProblem });
+
+  const { data: existing, error: existingErr } = await supabase
+    .from('squares')
+    .select('id, town_id, is_comped')
+    .eq('group_id', groupId)
+    .eq('status', 'active');
+  if (existingErr) { console.error(existingErr); return res.status(500).json({ error: 'Lookup failed.' }); }
+  if (!existing || existing.length === 0) {
+    return res.status(404).json({ error: 'No active squares found for that group.' });
+  }
+
+  const townId = existing[0].town_id;
+  const isComped = existing[0].is_comped; // preserve the group's existing paid-vs-free status for any newly added slots
+  const currentCount = existing.length;
+  const wanted = typeof squareCount === 'number' && squareCount > 0 ? Math.floor(squareCount) : currentCount;
+
+  if (wanted > currentCount){
+    const toAdd = wanted - currentCount;
+    const { error: addErr } = await insertSquaresWithRetry(townId, toAdd, (indices) =>
+      indices.map(idx => ({
+        town_id: townId,
+        idx,
+        company_name: companyName,
+        website_url: websiteUrl,
+        logo_url: logoUrl,
+        tagline: tagline || null,
+        industry: industry || null,
+        status: 'active',
+        is_comped: isComped,
+        group_id: groupId
+      }))
+    );
+    if (addErr) return res.status(409).json({ error: addErr });
+  } else if (wanted < currentCount){
+    const toRemove = currentCount - wanted;
+    const idsToExpire = existing.slice(0, toRemove).map(r => r.id);
+    const { error: expireErr } = await supabase
+      .from('squares').update({ status: 'expired' }).in('id', idsToExpire);
+    if (expireErr) { console.error(expireErr); return res.status(500).json({ error: 'Could not remove excess slots.' }); }
+  }
 
   const { data: updatedRows, error } = await supabase
     .from('squares')
     .update({
       company_name: companyName,
       website_url: websiteUrl,
-      logo_url: logoUrl || null,
+      logo_url: logoUrl,
       tagline: tagline || null,
-      color: color || null,
       industry: industry || null
     })
     .eq('group_id', groupId)
