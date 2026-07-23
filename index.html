@@ -162,49 +162,21 @@
   #boardHeader{padding:2px 0 8px;text-align:center;}
   #boardHeader h2{font-family:'Space Grotesk',sans-serif;font-size:24px;margin:0 0 4px;color:#26210f;}
   #boardHeader .meta{color:#6b6248;font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
-  #industryFilter{margin-top:10px;padding:7px 14px;border-radius:999px;border:1px solid #e4dcc4;
-    background:#fffdf8;color:#26210f;font-size:12.5px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;
-    max-width:100%;text-overflow:ellipsis;}
+
+  #qtyPicker{text-align:center;margin-top:14px;}
+  .qtyLabel{font-family:'Space Grotesk',sans-serif;font-size:15px;color:#26210f;margin:0 0 14px;}
+  #qtyRow{display:flex;align-items:center;justify-content:center;gap:20px;}
+  #qtyRow button{width:44px;height:44px;border-radius:50%;border:1px solid #e4dcc4;background:#fffdf8;
+    color:#26210f;font-size:20px;font-weight:700;cursor:pointer;}
+  #qtyRow button:hover{border-color:var(--amber);color:var(--amber-deep);}
+  #qtyRow button:disabled{opacity:0.4;cursor:default;}
+  #qtyDisplay{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;color:#26210f;min-width:48px;}
+  #qtyPriceNote{margin-top:12px;font-size:13.5px;color:#6b6248;}
+  #qtyPriceNote b{color:#26210f;font-family:'Space Grotesk',sans-serif;font-size:16px;}
+  #rectError{display:none;color:var(--danger);font-size:12.5px;font-weight:600;margin-top:10px;text-align:center;}
   #newsCategoryFilter{margin:6px 0 4px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
     background:var(--panelT7);color:var(--ink);font-size:12px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;
     max-width:100%;text-overflow:ellipsis;}
-  .sq.filled.dimmed{opacity:0.22;filter:grayscale(0.85);}
-  #selectHint{color:#6b6248;font-size:12px;margin-top:8px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.5;}
-  #rectError{display:none;color:var(--danger);font-size:12.5px;font-weight:600;margin-top:6px;}
-
-  #boardLayout{display:grid;grid-template-columns:1fr;gap:24px;margin-top:12px;}
-
-  #grid{
-    display:grid; grid-template-columns:repeat(var(--cols,10), 1fr); grid-template-rows:repeat(var(--cols,10), 1fr);
-    gap:4px; background:#f4efe4; padding:10px; border-radius:12px; border:1px solid #e4dcc4;
-    width:100%; max-width:440px; aspect-ratio:1/1; margin:0 auto;
-  }
-  .sq{
-    border-radius:4px; cursor:pointer; position:relative; overflow:hidden;
-    background:#fffdf8; border:1px solid #e4dcc4;
-    display:flex; align-items:center; justify-content:center; transition:transform .1s ease;
-    user-select:none;
-  }
-  .sq:hover{transform:scale(1.15); z-index:5; box-shadow:0 4px 14px rgba(42,33,16,0.18);}
-  .sq.empty:hover{background:rgba(242,166,90,0.18); border-color:var(--amber);}
-  .plusIcon{color:#c9bfa0; font-size:18px; font-weight:300; pointer-events:none;
-    transition:color .12s ease;}
-  .sq.empty:hover .plusIcon{color:var(--amber);}
-  .sq.selected{background:rgba(242,166,90,0.35) !important; border-color:var(--amber) !important;}
-  .sq img{width:100%;height:100%;object-fit:cover;}
-  .sq.filled{border-color:rgba(0,0,0,0.15);cursor:pointer;}
-
-
-  @media (max-width:640px){
-    header{padding:16px 18px;}
-    #boardCol{padding:16px 14px 20px;}
-    #grid{max-width:360px;gap:3px;padding:8px;}
-  }
-
-  @media (min-width:1000px){
-    #grid{max-width:600px;}
-  }
-
 
   /* ---- floating selection bar ---- */
   #selectionBar{
@@ -676,40 +648,21 @@
       <div id="boardHeader">
         <h2 id="boardTitle">Oulu</h2>
         <div class="meta"><span id="claimedMeta"></span></div>
-        <select id="industryFilter">
-          <option value="" data-i18n="allCategories">Kaikki toimialat</option>
-          <option value="ajoneuvot" data-i18n="indAjoneuvot">Ajoneuvot ja korjaamo</option>
-          <option value="elainlaakari" data-i18n="indElainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
-          <option value="it" data-i18n="indIt">IT ja digitaaliset palvelut</option>
-          <option value="kauneus" data-i18n="indKauneus">Kauneus ja hyvinvointi</option>
-          <option value="kiinteisto" data-i18n="indKiinteisto">Kiinteistö ja asuminen</option>
-          <option value="koulutus" data-i18n="indKoulutus">Koulutus</option>
-          <option value="kuljetus" data-i18n="indKuljetus">Kuljetus ja logistiikka</option>
-          <option value="kasityo" data-i18n="indKasityo">Käsityö ja taide</option>
-          <option value="talous" data-i18n="indTalous">Lakipalvelut ja talous</option>
-          <option value="maatalous" data-i18n="indMaatalous">Maatalous ja puutarha</option>
-          <option value="matkailu" data-i18n="indMatkailu">Matkailu ja majoitus</option>
-          <option value="muu" data-i18n="indMuu">Muu</option>
-          <option value="rakentaminen" data-i18n="indRakentaminen">Rakentaminen ja remontointi</option>
-          <option value="ravintola" data-i18n="indRavintola">Ravintola ja kahvila</option>
-          <option value="siivous" data-i18n="indSiivous">Siivous ja kotipalvelut</option>
-          <option value="tapahtumat" data-i18n="indTapahtumat">Tapahtumat ja viihde</option>
-          <option value="terveys" data-i18n="indTerveys">Terveys ja lääkäripalvelut</option>
-          <option value="urheilu" data-i18n="indUrheilu">Urheilu ja liikunta</option>
-          <option value="valokuvaus" data-i18n="indValokuvaus">Valokuvaus ja media</option>
-          <option value="kauppa" data-i18n="indKauppa">Vähittäiskauppa</option>
-        </select>
-        <div id="selectHint" data-i18n="selectHint">Klikkaa yhtä ruutua valitaksesi sen — klikkaa toista muodostaaksesi suorakulmion useammasta ruudusta.</div>
+      </div>
+
+      <div id="qtyPicker">
+        <p class="qtyLabel" data-i18n="qtyLabel">Kuinka monta banneripaikkaa haluat?</p>
+        <div id="qtyRow">
+          <button id="qtyMinus" aria-label="Vähemmän" type="button">−</button>
+          <span id="qtyDisplay">1</span>
+          <button id="qtyPlus" aria-label="Enemmän" type="button">+</button>
+        </div>
+        <div id="qtyPriceNote"></div>
         <div id="rectError"></div>
       </div>
 
-      <div id="boardLayout">
-        <div id="grid"></div>
-      </div>
-
-      <div id="selectionBar">
+      <div id="selectionBar" class="open">
         <span class="count" id="selectionCount">0 ruutua</span>
-        <button class="cancel" id="selectionCancel" data-i18n="cancelSelection">Peruuta</button>
         <button class="go" id="selectionGo" data-i18n="continueSelection">Jatka →</button>
       </div>
     </div>
@@ -1114,7 +1067,6 @@ const FINNISH_CITIES = [
 
 let currentTown = null;
 let currentSquares = [];
-let selectedIndices = [];
 let chosenColor = SWATCHES[0];
 let lang = 'fi';
 
@@ -1181,7 +1133,7 @@ const STRINGS = {
     townPlaceholder: 'Kaupungin nimi (esim. Tampere)',
     viewBoard: 'Katso taulu →',
     claimedOf: '{n} / {t} ruutua varattu',
-    modalTitle: 'Varaa ruudut',
+    modalTitle: 'Varaa banneripaikat',
     lCompany: 'Yrityksen nimi', lWebsite: 'Verkkosivun osoite',
     lEmail: 'Sähköposti — kuittia ja tilauksen hallintaa varten',
     lLogo: 'Logo <span style="font-weight:400;color:#8a8168;">(valinnainen)</span>',
@@ -1243,13 +1195,14 @@ const STRINGS = {
     takenErr: 'Yksi valituista ruuduista vietiin juuri — valitse toiset.',
     networkErr: 'Verkkovirhe — yritä uudelleen.',
     townNotAvailable: 'Tätä kaupunkia ei ole vielä avattu. Aloitamme Oulusta ja laajennamme pian.',
-    squareTitle: '{n} ruutua — {town}',
-    squareTitleOne: 'Ruutu #{idx} — {town}',
+    squareTitle: '{n} paikkaa — {town}',
+    squareTitleOne: '1 paikka — {town}',
+    qtyLabel: 'Kuinka monta banneripaikkaa haluat?',
     claimTitle: 'Varaa tämä ruutu — 5€/kk',
     cancelSelection: 'Peruuta',
     continueSelection: 'Jatka →',
-    squaresSelected: '{n} ruutua · {price}€/kk',
-    squareSelected: '1 ruutu · {price}€/kk',
+    squaresSelected: '{n} paikkaa · {price}€/kk',
+    squareSelected: '1 paikka · {price}€/kk',
     noSuggestion: 'Kaupunkia ei löytynyt tietokannasta — voit silti hakea sitä, taulu luodaan automaattisesti.'
   },
   en: {
@@ -1314,7 +1267,7 @@ const STRINGS = {
     townPlaceholder: 'Enter your town (e.g. Tampere)',
     viewBoard: 'View board →',
     claimedOf: '{n} / {t} squares claimed',
-    modalTitle: 'Claim your squares',
+    modalTitle: 'Claim your banner slots',
     lCompany: 'Company name', lWebsite: 'Website URL',
     lEmail: 'Contact email — for your receipt & managing the subscription',
     lLogo: 'Logo <span style="font-weight:400;color:#8a8168;">(optional)</span>',
@@ -1376,13 +1329,14 @@ const STRINGS = {
     takenErr: 'One of those squares was just taken — pick again.',
     networkErr: 'Network error — please try again.',
     townNotAvailable: "This town isn't open yet. We're starting with Oulu and will expand soon.",
-    squareTitle: '{n} squares — {town}',
-    squareTitleOne: 'Square #{idx} — {town}',
+    squareTitle: '{n} slots — {town}',
+    squareTitleOne: '1 slot — {town}',
+    qtyLabel: 'How many banner slots would you like?',
     claimTitle: 'Claim this square — €5/month',
     cancelSelection: 'Cancel',
     continueSelection: 'Continue →',
-    squaresSelected: '{n} squares · €{price}/mo',
-    squareSelected: '1 square · €{price}/mo',
+    squaresSelected: '{n} slots · €{price}/mo',
+    squareSelected: '1 slot · €{price}/mo',
     noSuggestion: "Town not in our list — you can still search it, the board is created automatically."
   }
 };
@@ -1502,11 +1456,9 @@ function setLang(l){
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
     el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
   });
-  sortSelectOptions('industryFilter', ''); // keep "All categories" pinned first
   sortSelectOptions('fIndustry', null);
   updateClaimedMeta();
   updateSelectionBar();
-  renderGrid();
   renderLocalFeed(currentFeedItems);
   renderWeatherForecast();
   if (installBannerMode) showInstallBanner(installBannerMode);
@@ -1590,7 +1542,7 @@ townInput.addEventListener('keydown', (e)=>{
 async function openBoard(name, country, population){
   const errBox = document.getElementById('homeErr');
   errBox.style.display = 'none';
-  clearSelection();
+  resetQuantitySelection();
   try{
     let url = `${API_BASE}/town?name=${encodeURIComponent(name)}&country=${encodeURIComponent(country||'FI')}`;
     if (population) url += `&population=${population}`;
@@ -1618,7 +1570,6 @@ async function openBoard(name, country, population){
     const cleanSlug = currentTown.slug.replace(/-[a-z]{2}$/i, '');
     history.pushState({}, '', `/${cleanSlug}`);
     document.getElementById('boardTitle').textContent = currentTown.name;
-    document.getElementById('grid').style.setProperty('--cols', currentTown.grid_size);
     await loadBoard();
   }catch(e){
     errBox.textContent = t('networkErr');
@@ -1634,7 +1585,7 @@ async function loadBoard(){
   const data = await res.json();
   currentSquares = data.squares || [];
   updateClaimedMeta();
-  renderGrid();
+  updateSelectionBar();
   renderLogoBanner();
 
   // Loaded separately, after the grid is already visible -- this can
@@ -1657,14 +1608,15 @@ function renderLogoBanner(){
   const track = document.getElementById('logoBannerTrack');
   const empty = document.getElementById('logoBannerEmpty');
 
-  const seen = new Set();
-  const businesses = currentSquares.filter(sq => {
-    if (!sq.logo_url) return false;
-    const key = sq.group_id || sq.id;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  // Deliberately NOT deduped by business/group_id: buying more slots is
+  // priced per-slot (same tiers as before), and the natural payoff for
+  // that is appearing more often in the scroll -- one tile per owned
+  // slot, not one tile per business.
+  const businesses = currentSquares.filter(sq => sq.logo_url);
+  for (let i = businesses.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [businesses[i], businesses[j]] = [businesses[j], businesses[i]];
+  }
 
   if (businesses.length === 0){
     track.innerHTML = '';
@@ -1967,98 +1919,33 @@ document.getElementById('askFollowupInput').addEventListener('keydown', (e)=>{
   askAsk(question, document.getElementById('askFollowupSendBtn'));
 });
 
-// Cell sizing is now handled entirely by CSS (aspect-ratio on #grid),
-// which can't produce the "shrinks to almost nothing" bug the old
-// JS-calculated version had -- no measurement code needed here at all.
+// The board itself is no longer a clickable grid -- purchasing is now a
+// simple quantity picker (how many banner slots), with the exact same
+// pricing tiers as before (see pricePerSquareEur). The server still
+// tracks each purchase as discrete "squares" internally (unchanged
+// schema, unchanged capacity/availability logic) -- it just auto-assigns
+// which ones server-side now (see pickRandomEmptySquares in
+// create-checkout-session.js) instead of the visitor picking specific
+// grid positions.
+let selectedCount = 1;
+const MAX_QTY_PER_PURCHASE = 20; // client-side cap; server enforces the real combined max across towns
 
-function renderGrid(){
-  if (!currentTown) return;
-  const grid = document.getElementById('grid');
-  grid.innerHTML = '';
-  const n = currentTown.grid_size;
-  const total = n * n;
-  const byIdx = {};
-  currentSquares.forEach(s => byIdx[s.idx] = s);
-
-  // Group squares bought in the same purchase (shared group_id) so they
-  // render as one clean rectangle with a single logo, not the same tiny
-  // image repeated in every cell.
-  const groups = {};
-  currentSquares.forEach(s => {
-    const key = s.group_id || `solo-${s.id}`;
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(s);
-  });
-
-  const anchorFor = {};   // top-left idx of a group -> {rep square, width, height}
-  const skip = new Set(); // every other idx covered by that same block
-  Object.values(groups).forEach(members => {
-    const rows = members.map(m => idxToRowCol(m.idx).r);
-    const cols = members.map(m => idxToRowCol(m.idx).c);
-    const r0 = Math.min(...rows), c0 = Math.min(...cols);
-    const width = Math.max(...cols) - c0 + 1;
-    const height = Math.max(...rows) - r0 + 1;
-    const anchorIdx = r0 * n + c0;
-    anchorFor[anchorIdx] = { rep: members[0], width, height };
-    members.forEach(m => { if (m.idx !== anchorIdx) skip.add(m.idx); });
-  });
-
-  for (let i = 0; i < total; i++){
-    if (skip.has(i)) continue; // already covered by a spanning block
-
-    if (anchorFor[i]){
-      const { rep, width, height } = anchorFor[i];
-      const rc = idxToRowCol(i);
-      const sq = document.createElement('div');
-      const isDimmed = industryFilterValue && rep.industry !== industryFilterValue;
-      sq.className = 'sq filled' + (isDimmed ? ' dimmed' : '');
-      sq.style.gridColumn = `${rc.c + 1} / span ${width}`;
-      sq.style.gridRow = `${rc.r + 1} / span ${height}`;
-      sq.style.background = rep.color || '#eae3d3';
-      if (rep.logo_url){
-        const img = document.createElement('img');
-        img.src = rep.logo_url;
-        img.alt = rep.company_name;
-        sq.appendChild(img);
-      }
-      sq.title = rep.company_name;
-      sq.addEventListener('click', ()=> window.open(`/pin/${rep.id}`, '_blank', 'noopener'));
-      grid.appendChild(sq);
-      continue;
-    }
-
-    const isSelected = selectedIndices.includes(i);
-    const sq = document.createElement('div');
-    sq.className = 'sq empty' + (isSelected ? ' selected' : '');
-    sq.title = t('claimTitle');
-    if (!isSelected){
-      const plus = document.createElement('span');
-      plus.className = 'plusIcon';
-      plus.textContent = '+';
-      sq.appendChild(plus);
-    }
-    sq.addEventListener('click', ()=> squareClicked(i));
-    grid.appendChild(sq);
-  }
+function updateQtyControls(){
+  document.getElementById('qtyDisplay').textContent = selectedCount;
+  document.getElementById('qtyMinus').disabled = selectedCount <= 1;
+  document.getElementById('qtyPlus').disabled = selectedCount >= MAX_QTY_PER_PURCHASE;
+  updateSelectionBar();
 }
+document.getElementById('qtyMinus').addEventListener('click', ()=>{
+  if (selectedCount > 1){ selectedCount--; updateQtyControls(); }
+});
+document.getElementById('qtyPlus').addEventListener('click', ()=>{
+  if (selectedCount < MAX_QTY_PER_PURCHASE){ selectedCount++; updateQtyControls(); }
+});
 
-function idxToRowCol(idx){
-  const n = currentTown.grid_size;
-  return { r: Math.floor(idx / n), c: idx % n };
-}
-
-function rectBetween(aIdx, bIdx){
-  const n = currentTown.grid_size;
-  const A = idxToRowCol(aIdx), B = idxToRowCol(bIdx);
-  const r0 = Math.min(A.r, B.r), r1 = Math.max(A.r, B.r);
-  const c0 = Math.min(A.c, B.c), c1 = Math.max(A.c, B.c);
-  const out = [];
-  for (let r = r0; r <= r1; r++){
-    for (let c = c0; c <= c1; c++){
-      out.push(r * n + c);
-    }
-  }
-  return out;
+function resetQuantitySelection(){
+  selectedCount = 1;
+  updateQtyControls();
 }
 
 function showSelectionError(msg){
@@ -2070,72 +1957,28 @@ function showSelectionError(msg){
   showSelectionError._t = setTimeout(()=>{ el.style.display = 'none'; }, 2600);
 }
 
-// Click one empty square to start a selection, click a second empty
-// square to define the far corner -- the whole rectangle between them
-// gets selected. This is deliberately the only way to select more than
-// one square, so a purchase can never end up as a scattered, non-rectangular
-// shape (which would break the single-logo-across-the-block rendering).
-let selectionAnchor = null;
-let industryFilterValue = '';
-document.getElementById('industryFilter').addEventListener('change', (e)=>{
-  industryFilterValue = e.target.value;
-  renderGrid();
-});
-function squareClicked(idx){
-  const filledIdx = new Set(currentSquares.map(s => s.idx));
-
-  if (selectionAnchor === null){
-    selectionAnchor = idx;
-    selectedIndices = [idx];
-    renderGrid();
-    updateSelectionBar();
-    return;
-  }
-
-  if (idx === selectionAnchor){
-    selectionAnchor = null;
-    selectedIndices = [];
-    renderGrid();
-    updateSelectionBar();
-    return;
-  }
-
-  const rect = rectBetween(selectionAnchor, idx);
-  if (rect.some(i => filledIdx.has(i))){
-    showSelectionError(t('rectBlockedError'));
-    return;
-  }
-  selectedIndices = rect;
-  renderGrid();
-  updateSelectionBar();
-}
-
-function clearSelection(){
-  selectionAnchor = null;
-  selectedIndices = [];
-  updateSelectionBar();
-  renderGrid();
-}
-
 function updateSelectionBar(){
-  const bar = document.getElementById('selectionBar');
-  if (selectedIndices.length === 0){ bar.classList.remove('open'); return; }
-  bar.classList.add('open');
-  const n = selectedIndices.length;
+  const n = selectedCount;
   const perSquare = pricePerSquareEur(n);
   const price = n * perSquare;
   const label = (n === 1 ? t('squareSelected') : t('squaresSelected'))
     .replace('{n}', n).replace('{price}', price);
   const rateNote = perSquare < 5
-    ? (lang === 'fi' ? ` (${perSquare}€/kk per ruutu)` : ` (€${perSquare}/mo per square)`)
+    ? (lang === 'fi' ? ` (${perSquare}€/kk per paikka)` : ` (€${perSquare}/mo per slot)`)
     : '';
   document.getElementById('selectionCount').textContent = label + rateNote;
+
+  const priceNoteEl = document.getElementById('qtyPriceNote');
+  if (priceNoteEl){
+    priceNoteEl.innerHTML = lang === 'fi'
+      ? `<b>${price}€/kk</b> yhteensä (${perSquare}€/kk per paikka)`
+      : `<b>€${price}/mo</b> total (€${perSquare}/mo per slot)`;
+  }
 }
-document.getElementById('selectionCancel').addEventListener('click', clearSelection);
 document.getElementById('selectionGo').addEventListener('click', openClaimModal);
 
 function openClaimModal(){
-  if (selectedIndices.length === 0) return;
+  if (selectedCount < 1) return;
   additionalTowns = []; // fresh modal -> fresh "also post in" list
   renderAdditionalTownsList();
 
@@ -2163,13 +2006,19 @@ function openClaimModal(){
   document.getElementById('fLogoFile').value = '';
   if (cropper) { cropper.destroy(); cropper = null; }
 
+  // The board (and this "Jatka" button) now lives inside the company-info
+  // modal -- close it before opening the checkout modal on top, rather
+  // than stacking both open at once (which also had a real z-index bug:
+  // the outer modal sat above this one and silently blocked its clicks).
+  document.getElementById('companyInfoOverlay').style.display = 'none';
+
   document.getElementById('overlay').style.display = 'flex';
 }
 
 function updateModalSummary(){
-  const n = selectedIndices.length;
+  const n = selectedCount;
   let summary = n === 1
-    ? t('squareTitleOne').replace('{idx}', selectedIndices[0] + 1).replace('{town}', currentTown.name)
+    ? t('squareTitleOne').replace('{town}', currentTown.name)
     : t('squareTitle').replace('{n}', n).replace('{town}', currentTown.name);
   if (additionalTowns.length > 0){
     const parts = additionalTowns.map(a => `${a.name} (${a.count})`).join(', ');
@@ -2219,7 +2068,7 @@ document.querySelectorAll('.termOpt').forEach(btn=>{
 document.querySelector('.termOpt[data-months="3"]').classList.add('selected');
 
 function updateModalPricing(){
-  const totalCount = selectedIndices.length + additionalTowns.reduce((sum, a) => sum + a.count, 0);
+  const totalCount = selectedCount + additionalTowns.reduce((sum, a) => sum + a.count, 0);
   const perSquare = pricePerSquareEur(totalCount);
   const monthlyTotal = totalCount * perSquare;
   const discountNoteEl = document.getElementById('trialNote');
@@ -2236,7 +2085,7 @@ function updateModalPricing(){
 
   const price = monthlyTotal;
   const rateNote = perSquare < 5
-    ? (lang === 'fi' ? ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(${perSquare}€/ruutu, alennushinta)</span>` : ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(€${perSquare}/square, discounted)</span>`)
+    ? (lang === 'fi' ? ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(${perSquare}€/paikka, alennushinta)</span>` : ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(€${perSquare}/slot, discounted)</span>`)
     : '';
   document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:#8a8168;font-weight:400;">${t('perMonth')}</span>${rateNote}`;
   document.getElementById('priceNote').textContent = t('renewNote');
@@ -2333,14 +2182,11 @@ function renderAdditionalTownsList(){
 let cropper = null;
 let uploadedLogoUrl = null;
 
+// Banner tiles are uniform squares now (no more variable-shaped grid
+// blocks) -- the crop is always 1:1 regardless of how many slots were
+// purchased.
 function getSelectionAspectRatio(){
-  if (!selectedIndices || selectedIndices.length === 0 || !currentTown) return 1;
-  const n = currentTown.grid_size;
-  const rows = selectedIndices.map(i => Math.floor(i / n));
-  const cols = selectedIndices.map(i => i % n);
-  const w = Math.max(...cols) - Math.min(...cols) + 1;
-  const h = Math.max(...rows) - Math.min(...rows) + 1;
-  return w / h;
+  return 1;
 }
 
 document.getElementById('logoUploadBtn').addEventListener('click', ()=>{
@@ -2504,7 +2350,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         townId: currentTown.id,
-        indices: selectedIndices,
+        squareCount: selectedCount,
         additionalTowns: additionalTowns.map(a => ({ townId: a.id, count: a.count })),
         planType: selectedPlanType,
         prepaidMonths: selectedPlanType === 'prepaid' ? selectedPrepaidMonths : null,
