@@ -133,6 +133,41 @@ function drawGridMotif(ctx, originX, originY, cols, rows, cell, gap, filledSet){
   }
 }
 
+// The actual brand mark (a map pin with a 2x2 amber grid inside) -- same
+// design as the site header logo and the PWA/favicon icons, reproduced
+// here as canvas paths rather than an external image so the card stays
+// a single self-contained file. `size` is the rendered width in px;
+// the pin's natural proportions (from its 24x24 source viewBox) are
+// preserved automatically.
+function drawLogoIcon(ctx, x, y, size){
+  const scale = size / 24;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = '#2a2110';
+  ctx.beginPath();
+  ctx.moveTo(12, 2);
+  ctx.bezierCurveTo(7.6, 2, 4, 5.4, 4, 9.6);
+  ctx.bezierCurveTo(4, 15, 12, 22, 12, 22);
+  ctx.bezierCurveTo(12, 22, 20, 15, 20, 9.6);
+  ctx.bezierCurveTo(20, 5.4, 16.4, 2, 12, 2);
+  ctx.closePath();
+  ctx.fill();
+
+  const sq = (sx, sy, alpha) => {
+    ctx.fillStyle = `rgba(224,142,62,${alpha})`;
+    roundRect(ctx, sx, sy, 4, 4, 0.8);
+    ctx.fill();
+  };
+  sq(7.5, 4.5, 1);
+  sq(12.5, 4.5, 0.55);
+  sq(7.5, 9.5, 0.55);
+  sq(12.5, 9.5, 1);
+
+  ctx.restore();
+}
+
 const MAX_SELECTABLE_EVENTS = 6;
 const DEFAULT_SELECTED_COUNT = 5;
 
@@ -226,9 +261,11 @@ function drawCard(selectedEvents){
   ctx.fillStyle = '#f7f2e7';
   ctx.fillRect(0, 0, W, H);
 
-  // signature grid motif, echoing the actual board -- bottom-right corner, a few squares "filled"
-  const filled = new Set([2, 5, 9, 13, 18, 21]);
-  drawGridMotif(ctx, W - 330, H - 330, 6, 6, 42, 8, filled);
+  // real brand logo, top-right -- sized to roughly match the "XX°C"
+  // temperature text (92px) so it reads as a peer to that, not an
+  // afterthought
+  const logoSize = 92;
+  drawLogoIcon(ctx, W - 72 - logoSize, 40, logoSize);
 
   // wordmark
   ctx.fillStyle = '#2a2110';
