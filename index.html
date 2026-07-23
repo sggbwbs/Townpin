@@ -63,17 +63,31 @@
   #langToggle button.active{background:var(--amber);color:#2a1c0d;font-weight:700;}
 
   main{max-width:1320px;margin:0 auto;padding:0 24px 100px;}
-  #topGrid{display:grid;grid-template-columns:1fr;gap:8px;align-items:start;}
-  #newsCol, #boardCol{min-width:0;}
-  #newsCol{order:1;}
-  #newsSection{order:2;}
-  #boardCol{order:3;}
 
-  /* ---- company info trigger badge (on the board card) + modal ---- */
-  #companyInfoTrigger{display:block;margin:18px auto 0;background:rgba(242,166,90,0.14);
+  /* ---- vertically scrolling logo banner, between header and AI search ---- */
+  #logoBanner{position:relative;height:120px;overflow:hidden;margin:20px 0 8px;
+    border:1px solid var(--line);border-radius:14px;background:var(--panelT4);
+    mask-image:linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+    -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);}
+  #logoBannerTrack{position:absolute;left:0;right:0;display:flex;flex-wrap:wrap;justify-content:center;
+    gap:18px;padding:14px 20px;animation:logoScroll 30s linear infinite;}
+  #logoBanner:hover #logoBannerTrack{animation-play-state:paused;}
+  .logoBannerItem{flex:none;width:64px;height:64px;border-radius:10px;overflow:hidden;
+    background:var(--panelT7);display:flex;align-items:center;justify-content:center;}
+  .logoBannerItem img{width:100%;height:100%;object-fit:cover;}
+  @keyframes logoScroll{
+    0%{transform:translateY(0);}
+    100%{transform:translateY(-50%);}
+  }
+  #logoBannerEmpty{display:flex;align-items:center;justify-content:center;height:100%;
+    color:var(--ink-dim);font-size:13px;text-align:center;padding:0 20px;}
+
+  #companyInfoCta{display:block;margin:0 0 20px;background:rgba(242,166,90,0.14);
     border:1px solid rgba(242,166,90,0.35);color:var(--amber);font-family:'IBM Plex Mono',monospace;
     font-size:12px;padding:8px 16px;border-radius:999px;cursor:pointer;}
-  #companyInfoTrigger:hover{background:rgba(242,166,90,0.24);}
+
+  #newsCol{min-width:0;}
+  #companyInfoCta:hover{background:rgba(242,166,90,0.24);}
 
   #companyInfoOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
     align-items:center;justify-content:center;padding:20px;}
@@ -142,38 +156,38 @@
   .suggestion .pop{color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
   #homeErr{color:var(--danger);margin:-24px auto 20px;font-size:13.5px;display:none;text-align:center;max-width:460px;}
 
-  /* ---- board ---- */
-  #boardCol{background:var(--panelT4);border:1px solid var(--line);border-radius:16px;
-    padding:20px 18px 24px;}
+  /* ---- board (now lives inside #companyInfoModal, not the main page) ---- */
+  #boardCol{background:rgba(0,0,0,0.025);border:1px solid #e4dcc4;border-radius:16px;
+    padding:20px 18px 24px;margin:24px 0;}
   #boardHeader{padding:2px 0 8px;text-align:center;}
-  #boardHeader h2{font-family:'Space Grotesk',sans-serif;font-size:24px;margin:0 0 4px;}
-  #boardHeader .meta{color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
-  #industryFilter{margin-top:10px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);
-    background:var(--panelT7);color:var(--ink);font-size:12.5px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;
+  #boardHeader h2{font-family:'Space Grotesk',sans-serif;font-size:24px;margin:0 0 4px;color:#26210f;}
+  #boardHeader .meta{color:#6b6248;font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+  #industryFilter{margin-top:10px;padding:7px 14px;border-radius:999px;border:1px solid #e4dcc4;
+    background:#fffdf8;color:#26210f;font-size:12.5px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;
     max-width:100%;text-overflow:ellipsis;}
   #newsCategoryFilter{margin:6px 0 4px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
     background:var(--panelT7);color:var(--ink);font-size:12px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;
     max-width:100%;text-overflow:ellipsis;}
   .sq.filled.dimmed{opacity:0.22;filter:grayscale(0.85);}
-  #selectHint{color:var(--ink-dim);font-size:12px;margin-top:8px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.5;}
+  #selectHint{color:#6b6248;font-size:12px;margin-top:8px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.5;}
   #rectError{display:none;color:var(--danger);font-size:12.5px;font-weight:600;margin-top:6px;}
 
   #boardLayout{display:grid;grid-template-columns:1fr;gap:24px;margin-top:12px;}
 
   #grid{
     display:grid; grid-template-columns:repeat(var(--cols,10), 1fr); grid-template-rows:repeat(var(--cols,10), 1fr);
-    gap:4px; background:var(--panelT4); padding:10px; border-radius:12px; border:1px solid var(--line);
+    gap:4px; background:#f4efe4; padding:10px; border-radius:12px; border:1px solid #e4dcc4;
     width:100%; max-width:440px; aspect-ratio:1/1; margin:0 auto;
   }
   .sq{
     border-radius:4px; cursor:pointer; position:relative; overflow:hidden;
-    background:var(--sq-empty-bg); border:1px solid var(--sq-empty-border);
+    background:#fffdf8; border:1px solid #e4dcc4;
     display:flex; align-items:center; justify-content:center; transition:transform .1s ease;
     user-select:none;
   }
-  .sq:hover{transform:scale(1.15); z-index:5; box-shadow:var(--shadow-md);}
+  .sq:hover{transform:scale(1.15); z-index:5; box-shadow:0 4px 14px rgba(42,33,16,0.18);}
   .sq.empty:hover{background:rgba(242,166,90,0.18); border-color:var(--amber);}
-  .plusIcon{color:var(--sq-plus); font-size:18px; font-weight:300; pointer-events:none;
+  .plusIcon{color:#c9bfa0; font-size:18px; font-weight:300; pointer-events:none;
     transition:color .12s ease;}
   .sq.empty:hover .plusIcon{color:var(--amber);}
   .sq.selected{background:rgba(242,166,90,0.35) !important; border-color:var(--amber) !important;}
@@ -187,10 +201,7 @@
     #grid{max-width:360px;gap:3px;padding:8px;}
   }
 
-  /* board stays in view while the (often much longer) news column
-     scrolls past, instead of sitting stranded next to empty space */
   @media (min-width:1000px){
-    #boardCol{position:sticky;top:20px;align-self:start;}
     #grid{max-width:600px;}
   }
 
@@ -203,11 +214,10 @@
     max-width:min(92vw, 480px);flex-wrap:wrap;justify-content:center;
   }
   #selectionBar.open{display:flex;}
-  /* On wider screens the board sits in its own column (see
-     #topGrid) -- a viewport-centered fixed bar ends up disconnected
-     from the grid and can visually land over unrelated content below.
-     Above that breakpoint, it's a normal element directly under the
-     grid instead: always in the right place, never floating loose. */
+  /* The board now lives inside the company-info modal (a centered
+     overlay), so the selection bar -- fixed to the viewport -- can
+     safely stay simple and centered at all sizes; there's no separate
+     desktop "board column" position to account for anymore. */
   @media (min-width:1000px){
     #selectionBar{position:static;transform:none;left:auto;bottom:auto;margin:16px 0 0;max-width:none;width:100%;}
   }
@@ -466,6 +476,12 @@
 </div>
 
 <main>
+  <div id="logoBanner">
+    <div id="logoBannerTrack"></div>
+    <div id="logoBannerEmpty" style="display:none;" data-i18n="logoBannerEmpty">Ole ensimmäinen yritys taulussa!</div>
+  </div>
+  <button id="companyInfoCta" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</button>
+
   <div id="askHero">
     <h2 data-i18n="askHeroTitle">Mitä haluaisit tehdä tänään?</h2>
     <p class="askHeroSub" data-i18n="askHeroSub">Kysy retkistä, ruokapaikoista tai tekemisestä — vastaan oikeiden oululaisten yritysten ja tämän päivän tapahtumien pohjalta.</p>
@@ -482,93 +498,47 @@
     </div>
   </div>
 
-  <div id="topGrid">
-    <div id="newsCol">
-      <div id="localFeed">
-        <h2 id="localFeedTitle"></h2>
+  <div id="newsCol">
+    <div id="localFeed">
+      <h2 id="localFeedTitle"></h2>
 
-        <div id="weatherWidget" style="display:none;">
-          <span id="weatherIcon"></span>
-          <span id="weatherTemp"></span>
-        </div>
-        <div id="weatherForecast" style="display:none;"></div>
+      <div id="weatherWidget" style="display:none;">
+        <span id="weatherIcon"></span>
+        <span id="weatherTemp"></span>
+      </div>
+      <div id="weatherForecast" style="display:none;"></div>
 
-        <div id="feedColumns">
-          <div id="eventsSection">
-            <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat tänään</h3>
-            <p class="note" id="eventsCountNote"></p>
-            <p class="note">
-              <span data-i18n="eventsSourceNote">Lähde: Kaleva</span> —
-              <a href="https://tapahtumat.kaleva.fi/fi-FI" target="_blank" rel="noopener" data-i18n="viewAllEventsLink">katso kaikki tapahtumat ↗</a>
-            </p>
-            <div id="eventItems"></div>
-            <p class="note" id="noEventsThisWeek" style="display:none;"></p>
-            <div style="margin-top:14px;">
-              <button id="showMoreEventsBtn" class="logoBtn" style="display:none;"></button>
-            </div>
+      <div id="feedColumns">
+        <div id="eventsSection">
+          <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat tänään</h3>
+          <p class="note" id="eventsCountNote"></p>
+          <p class="note">
+            <span data-i18n="eventsSourceNote">Lähde: Kaleva</span> —
+            <a href="https://tapahtumat.kaleva.fi/fi-FI" target="_blank" rel="noopener" data-i18n="viewAllEventsLink">katso kaikki tapahtumat ↗</a>
+          </p>
+          <div id="eventItems"></div>
+          <p class="note" id="noEventsThisWeek" style="display:none;"></p>
+          <div style="margin-top:14px;">
+            <button id="showMoreEventsBtn" class="logoBtn" style="display:none;"></button>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <div id="boardCol">
-      <div id="boardHeader">
-        <h2 id="boardTitle">Oulu</h2>
-        <div class="meta"><span id="claimedMeta"></span></div>
-        <select id="industryFilter">
-          <option value="" data-i18n="allCategories">Kaikki toimialat</option>
-          <option value="ajoneuvot" data-i18n="indAjoneuvot">Ajoneuvot ja korjaamo</option>
-          <option value="elainlaakari" data-i18n="indElainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
-          <option value="it" data-i18n="indIt">IT ja digitaaliset palvelut</option>
-          <option value="kauneus" data-i18n="indKauneus">Kauneus ja hyvinvointi</option>
-          <option value="kiinteisto" data-i18n="indKiinteisto">Kiinteistö ja asuminen</option>
-          <option value="koulutus" data-i18n="indKoulutus">Koulutus</option>
-          <option value="kuljetus" data-i18n="indKuljetus">Kuljetus ja logistiikka</option>
-          <option value="kasityo" data-i18n="indKasityo">Käsityö ja taide</option>
-          <option value="talous" data-i18n="indTalous">Lakipalvelut ja talous</option>
-          <option value="maatalous" data-i18n="indMaatalous">Maatalous ja puutarha</option>
-          <option value="matkailu" data-i18n="indMatkailu">Matkailu ja majoitus</option>
-          <option value="muu" data-i18n="indMuu">Muu</option>
-          <option value="rakentaminen" data-i18n="indRakentaminen">Rakentaminen ja remontointi</option>
-          <option value="ravintola" data-i18n="indRavintola">Ravintola ja kahvila</option>
-          <option value="siivous" data-i18n="indSiivous">Siivous ja kotipalvelut</option>
-          <option value="tapahtumat" data-i18n="indTapahtumat">Tapahtumat ja viihde</option>
-          <option value="terveys" data-i18n="indTerveys">Terveys ja lääkäripalvelut</option>
-          <option value="urheilu" data-i18n="indUrheilu">Urheilu ja liikunta</option>
-          <option value="valokuvaus" data-i18n="indValokuvaus">Valokuvaus ja media</option>
-          <option value="kauppa" data-i18n="indKauppa">Vähittäiskauppa</option>
-        </select>
-        <div id="selectHint" data-i18n="selectHint">Klikkaa yhtä ruutua valitaksesi sen — klikkaa toista muodostaaksesi suorakulmion useammasta ruudusta.</div>
-        <div id="rectError"></div>
-      </div>
-
-      <div id="boardLayout">
-        <div id="grid"></div>
-      </div>
-
-      <div id="selectionBar">
-        <span class="count" id="selectionCount">0 ruutua</span>
-        <button class="cancel" id="selectionCancel" data-i18n="cancelSelection">Peruuta</button>
-        <button class="go" id="selectionGo" data-i18n="continueSelection">Jatka →</button>
-      </div>
-
-      <button id="companyInfoTrigger" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</button>
-    </div>
-
-    <div id="newsSection" style="display:none;">
-      <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
-      <select id="newsCategoryFilter">
-        <option value="oulun-seutu" data-i18n="newsCatOulu">Oulun seutu</option>
-        <option value="rss-uusimmat" data-i18n="newsCatUusimmat">Uusimmat</option>
-        <option value="pohjois-suomi" data-i18n="newsCatPohjoisSuomi">Pohjois-Suomi</option>
-        <option value="kotimaa" data-i18n="newsCatKotimaa">Kotimaa</option>
-        <option value="ulkomaat" data-i18n="newsCatUlkomaat">Ulkomaat</option>
-      </select>
-      <p class="note" id="newsSourceNote"></p>
-      <div id="newsItems"></div>
-      <div style="margin-top:14px;">
-        <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
-      </div>
+  <div id="newsSection" style="display:none;">
+    <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
+    <select id="newsCategoryFilter">
+      <option value="oulun-seutu" data-i18n="newsCatOulu">Oulun seutu</option>
+      <option value="rss-uusimmat" data-i18n="newsCatUusimmat">Uusimmat</option>
+      <option value="pohjois-suomi" data-i18n="newsCatPohjoisSuomi">Pohjois-Suomi</option>
+      <option value="kotimaa" data-i18n="newsCatKotimaa">Kotimaa</option>
+      <option value="ulkomaat" data-i18n="newsCatUlkomaat">Ulkomaat</option>
+    </select>
+    <p class="note" id="newsSourceNote"></p>
+    <div id="newsItems"></div>
+    <div style="margin-top:14px;">
+      <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
     </div>
   </div>
 </main>
@@ -701,6 +671,48 @@
     <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi ruutu ja säästä: 4€/kk per ruutu.</div>
 
     <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
+
+    <div id="boardCol">
+      <div id="boardHeader">
+        <h2 id="boardTitle">Oulu</h2>
+        <div class="meta"><span id="claimedMeta"></span></div>
+        <select id="industryFilter">
+          <option value="" data-i18n="allCategories">Kaikki toimialat</option>
+          <option value="ajoneuvot" data-i18n="indAjoneuvot">Ajoneuvot ja korjaamo</option>
+          <option value="elainlaakari" data-i18n="indElainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
+          <option value="it" data-i18n="indIt">IT ja digitaaliset palvelut</option>
+          <option value="kauneus" data-i18n="indKauneus">Kauneus ja hyvinvointi</option>
+          <option value="kiinteisto" data-i18n="indKiinteisto">Kiinteistö ja asuminen</option>
+          <option value="koulutus" data-i18n="indKoulutus">Koulutus</option>
+          <option value="kuljetus" data-i18n="indKuljetus">Kuljetus ja logistiikka</option>
+          <option value="kasityo" data-i18n="indKasityo">Käsityö ja taide</option>
+          <option value="talous" data-i18n="indTalous">Lakipalvelut ja talous</option>
+          <option value="maatalous" data-i18n="indMaatalous">Maatalous ja puutarha</option>
+          <option value="matkailu" data-i18n="indMatkailu">Matkailu ja majoitus</option>
+          <option value="muu" data-i18n="indMuu">Muu</option>
+          <option value="rakentaminen" data-i18n="indRakentaminen">Rakentaminen ja remontointi</option>
+          <option value="ravintola" data-i18n="indRavintola">Ravintola ja kahvila</option>
+          <option value="siivous" data-i18n="indSiivous">Siivous ja kotipalvelut</option>
+          <option value="tapahtumat" data-i18n="indTapahtumat">Tapahtumat ja viihde</option>
+          <option value="terveys" data-i18n="indTerveys">Terveys ja lääkäripalvelut</option>
+          <option value="urheilu" data-i18n="indUrheilu">Urheilu ja liikunta</option>
+          <option value="valokuvaus" data-i18n="indValokuvaus">Valokuvaus ja media</option>
+          <option value="kauppa" data-i18n="indKauppa">Vähittäiskauppa</option>
+        </select>
+        <div id="selectHint" data-i18n="selectHint">Klikkaa yhtä ruutua valitaksesi sen — klikkaa toista muodostaaksesi suorakulmion useammasta ruudusta.</div>
+        <div id="rectError"></div>
+      </div>
+
+      <div id="boardLayout">
+        <div id="grid"></div>
+      </div>
+
+      <div id="selectionBar">
+        <span class="count" id="selectionCount">0 ruutua</span>
+        <button class="cancel" id="selectionCancel" data-i18n="cancelSelection">Peruuta</button>
+        <button class="go" id="selectionGo" data-i18n="continueSelection">Jatka →</button>
+      </div>
+    </div>
 
     <div id="searchWrap" class="open" style="display:none;">
       <div id="searchRow">
@@ -1109,6 +1121,7 @@ let lang = 'fi';
 const STRINGS = {
   fi: {
     pitchEyebrow: 'Oma yrityksesi tähän?',
+    logoBannerEmpty: 'Ole ensimmäinen yritys taulussa!',
     heroTitle: 'Näytä yrityksesi <span>koko Oululle.</span>',
     heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen ruutu taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Ruutu maksaa silti vain 5€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.',
     value1b: '5€/kk',
@@ -1241,6 +1254,7 @@ const STRINGS = {
   },
   en: {
     pitchEyebrow: 'Room for your business here?',
+    logoBannerEmpty: 'Be the first business on the board!',
     heroTitle: 'Put your business in front of <span>all of Oulu.</span>',
     heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every square is a different company. Visibility comes from two places: real Oulu residents browsing the board for the day's news, events and weather, and your business getting its own showcase page that can turn up on Google entirely on its own — even if nobody ever opens the board itself. We can't guarantee either one: board traffic depends on site usage, and Google visibility on the search engine's own rules. Either way, a square is just €5/month, you add your own logo and link, and there's no contract to lock you in.",
     value1b: '€5/month',
@@ -1467,7 +1481,7 @@ document.getElementById('legalOverlay').addEventListener('click', (e)=>{
   if (e.target.id === 'legalOverlay') e.currentTarget.style.display = 'none';
 });
 
-document.getElementById('companyInfoTrigger').addEventListener('click', ()=>{
+document.getElementById('companyInfoCta').addEventListener('click', ()=>{
   document.getElementById('companyInfoOverlay').style.display = 'flex';
 });
 document.getElementById('companyInfoClose').addEventListener('click', ()=>{
@@ -1621,6 +1635,7 @@ async function loadBoard(){
   currentSquares = data.squares || [];
   updateClaimedMeta();
   renderGrid();
+  renderLogoBanner();
 
   // Loaded separately, after the grid is already visible -- this can
   // take a few seconds on a cache miss, but it should never make someone
@@ -1630,6 +1645,44 @@ async function loadBoard(){
   currentNewsCategory = 'oulun-seutu';
   document.getElementById('newsCategoryFilter').value = 'oulun-seutu';
   loadFeed();
+}
+
+// Populates the vertically-scrolling logo banner (between the header and
+// the AI search box) from the same board data already fetched above --
+// no separate API call needed. Deduplicates by group_id so a multi-square
+// block (one business spanning several squares) shows one logo, not
+// several copies of the same one.
+function renderLogoBanner(){
+  const banner = document.getElementById('logoBanner');
+  const track = document.getElementById('logoBannerTrack');
+  const empty = document.getElementById('logoBannerEmpty');
+
+  const seen = new Set();
+  const businesses = currentSquares.filter(sq => {
+    if (!sq.logo_url) return false;
+    const key = sq.group_id || sq.id;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  if (businesses.length === 0){
+    track.innerHTML = '';
+    empty.style.display = 'flex';
+    banner.style.animationPlayState = 'paused';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // Duplicate the list once so the CSS animation (translateY -50%) loops
+  // seamlessly -- scrolling past the "end" of the first copy lands
+  // exactly on the start of the second, with no visible seam or reset jump.
+  const itemHtml = businesses.map(sq => `
+    <a class="logoBannerItem" href="/pin/${sq.id}" target="_blank" rel="noopener" title="${escapeAskText(sq.company_name || '')}">
+      <img src="${sq.logo_url}" alt="${escapeAskText(sq.company_name || '')}" loading="lazy" />
+    </a>
+  `).join('');
+  track.innerHTML = itemHtml + itemHtml;
 }
 
 async function loadFeed(){
