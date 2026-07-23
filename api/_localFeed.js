@@ -228,6 +228,17 @@ async function fetchOuluEventsFromAPI() {
       });
     };
 
+    // A long-running exhibition or installation (weeks or months long)
+    // can be technically "ongoing" the same way a 3-day festival is, but
+    // it isn't what a daily events widget should be surfacing -- cap how
+    // long an occurrence can span and still count as a "today" event.
+    const MAX_EVENT_SPAN_DAYS = 7;
+    const isReasonableSpan = (d) => {
+      if (!d.end) return true; // no end known -- can't be a long-running exhibition by this measure
+      const spanDays = (new Date(d.end).getTime() - new Date(d.start).getTime()) / (24 * 60 * 60 * 1000);
+      return spanDays <= MAX_EVENT_SPAN_DAYS;
+    };
+
     // Kaleva's own data occasionally has a junk placeholder in the short
     // description field (literally "N/A" in at least one real case seen)
     // -- fall back to a stripped excerpt of the long description instead
@@ -239,14 +250,26 @@ async function fetchOuluEventsFromAPI() {
       return long.slice(0, 300);
     };
 
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
+
     return pages
       .filter(p => {
         const addr = (p.locations && p.locations[0] && p.locations[0].address) || '';
         if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
-        return !!findRelevantDate(p);
+        const d = findRelevantDate(p);
+        return !!d && isReasonableSpan(d);
       })
       .map(p => ({ page: p, upcoming: findRelevantDate(p), views: p.countViews || 0 }))
-      .sort((a, b) => b.views - a.views) // popularity only, not date-first
+      .sort((a, b) => {
+        // Events actually starting today take priority over ones merely
+        // ongoing from an earlier day, before popularity is considered
+        // at all -- "starting today" is what someone asking "what's on
+        // today" most wants to see first.
+        const aStartsToday = a.upcoming.start.slice(0, 10) === todayStr ? 0 : 1;
+        const bStartsToday = b.upcoming.start.slice(0, 10) === todayStr ? 0 : 1;
+        if (aStartsToday !== bStartsToday) return aStartsToday - bStartsToday;
+        return b.views - a.views;
+      })
       .slice(0, 30) // generous for one day; the frontend's show more/show less toggle handles display
       .map(({ page: p, upcoming }) => ({
         title_fi: p.name,
