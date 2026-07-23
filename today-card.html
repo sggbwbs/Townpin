@@ -34,6 +34,7 @@
   .pickerRow input{margin-top:3px;flex:none;width:16px;height:16px;accent-color:var(--amber);cursor:pointer;}
   .pickerRow label{font-size:13.5px;line-height:1.4;cursor:pointer;}
   .pickerRow.disabled label{color:var(--ink-dim);}
+  #eventCheckboxes{max-height:340px;overflow-y:auto;}
 </style>
 </head>
 <body>
@@ -198,7 +199,7 @@ async function fetchCardData(){
       const fData = await fRes.json();
       // Fetch more than we'll necessarily use -- these become the picker's
       // candidate list, already ranked by popularity/today-first from the backend.
-      if (fData.events && fData.events.length > 0) allEvents = fData.events.slice(0, 10);
+      if (fData.events && fData.events.length > 0) allEvents = fData.events.slice(0, 30); // matches the backend's own max -- see getEventsSection
     }
   } catch (e) { /* fail quietly -- card still works without events */ }
 
@@ -331,10 +332,10 @@ function drawCard(selectedEvents){
   if (selectedEvents.length > 0){
     const n = selectedEvents.length;
     const layout = n <= 3
-      ? { font: 36, lineHeight: 40, gap: 26, markerR: 20, markerFont: 22 }
+      ? { font: 40, lineHeight: 44, gap: 26, markerR: 21, markerFont: 23 }
       : n <= 5
-        ? { font: 25, lineHeight: 27, gap: 10, markerR: 15, markerFont: 16 }
-        : { font: 19, lineHeight: 21, gap: 6, markerR: 12, markerFont: 13 };
+        ? { font: 24, lineHeight: 26, gap: 16, markerR: 15, markerFont: 16 }
+        : { font: 20, lineHeight: 22, gap: 13, markerR: 13, markerFont: 14 };
 
     let cursorY = 610;
     selectedEvents.forEach((ev, i) => {
