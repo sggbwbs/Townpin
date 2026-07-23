@@ -469,11 +469,13 @@ document.getElementById('grantQtyPlus').addEventListener('click', () => {
 
 document.getElementById('grantSubmitBtn').addEventListener('click', async () => {
   const errBox = document.getElementById('grantErr');
+  const btn = document.getElementById('grantSubmitBtn');
   clearErr(errBox);
   const companyName = document.getElementById('grantCompany').value.trim();
   const websiteUrl = document.getElementById('grantWebsite').value.trim();
   if (!companyName || !websiteUrl) { showErr(errBox, 'Company name and website are required.'); return; }
 
+  btn.disabled = true;
   try {
     const res = await fetch(`${API}/grant`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -499,6 +501,8 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
     loadCompedList();
   } catch (e) {
     showErr(errBox, 'Network error.');
+  } finally {
+    btn.disabled = false;
   }
 });
 
@@ -611,7 +615,9 @@ document.getElementById('moveDestLoadBtn').addEventListener('click', async () =>
 
 document.getElementById('moveConfirmBtn').addEventListener('click', async () => {
   const errBox = document.getElementById('moveErr');
+  const btn = document.getElementById('moveConfirmBtn');
   clearErr(errBox);
+  btn.disabled = true;
   try {
     const res = await fetch(`${API}/move`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -630,6 +636,8 @@ document.getElementById('moveConfirmBtn').addEventListener('click', async () => 
     moveSelectedGroup = null;
   } catch (e) {
     showErr(errBox, 'Network error.');
+  } finally {
+    btn.disabled = false;
   }
 });
 
