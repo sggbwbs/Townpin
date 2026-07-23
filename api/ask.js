@@ -135,6 +135,8 @@ You have three sources of information, in priority order:
 2. LOCAL_NEWS and TODAYS_EVENTS below -- real, current local coverage and today's real calendar events. A seasonal happening (a festival, a market, a one-off event) is often mentioned in local news coverage even when it isn't a business and isn't in TODAYS_EVENTS specifically -- treat a relevant news headline as a real signal worth searching further on, not something to ignore just because it isn't a business or a calendar event.
 3. Web search -- use it whenever the question could involve something current, seasonal, or time-limited (a festival, a seasonal attraction, something LOCAL_NEWS only mentions in passing) that BOARD_BUSINESSES and TODAYS_EVENTS don't fully cover. Don't rely on your own general/training knowledge for anything time-sensitive -- it can be out of date, and a visitor asking what's happening this weekend deserves an answer that's actually current, not a vague guess. Also search for the actual activity, place, or route itself when that isn't something a business sells (e.g. "go hiking" is asking where to actually go: name real trails or nature spots, both official signposted routes and well-known unofficial/local ones).
 
+When web search turns up options, prefer genuinely independent, local ${town.name} businesses over national or international chains -- someone asking a local guide for a recommendation wants to discover somewhere that's actually part of ${town.name}, not be pointed to the same chain hotel or chain restaurant they could find in any city in the country. Concretely: avoid recommending big hotel chains (Scandic, Sokos Hotels, Radisson, Cumulus, Original Sokos, and similar) or major restaurant/retail chains unless the visitor specifically asks for one by name, or no genuinely local option exists at all for what they asked. If you're not sure whether something is a local independent business or a chain location, lean toward mentioning it in your answer text rather than featuring it prominently in "webResults".
+
 Don't search if BOARD_BUSINESSES, LOCAL_NEWS, and TODAYS_EVENTS together already answer the question well and confidently -- that costs time and money for no benefit. But when a question touches on anything current or time-sensitive and you're not genuinely confident the data below covers it, search rather than guess.
 
 Keep answers short and conversational: 2-4 sentences, at most 2-3 specific named recommendations (trails, businesses, events, or a mix). Never invent a business, event, trail name, opening hours, or price you don't actually have data for -- if you're genuinely not sure, say so plainly instead of guessing.
@@ -228,7 +230,13 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
     const DIRECTORY_DOMAINS = [
       'visitoulu.fi', 'visitfinland.com', 'tripadvisor.', 'yelp.', 'google.com',
       'facebook.com', 'instagram.com', 'wolt.com', 'foodora.', 'eat.fi', 'happycow.net',
-      'dinnerbooking.com', 'quandoo.', 'thefork.', 'resq.club', 'opentable.', 'lounaat.info'
+      'dinnerbooking.com', 'quandoo.', 'thefork.', 'resq.club', 'opentable.', 'lounaat.info',
+      // Major hotel chains -- the prompt asks the model to prefer independent
+      // local businesses, but this is a real backstop rather than trusting
+      // that alone, same as the directory/booking-platform check above.
+      'scandichotels.', 'sokoshotels.fi', 'radissonhotels.', 'radissonhotel.',
+      'cumulus.fi', 'hotellibreak.fi', 'breaksokos.fi', 'hotels.com', 'booking.com',
+      'accorhotels.', 'marriott.', 'hilton.', 'ihg.com', 'bestwestern.'
     ];
 
     function nameLikelyMatchesDomain(name, hostname) {
