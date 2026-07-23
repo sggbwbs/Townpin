@@ -65,17 +65,17 @@
   main{max-width:1320px;margin:0 auto;padding:0 24px 100px;}
 
   /* ---- vertically scrolling logo banner, between header and AI search ---- */
-  #logoBanner{position:relative;min-height:70px;max-height:300px;overflow:hidden;margin:20px 0 8px;
+  #logoBanner{position:relative;height:300px;overflow:hidden;margin:20px 0 8px;
     border:1px solid var(--line);border-radius:14px;background:var(--panelT4);}
   #logoBannerTrack{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
-    gap:12px;padding:14px;}
-  .logoBannerItem{flex:none;border-radius:8px;overflow:hidden;
+    gap:12px;padding:14px;height:100%;box-sizing:border-box;}
+  .logoBannerItem{flex:none;border-radius:8px;overflow:hidden;box-sizing:border-box;
     background:var(--panelT7);display:flex;align-items:center;justify-content:center;padding:4px;
-    transition:box-shadow .2s ease;}
-  .logoBannerItem.logoBannerHighlight{box-shadow:0 0 0 3px var(--amber);}
+    border:3px solid transparent;}
+  .logoBannerItem.logoBannerHighlight{border-color:var(--amber);}
   .logoBannerItem img{width:100%;height:100%;object-fit:contain;}
   #logoBannerEmpty{display:flex;align-items:center;justify-content:center;height:100%;
-    min-height:70px;color:var(--ink-dim);font-size:13px;text-align:center;padding:0 20px;}
+    color:var(--ink-dim);font-size:13px;text-align:center;padding:0 20px;}
   #logoBannerDots{display:flex;justify-content:center;gap:6px;padding:0 0 10px;}
   #logoBannerDots span{width:6px;height:6px;border-radius:50%;background:var(--line);cursor:pointer;}
   #logoBannerDots span.active{background:var(--amber);}
@@ -1624,6 +1624,7 @@ function renderLogoBanner(){
   const dotsEl = document.getElementById('logoBannerDots');
 
   if (logoBannerInterval) { clearInterval(logoBannerInterval); logoBannerInterval = null; }
+  logoBannerPinnedCompany = null;
 
   // One tile per business, sized by how many slots they own -- buying
   // more is priced per-slot (same tiers as before), and the visual payoff
@@ -1690,12 +1691,27 @@ function renderLogoBanner(){
   }
 }
 
+let logoBannerPinnedCompany = null;
+
 function showLogoBannerPage(index){
   if (!logoBannerPages[index]) return;
   logoBannerPageIndex = index;
   const track = document.getElementById('logoBannerTrack');
   const dotsEl = document.getElementById('logoBannerDots');
-  track.innerHTML = logoBannerPages[index].map(logoTileHtml).join('');
+
+  // If a business is pinned (from a chat recommendation) and happens to
+  // be on this page, always render it first with a persistent border --
+  // "on top" both in the sense of z-order/prominence and literal position.
+  let items = logoBannerPages[index];
+  if (logoBannerPinnedCompany){
+    const pinnedIdx = items.findIndex(b => b.rep.company_name === logoBannerPinnedCompany);
+    if (pinnedIdx > 0) items = [items[pinnedIdx], ...items.slice(0, pinnedIdx), ...items.slice(pinnedIdx + 1)];
+  }
+  track.innerHTML = items.map(logoTileHtml).join('');
+  if (logoBannerPinnedCompany){
+    const tile = [...track.children].find(el => el.dataset.company === logoBannerPinnedCompany);
+    if (tile) tile.classList.add('logoBannerHighlight');
+  }
 
   if (logoBannerPages.length > 1){
     dotsEl.innerHTML = logoBannerPages.map((_, i) =>
@@ -1703,6 +1719,7 @@ function showLogoBannerPage(index){
     ).join('');
     dotsEl.querySelectorAll('span').forEach(dot => {
       dot.addEventListener('click', () => {
+        logoBannerPinnedCompany = null; // manual navigation clears the pin and resumes normal rotation
         restartLogoBannerAt(Number(dot.dataset.page));
       });
     });
@@ -1714,7 +1731,10 @@ function showLogoBannerPage(index){
 function restartLogoBannerAt(index){
   showLogoBannerPage(index);
   if (logoBannerInterval) clearInterval(logoBannerInterval);
-  if (logoBannerPages.length > 1){
+  // While a business is pinned, auto-rotation stays paused -- cycling it
+  // away every 5 seconds would defeat "keep it visible" the moment the
+  // next tick fires.
+  if (logoBannerPages.length > 1 && !logoBannerPinnedCompany){
     logoBannerInterval = setInterval(() => {
       showLogoBannerPage((logoBannerPageIndex + 1) % logoBannerPages.length);
     }, LOGO_BANNER_ADVANCE_MS);
@@ -1724,24 +1744,24 @@ function restartLogoBannerAt(index){
 // Called when the AI chat recommends a board business -- if that
 // business's logo isn't on the currently-shown banner page (very
 // possible now that the banner paginates), jump to whichever page it's
-// actually on and briefly highlight it, so what's on screen actually
-// matches what was just recommended instead of silently showing
-// something unrelated.
+// actually on, pin it to the front of that page with a persistent
+// colored border, and pause auto-rotation so it doesn't just cycle away
+// again a few seconds later. Stays pinned until a different business
+// gets recommended, or the visitor manually flips to another page.
 function highlightBusinessInBanner(companyName){
   if (!companyName || logoBannerPages.length === 0) return;
   const pageIndex = logoBannerPages.findIndex(page =>
     page.some(b => b.rep.company_name === companyName)
   );
   if (pageIndex === -1) return;
-  if (pageIndex !== logoBannerPageIndex) restartLogoBannerAt(pageIndex);
+
+  logoBannerPinnedCompany = companyName;
+  if (logoBannerInterval) clearInterval(logoBannerInterval);
+  showLogoBannerPage(pageIndex);
 
   const track = document.getElementById('logoBannerTrack');
   const tile = [...track.children].find(el => el.dataset.company === companyName);
-  if (tile){
-    tile.classList.add('logoBannerHighlight');
-    setTimeout(() => tile.classList.remove('logoBannerHighlight'), 3000);
-    tile.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }
+  if (tile) tile.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 async function loadFeed(){
