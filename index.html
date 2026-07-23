@@ -68,7 +68,8 @@
   #logoBanner{position:relative;height:300px;overflow:hidden;margin:20px 0 8px;
     border:1px solid var(--line);border-radius:14px;background:var(--panelT4);}
   #logoBannerTrack{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
-    gap:12px;padding:14px;height:100%;box-sizing:border-box;}
+    gap:12px;padding:14px;height:100%;box-sizing:border-box;transition:opacity .35s ease;}
+  #logoBannerTrack.logoBannerFading{opacity:0;}
   .logoBannerItem{flex:none;border-radius:8px;overflow:hidden;box-sizing:border-box;
     background:var(--panelT7);display:flex;align-items:center;justify-content:center;padding:4px;
     border:3px solid transparent;}
@@ -1624,7 +1625,7 @@ function renderLogoBanner(){
   const dotsEl = document.getElementById('logoBannerDots');
 
   if (logoBannerInterval) { clearInterval(logoBannerInterval); logoBannerInterval = null; }
-  logoBannerPinnedCompany = null;
+  logoBannerPinnedCompanies = new Set();
 
   // One tile per business, sized by how many slots they own -- buying
   // more is priced per-slot (same tiers as before), and the visual payoff
@@ -1658,20 +1659,28 @@ function renderLogoBanner(){
 
   // Real row-wrapping depends on the banner's actual current width (which
   // varies by viewport/device), so this measures it directly rather than
-  // guessing an items-per-row count: render everything once, read each
-  // tile's real offsetTop, and treat tiles sharing a top as one row.
+  // guessing an items-per-row count: render everything once, then detect
+  // wraps via each tile's offsetLeft (resets/decreases when flex-wrap
+  // starts a new line) rather than offsetTop -- grouping by top broke as
+  // soon as tiles had different heights in the same row (align-items:
+  // center shifts a shorter tile's top just enough to look like a
+  // "different row" even though its left position never wrapped).
   track.innerHTML = sized.map(logoTileHtml).join('');
   const tiles = [...track.children];
-  const tops = tiles.map(el => el.offsetTop);
-  const uniqueTops = [...new Set(tops)];
-  const rowOf = (top) => uniqueTops.indexOf(top);
+  const lefts = tiles.map(el => el.offsetLeft);
+  const rowIndices = [];
+  let currentRow = 0;
+  lefts.forEach((left, i) => {
+    if (i > 0 && left <= lefts[i - 1]) currentRow++;
+    rowIndices.push(currentRow);
+  });
 
   const MAX_ROWS_PER_PAGE = 2;
   const pages = [];
   let pageItems = [];
   let pageStartRow = 0;
   sized.forEach((b, i) => {
-    const row = rowOf(tops[i]);
+    const row = rowIndices[i];
     if (row - pageStartRow >= MAX_ROWS_PER_PAGE){
       pages.push(pageItems);
       pageItems = [];
@@ -1691,7 +1700,8 @@ function renderLogoBanner(){
   }
 }
 
-let logoBannerPinnedCompany = null;
+let logoBannerPinnedCompanies = new Set();
+const LOGO_BANNER_FADE_MS = 350;
 
 function showLogoBannerPage(index){
   if (!logoBannerPages[index]) return;
@@ -1699,18 +1709,32 @@ function showLogoBannerPage(index){
   const track = document.getElementById('logoBannerTrack');
   const dotsEl = document.getElementById('logoBannerDots');
 
-  // If a business is pinned (from a chat recommendation) and happens to
-  // be on this page, always render it first with a persistent border --
-  // "on top" both in the sense of z-order/prominence and literal position.
-  let items = logoBannerPages[index];
-  if (logoBannerPinnedCompany){
-    const pinnedIdx = items.findIndex(b => b.rep.company_name === logoBannerPinnedCompany);
-    if (pinnedIdx > 0) items = [items[pinnedIdx], ...items.slice(0, pinnedIdx), ...items.slice(pinnedIdx + 1)];
-  }
-  track.innerHTML = items.map(logoTileHtml).join('');
-  if (logoBannerPinnedCompany){
-    const tile = [...track.children].find(el => el.dataset.company === logoBannerPinnedCompany);
-    if (tile) tile.classList.add('logoBannerHighlight');
+  const renderContent = () => {
+    // Any pinned business (from a chat recommendation) present on this
+    // page gets moved to the front with a persistent border -- "on top"
+    // both in the sense of prominence and literal position. More than
+    // one can be pinned at once (a question can genuinely match several
+    // businesses).
+    let items = logoBannerPages[index];
+    const pinnedHere = items.filter(b => logoBannerPinnedCompanies.has(b.rep.company_name));
+    if (pinnedHere.length > 0){
+      const rest = items.filter(b => !logoBannerPinnedCompanies.has(b.rep.company_name));
+      items = [...pinnedHere, ...rest];
+    }
+    track.innerHTML = items.map(logoTileHtml).join('');
+    [...track.children].forEach(el => {
+      if (logoBannerPinnedCompanies.has(el.dataset.company)) el.classList.add('logoBannerHighlight');
+    });
+    track.classList.remove('logoBannerFading');
+  };
+
+  // A soft fade for actual page changes -- the very first render (empty
+  // track) has nothing to fade from, so that one just appears directly.
+  if (track.children.length > 0){
+    track.classList.add('logoBannerFading');
+    setTimeout(renderContent, LOGO_BANNER_FADE_MS);
+  } else {
+    renderContent();
   }
 
   if (logoBannerPages.length > 1){
@@ -1719,7 +1743,7 @@ function showLogoBannerPage(index){
     ).join('');
     dotsEl.querySelectorAll('span').forEach(dot => {
       dot.addEventListener('click', () => {
-        logoBannerPinnedCompany = null; // manual navigation clears the pin and resumes normal rotation
+        logoBannerPinnedCompanies = new Set(); // manual navigation clears pins and resumes normal rotation
         restartLogoBannerAt(Number(dot.dataset.page));
       });
     });
@@ -1731,37 +1755,45 @@ function showLogoBannerPage(index){
 function restartLogoBannerAt(index){
   showLogoBannerPage(index);
   if (logoBannerInterval) clearInterval(logoBannerInterval);
-  // While a business is pinned, auto-rotation stays paused -- cycling it
+  // While something is pinned, auto-rotation stays paused -- cycling it
   // away every 5 seconds would defeat "keep it visible" the moment the
   // next tick fires.
-  if (logoBannerPages.length > 1 && !logoBannerPinnedCompany){
+  if (logoBannerPages.length > 1 && logoBannerPinnedCompanies.size === 0){
     logoBannerInterval = setInterval(() => {
       showLogoBannerPage((logoBannerPageIndex + 1) % logoBannerPages.length);
     }, LOGO_BANNER_ADVANCE_MS);
   }
 }
 
-// Called when the AI chat recommends a board business -- if that
-// business's logo isn't on the currently-shown banner page (very
-// possible now that the banner paginates), jump to whichever page it's
-// actually on, pin it to the front of that page with a persistent
-// colored border, and pause auto-rotation so it doesn't just cycle away
-// again a few seconds later. Stays pinned until a different business
-// gets recommended, or the visitor manually flips to another page.
-function highlightBusinessInBanner(companyName){
-  if (!companyName || logoBannerPages.length === 0) return;
-  const pageIndex = logoBannerPages.findIndex(page =>
-    page.some(b => b.rep.company_name === companyName)
-  );
-  if (pageIndex === -1) return;
+// Called when the AI chat recommends board businesses -- if their logos
+// aren't on the currently-shown banner page (very possible now that the
+// banner paginates), jump to whichever page has the most of them at
+// once, pin all of them to the front of that page with a persistent
+// colored border, and pause auto-rotation so they don't just cycle away
+// again a few seconds later. Replaces whatever was pinned by the
+// previous question; stays pinned until the visitor manually flips to
+// another page.
+function highlightBusinessesInBanner(companyNames){
+  const names = (companyNames || []).filter(Boolean);
+  if (names.length === 0 || logoBannerPages.length === 0) return;
 
-  logoBannerPinnedCompany = companyName;
+  // Prefer the page that already contains the most of these businesses at
+  // once, so as many as possible are visible together rather than only
+  // ever showing whichever one happened to be checked first.
+  let bestPageIndex = -1, bestCount = 0;
+  logoBannerPages.forEach((page, i) => {
+    const count = page.filter(b => names.includes(b.rep.company_name)).length;
+    if (count > bestCount){ bestCount = count; bestPageIndex = i; }
+  });
+  if (bestPageIndex === -1) return; // none of them are actually on the board's banner
+
+  logoBannerPinnedCompanies = new Set(names);
   if (logoBannerInterval) clearInterval(logoBannerInterval);
-  showLogoBannerPage(pageIndex);
+  showLogoBannerPage(bestPageIndex);
 
   const track = document.getElementById('logoBannerTrack');
-  const tile = [...track.children].find(el => el.dataset.company === companyName);
-  if (tile) tile.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  const firstTile = track.querySelector('.logoBannerHighlight');
+  if (firstTile) firstTile.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 async function loadFeed(){
@@ -2009,7 +2041,7 @@ async function askAsk(question, sendBtn){
       // showing, jump to the page it's actually on so what's visible
       // matches what was just said, instead of silently showing something
       // unrelated.
-      data.mentioned.forEach(m => highlightBusinessInBanner(m.name));
+      highlightBusinessesInBanner(data.mentioned.map(m => m.name));
     }
     if (Array.isArray(data.webResults) && data.webResults.length > 0){
       const resultId = 'askWebResults' + (askResultBlockCounter++);
