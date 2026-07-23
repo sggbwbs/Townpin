@@ -35,6 +35,14 @@
   .pickerRow label{font-size:13.5px;line-height:1.4;cursor:pointer;}
   .pickerRow.disabled label{color:var(--ink-dim);}
   #eventCheckboxes{max-height:340px;overflow-y:auto;}
+  #customEventForm{background:var(--paper);border:1px solid var(--line);border-radius:10px;
+    padding:14px;margin-bottom:16px;}
+  .customLabel{display:block;font-size:12.5px;font-weight:600;margin-bottom:8px;}
+  #customEventForm input{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line);
+    border-radius:8px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;margin-bottom:8px;}
+  #addCustomEventBtn{background:var(--amber);color:#2a1c0d;border:none;border-radius:999px;
+    padding:9px 18px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;cursor:pointer;}
+  #addCustomEventBtn:hover{background:var(--amber-deep);}
 </style>
 </head>
 <body>
@@ -51,7 +59,15 @@
 
   <div id="eventPicker" style="display:none;">
     <h2>Valitse kortin tapahtumat</h2>
-    <p class="pickerSub">Oletuksena 5 suosituinta on valittu. Enintään 6 mahtuu kortille kunnolla.</p>
+    <p class="pickerSub">Oletuksena 5 suosituinta on valittu. Enintään 5 mahtuu kortille kunnolla ajan kanssa.</p>
+
+    <div id="customEventForm">
+      <label class="customLabel">Lisää oma tapahtuma tai viesti kortille</label>
+      <input type="text" id="customEventTitle" placeholder="esim. Kauppa kiinni tänään klo 14 remontin vuoksi" />
+      <input type="text" id="customEventTime" placeholder="Aika (valinnainen, esim. 10:00–14:00)" />
+      <button id="addCustomEventBtn">+ Lisää kortille</button>
+    </div>
+
     <div id="eventCheckboxes"></div>
   </div>
 
@@ -169,13 +185,19 @@ function drawLogoIcon(ctx, x, y, size){
   ctx.restore();
 }
 
-const MAX_SELECTABLE_EVENTS = 6;
+const MAX_SELECTABLE_EVENTS = 5;
 const DEFAULT_SELECTED_COUNT = 5;
 
 // Cached once after the initial fetch, reused every time the picker
 // selection changes so redrawing never needs a fresh network round-trip.
 let cachedWeather = { temp: null, weatherCode: 0, tempMax: null, tempMin: null };
 let allEvents = [];
+let selectedIds = new Set();
+let nextEventId = 0;
+
+function tagWithIds(events){
+  return events.map(ev => ({ ...ev, _id: nextEventId++ }));
+}
 
 async function fetchCardData(){
   const statusEl = document.getElementById('status');
@@ -199,9 +221,11 @@ async function fetchCardData(){
       const fData = await fRes.json();
       // Fetch more than we'll necessarily use -- these become the picker's
       // candidate list, already ranked by popularity/today-first from the backend.
-      if (fData.events && fData.events.length > 0) allEvents = fData.events.slice(0, 30); // matches the backend's own max -- see getEventsSection
+      if (fData.events && fData.events.length > 0) allEvents = tagWithIds(fData.events.slice(0, 30)); // matches the backend's own max -- see getEventsSection
     }
   } catch (e) { /* fail quietly -- card still works without events */ }
+
+  selectedIds = new Set(allEvents.slice(0, DEFAULT_SELECTED_COUNT).map(ev => ev._id));
 
   statusEl.textContent = '';
   renderEventPicker();
@@ -209,8 +233,7 @@ async function fetchCardData(){
 }
 
 function getSelectedEvents(){
-  const checked = [...document.querySelectorAll('#eventCheckboxes input:checked')].map(el => Number(el.dataset.index));
-  return allEvents.filter((_, i) => checked.includes(i));
+  return allEvents.filter(ev => selectedIds.has(ev._id));
 }
 
 function renderEventPicker(){
@@ -219,16 +242,18 @@ function renderEventPicker(){
   if (allEvents.length === 0){ picker.style.display = 'none'; return; }
 
   picker.style.display = 'block';
-  box.innerHTML = allEvents.map((ev, i) => `
+  box.innerHTML = allEvents.map(ev => `
     <div class="pickerRow">
-      <input type="checkbox" id="ev-${i}" data-index="${i}" ${i < DEFAULT_SELECTED_COUNT ? 'checked' : ''} />
-      <label for="ev-${i}">${ev.title_fi}</label>
+      <input type="checkbox" id="ev-${ev._id}" data-id="${ev._id}" ${selectedIds.has(ev._id) ? 'checked' : ''} />
+      <label for="ev-${ev._id}">${ev.isCustom ? '✏️ ' : ''}${ev.title_fi}${ev.event_start_time ? ` (${ev.event_start_time}${ev.event_end_time ? '–' + ev.event_end_time : ''})` : ''}</label>
     </div>
   `).join('');
 
   enforceSelectionCap();
   box.querySelectorAll('input').forEach(cb => {
     cb.addEventListener('change', () => {
+      const id = Number(cb.dataset.id);
+      if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
       enforceSelectionCap();
       drawCard(getSelectedEvents());
     });
@@ -332,10 +357,8 @@ function drawCard(selectedEvents){
   if (selectedEvents.length > 0){
     const n = selectedEvents.length;
     const layout = n <= 3
-      ? { font: 40, lineHeight: 44, gap: 26, markerR: 21, markerFont: 23 }
-      : n <= 5
-        ? { font: 24, lineHeight: 26, gap: 16, markerR: 15, markerFont: 16 }
-        : { font: 20, lineHeight: 22, gap: 13, markerR: 13, markerFont: 14 };
+      ? { font: 33, lineHeight: 36, gap: 20, markerR: 18, markerFont: 19, timeFont: 18, timeLineHeight: 23 }
+      : { font: 17, lineHeight: 19, gap: 10, markerR: 13, markerFont: 14, timeFont: 16, timeLineHeight: 21 };
 
     let cursorY = 610;
     selectedEvents.forEach((ev, i) => {
@@ -349,6 +372,16 @@ function drawCard(selectedEvents){
       ctx.textAlign = 'center';
       ctx.fillText(String(i + 1), 90, cursorY - 6);
       ctx.textAlign = 'left';
+
+      if (ev.event_start_time){
+        ctx.fillStyle = '#c1712a';
+        ctx.font = `600 ${layout.timeFont}px 'IBM Plex Sans', sans-serif`;
+        const timeLabel = ev.isCustom
+          ? ev.event_start_time // freeform text the admin typed -- show exactly as-is
+          : (ev.event_end_time ? `${ev.event_start_time}–${ev.event_end_time}` : `klo ${ev.event_start_time}`);
+        ctx.fillText(timeLabel, 138, cursorY);
+        cursorY += layout.timeLineHeight;
+      }
 
       ctx.fillStyle = '#2a2110';
       ctx.font = `700 ${layout.font}px 'Space Grotesk'`;
@@ -381,11 +414,35 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
   link.click();
 });
 
+document.getElementById('addCustomEventBtn').addEventListener('click', () => {
+  const titleInput = document.getElementById('customEventTitle');
+  const timeInput = document.getElementById('customEventTime');
+  const title = titleInput.value.trim();
+  if (!title) return;
+
+  const custom = tagWithIds([{
+    title_fi: title,
+    event_start_time: timeInput.value.trim() || null,
+    event_end_time: null,
+    isCustom: true
+  }])[0];
+
+  allEvents.unshift(custom);
+  if (selectedIds.size < MAX_SELECTABLE_EVENTS) selectedIds.add(custom._id);
+
+  titleInput.value = '';
+  timeInput.value = '';
+  renderEventPicker();
+  drawCard(getSelectedEvents());
+});
+
 // wait for the display font to actually be loaded before drawing -- canvas
 // text falls back to a default font silently otherwise, even if the CSS
 // font is already applied to the rest of the page
 document.fonts.load("700 40px 'Space Grotesk'").then(() => {
-  document.fonts.load("400 28px 'IBM Plex Sans'").then(fetchCardData);
+  document.fonts.load("400 28px 'IBM Plex Sans'").then(() => {
+    document.fonts.load("600 16px 'IBM Plex Sans'").then(fetchCardData);
+  });
 });
 </script>
 </body>
