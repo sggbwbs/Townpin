@@ -391,6 +391,7 @@
   .askResultBlock.askQuestionEcho{background:none;border:none;padding:4px 4px 4px 18px;margin-bottom:6px;
     font-weight:700;font-family:'Space Grotesk',sans-serif;color:var(--ink-dim);font-size:13.5px;}
   .askMentions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .askMentionsNote{font-size:12px;color:var(--ink-dim);margin:12px 0 0;}
   .askMentionChip{font-size:14px;padding:9px 18px;border-radius:999px;border:1px solid var(--amber);
     background:var(--amber);color:#2a1c0d;font-weight:700;text-decoration:none;}
   .askMentionChip:hover{background:var(--amber-deep);border-color:var(--amber-deep);}
@@ -1110,6 +1111,7 @@ const STRINGS = {
     askHeroSub: 'Kysy retkistä, ruokapaikoista tai tekemisestä — vastaan oikeiden oululaisten yritysten ja tämän päivän tapahtumien pohjalta.',
     askHeroPlaceholder: 'Esim. "lähde vaeltamaan" tai "missä syödä sushia"',
     askHeroButton: 'Kysy →',
+    askMentionsNote: 'löytyy tämän taulun yrityksistä',
     askFollowupPlaceholder: 'Kysy jotain muuta…',
     installBannerTextChrome: 'Asenna PaikallisCanvas puhelimeesi nopeampaa käyttöä varten.',
     installBannerButton: 'Asenna',
@@ -1244,6 +1246,7 @@ const STRINGS = {
     askHeroSub: "Ask about trips, places to eat, or things to do -- I'll answer using real Oulu businesses and today's actual events.",
     askHeroPlaceholder: 'e.g. "go hiking" or "where to eat sushi"',
     askHeroButton: 'Ask →',
+    askMentionsNote: 'is one of the businesses on this board',
     askFollowupPlaceholder: 'Ask something else…',
     installBannerTextChrome: 'Install PaikallisCanvas on your phone for faster access.',
     installBannerButton: 'Install',
@@ -1620,9 +1623,13 @@ function renderLogoBanner(){
   }
   empty.style.display = 'none';
 
-  const BASE_SIZE = 64, MAX_SIZE = 160;
+  // Linear rather than sqrt-scaled, and a higher cap -- the previous
+  // sqrt curve compressed differences too much in the range most
+  // purchases actually fall in (a 4-slot vs 6-slot business only came
+  // out 23% apart in size, which read as barely-different side by side).
+  const BASE_SIZE = 50, PER_SLOT = 30, MAX_SIZE = 260;
   track.innerHTML = businesses.map(({ rep, count }) => {
-    const size = Math.round(Math.min(BASE_SIZE * Math.sqrt(count), MAX_SIZE));
+    const size = Math.round(Math.min(BASE_SIZE + count * PER_SLOT, MAX_SIZE));
     return `
     <a class="logoBannerItem" href="/pin/${rep.id}" target="_blank" rel="noopener"
        style="width:${size}px;height:${size}px;" title="${escapeAskText(rep.company_name || '')}">
@@ -1855,8 +1862,9 @@ async function askAsk(question, sendBtn){
     const answer = data.answer || t('askError');
     let html = escapeAskText(answer);
     if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
+      html += '<p class="askMentionsNote">📍 = ' + t('askMentionsNote') + '</p>';
       html += '<div class="askMentions">' + data.mentioned.map(m =>
-        `<a class="askMentionChip" href="/pin/${m.squareId}" target="_blank" rel="noopener">${escapeAskText(m.name)} ↗</a>`
+        `<a class="askMentionChip" href="/pin/${m.squareId}" target="_blank" rel="noopener">📍 ${escapeAskText(m.name)} ↗</a>`
       ).join('') + '</div>';
     }
     if (Array.isArray(data.webResults) && data.webResults.length > 0){
