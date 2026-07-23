@@ -65,15 +65,20 @@
   main{max-width:1320px;margin:0 auto;padding:0 24px 100px;}
 
   /* ---- vertically scrolling logo banner, between header and AI search ---- */
-  #logoBanner{position:relative;min-height:120px;margin:20px 0 8px;
+  #logoBanner{position:relative;min-height:70px;max-height:300px;overflow:hidden;margin:20px 0 8px;
     border:1px solid var(--line);border-radius:14px;background:var(--panelT4);}
   #logoBannerTrack{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
-    gap:18px;padding:20px;}
-  .logoBannerItem{flex:none;border-radius:10px;overflow:hidden;
-    background:var(--panelT7);display:flex;align-items:center;justify-content:center;padding:6px;}
+    gap:12px;padding:14px;}
+  .logoBannerItem{flex:none;border-radius:8px;overflow:hidden;
+    background:var(--panelT7);display:flex;align-items:center;justify-content:center;padding:4px;
+    transition:box-shadow .2s ease;}
+  .logoBannerItem.logoBannerHighlight{box-shadow:0 0 0 3px var(--amber);}
   .logoBannerItem img{width:100%;height:100%;object-fit:contain;}
   #logoBannerEmpty{display:flex;align-items:center;justify-content:center;height:100%;
-    min-height:120px;color:var(--ink-dim);font-size:13px;text-align:center;padding:0 20px;}
+    min-height:70px;color:var(--ink-dim);font-size:13px;text-align:center;padding:0 20px;}
+  #logoBannerDots{display:flex;justify-content:center;gap:6px;padding:0 0 10px;}
+  #logoBannerDots span{width:6px;height:6px;border-radius:50%;background:var(--line);cursor:pointer;}
+  #logoBannerDots span.active{background:var(--amber);}
 
   #companyInfoCta{display:block;margin:0 0 20px;background:rgba(242,166,90,0.14);
     border:1px solid rgba(242,166,90,0.35);color:var(--amber);font-family:'IBM Plex Mono',monospace;
@@ -446,6 +451,7 @@
     <div id="logoBannerTrack"></div>
     <div id="logoBannerEmpty" style="display:none;" data-i18n="logoBannerEmpty">Ole ensimmäinen yritys taulussa!</div>
   </div>
+  <div id="logoBannerDots"></div>
   <button id="companyInfoCta" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</button>
 
   <div id="askHero">
@@ -1599,10 +1605,25 @@ async function loadBoard(){
 // no separate API call needed. Deduplicates by group_id so a multi-square
 // block (one business spanning several squares) shows one logo, not
 // several copies of the same one.
+let logoBannerPages = [];
+let logoBannerPageIndex = 0;
+let logoBannerInterval = null;
+const LOGO_BANNER_ADVANCE_MS = 5000;
+
+function logoTileHtml(b){
+  return `<a class="logoBannerItem" href="/pin/${b.rep.id}" target="_blank" rel="noopener"
+     data-company="${escapeAskText(b.rep.company_name || '')}"
+     style="width:${b.size}px;height:${b.size}px;" title="${escapeAskText(b.rep.company_name || '')}">
+    <img src="${b.rep.logo_url}" alt="${escapeAskText(b.rep.company_name || '')}" loading="lazy" />
+  </a>`;
+}
+
 function renderLogoBanner(){
-  const banner = document.getElementById('logoBanner');
   const track = document.getElementById('logoBannerTrack');
   const empty = document.getElementById('logoBannerEmpty');
+  const dotsEl = document.getElementById('logoBannerDots');
+
+  if (logoBannerInterval) { clearInterval(logoBannerInterval); logoBannerInterval = null; }
 
   // One tile per business, sized by how many slots they own -- buying
   // more is priced per-slot (same tiers as before), and the visual payoff
@@ -1618,24 +1639,109 @@ function renderLogoBanner(){
 
   if (businesses.length === 0){
     track.innerHTML = '';
+    dotsEl.innerHTML = '';
     empty.style.display = 'flex';
+    logoBannerPages = [];
     return;
   }
   empty.style.display = 'none';
 
-  // Linear rather than sqrt-scaled, and a higher cap -- the previous
-  // sqrt curve compressed differences too much in the range most
-  // purchases actually fall in (a 4-slot vs 6-slot business only came
-  // out 23% apart in size, which read as barely-different side by side).
-  const BASE_SIZE = 50, PER_SLOT = 30, MAX_SIZE = 260;
-  track.innerHTML = businesses.map(({ rep, count }) => {
-    const size = Math.round(Math.min(BASE_SIZE + count * PER_SLOT, MAX_SIZE));
-    return `
-    <a class="logoBannerItem" href="/pin/${rep.id}" target="_blank" rel="noopener"
-       style="width:${size}px;height:${size}px;" title="${escapeAskText(rep.company_name || '')}">
-      <img src="${rep.logo_url}" alt="${escapeAskText(rep.company_name || '')}" loading="lazy" />
-    </a>`;
-  }).join('');
+  // 50% smaller than before, same linear-not-sqrt shape so the size
+  // difference between e.g. a 4-slot and 6-slot business stays clearly
+  // visible even at the smaller scale.
+  const BASE_SIZE = 25, PER_SLOT = 15, MAX_SIZE = 130;
+  const sized = businesses.map(({ rep, count }) => ({
+    rep, count,
+    size: Math.round(Math.min(BASE_SIZE + count * PER_SLOT, MAX_SIZE))
+  }));
+
+  // Real row-wrapping depends on the banner's actual current width (which
+  // varies by viewport/device), so this measures it directly rather than
+  // guessing an items-per-row count: render everything once, read each
+  // tile's real offsetTop, and treat tiles sharing a top as one row.
+  track.innerHTML = sized.map(logoTileHtml).join('');
+  const tiles = [...track.children];
+  const tops = tiles.map(el => el.offsetTop);
+  const uniqueTops = [...new Set(tops)];
+  const rowOf = (top) => uniqueTops.indexOf(top);
+
+  const MAX_ROWS_PER_PAGE = 2;
+  const pages = [];
+  let pageItems = [];
+  let pageStartRow = 0;
+  sized.forEach((b, i) => {
+    const row = rowOf(tops[i]);
+    if (row - pageStartRow >= MAX_ROWS_PER_PAGE){
+      pages.push(pageItems);
+      pageItems = [];
+      pageStartRow = row;
+    }
+    pageItems.push(b);
+  });
+  if (pageItems.length > 0) pages.push(pageItems);
+
+  logoBannerPages = pages;
+  showLogoBannerPage(0);
+
+  if (pages.length > 1){
+    logoBannerInterval = setInterval(() => {
+      showLogoBannerPage((logoBannerPageIndex + 1) % logoBannerPages.length);
+    }, LOGO_BANNER_ADVANCE_MS);
+  }
+}
+
+function showLogoBannerPage(index){
+  if (!logoBannerPages[index]) return;
+  logoBannerPageIndex = index;
+  const track = document.getElementById('logoBannerTrack');
+  const dotsEl = document.getElementById('logoBannerDots');
+  track.innerHTML = logoBannerPages[index].map(logoTileHtml).join('');
+
+  if (logoBannerPages.length > 1){
+    dotsEl.innerHTML = logoBannerPages.map((_, i) =>
+      `<span class="${i === index ? 'active' : ''}" data-page="${i}"></span>`
+    ).join('');
+    dotsEl.querySelectorAll('span').forEach(dot => {
+      dot.addEventListener('click', () => {
+        restartLogoBannerAt(Number(dot.dataset.page));
+      });
+    });
+  } else {
+    dotsEl.innerHTML = '';
+  }
+}
+
+function restartLogoBannerAt(index){
+  showLogoBannerPage(index);
+  if (logoBannerInterval) clearInterval(logoBannerInterval);
+  if (logoBannerPages.length > 1){
+    logoBannerInterval = setInterval(() => {
+      showLogoBannerPage((logoBannerPageIndex + 1) % logoBannerPages.length);
+    }, LOGO_BANNER_ADVANCE_MS);
+  }
+}
+
+// Called when the AI chat recommends a board business -- if that
+// business's logo isn't on the currently-shown banner page (very
+// possible now that the banner paginates), jump to whichever page it's
+// actually on and briefly highlight it, so what's on screen actually
+// matches what was just recommended instead of silently showing
+// something unrelated.
+function highlightBusinessInBanner(companyName){
+  if (!companyName || logoBannerPages.length === 0) return;
+  const pageIndex = logoBannerPages.findIndex(page =>
+    page.some(b => b.rep.company_name === companyName)
+  );
+  if (pageIndex === -1) return;
+  if (pageIndex !== logoBannerPageIndex) restartLogoBannerAt(pageIndex);
+
+  const track = document.getElementById('logoBannerTrack');
+  const tile = [...track.children].find(el => el.dataset.company === companyName);
+  if (tile){
+    tile.classList.add('logoBannerHighlight');
+    setTimeout(() => tile.classList.remove('logoBannerHighlight'), 3000);
+    tile.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 }
 
 async function loadFeed(){
@@ -1808,6 +1914,18 @@ document.getElementById('newsCategoryFilter').addEventListener('change', (e)=>{
 
 // ---- AI local guide: hero search ----
 let askHistory = [];   // {role:'user'|'assistant', content:string}[] sent to /api/ask as context
+let askResultBlockCounter = 0; // gives each chat result's webResults block a unique id for show-more/less
+
+function toggleAskWebResults(resultId, btn){
+  const container = document.getElementById(resultId);
+  if (!container) return;
+  const expanded = btn.dataset.expanded === 'true';
+  container.querySelectorAll('.askWebResultExtra').forEach(el => {
+    el.style.display = expanded ? 'none' : '';
+  });
+  btn.dataset.expanded = expanded ? 'false' : 'true';
+  btn.textContent = expanded ? t('showMore') : t('showLess');
+}
 let askPending = false;
 
 function escapeAskText(str){
@@ -1866,11 +1984,21 @@ async function askAsk(question, sendBtn){
       html += '<div class="askMentions">' + data.mentioned.map(m =>
         `<a class="askMentionChip" href="/pin/${m.squareId}" target="_blank" rel="noopener">📍 ${escapeAskText(m.name)} ↗</a>`
       ).join('') + '</div>';
+      // The banner now paginates (see renderLogoBanner) -- if a business
+      // just recommended here isn't on whatever page happens to be
+      // showing, jump to the page it's actually on so what's visible
+      // matches what was just said, instead of silently showing something
+      // unrelated.
+      data.mentioned.forEach(m => highlightBusinessInBanner(m.name));
     }
     if (Array.isArray(data.webResults) && data.webResults.length > 0){
-      html += '<div class="askWebResults">' + data.webResults.map(r =>
-        `<a class="askWebResultChip" href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? '🔍' : '↗'}</a>`
+      const resultId = 'askWebResults' + (askResultBlockCounter++);
+      html += `<div class="askWebResults" id="${resultId}">` + data.webResults.map((r, i) =>
+        `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? '🔍' : '↗'}</a>`
       ).join('') + '</div>';
+      if (data.webResults.length > 4){
+        html += `<button class="askShowMoreBtn logoBtn" data-expanded="false" onclick="toggleAskWebResults('${resultId}', this)">${t('showMore')}</button>`;
+      }
     }
     askAppendResult(html);
 
