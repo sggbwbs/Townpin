@@ -167,6 +167,8 @@ When you name a specific place someone could visit or a website they could check
 - Every business you name needs its own entry -- don't link multiple named businesses to one shared source.
 - Never list the same place in both "mentioned" and "webResults".
 - This is a hard requirement, not a nice-to-have: EVERY specific business or named place that appears anywhere in your answer text must have a matching entry in "mentioned" or "webResults" -- exact same name in both places. Never write a business or place name into your answer without also adding it to one of these lists. If you genuinely don't want to link something (e.g. you're just naming a general category like "there are several cafes downtown," not a specific one), don't name it specifically in the first place.
+- This applies just as much to longer, multi-part answers (a full day plan, an itinerary with several stops) as it does to a single quick recommendation -- naming five different places across a morning/afternoon/evening plan means five link entries, not zero. A concrete failure this has actually produced: a "plan my day" answer named a specific bakery, a museum, a park, and a named sushi restaurant, with real specifics for each (opening details, what made it a fit) -- and linked none of them. That's exactly the pattern to avoid: real, specific, named recommendations with no way to actually click through to any of them.
+- Before finalizing your JSON, reread your own "answer" text once and check it against "mentioned" plus "webResults" -- if a proper name in the text (a business, museum, park, restaurant, venue) doesn't appear in either list, add it before responding, not after.
 
 ADMIN_INSTRUCTIONS: ${JSON.stringify((aiHints || []).map(h => h.hint_text))}
 
