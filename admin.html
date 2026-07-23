@@ -140,8 +140,8 @@
 </div>
 
 <div class="card" id="grantCard" style="display:none;">
-  <h1>Grant free banner slots</h1>
-  <p class="sub">Reserve one or more banner slots for a company of your choice — no payment, no subscription.</p>
+  <h1>Grant free ad slots</h1>
+  <p class="sub">Reserve one or more ad slots for a company of your choice — no payment, no subscription.</p>
 
   <div class="field">
     <label>Town name</label>
@@ -153,7 +153,7 @@
     <p class="sub" id="grantTownStatus" style="margin:12px 0;"></p>
 
     <div class="field">
-      <label>How many free banner slots?</label>
+      <label>How many free ad slots?</label>
       <div class="qtyRow">
         <button id="grantQtyMinus" type="button" aria-label="Fewer">−</button>
         <span id="grantQtyDisplay">1</span>
@@ -209,7 +209,7 @@
   </div>
 
   <hr style="margin:24px 0;border:none;border-top:1px solid #e4dcc4;">
-  <h1 style="font-size:15px;">Currently comped banner slots</h1>
+  <h1 style="font-size:15px;">Currently comped ad slots</h1>
   <div id="compedList"><p class="sub">Loading…</p></div>
 </div>
 
@@ -270,7 +270,7 @@
       </select>
     </div>
     <div class="field">
-      <label>Number of banner slots</label>
+      <label>Number of ad slots</label>
       <div class="qtyRow">
         <button id="editQtyMinus" type="button" aria-label="Fewer">−</button>
         <span id="editQtyDisplay">1</span>
@@ -334,15 +334,15 @@ const FIELD_DEFS = [
 const DEFAULTS = {
   fi: {
     heroTitle: 'Näytä yrityksesi <span>koko Oululle.</span>',
-    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen banneripaikka taulussa on eri yritys. Osta oma banneripaikkasi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.',
+    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen mainospaikka taulussa on eri yritys. Osta oma mainospaikkasi, lisää logosi ja linkki verkkosivullesi, niin asiakkaasi löytävät sinut sekä taulusta että Googlesta. Peruuta milloin vain.',
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
     value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
-    footerText: 'PaikallisCanvas · varaa banneripaikka, saat sivun, peruuta milloin vain'
+    footerText: 'PaikallisCanvas · varaa mainospaikka, saat sivun, peruuta milloin vain'
   },
   en: {
     heroTitle: 'Put your business in front of <span>all of Oulu.</span>',
-    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every banner slot on the board is a different company. Buy your own slot, add your logo and a link to your site, and customers can find you both on the board and on Google. Cancel anytime.",
+    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every ad slot on the board is a different company. Buy your own slot, add your logo and a link to your site, and customers can find you both on the board and on Google. Cancel anytime.",
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: 'Findable on Google', value2: 'your business gets its own showcase page on our site that can appear in search results, even if nobody browses the board itself',
     value3b: 'Cancel anytime', value3: 'no contract period, no notice period',
@@ -511,7 +511,7 @@ document.getElementById('grantLoadBtn').addEventListener('click', async () => {
 
     const total = grantTown.grid_size * grantTown.grid_size;
     document.getElementById('grantTownStatus').textContent =
-      `${grantTown.name}: ${grantSquares.length} / ${total} banner slots claimed, ${total - grantSquares.length} free.`;
+      `${grantTown.name}: ${grantSquares.length} / ${total} ad slots claimed, ${total - grantSquares.length} free.`;
     document.getElementById('grantGridWrap').style.display = 'block';
   } catch (e) {
     showErr(errBox, 'Network error.');
@@ -582,17 +582,17 @@ async function loadCompedList(){
       groups[s.group_id].count++;
     });
     const entries = Object.entries(groups);
-    if (entries.length === 0) { box.innerHTML = '<p class="sub">No comped banner slots yet.</p>'; return; }
+    if (entries.length === 0) { box.innerHTML = '<p class="sub">No comped ad slots yet.</p>'; return; }
     box.innerHTML = '';
     entries.forEach(([groupId, g]) => {
       const row = document.createElement('div');
       row.className = 'compedRow';
-      row.innerHTML = `<span>${g.company} — ${g.count} banner slot${g.count === 1 ? '' : 's'} in ${g.town}</span>`;
+      row.innerHTML = `<span>${g.company} — ${g.count} ad slot${g.count === 1 ? '' : 's'} in ${g.town}</span>`;
       const btn = document.createElement('button');
       btn.className = 'revokeBtn';
       btn.textContent = 'Revoke';
       btn.addEventListener('click', async () => {
-        if (!confirm(`Remove ${g.company}'s ${g.count} free banner slot(s)?`)) return;
+        if (!confirm(`Remove ${g.company}'s ${g.count} free ad slot(s)?`)) return;
         await fetch(`${API}/revoke`, {
           method: 'POST', headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ groupId })
@@ -625,7 +625,7 @@ document.getElementById('moveSearchBtn').addEventListener('click', async () => {
     data.groups.forEach(g => {
       const row = document.createElement('div');
       row.className = 'compedRow';
-      row.innerHTML = `<span>${g.companyName} — ${g.count} banner slot${g.count === 1 ? '' : 's'} in ${g.townName}</span>`;
+      row.innerHTML = `<span>${g.companyName} — ${g.count} ad slot${g.count === 1 ? '' : 's'} in ${g.townName}</span>`;
       const btnWrap = document.createElement('div');
       btnWrap.style.display = 'flex';
       btnWrap.style.gap = '6px';
@@ -653,7 +653,7 @@ function selectGroupToMove(g){
   moveSelectedGroup = g;
   moveDestTown = null;
   document.getElementById('moveSummary').textContent =
-    `Moving ${g.companyName}'s ${g.count} banner slot${g.count === 1 ? '' : 's'} out of ${g.townName} — pick a destination town below. The same number of slots will be auto-assigned there.`;
+    `Moving ${g.companyName}'s ${g.count} ad slot${g.count === 1 ? '' : 's'} out of ${g.townName} — pick a destination town below. The same number of slots will be auto-assigned there.`;
   document.getElementById('moveDestWrap').style.display = 'block';
   document.getElementById('moveGridWrap').style.display = 'none';
   document.getElementById('editWrap').style.display = 'none';
@@ -686,7 +686,7 @@ async function selectGroupToEdit(g){
 
     editSelectedGroup = data;
     document.getElementById('editSummary').textContent =
-      `Editing ${data.companyName} — ${data.count} banner slot${data.count === 1 ? '' : 's'} in ${data.townName}` +
+      `Editing ${data.companyName} — ${data.count} ad slot${data.count === 1 ? '' : 's'} in ${data.townName}` +
       (data.isComped ? ' (granted free)' : ' (paid)') + '.';
     document.getElementById('editCompany').value = data.companyName || '';
     document.getElementById('editWebsite').value = data.websiteUrl || '';
@@ -757,7 +757,7 @@ document.getElementById('moveDestLoadBtn').addEventListener('click', async () =>
     const total = moveDestTown.grid_size * moveDestTown.grid_size;
     const free = total - (boardData.squares || []).length;
     document.getElementById('movePickCount').textContent =
-      `${moveDestTown.name}: ${free} free banner slot${free === 1 ? '' : 's'} — need ${moveSelectedGroup.count}.`;
+      `${moveDestTown.name}: ${free} free ad slot${free === 1 ? '' : 's'} — need ${moveSelectedGroup.count}.`;
     document.getElementById('moveGridWrap').style.display = 'block';
   } catch (e) {
     showErr(errBox, 'Network error.');
@@ -830,7 +830,7 @@ async function loadTownsList(){
       if (!town.enabled) { btn.style.padding = '6px 12px'; btn.style.fontSize = '12px'; }
       btn.textContent = town.enabled ? 'Close to public' : 'Open to public';
       btn.addEventListener('click', async () => {
-        if (town.enabled && !confirm(`Close ${town.name} to new visitors? Existing banner slots there keep working — this only stops new people from finding or claiming slots there.`)) return;
+        if (town.enabled && !confirm(`Close ${town.name} to new visitors? Existing ad slots there keep working — this only stops new people from finding or claiming slots there.`)) return;
         const action = town.enabled ? 'disable-town' : 'enable-town';
         const body = town.enabled ? { townId: town.id } : { name: town.name, country: town.slug.split('-').pop().toUpperCase() };
         await fetch(`${API}/${action}`, {

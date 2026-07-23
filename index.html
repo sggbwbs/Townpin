@@ -12,7 +12,7 @@
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PaikallisCanvas — Oulun yritysten ilmoitustaulu</title>
-<meta name="description" content="Varaa yrityksellesi banneripaikka Oulun ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen banneripaikka saa oman esittelysivun, joka voi näkyä Googlen hakutuloksissa." />
+<meta name="description" content="Varaa yrityksellesi mainospaikka Oulun ilmoitustaululta. 5€/kuukausi, peruuta milloin vain. Jokainen mainospaikka saa oman esittelysivun, joka voi näkyä Googlen hakutuloksissa." />
 <link rel="manifest" href="/manifest.json" />
 <meta name="theme-color" content="#e08e3e" />
 <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
@@ -590,7 +590,7 @@
 
     <div class="additionalTownsBox" style="display:none;">
       <label data-i18n="lAdditionalTowns">Julkaise myös muissa kaupungeissa <span style="font-weight:400;color:#8a8168;">(valinnainen)</span></label>
-      <p class="note" data-i18n="additionalTownsHint" style="margin:0 0 8px;">Sama ilmoitus, lisää kaupunkeja — valitse banneripaikkojen määrä per kaupunki, järjestelmä valitsee ne puolestasi.</p>
+      <p class="note" data-i18n="additionalTownsHint" style="margin:0 0 8px;">Sama ilmoitus, lisää kaupunkeja — valitse mainospaikkojen määrä per kaupunki, järjestelmä valitsee ne puolestasi.</p>
       <div style="position:relative;">
         <input type="text" id="additionalTownInput" autocomplete="off" data-i18n-placeholder="additionalTownPlaceholder" placeholder="Kaupungin nimi…" />
         <div id="additionalTownSuggestions"></div>
@@ -637,7 +637,7 @@
 
     <span class="pitchEyebrow" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</span>
     <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h1>
-    <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen banneripaikka taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Banneripaikka maksaa silti vain 5€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.</p>
+    <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen mainospaikka taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Mainospaikka maksaa silti vain 5€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.</p>
 
     <div class="valueRow">
       <div class="valueCard"><b data-i18n="value1b">5€/kk</b> <span data-i18n="value1">murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa</span></div>
@@ -645,7 +645,7 @@
       <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
     </div>
 
-    <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi banneripaikka ja säästä: 4€/kk per banneripaikka.</div>
+    <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi mainospaikka ja säästä: 4€/kk per mainospaikka.</div>
 
     <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
 
@@ -656,7 +656,7 @@
       </div>
 
       <div id="qtyPicker">
-        <p class="qtyLabel" data-i18n="qtyLabel">Kuinka monta banneripaikkaa haluat?</p>
+        <p class="qtyLabel" data-i18n="qtyLabel">Kuinka monta mainospaikkaa haluat?</p>
         <div id="qtyRow">
           <button id="qtyMinus" aria-label="Vähemmän" type="button">−</button>
           <span id="qtyDisplay">1</span>
@@ -667,7 +667,7 @@
       </div>
 
       <div id="selectionBar" class="open">
-        <span class="count" id="selectionCount">0 banneripaikkaa</span>
+        <span class="count" id="selectionCount">0 mainospaikkaa</span>
         <button class="go" id="selectionGo" data-i18n="continueSelection">Jatka →</button>
       </div>
     </div>
@@ -694,9 +694,9 @@
     <div id="howItWorks">
       <h2 data-i18n="hiwTitle">Näin se toimii</h2>
       <div class="hiwSteps">
-        <div class="hiwStep"><b>1</b><span data-i18n="hiw2">Valitse haluamasi banneripaikkojen määrä</span></div>
+        <div class="hiwStep"><b>1</b><span data-i18n="hiw2">Valitse haluamasi mainospaikkojen määrä</span></div>
         <div class="hiwStep"><b>2</b><span data-i18n="hiw3">Täytä yrityksesi tiedot ja maksa turvallisesti Stripen kautta</span></div>
-        <div class="hiwStep"><b>3</b><span data-i18n="hiw4">Banneripaikka ja oma verkkosivusi ovat käytössä heti maksun jälkeen</span></div>
+        <div class="hiwStep"><b>3</b><span data-i18n="hiw4">Mainospaikka ja oma verkkosivusi ovat käytössä heti maksun jälkeen</span></div>
       </div>
     </div>
 
@@ -710,7 +710,7 @@
         <p class="faqA" data-i18n="faqA2">Banneripaikan ilmoitustaululla omalla logollasi, sekä oman esittelysivun, joka linkittää suoraan yrityksesi omalle verkkosivulle.</p></div>
       <div class="faqItem">
         <button class="faqQ"><span data-i18n="faqQ3">Voinko peruuttaa milloin vain?</span><span class="faqToggle">+</span></button>
-        <p class="faqA" data-i18n="faqA3">Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan. Kun peruutat, banneripaikka pysyy näkyvissä jo maksetun jakson loppuun asti, minkä jälkeen se vapautuu.</p></div>
+        <p class="faqA" data-i18n="faqA3">Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan. Kun peruutat, mainospaikka pysyy näkyvissä jo maksetun jakson loppuun asti, minkä jälkeen se vapautuu.</p></div>
       <div class="faqItem">
         <button class="faqQ"><span data-i18n="faqQ4">Tarkistetaanko ilmoitukset?</span><span class="faqToggle">+</span></button>
         <p class="faqA" data-i18n="faqA4">Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.</p></div>
@@ -740,7 +740,7 @@
   </div>
 </div>
 
-<footer data-i18n="footerText">PaikallisCanvas · varaa banneripaikka, saat sivun, peruuta milloin vain</footer>
+<footer data-i18n="footerText">PaikallisCanvas · varaa mainospaikka, saat sivun, peruuta milloin vain</footer>
 
 <script>
 const API_BASE = '/api';
@@ -1080,12 +1080,12 @@ const STRINGS = {
     pitchEyebrow: 'Oma yrityksesi tähän?',
     logoBannerEmpty: 'Ole ensimmäinen yritys taulussa!',
     heroTitle: 'Näytä yrityksesi <span>koko Oululle.</span>',
-    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen banneripaikka taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Banneripaikka maksaa silti vain 5€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.',
+    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen mainospaikka taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Mitä useamman mainospaikan varaat, sitä suurempana logosi näkyy sekä taulussa että omalla esittelysivullasi — ja kaikki mainospaikkasi yhdistyvät samaksi vahvaksi sivuksi sen sijaan, että ne kilpailisivat keskenään Google-haussa. Mainospaikka maksaa silti vain 5€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.',
     value1b: '5€/kk',
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
     value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
-    volumeNote: 'Osta 4 tai useampi banneripaikka ja säästä: 4€/kk per banneripaikka.',
+    volumeNote: 'Osta 4 tai useampi mainospaikka ja säästä: 4€/kk per mainospaikka.',
     factsTitle: 'Miksi paikallinen näkyvyys kannattaa',
     fact1: 'kaikista Google-hauista koskee jotain paikallista',
     fact2: 'hakijoista, jotka etsivät jotain "lähellä", käy yrityksessä 24 tunnin sisällä',
@@ -1093,16 +1093,16 @@ const STRINGS = {
     factsNote: 'Lähde: Google / Think with Google, BrightLocal. Luvut kuvaavat yleistä hakukäyttäytymistä Suomessa ja muualla — emme väitä, että ne kuvaavat suoraan tämän palvelun tuomaa liikennettä juuri sinun yrityksellesi.',
     earlyBanner: '🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.',
     hiwTitle: 'Näin se toimii',
-    hiw2: 'Valitse haluamasi banneripaikkojen määrä',
+    hiw2: 'Valitse haluamasi mainospaikkojen määrä',
     hiw3: 'Täytä yrityksesi tiedot ja maksa turvallisesti Stripen kautta',
-    hiw4: 'Banneripaikka ja sen esittelysivu ovat käytössä heti maksun jälkeen',
+    hiw4: 'Mainospaikka ja sen esittelysivu ovat käytössä heti maksun jälkeen',
     faqTitle: 'Usein kysyttyä',
     faqQ1: 'Onko tämä luotettava palvelu?',
     faqA1: 'Maksut käsittelee Stripe, jota käyttävät miljoonat yritykset ympäri maailman — emme koskaan näe tai tallenna korttitietojasi.',
     faqQ2: 'Mitä oikeasti saan rahalleni?',
     faqA2: 'Banneripaikan ilmoitustaululla omalla logollasi, sekä oman esittelysivun, joka linkittää suoraan yrityksesi omalle verkkosivulle.',
     faqQ3: 'Voinko peruuttaa milloin vain?',
-    faqA3: 'Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan. Kun peruutat, banneripaikka pysyy näkyvissä jo maksetun jakson loppuun asti, minkä jälkeen se vapautuu.',
+    faqA3: 'Kyllä. Tilaus on kuukausittainen eikä sido sinua mihinkään määräaikaan. Kun peruutat, mainospaikka pysyy näkyvissä jo maksetun jakson loppuun asti, minkä jälkeen se vapautuu.',
     faqQ4: 'Tarkistetaanko ilmoitukset?',
     faqA4: 'Kyllä — jokainen ilmoitus tarkistetaan automaattisesti ennen julkaisua, ja epäasiallisen sisällön voi poistaa milloin tahansa.',
     faqQ5: 'Näynkö heti Google-haussa?',
@@ -1138,7 +1138,7 @@ const STRINGS = {
     otherTown: 'Etsitkö toista kaupunkia? →',
     townPlaceholder: 'Kaupungin nimi (esim. Tampere)',
     viewBoard: 'Katso taulu →',
-    claimedOf: '{n} / {t} banneripaikkaa varattu',
+    claimedOf: '{n} / {t} mainospaikkaa varattu',
     modalTitle: 'Varaa banneripaikat',
     lCompany: 'Yrityksen nimi', lWebsite: 'Verkkosivun osoite',
     lEmail: 'Sähköposti — kuittia ja tilauksen hallintaa varten',
@@ -1160,7 +1160,7 @@ const STRINGS = {
     prepaidRenewNote: 'Kertamaksu, ei automaattista uusiutumista. Banneripaikat ovat käytössä valitsemasi ajanjakson loppuun asti.',
     prepaidConfirmText: 'Vahvistan, että tämä on rekisteröity yritys. Kertamaksu {price}€ ({months} kk), ei automaattista uusiutumista.',
     lAdditionalTowns: 'Julkaise myös muissa kaupungeissa',
-    additionalTownsHint: 'Sama ilmoitus, lisää kaupunkeja — valitse banneripaikkojen määrä per kaupunki, järjestelmä valitsee ne puolestasi.',
+    additionalTownsHint: 'Sama ilmoitus, lisää kaupunkeja — valitse mainospaikkojen määrä per kaupunki, järjestelmä valitsee ne puolestasi.',
     additionalTownPlaceholder: 'Kaupungin nimi…',
     lIndustry: 'Toimiala',
     indRavintola: 'Ravintola ja kahvila', indKauneus: 'Kauneus ja hyvinvointi',
@@ -1190,7 +1190,7 @@ const STRINGS = {
     perMonth: ' / kk',
     renewNote: 'Uusiutuu automaattisesti. Peruuta milloin vain — banneripaikat vapautuvat takaisin.',
     continueBtn: 'Jatka maksuun →',
-    footerText: 'PaikallisCanvas · varaa banneripaikka, saat sivun, peruuta milloin vain',
+    footerText: 'PaikallisCanvas · varaa mainospaikka, saat sivun, peruuta milloin vain',
     fillRequired: 'Täytä yrityksen nimi, verkkosivu ja sähköposti.',
     logoRequiredErr: 'Logo on pakollinen — lataa kuva tai liitä sen osoite.',
     confirmRequired: 'Vahvista, että tämä on yritystilaus, ennen kuin jatkat.',
@@ -1201,8 +1201,8 @@ const STRINGS = {
     townNotAvailable: 'Tätä kaupunkia ei ole vielä avattu. Aloitamme Oulusta ja laajennamme pian.',
     squareTitle: '{n} paikkaa — {town}',
     squareTitleOne: '1 paikka — {town}',
-    qtyLabel: 'Kuinka monta banneripaikkaa haluat?',
-    claimTitle: 'Varaa banneripaikka — 5€/kk',
+    qtyLabel: 'Kuinka monta mainospaikkaa haluat?',
+    claimTitle: 'Varaa mainospaikka — 5€/kk',
     cancelSelection: 'Peruuta',
     continueSelection: 'Jatka →',
     squaresSelected: '{n} paikkaa · {price}€/kk',
@@ -1213,7 +1213,7 @@ const STRINGS = {
     pitchEyebrow: 'Room for your business here?',
     logoBannerEmpty: 'Be the first business on the board!',
     heroTitle: 'Put your business in front of <span>all of Oulu.</span>',
-    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every banner slot is a different company. Visibility comes from two places: real Oulu residents browsing the board for the day's news, events and weather, and your business getting its own showcase page that can turn up on Google entirely on its own — even if nobody ever opens the board itself. We can't guarantee either one: board traffic depends on site usage, and Google visibility on the search engine's own rules. Either way, a slot is just €5/month, you add your own logo and link, and there's no contract to lock you in.",
+    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every ad slot is a different company. Visibility comes from two places: real Oulu residents browsing the board for the day's news, events and weather, and your business getting its own showcase page that can turn up on Google entirely on its own — even if nobody ever opens the board itself. We can't guarantee either one: board traffic depends on site usage, and Google visibility on the search engine's own rules. The more slots you rent, the bigger your logo appears both on the board and on your own showcase page — and all your slots consolidate into that one strong page instead of competing against each other in Google search. Either way, a slot is just €5/month, you add your own logo and link, and there's no contract to lock you in.",
     value1b: '€5/month',
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: 'Findable on Google', value2: 'your business gets its own showcase page on our site that can appear in search results, even if nobody browses the board itself',
@@ -1226,14 +1226,14 @@ const STRINGS = {
     factsNote: 'Source: Google / Think with Google, BrightLocal. These figures describe general search behavior, not a promise about the traffic this specific service will bring your business.',
     earlyBanner: "🚀 50% off your first month! Just launched — join early and get top visibility before the board fills up.",
     hiwTitle: 'How it works',
-    hiw2: 'Choose how many banner slots to get',
+    hiw2: 'Choose how many ad slots to get',
     hiw3: 'Fill in your business details and pay securely via Stripe',
     hiw4: 'Your slot and its showcase page go live right after payment',
     faqTitle: 'Frequently asked questions',
     faqQ1: 'Is this a legitimate service?',
     faqA1: 'Payments are processed by Stripe, used by millions of businesses worldwide — we never see or store your card details.',
     faqQ2: 'What do I actually get for my money?',
-    faqA2: 'A banner slot on the community board with your own logo, plus your own showcase page on our site that links directly to your actual business website.',
+    faqA2: 'A ad slot on the community board with your own logo, plus your own showcase page on our site that links directly to your actual business website.',
     faqQ3: 'Can I cancel anytime?',
     faqA3: 'Yes. It\'s a monthly subscription with no fixed term. When you cancel, your slot stays live until the end of the period you\'ve already paid for, then it\'s freed up.',
     faqQ4: 'Are listings checked?',
@@ -1272,7 +1272,7 @@ const STRINGS = {
     townPlaceholder: 'Enter your town (e.g. Tampere)',
     viewBoard: 'View board →',
     claimedOf: '{n} / {t} slots claimed',
-    modalTitle: 'Claim your banner slots',
+    modalTitle: 'Claim your ad slots',
     lCompany: 'Company name', lWebsite: 'Website URL',
     lEmail: 'Contact email — for your receipt & managing the subscription',
     lLogo: 'Logo <span style="font-weight:400;color:#8a8168;">(required)</span>',
@@ -1315,7 +1315,7 @@ const STRINGS = {
     legalTitle: 'Terms & Privacy',
     legalBody: `<p><b>This service is provided by:</b> PaikallisCanvas, Business ID (Y-tunnus) 3637817-9.</p>
       <p><b>Contact:</b> <a href="mailto:paikalliscanvas@gmail.com">paikalliscanvas@gmail.com</a></p>
-      <p><b>What you get:</b> a fixed banner slot on your town's PaikallisCanvas board, linking to the URL you provide, plus its own separate webpage. Live immediately after payment.</p>
+      <p><b>What you get:</b> a fixed ad slot on your town's PaikallisCanvas board, linking to the URL you provide, plus its own separate webpage. Live immediately after payment.</p>
       <p><b>Right of withdrawal:</b> by confirming this as a business purchase, you confirm the EU consumer 14-day withdrawal right does not apply, and that visibility begins immediately.</p>
       <p><b>Content:</b> we may remove any listing at our discretion (e.g. illegal, harmful, or misleading content) without refund.</p>
       <p><b>Data:</b> we store your company name, email, and website URL to fulfil and bill the subscription. We don't sell this data. Contact the email above to request deletion.</p>
@@ -1334,8 +1334,8 @@ const STRINGS = {
     townNotAvailable: "This town isn't open yet. We're starting with Oulu and will expand soon.",
     squareTitle: '{n} slots — {town}',
     squareTitleOne: '1 slot — {town}',
-    qtyLabel: 'How many banner slots would you like?',
-    claimTitle: 'Claim a banner slot — €5/month',
+    qtyLabel: 'How many ad slots would you like?',
+    claimTitle: 'Claim a ad slot — €5/month',
     cancelSelection: 'Cancel',
     continueSelection: 'Continue →',
     squaresSelected: '{n} slots · €{price}/mo',
@@ -2108,7 +2108,7 @@ document.getElementById('askFollowupInput').addEventListener('keydown', (e)=>{
 });
 
 // The board itself is no longer a clickable grid -- purchasing is now a
-// simple quantity picker (how many banner slots), with the exact same
+// simple quantity picker (how many ad slots), with the exact same
 // pricing tiers as before (see pricePerSquareEur). The server still
 // tracks each purchase as discrete "squares" internally (unchanged
 // schema, unchanged capacity/availability logic) -- it just auto-assigns
