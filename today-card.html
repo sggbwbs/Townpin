@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tänään Oulussa — jaettava kuva | PaikallisCanvas</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#f7f2e7; --paper:#fffdf8; --ink:#2a2110; --ink-dim:#6b6248;
+    --amber:#e08a3c; --amber-deep:#c1712a; --line:#e4dcc4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg-0);font-family:'IBM Plex Sans',sans-serif;color:var(--ink);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 16px 60px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0 0 6px;text-align:center;}
+  p.sub{color:var(--ink-dim);font-size:14px;text-align:center;margin:0 0 28px;max-width:420px;}
+  #cardWrap{width:100%;max-width:440px;aspect-ratio:1/1;border-radius:16px;overflow:hidden;
+    box-shadow:0 12px 32px rgba(42,33,16,0.18);background:var(--paper);}
+  #cardCanvas{width:100%;height:100%;display:block;}
+  #status{margin-top:18px;font-size:13px;color:var(--ink-dim);text-align:center;min-height:18px;}
+  #downloadBtn{margin-top:16px;background:var(--amber);color:#2a1c0d;border:none;border-radius:999px;
+    padding:14px 32px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;
+    cursor:pointer;box-shadow:0 4px 14px rgba(224,138,60,0.35);}
+  #downloadBtn:disabled{opacity:0.5;cursor:default;}
+  #downloadBtn:hover:not(:disabled){background:var(--amber-deep);}
+  #backLink{margin-top:22px;font-size:13px;color:var(--ink-dim);text-decoration:none;border-bottom:1px solid var(--line);}
+  #eventPicker{width:100%;max-width:440px;margin-top:28px;text-align:left;order:1;}
+  #eventPicker h2{font-family:'Space Grotesk',sans-serif;font-size:16px;margin:0 0 4px;}
+  .pickerSub{color:var(--ink-dim);font-size:12.5px;margin:0 0 14px;}
+  .pickerRow{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
+  .pickerRow input{margin-top:3px;flex:none;width:16px;height:16px;accent-color:var(--amber);cursor:pointer;}
+  .pickerRow label{font-size:13.5px;line-height:1.4;cursor:pointer;}
+  .pickerRow.disabled label{color:var(--ink-dim);}
+  #eventCheckboxes{max-height:340px;overflow-y:auto;}
+  #customEventForm{background:var(--paper);border:1px solid var(--line);border-radius:10px;
+    padding:14px;margin-bottom:16px;}
+  .customLabel{display:block;font-size:12.5px;font-weight:600;margin-bottom:8px;}
+  #customEventForm input{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line);
+    border-radius:8px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;margin-bottom:8px;}
+  #addCustomEventBtn{background:var(--amber);color:#2a1c0d;border:none;border-radius:999px;
+    padding:9px 18px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;cursor:pointer;}
+  #addCustomEventBtn:hover{background:var(--amber-deep);}
+</style>
+</head>
+<body>
+
+  <h1>Tänään Oulussa</h1>
+  <p class="sub">Lataa kuva ja jaa se somessa tai paikallisessa Facebook-ryhmässä — nopea, hyödyllinen tapa saada kävijöitä sivulle joka päivä.</p>
+
+  <div id="cardWrap">
+    <canvas id="cardCanvas" width="1080" height="1080"></canvas>
+  </div>
+
+  <div id="status">Ladataan tietoja…</div>
+  <button id="downloadBtn" disabled>Lataa kuvana</button>
+
+  <div id="eventPicker" style="display:none;">
+    <h2>Valitse kortin tapahtumat</h2>
+    <p class="pickerSub">Oletuksena 5 suosituinta on valittu. Enintään 5 mahtuu kortille kunnolla ajan kanssa.</p>
+
+    <div id="customEventForm">
+      <label class="customLabel">Lisää oma tapahtuma tai viesti kortille</label>
+      <input type="text" id="customEventTitle" placeholder="esim. Kauppa kiinni tänään klo 14 remontin vuoksi" />
+      <input type="text" id="customEventTime" placeholder="Aika (valinnainen, esim. 10:00–14:00)" />
+      <button id="addCustomEventBtn">+ Lisää kortille</button>
+    </div>
+
+    <div id="eventCheckboxes"></div>
+  </div>
+
+  <a id="backLink" href="/oulu">← Takaisin taululle</a>
+
+<script>
+const WEATHER_ICONS = {
+  0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+  45: '🌫️', 48: '🌫️',
+  51: '🌦️', 53: '🌦️', 55: '🌦️',
+  61: '🌧️', 63: '🌧️', 65: '🌧️',
+  71: '❄️', 73: '❄️', 75: '❄️', 77: '❄️',
+  80: '🌦️', 81: '🌦️', 82: '🌧️',
+  85: '❄️', 86: '❄️',
+  95: '⛈️', 96: '⛈️', 99: '⛈️'
+};
+const WEATHER_DESC_FI = {
+  0: 'selkeää', 1: 'enimmäkseen selkeää', 2: 'puolipilvistä', 3: 'pilvistä',
+  45: 'sumua', 48: 'huurusumua',
+  51: 'heikkoa tihkusadetta', 53: 'tihkusadetta', 55: 'tiheää tihkusadetta',
+  61: 'heikkoa sadetta', 63: 'sadetta', 65: 'rankkaa sadetta',
+  71: 'heikkoa lumisadetta', 73: 'lumisadetta', 75: 'rankkaa lumisadetta', 77: 'lumijyväsiä',
+  80: 'sadekuuroja', 81: 'sadekuuroja', 82: 'rankkoja sadekuuroja',
+  85: 'lumikuuroja', 86: 'runsaita lumikuuroja',
+  95: 'ukkosta', 96: 'ukkosta ja raekuuroja', 99: 'voimakasta ukkosta'
+};
+const MONTHS_FI = ['tammikuuta','helmikuuta','maaliskuuta','huhtikuuta','toukokuuta','kesäkuuta',
+  'heinäkuuta','elokuuta','syyskuuta','lokakuuta','marraskuuta','joulukuuta'];
+const WEEKDAYS_FI = ['sunnuntai','maanantai','tiistai','keskiviikko','torstai','perjantai','lauantai'];
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines){
+  const words = text.split(' ');
+  let line = '';
+  let lines = [];
+  for (const word of words){
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line){
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  if (lines.length > maxLines){
+    lines = lines.slice(0, maxLines);
+    lines[maxLines - 1] = lines[maxLines - 1].replace(/\s*\S*$/, '') + '…';
+  }
+  lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
+  return lines.length * lineHeight;
+}
+
+function roundRect(ctx, x, y, w, h, radius){
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
+function drawGridMotif(ctx, originX, originY, cols, rows, cell, gap, filledSet){
+  for (let r = 0; r < rows; r++){
+    for (let c = 0; c < cols; c++){
+      const i = r * cols + c;
+      const x = originX + c * (cell + gap);
+      const y = originY + r * (cell + gap);
+      ctx.fillStyle = filledSet.has(i) ? 'rgba(224,138,60,0.55)' : 'rgba(42,33,16,0.07)';
+      const radius = 6;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + cell, y, x + cell, y + cell, radius);
+      ctx.arcTo(x + cell, y + cell, x, y + cell, radius);
+      ctx.arcTo(x, y + cell, x, y, radius);
+      ctx.arcTo(x, y, x + cell, y, radius);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+// The actual brand mark (a map pin with a 2x2 amber grid inside) -- same
+// design as the site header logo and the PWA/favicon icons, reproduced
+// here as canvas paths rather than an external image so the card stays
+// a single self-contained file. `size` is the rendered width in px;
+// the pin's natural proportions (from its 24x24 source viewBox) are
+// preserved automatically.
+function drawLogoIcon(ctx, x, y, size){
+  const scale = size / 24;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = '#2a2110';
+  ctx.beginPath();
+  ctx.moveTo(12, 2);
+  ctx.bezierCurveTo(7.6, 2, 4, 5.4, 4, 9.6);
+  ctx.bezierCurveTo(4, 15, 12, 22, 12, 22);
+  ctx.bezierCurveTo(12, 22, 20, 15, 20, 9.6);
+  ctx.bezierCurveTo(20, 5.4, 16.4, 2, 12, 2);
+  ctx.closePath();
+  ctx.fill();
+
+  const sq = (sx, sy, alpha) => {
+    ctx.fillStyle = `rgba(224,142,62,${alpha})`;
+    roundRect(ctx, sx, sy, 4, 4, 0.8);
+    ctx.fill();
+  };
+  sq(7.5, 4.5, 1);
+  sq(12.5, 4.5, 0.55);
+  sq(7.5, 9.5, 0.55);
+  sq(12.5, 9.5, 1);
+
+  ctx.restore();
+}
+
+const MAX_SELECTABLE_EVENTS = 5;
+const DEFAULT_SELECTED_COUNT = 5;
+
+// Cached once after the initial fetch, reused every time the picker
+// selection changes so redrawing never needs a fresh network round-trip.
+let cachedWeather = { temp: null, weatherCode: 0, tempMax: null, tempMin: null };
+let allEvents = [];
+let selectedIds = new Set();
+let nextEventId = 0;
+
+function tagWithIds(events){
+  return events.map(ev => ({ ...ev, _id: nextEventId++ }));
+}
+
+async function fetchCardData(){
+  const statusEl = document.getElementById('status');
+
+  try {
+    const wRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FHelsinki&forecast_days=1');
+    const wData = await wRes.json();
+    cachedWeather.temp = wData.current ? Math.round(wData.current.temperature_2m) : null;
+    cachedWeather.weatherCode = wData.current ? wData.current.weather_code : 0;
+    if (wData.daily){
+      cachedWeather.tempMax = Math.round(wData.daily.temperature_2m_max[0]);
+      cachedWeather.tempMin = Math.round(wData.daily.temperature_2m_min[0]);
+    }
+  } catch (e) { /* fail quietly -- card still works without weather */ }
+
+  try {
+    const tRes = await fetch(`/api/town?name=Oulu&country=FI`);
+    const tData = await tRes.json();
+    if (tData.town){
+      const fRes = await fetch(`/api/feed?townId=${tData.town.id}`);
+      const fData = await fRes.json();
+      // Fetch more than we'll necessarily use -- these become the picker's
+      // candidate list, already ranked by popularity/today-first from the backend.
+      if (fData.events && fData.events.length > 0) allEvents = tagWithIds(fData.events.slice(0, 30)); // matches the backend's own max -- see getEventsSection
+    }
+  } catch (e) { /* fail quietly -- card still works without events */ }
+
+  selectedIds = new Set(allEvents.slice(0, DEFAULT_SELECTED_COUNT).map(ev => ev._id));
+
+  statusEl.textContent = '';
+  renderEventPicker();
+  drawCard(getSelectedEvents());
+}
+
+function getSelectedEvents(){
+  return allEvents.filter(ev => selectedIds.has(ev._id));
+}
+
+function renderEventPicker(){
+  const picker = document.getElementById('eventPicker');
+  const box = document.getElementById('eventCheckboxes');
+  if (allEvents.length === 0){ picker.style.display = 'none'; return; }
+
+  picker.style.display = 'block';
+  box.innerHTML = allEvents.map(ev => `
+    <div class="pickerRow">
+      <input type="checkbox" id="ev-${ev._id}" data-id="${ev._id}" ${selectedIds.has(ev._id) ? 'checked' : ''} />
+      <label for="ev-${ev._id}">${ev.isCustom ? '✏️ ' : ''}${ev.title_fi}${ev.event_start_time ? ` (${ev.event_start_time}${ev.event_end_time ? '–' + ev.event_end_time : ''})` : ''}</label>
+    </div>
+  `).join('');
+
+  enforceSelectionCap();
+  box.querySelectorAll('input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const id = Number(cb.dataset.id);
+      if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+      enforceSelectionCap();
+      drawCard(getSelectedEvents());
+    });
+  });
+}
+
+// Disables any unchecked box once MAX_SELECTABLE_EVENTS are already
+// checked, rather than silently drawing an overcrowded card -- the
+// layout below is only verified safe up to this many.
+function enforceSelectionCap(){
+  const boxes = [...document.querySelectorAll('#eventCheckboxes input')];
+  const checkedCount = boxes.filter(cb => cb.checked).length;
+  boxes.forEach(cb => {
+    const row = cb.closest('.pickerRow');
+    const shouldDisable = !cb.checked && checkedCount >= MAX_SELECTABLE_EVENTS;
+    cb.disabled = shouldDisable;
+    row.classList.toggle('disabled', shouldDisable);
+  });
+}
+
+function drawCard(selectedEvents){
+  const canvas = document.getElementById('cardCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const { temp, weatherCode, tempMax, tempMin } = cachedWeather;
+
+  // ---- draw ----
+  const now = new Date();
+
+  // background
+  ctx.fillStyle = '#f7f2e7';
+  ctx.fillRect(0, 0, W, H);
+
+  // real brand logo, top-right -- sized to roughly match the "XX°C"
+  // temperature text (92px) so it reads as a peer to that, not an
+  // afterthought
+  const logoSize = 92;
+  drawLogoIcon(ctx, W - 72 - logoSize, 40, logoSize);
+
+  // wordmark
+  ctx.fillStyle = '#2a2110';
+  ctx.font = "700 40px 'Space Grotesk'";
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('PAIKALLIS', 72, 110);
+  const w1 = ctx.measureText('PAIKALLIS').width;
+  ctx.fillStyle = '#c1712a';
+  ctx.fillText('CANVAS', 72 + w1, 110);
+
+  // date -- a filled pill behind bigger, bolder text so it reads as the
+  // card's "when", not just another line of body copy
+  const dateLabel = `${WEEKDAYS_FI[now.getDay()].charAt(0).toUpperCase() + WEEKDAYS_FI[now.getDay()].slice(1)} ${now.getDate()}. ${MONTHS_FI[now.getMonth()]}`;
+  ctx.font = "700 34px 'Space Grotesk'";
+  const dateWidth = ctx.measureText(dateLabel).width;
+  const datePadX = 22, datePillH = 58, datePillY = 148;
+  ctx.fillStyle = 'rgba(224,138,60,0.16)';
+  roundRect(ctx, 72, datePillY, dateWidth + datePadX * 2, datePillH, datePillH / 2);
+  ctx.fill();
+  ctx.fillStyle = '#c1712a';
+  ctx.fillText(dateLabel, 72 + datePadX, datePillY + 40);
+
+  // weather: icon + current temp + short description + today's high/low
+  const weatherTop = 250;
+  if (temp !== null){
+    ctx.fillStyle = '#2a2110';
+    ctx.font = "120px sans-serif";
+    ctx.fillText(WEATHER_ICONS[weatherCode] || '🌡️', 72, weatherTop + 110);
+
+    ctx.fillStyle = '#2a2110';
+    ctx.font = "700 92px 'Space Grotesk'";
+    ctx.fillText(`${temp}°C`, 260, weatherTop + 90);
+
+    ctx.fillStyle = '#6b6248';
+    ctx.font = "600 26px 'IBM Plex Sans'";
+    ctx.fillText('Oulussa nyt', 262, weatherTop + 128);
+
+    ctx.fillStyle = '#4a4330';
+    ctx.font = "400 26px 'IBM Plex Sans'";
+    ctx.fillText(WEATHER_DESC_FI[weatherCode] || '', 262, weatherTop + 162);
+
+    if (tempMax !== null && tempMin !== null){
+      ctx.fillStyle = '#6b6248';
+      ctx.font = "600 26px 'IBM Plex Sans'";
+      ctx.fillText(`Ylin ${tempMax}° · Alin ${tempMin}°`, 262, weatherTop + 198);
+    }
+  }
+
+  // divider
+  ctx.strokeStyle = '#e4dcc4';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(72, 500); ctx.lineTo(W - 72, 500); ctx.stroke();
+
+  // today's most popular events -- picked via the checklist below,
+  // ranked by Kaleva's real view counts. Layout scales down in tiers as
+  // the count grows, verified (worst case: every title wraps to 2
+  // lines) to stay clear of the footer at each tier rather than
+  // assuming a fixed count of 3 the way this used to.
+  ctx.fillStyle = '#c1712a';
+  ctx.font = "700 26px 'Space Grotesk'";
+  ctx.fillText('SUOSITUIMMAT TAPAHTUMAT TÄNÄÄN', 72, 550);
+
+  if (selectedEvents.length > 0){
+    const n = selectedEvents.length;
+    const layout = n <= 3
+      ? { font: 33, lineHeight: 36, gap: 20, markerR: 18, markerFont: 19, timeFont: 18, timeLineHeight: 23 }
+      : { font: 17, lineHeight: 19, gap: 10, markerR: 13, markerFont: 14, timeFont: 16, timeLineHeight: 21 };
+
+    let cursorY = 610;
+    selectedEvents.forEach((ev, i) => {
+      // small numbered marker so the list reads as a ranked list, not a wall of text
+      ctx.fillStyle = '#e08a3c';
+      ctx.beginPath();
+      ctx.arc(90, cursorY - 14, layout.markerR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fffdf8';
+      ctx.font = `700 ${layout.markerFont}px 'Space Grotesk'`;
+      ctx.textAlign = 'center';
+      ctx.fillText(String(i + 1), 90, cursorY - 6);
+      ctx.textAlign = 'left';
+
+      if (ev.event_start_time){
+        ctx.fillStyle = '#c1712a';
+        ctx.font = `600 ${layout.timeFont}px 'IBM Plex Sans', sans-serif`;
+        const timeLabel = ev.isCustom
+          ? ev.event_start_time // freeform text the admin typed -- show exactly as-is
+          : (ev.event_end_time ? `${ev.event_start_time}–${ev.event_end_time}` : `klo ${ev.event_start_time}`);
+        ctx.fillText(timeLabel, 138, cursorY);
+        cursorY += layout.timeLineHeight;
+      }
+
+      ctx.fillStyle = '#2a2110';
+      ctx.font = `700 ${layout.font}px 'Space Grotesk'`;
+      const titleHeight = wrapText(ctx, ev.title_fi, 138, cursorY, W - 210, layout.lineHeight, 2);
+      cursorY += titleHeight + layout.gap;
+    });
+  } else {
+    ctx.fillStyle = '#6b6248';
+    ctx.font = "400 28px 'IBM Plex Sans'";
+    ctx.fillText('Ei tiedossa erityisiä tapahtumia juuri nyt.', 72, 610);
+  }
+
+  // footer CTA
+  ctx.fillStyle = '#2a2110';
+  ctx.font = "700 32px 'Space Grotesk'";
+  ctx.fillText('paikalliscanvas.fi/oulu', 72, H - 70);
+  ctx.fillStyle = '#6b6248';
+  ctx.font = "400 22px 'IBM Plex Sans'";
+  ctx.fillText('Oulun oma näyteikkuna verkossa', 72, H - 38);
+
+  document.getElementById('downloadBtn').disabled = false;
+}
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const canvas = document.getElementById('cardCanvas');
+  const link = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.download = `tanaan-oulussa-${dateStr}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+document.getElementById('addCustomEventBtn').addEventListener('click', () => {
+  const titleInput = document.getElementById('customEventTitle');
+  const timeInput = document.getElementById('customEventTime');
+  const title = titleInput.value.trim();
+  if (!title) return;
+
+  const custom = tagWithIds([{
+    title_fi: title,
+    event_start_time: timeInput.value.trim() || null,
+    event_end_time: null,
+    isCustom: true
+  }])[0];
+
+  allEvents.unshift(custom);
+  if (selectedIds.size < MAX_SELECTABLE_EVENTS) selectedIds.add(custom._id);
+
+  titleInput.value = '';
+  timeInput.value = '';
+  renderEventPicker();
+  drawCard(getSelectedEvents());
+});
+
+// wait for the display font to actually be loaded before drawing -- canvas
+// text falls back to a default font silently otherwise, even if the CSS
+// font is already applied to the rest of the page
+document.fonts.load("700 40px 'Space Grotesk'").then(() => {
+  document.fonts.load("400 28px 'IBM Plex Sans'").then(() => {
+    document.fonts.load("600 16px 'IBM Plex Sans'").then(fetchCardData);
+  });
+});
+</script>
+</body>
+</html>
