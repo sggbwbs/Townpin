@@ -2,6 +2,7 @@ const Stripe = require('stripe');
 const { supabase } = require('./_db');
 const { isSuspicious } = require('./_linkCheck');
 const { moderate } = require('./_moderate');
+const { pickRandomEmptySquares } = require('./_squares');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
@@ -60,32 +61,8 @@ function calculatePrepaidTotal(monthlyTotal, months) {
   return Math.round(monthlyTotal * months * (1 - term.discountPct) * 100) / 100;
 }
 
-// For "post to additional towns": pick N random empty squares in that
-// town. Random (not just the first empty indices) so everyone doesn't
-// pile into the same top-left corner of every board.
-async function pickRandomEmptySquares(townId, count) {
-  const { data: town, error: townErr } = await supabase.from('towns').select('grid_size').eq('id', townId).maybeSingle();
-  if (townErr || !town) return [];
-
-  const { data: taken, error: takenErr } = await supabase
-    .from('squares')
-    .select('idx')
-    .eq('town_id', townId)
-    .in('status', ['active', 'pending']);
-  if (takenErr) return [];
-
-  const takenSet = new Set((taken || []).map(r => r.idx));
-  const total = town.grid_size * town.grid_size;
-  const emptyIndices = [];
-  for (let i = 0; i < total; i++) { if (!takenSet.has(i)) emptyIndices.push(i); }
-
-  // shuffle, then take as many as requested (or as many as actually exist)
-  for (let i = emptyIndices.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [emptyIndices[i], emptyIndices[j]] = [emptyIndices[j], emptyIndices[i]];
-  }
-  return emptyIndices.slice(0, count);
-}
+// pickRandomEmptySquares now lives in ./_squares.js, shared with the
+// admin grant/move flows -- see that file for the implementation.
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
