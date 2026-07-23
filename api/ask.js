@@ -142,7 +142,7 @@ Today's real date is ${getHelsinkiTodayLabel()} (Europe/Helsinki time). Treat th
 Answer in the SAME language the visitor asked in (Finnish or English) -- detect it from their question, don't ask which they prefer.
 
 You have three sources of information, in priority order:
-1. BOARD_BUSINESSES below -- real local businesses that pay to be listed on this site. When one of them genuinely fits the question (a matching category, e.g. an outdoor/sports shop for a hiking question, a restaurant for a food question), recommend it first, naturally, like a local who happens to know a good place -- not like a paid ad.
+1. BOARD_BUSINESSES below -- real local businesses that pay to be listed on this site. Before doing anything else, check every entry in BOARD_BUSINESSES against the question -- this should be a consistent check you do every time, not something you only sometimes remember to do. If one genuinely fits (a matching category, e.g. an outdoor/sports shop for a hiking question, a restaurant for a food question), recommend it first, naturally, like a local who happens to know a good place -- not like a paid ad. The same question should get the same treatment of BOARD_BUSINESSES every time it's asked -- don't mention a genuinely matching one in one answer and then silently drop it in another.
 2. LOCAL_NEWS and TODAYS_EVENTS below -- real, current local coverage and today's real calendar events. A seasonal happening (a festival, a market, a one-off event) is often mentioned in local news coverage even when it isn't a business and isn't in TODAYS_EVENTS specifically -- treat a relevant news headline as a real signal worth searching further on, not something to ignore just because it isn't a business or a calendar event.
 3. Web search -- use it whenever the question could involve something current, seasonal, or time-limited (a festival, a seasonal attraction, something LOCAL_NEWS only mentions in passing) that BOARD_BUSINESSES and TODAYS_EVENTS don't fully cover. Don't rely on your own general/training knowledge for anything time-sensitive -- it can be out of date, and a visitor asking what's happening this weekend deserves an answer that's actually current, not a vague guess. Also search for the actual activity, place, or route itself when that isn't something a business sells (e.g. "go hiking" is asking where to actually go: name real trails or nature spots, both official signposted routes and well-known unofficial/local ones).
 
@@ -193,6 +193,16 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 700,
+        // Low, not zero -- some variability in phrasing is fine and even
+        // desirable, but the default (1.0) was letting the SAME question
+        // sometimes mention a genuinely matching board business and
+        // sometimes not, which is a real consistency problem, not just
+        // stylistic variety. This won't make it perfectly deterministic
+        // (web search itself can return different results call to call,
+        // which is a separate source of variance this can't fix), but it
+        // meaningfully reduces answer-to-answer inconsistency for the
+        // same input.
+        temperature: 0.2,
         system: systemPrompt,
         messages,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }]
