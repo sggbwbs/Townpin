@@ -65,7 +65,7 @@
   main{max-width:1320px;margin:0 auto;padding:0 24px 100px;}
 
   /* ---- vertically scrolling logo banner, between header and AI search ---- */
-  #logoBanner{position:relative;height:210px;overflow:hidden;margin:20px 0 8px;
+  #logoBanner{position:relative;height:390px;overflow:hidden;margin:20px 0 8px;
     border:1px solid var(--line);border-radius:14px;background:var(--panelT4);}
   /* On wide screens there's room to just show the whole board at once
      (up to however many businesses actually exist) rather than
@@ -1726,7 +1726,7 @@ function renderLogoBanner(){
   // generally isn't screen room for everyone there regardless of how
   // full the board actually is.
   const isDesktop = window.innerWidth >= 1000;
-  const MAX_ROWS_PER_PAGE = isDesktop ? Infinity : 1; // mobile: one row at a time (side-by-side), cycling through more via pagination -- not stacked rows
+  const MAX_ROWS_PER_PAGE = isDesktop ? Infinity : 2; // mobile: 2 clean rows per page (the earlier "stacked on top" issue was a row-detection bug, now fixed, not an objection to multiple rows existing)
   const pages = [];
   let pageItems = [];
   let pageStartRow = 0;
