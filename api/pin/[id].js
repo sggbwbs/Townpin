@@ -127,6 +127,7 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
   .quickInfoText{font-size:13px;line-height:1.5;margin:0 0 6px;color:#3a331d;}
   .quickInfoEn{color:#6b6249;font-style:italic;}
   .quickInfoSource{font-size:11px;color:#8a8168;text-decoration:underline;}
+  .quickInfoDisclaimer{font-size:10.5px;color:#a39a80;margin:6px 0 0;}
   .industryBadge{display:inline-block;background:#eae3d3;color:#5c5440;font-size:11px;font-weight:600;
     padding:4px 10px;border-radius:999px;margin:0 0 12px;}
   .foot a{color:#8a8168;}
@@ -145,6 +146,7 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
       <p class="quickInfoText">${escapeHtml(square.ai_blurb_fi)}</p>
       ${square.ai_blurb_en ? `<p class="quickInfoText quickInfoEn">${escapeHtml(square.ai_blurb_en)}</p>` : ''}
       ${square.ai_blurb_source ? `<a class="quickInfoSource" href="${escapeHtml(square.ai_blurb_source)}" rel="nofollow noopener">Lähde / Source ↗</a>` : ''}
+      <p class="quickInfoDisclaimer">Tekoälyn koostama, voi sisältää virheitä / AI-assembled, may be inaccurate.</p>
     </div>` : ''}
     <p class="foot">A local business on the <a href="/board/${escapeHtml(townSlug)}">${escapeHtml(townName)} community board</a> — powered by PaikallisCanvas.</p>
   </div>
