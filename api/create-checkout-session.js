@@ -8,7 +8,7 @@ const { pricePerSquareEur } = require('./_pricing');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
-const MAX_SQUARES_PER_PURCHASE = 60; // safety cap against fat-finger selections, across all towns combined
+const MAX_SQUARES_PER_PURCHASE = 40; // safety cap against fat-finger selections, across all towns combined
 const MAX_PENDING_PER_IP = 40; // cumulative cap across all of one IP's current unfinished reservations -- stops someone from repeatedly starting-and-abandoning checkouts to tie up the whole board
 
 // Kept in sync with the <select> options in index.html -- server-side
