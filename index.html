@@ -423,6 +423,17 @@
   #askHeroSendBtn{flex:none;padding:0 26px;border-radius:999px;border:none;cursor:pointer;
     background:var(--amber);color:#2a1c0d;font-weight:700;font-size:14.5px;font-family:'Space Grotesk',sans-serif;}
   #askHeroSendBtn:disabled{opacity:0.5;cursor:default;}
+  #askMicBtn, #askFollowupMicBtn{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);
+    background:var(--panelT7);color:var(--ink-dim);font-size:17px;cursor:pointer;padding:0;
+    display:flex;align-items:center;justify-content:center;}
+  #askFollowupMicBtn{width:36px;height:36px;font-size:14px;}
+  #askMicBtn:hover, #askFollowupMicBtn:hover{border-color:var(--amber);color:var(--amber);}
+  #askMicBtn.listening, #askFollowupMicBtn.listening{background:rgba(216,78,78,0.15);border-color:#d84e4e;
+    color:#d84e4e;animation:askMicPulse 1.3s ease-in-out infinite;}
+  @keyframes askMicPulse{
+    0%, 100%{box-shadow:0 0 0 0 rgba(216,78,78,0.4);}
+    50%{box-shadow:0 0 0 8px rgba(216,78,78,0);}
+  }
 
   #askHeroResults{max-width:640px;margin:0 auto;text-align:left;display:none;}
   #askHeroResults.open{display:block;margin-top:24px;}
@@ -498,12 +509,14 @@
     <p class="askHeroSub" data-i18n="askHeroSub">Kysy retkistä, ruokapaikoista tai tekemisestä — vastaan oikeiden oululaisten yritysten ja tämän päivän tapahtumien pohjalta.</p>
     <div id="askHeroRow">
       <input type="text" id="askHeroInput" autocomplete="off" data-i18n-placeholder="askHeroPlaceholder" placeholder="Esim. &quot;lähde vaeltamaan&quot; tai &quot;missä syödä sushia&quot;" />
+      <button id="askMicBtn" type="button" aria-label="Puhu" style="display:none;">🎤</button>
       <button id="askHeroSendBtn" data-i18n="askHeroButton">Kysy →</button>
     </div>
     <div id="askHeroResults">
       <div id="askResultsList"></div>
       <div id="askFollowupRow" style="display:none;">
         <input type="text" id="askFollowupInput" autocomplete="off" data-i18n-placeholder="askFollowupPlaceholder" placeholder="Kysy jotain muuta…" />
+        <button id="askFollowupMicBtn" type="button" aria-label="Puhu" style="display:none;">🎤</button>
         <button id="askFollowupSendBtn" aria-label="Lähetä">↑</button>
       </div>
     </div>
@@ -2059,6 +2072,55 @@ document.getElementById('newsCategoryFilter').addEventListener('change', (e)=>{
 // ---- AI local guide: hero search ----
 let askHistory = [];   // {role:'user'|'assistant', content:string}[] sent to /api/ask as context
 let askResultBlockCounter = 0; // gives each chat result's webResults block a unique id for show-more/less
+
+// Voice input -- a real browser feature (Chrome/Safari/Edge), not a paid
+// API we're calling ourselves, so this costs nothing to run. Firefox
+// doesn't support it at all, so the mic button just stays hidden there
+// rather than showing something broken.
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function setupVoiceInput(micBtnId, inputId){
+  const micBtn = document.getElementById(micBtnId);
+  const input = document.getElementById(inputId);
+  if (!micBtn || !input || !SpeechRecognitionCtor) return;
+
+  micBtn.style.display = 'flex';
+  let recognition = null;
+  let listening = false;
+
+  micBtn.addEventListener('click', () => {
+    if (listening){ recognition.stop(); return; }
+
+    recognition = new SpeechRecognitionCtor();
+    recognition.lang = lang === 'fi' ? 'fi-FI' : 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.addEventListener('start', () => {
+      listening = true;
+      micBtn.classList.add('listening');
+    });
+    recognition.addEventListener('result', (e) => {
+      const transcript = e.results[0][0].transcript;
+      input.value = transcript;
+      input.focus();
+    });
+    recognition.addEventListener('error', () => {
+      // Fails quietly (permission denied, no mic, no speech heard) --
+      // the visitor still has the text box right there as a fallback,
+      // no need for an alarming error message over a voice button.
+    });
+    recognition.addEventListener('end', () => {
+      listening = false;
+      micBtn.classList.remove('listening');
+    });
+
+    recognition.start();
+  });
+}
+
+setupVoiceInput('askMicBtn', 'askHeroInput');
+setupVoiceInput('askFollowupMicBtn', 'askFollowupInput');
 
 // Leaflet's default marker icon paths assume it's bundled locally (via
 // webpack etc.) and silently fail to load when it's just a CDN script
