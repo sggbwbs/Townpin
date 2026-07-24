@@ -183,6 +183,11 @@
   #qtyRow button:hover{border-color:var(--amber);color:var(--amber-deep);}
   #qtyRow button:disabled{opacity:0.4;cursor:default;}
   #qtyDisplay{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;color:#26210f;min-width:48px;}
+  #qtySizePreviewWrap{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:16px;}
+  #qtySizePreviewBox{background:#eae3d3;border:1px solid #e4dcc4;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;transition:width .25s ease,height .25s ease;
+    color:#a89a78;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;}
+  .qtySizePreviewNote{margin:0;font-size:11.5px;color:#8a8168;text-align:center;max-width:220px;}
   #qtyPriceNote{margin-top:12px;font-size:13.5px;color:#6b6248;}
   #qtyPriceNote b{color:#26210f;font-family:'Space Grotesk',sans-serif;font-size:16px;}
   #rectError{display:none;color:var(--danger);font-size:12.5px;font-weight:600;margin-top:10px;text-align:center;}
@@ -667,11 +672,15 @@
       </div>
 
       <div id="qtyPicker">
-        <p class="qtyLabel" data-i18n="qtyLabel">Kuinka monta mainospaikkaa haluat?</p>
+        <p class="qtyLabel" data-i18n="qtyLabel">Kuinka ison mainospaikan haluat?</p>
         <div id="qtyRow">
           <button id="qtyMinus" aria-label="Vähemmän" type="button">−</button>
           <span id="qtyDisplay">1</span>
           <button id="qtyPlus" aria-label="Enemmän" type="button">+</button>
+        </div>
+        <div id="qtySizePreviewWrap">
+          <div id="qtySizePreviewBox"><span>LOGO</span></div>
+          <p class="qtySizePreviewNote" data-i18n="qtySizePreviewNote">Näin suurena logosi näkyy taulussa (suuntaa antava)</p>
         </div>
         <div id="qtyPriceNote"></div>
         <div id="rectError"></div>
@@ -1215,7 +1224,8 @@ const STRINGS = {
     townNotAvailable: 'Tätä kaupunkia ei ole vielä avattu. Aloitamme Oulusta ja laajennamme pian.',
     squareTitle: '{n} paikkaa — {town}',
     squareTitleOne: '1 paikka — {town}',
-    qtyLabel: 'Kuinka monta mainospaikkaa haluat?',
+    qtyLabel: 'Kuinka ison mainospaikan haluat?',
+    qtySizePreviewNote: 'Näin suurena logosi näkyy taulussa (suuntaa antava)',
     claimTitle: 'Varaa mainospaikka — 5€/kk',
     cancelSelection: 'Peruuta',
     continueSelection: 'Jatka →',
@@ -1351,7 +1361,8 @@ const STRINGS = {
     townNotAvailable: "This town isn't open yet. We're starting with Oulu and will expand soon.",
     squareTitle: '{n} slots — {town}',
     squareTitleOne: '1 slot — {town}',
-    qtyLabel: 'How many ad slots would you like?',
+    qtyLabel: 'How big an ad slot would you like?',
+    qtySizePreviewNote: 'How big your logo will show on the board (approximate)',
     claimTitle: 'Claim a ad slot — €5/month',
     cancelSelection: 'Cancel',
     continueSelection: 'Continue →',
@@ -2225,7 +2236,18 @@ function updateQtyControls(){
   document.getElementById('qtyDisplay').textContent = selectedCount;
   document.getElementById('qtyMinus').disabled = selectedCount <= 1;
   document.getElementById('qtyPlus').disabled = selectedCount >= MAX_QTY_PER_PURCHASE;
+  updateQtySizePreview();
   updateSelectionBar();
+}
+
+// Same formula as the real banner (renderLogoBanner) -- this needs to
+// stay an honest, accurate preview of what the customer will actually
+// get, not a separately-tuned scale that just looks more impressive.
+function updateQtySizePreview(){
+  const BASE_SIZE = 25, PER_SLOT = 15, MAX_SIZE = 130;
+  const size = Math.round(Math.min(BASE_SIZE + selectedCount * PER_SLOT, MAX_SIZE));
+  const box = document.getElementById('qtySizePreviewBox');
+  if (box){ box.style.width = size + 'px'; box.style.height = size + 'px'; }
 }
 document.getElementById('qtyMinus').addEventListener('click', ()=>{
   if (selectedCount > 1){ selectedCount--; updateQtyControls(); }
