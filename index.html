@@ -65,7 +65,7 @@
   main{max-width:1320px;margin:0 auto;padding:0 24px 100px;}
 
   /* ---- vertically scrolling logo banner, between header and AI search ---- */
-  #logoBanner{position:relative;height:160px;overflow:hidden;margin:20px 0 8px;
+  #logoBanner{position:relative;height:210px;overflow:hidden;margin:20px 0 8px;
     border:1px solid var(--line);border-radius:14px;background:var(--panelT4);}
   /* On wide screens there's room to just show the whole board at once
      (up to however many businesses actually exist) rather than
@@ -82,6 +82,22 @@
   .logoBannerItem{flex:none;box-sizing:border-box;display:flex;align-items:center;justify-content:center;
     border:3px solid transparent;}
   .logoBannerItem.logoBannerHighlight{border-color:var(--amber);border-radius:8px;overflow:hidden;}
+  .logoBannerItem.logoBannerPremium{border-color:#f2c14e;border-radius:8px;overflow:hidden;
+    animation:logoBannerShine 2.2s ease-in-out infinite;}
+  @keyframes logoBannerShine{
+    0%, 100%{box-shadow:0 0 0 0 rgba(242,193,78,0.45);}
+    50%{box-shadow:0 0 16px 4px rgba(242,193,78,0.7);}
+  }
+  .logoBannerItem.logoBannerLegendary{border-radius:8px;overflow:hidden;position:relative;
+    animation:logoBannerLegendaryGlow 2.5s ease-in-out infinite;}
+  @keyframes logoBannerLegendaryGlow{
+    0%{border-color:#ffd700;box-shadow:0 0 16px 4px rgba(255,215,0,0.6);}
+    33%{border-color:#ff6b9d;box-shadow:0 0 16px 4px rgba(255,107,157,0.6);}
+    66%{border-color:#4ecdc4;box-shadow:0 0 16px 4px rgba(78,205,196,0.6);}
+    100%{border-color:#ffd700;box-shadow:0 0 16px 4px rgba(255,215,0,0.6);}
+  }
+  .logoBannerCrown{position:absolute;top:1px;right:1px;font-size:13px;line-height:1;z-index:2;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));}
   .logoBannerItem img{width:100%;height:100%;object-fit:contain;}
   #logoBannerEmpty{display:flex;align-items:center;justify-content:center;height:100%;
     color:var(--ink-dim);font-size:13px;text-align:center;padding:0 20px;}
@@ -187,7 +203,9 @@
   #qtySizePreviewBox{background:#eae3d3;border:1px solid #e4dcc4;border-radius:10px;
     display:flex;align-items:center;justify-content:center;transition:width .25s ease,height .25s ease;
     color:#a89a78;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;}
-  .qtySizePreviewNote{margin:0;font-size:11.5px;color:#8a8168;text-align:center;max-width:220px;}
+  #qtySizePreviewBox.qtySizePreviewPremium{border:3px solid #f2c14e;animation:logoBannerShine 2.2s ease-in-out infinite;}
+  #qtySizePreviewBox.qtySizePreviewLegendary{border:3px solid #ffd700;animation:logoBannerLegendaryGlow 2.5s ease-in-out infinite;}
+  .qtySizePreviewNote{margin:0;font-size:11.5px;color:#8a8168;text-align:center;max-width:360px;}
   #qtyPriceNote{margin-top:12px;font-size:13.5px;color:#6b6248;}
   #qtyPriceNote b{color:#26210f;font-family:'Space Grotesk',sans-serif;font-size:16px;}
   #rectError{display:none;color:var(--danger);font-size:12.5px;font-weight:600;margin-top:10px;text-align:center;}
@@ -680,7 +698,7 @@
         </div>
         <div id="qtySizePreviewWrap">
           <div id="qtySizePreviewBox"><span>LOGO</span></div>
-          <p class="qtySizePreviewNote" data-i18n="qtySizePreviewNote">Näin suurena logosi näkyy taulussa (suuntaa antava)</p>
+          <p class="qtySizePreviewNote" data-i18n="qtySizePreviewNote">Näin suurena logosi näkyy taulussa (suuntaa antava). 11+ paikkaa: kimalteleva reunus ja etusija näkyvyydessä koon kasvun pysähdyttyä.</p>
         </div>
         <div id="qtyPriceNote"></div>
         <div id="rectError"></div>
@@ -1225,7 +1243,7 @@ const STRINGS = {
     squareTitle: '{n} paikkaa — {town}',
     squareTitleOne: '1 paikka — {town}',
     qtyLabel: 'Kuinka ison mainospaikan haluat?',
-    qtySizePreviewNote: 'Näin suurena logosi näkyy taulussa (suuntaa antava)',
+    qtySizePreviewNote: 'Näin suurena logosi näkyy taulussa (suuntaa antava). 11+ paikkaa: kimalteleva reunus ja etusija. 25+ paikkaa: 👑 legendaarinen, sateenkaaren värinen kehys.',
     claimTitle: 'Varaa mainospaikka — 5€/kk',
     cancelSelection: 'Peruuta',
     continueSelection: 'Jatka →',
@@ -1362,7 +1380,7 @@ const STRINGS = {
     squareTitle: '{n} slots — {town}',
     squareTitleOne: '1 slot — {town}',
     qtyLabel: 'How big an ad slot would you like?',
-    qtySizePreviewNote: 'How big your logo will show on the board (approximate)',
+    qtySizePreviewNote: 'How big your logo will show on the board (approximate). 11+ slots: a shimmering border and front-of-row placement. 25+ slots: 👑 legendary, color-shifting border.',
     claimTitle: 'Claim a ad slot — €5/month',
     cancelSelection: 'Cancel',
     continueSelection: 'Continue →',
@@ -1627,9 +1645,11 @@ let logoBannerInterval = null;
 const LOGO_BANNER_ADVANCE_MS = 5000;
 
 function logoTileHtml(b){
-  return `<a class="logoBannerItem" href="/pin/${b.rep.id}" target="_blank" rel="noopener"
+  const tierClass = b.isLegendary ? ' logoBannerLegendary' : (b.isPremium ? ' logoBannerPremium' : '');
+  return `<a class="logoBannerItem${tierClass}" href="/pin/${b.rep.id}" target="_blank" rel="noopener"
      data-company="${escapeAskText(b.rep.company_name || '')}"
      style="width:${b.size}px;height:${b.size}px;" title="${escapeAskText(b.rep.company_name || '')}">
+    ${b.isLegendary ? '<span class="logoBannerCrown">👑</span>' : ''}
     <img src="${b.rep.logo_url}" alt="${escapeAskText(b.rep.company_name || '')}" loading="lazy" />
   </a>`;
 }
@@ -1663,14 +1683,24 @@ function renderLogoBanner(){
   }
   empty.style.display = 'none';
 
-  // 50% smaller than before, same linear-not-sqrt shape so the size
-  // difference between e.g. a 4-slot and 6-slot business stays clearly
-  // visible even at the smaller scale.
-  const BASE_SIZE = 25, PER_SLOT = 15, MAX_SIZE = 130;
+  // Size grows smoothly up to 10 slots, then caps -- beyond that, size
+  // alone stops being a reason to buy more. 11+ gets the premium golden
+  // shine; 25+ (near the very top of what's purchasable) gets something
+  // genuinely more dramatic -- a rotating rainbow border and a crown --
+  // since a purchase that big deserves a payoff that actually looks like it.
+  const BASE_SIZE = 25, PER_SLOT = 15, MAX_SIZE = 175;
+  const PREMIUM_THRESHOLD = 11;
+  const LEGENDARY_THRESHOLD = 25;
   const sized = businesses.map(({ rep, count }) => ({
     rep, count,
-    size: Math.round(Math.min(BASE_SIZE + count * PER_SLOT, MAX_SIZE))
+    size: Math.round(Math.min(BASE_SIZE + count * PER_SLOT, MAX_SIZE)),
+    isPremium: count >= PREMIUM_THRESHOLD && count < LEGENDARY_THRESHOLD,
+    isLegendary: count >= LEGENDARY_THRESHOLD
   }));
+  sized.sort((a, b) => {
+    const rank = (x) => x.isLegendary ? 0 : (x.isPremium ? 1 : 2);
+    return rank(a) - rank(b);
+  });
 
   // Real row-wrapping depends on the banner's actual current width (which
   // varies by viewport/device), so this measures it directly rather than
@@ -2230,7 +2260,7 @@ document.getElementById('askFollowupInput').addEventListener('keydown', (e)=>{
 // create-checkout-session.js) instead of the visitor picking specific
 // grid positions.
 let selectedCount = 1;
-const MAX_QTY_PER_PURCHASE = 20; // client-side cap; server enforces the real combined max across towns
+const MAX_QTY_PER_PURCHASE = 50; // client-side cap; server enforces the real combined max across towns
 
 function updateQtyControls(){
   document.getElementById('qtyDisplay').textContent = selectedCount;
@@ -2244,10 +2274,17 @@ function updateQtyControls(){
 // stay an honest, accurate preview of what the customer will actually
 // get, not a separately-tuned scale that just looks more impressive.
 function updateQtySizePreview(){
-  const BASE_SIZE = 25, PER_SLOT = 15, MAX_SIZE = 130;
+  const BASE_SIZE = 25, PER_SLOT = 15, MAX_SIZE = 175;
+  const PREMIUM_THRESHOLD = 11;
+  const LEGENDARY_THRESHOLD = 25;
   const size = Math.round(Math.min(BASE_SIZE + selectedCount * PER_SLOT, MAX_SIZE));
   const box = document.getElementById('qtySizePreviewBox');
-  if (box){ box.style.width = size + 'px'; box.style.height = size + 'px'; }
+  if (box){
+    box.style.width = size + 'px';
+    box.style.height = size + 'px';
+    box.classList.toggle('qtySizePreviewPremium', selectedCount >= PREMIUM_THRESHOLD && selectedCount < LEGENDARY_THRESHOLD);
+    box.classList.toggle('qtySizePreviewLegendary', selectedCount >= LEGENDARY_THRESHOLD);
+  }
 }
 document.getElementById('qtyMinus').addEventListener('click', ()=>{
   if (selectedCount > 1){ selectedCount--; updateQtyControls(); }
