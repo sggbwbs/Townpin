@@ -2086,7 +2086,7 @@ async function askAsk(question, sendBtn){
     pendingEl.remove();
 
     const answer = data.answer || t('askError');
-    let html = escapeAskText(answer);
+    let html = escapeAskText(answer).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
       html += '<p class="askMentionsNote">📍 = ' + t('askMentionsNote') + '</p>';
       html += '<div class="askMentions">' + data.mentioned.map(m =>
