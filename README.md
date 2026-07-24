@@ -1358,6 +1358,20 @@ order at all, since there's only one day to sort within). Shown 5 at a
 time; clicking "Show more" reveals 5 *additional* each click (not "reveal
 everything at once" like news does) — genuinely incremental pagination.
 
+## Weather widget: animated Meteocons icons instead of plain emoji
+
+Replaced the emoji weather icons (☀️🌧️❄️ etc.) with [Meteocons](https://meteocons.com) — hand-crafted, animated SVG weather icons, loaded straight from their CDN as plain `<img>` tags (no npm package, no bundler, no new backend dependency). Applies everywhere a weather icon shows: the header pill, the hourly-today strip, and the 7-day forecast.
+
+**Genuinely lightweight**: each icon is a small, cacheable SVG file fetched directly by the browser — no extra JS library, no icon font, nothing added to the page's own bundle. `loading="lazy"` on every icon `<img>`.
+
+**Day/night aware where Meteocons has a variant** (clear, partly cloudy, fog, thunderstorms) — the current conditions pill and hourly strip request `is_day` from Open-Meteo alongside temperature/weather code, so a clear night correctly shows a moon-based icon instead of a sun. The 7-day forecast always uses the day variant (a forecast card represents a whole day, not one moment).
+
+**Never shows a broken image**: every icon `<img>` has an `onerror` handler that swaps back to the original plain emoji if the Meteocons CDN ever fails to serve that icon (an unexpected weather code, a CDN hiccup) — the emoji map was kept specifically as this fallback, not removed.
+
+**Pinned to a specific CDN version** (`3.0.0-next.10`) rather than `latest` — confirmed directly against the live CDN that `latest` currently 404s (Meteocons hasn't published a stable v3 release yet, only versioned pre-release builds). Meteocons' own docs note a pre-release tag can be pruned roughly 3 months after the next full release ships, so this version may need bumping later — check https://meteocons.com/docs/cdn if icons ever stop appearing (the onerror fallback covers that gap gracefully in the meantime).
+
+Only `index.html`'s own weather widget was changed — `today-card.html`'s shareable PNG still draws the plain emoji directly onto its `<canvas>`, since swapping that to an `<img>`-based icon would require loading it as a cross-origin `Image` first (Meteocons' CDN does send CORS headers, so this is possible) and risks silently breaking the "download PNG" feature if that ever tightens — left alone unless specifically wanted.
+
 ## New: admin can hand-pick which events show, with optional highlighting
 
 A new "Choose today's featured events" card on `/admin` lists every
