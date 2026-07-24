@@ -218,6 +218,69 @@ async function handleDeleteAiHint(req, res) {
   res.status(200).json({ ok: true });
 }
 
+const MAX_SELECTED_EVENTS = 4;
+
+// Lists this town's currently-live events (same "still relevant" scoping
+// getEventsSection itself uses -- ended events shouldn't even be
+// choosable) alongside each row's current admin_selected/admin_highlighted
+// state, so the admin UI can render checkboxes pre-filled with whatever
+// was picked last time.
+async function handleListEventsForAdmin(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const townId = req.query.townId;
+  if (!townId) return res.status(400).json({ error: 'Missing townId.' });
+
+  const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
+  const { data, error } = await supabase
+    .from('local_feed_items')
+    .select('id, title_fi, title_en, summary_fi, event_date, event_end_date, event_start_time, source_url, admin_selected, admin_highlighted')
+    .eq('town_id', townId).eq('item_type', 'event')
+    .or(`event_end_date.gte.${helsinkiToday},and(event_end_date.is.null,event_date.gte.${helsinkiToday})`)
+    .order('event_date', { ascending: true });
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not load events.' }); }
+  res.status(200).json({ events: data || [], maxSelected: MAX_SELECTED_EVENTS });
+}
+
+// Saves which events (max 4) should override the automatic ranking on the
+// public board, plus which of those are highlighted. Always resets the
+// whole town's events first so unchecking something in the same request
+// actually clears it, rather than only ever adding.
+async function handleSelectEvents(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { townId, selectedIds, highlightedIds } = req.body || {};
+  if (!townId) return res.status(400).json({ error: 'Missing townId.' });
+
+  const selected = Array.isArray(selectedIds) ? [...new Set(selectedIds)] : [];
+  const highlighted = Array.isArray(highlightedIds) ? [...new Set(highlightedIds)] : [];
+  if (selected.length > MAX_SELECTED_EVENTS) {
+    return res.status(400).json({ error: `Choose at most ${MAX_SELECTED_EVENTS} events.` });
+  }
+  if (highlighted.some(id => !selected.includes(id))) {
+    return res.status(400).json({ error: 'Only selected events can be highlighted.' });
+  }
+
+  const { error: resetErr } = await supabase
+    .from('local_feed_items')
+    .update({ admin_selected: false, admin_highlighted: false })
+    .eq('town_id', townId).eq('item_type', 'event');
+  if (resetErr) { console.error(resetErr); return res.status(500).json({ error: 'Could not update selection.' }); }
+
+  if (selected.length > 0) {
+    const { error: selErr } = await supabase
+      .from('local_feed_items').update({ admin_selected: true })
+      .eq('town_id', townId).eq('item_type', 'event').in('id', selected);
+    if (selErr) { console.error(selErr); return res.status(500).json({ error: 'Could not update selection.' }); }
+  }
+  if (highlighted.length > 0) {
+    const { error: hlErr } = await supabase
+      .from('local_feed_items').update({ admin_highlighted: true })
+      .eq('town_id', townId).eq('item_type', 'event').in('id', highlighted);
+    if (hlErr) { console.error(hlErr); return res.status(500).json({ error: 'Could not update selection.' }); }
+  }
+  res.status(200).json({ ok: true });
+}
+
 async function handleFindCompany(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
   const query = (req.query.query || '').trim();
@@ -706,6 +769,8 @@ module.exports = async (req, res) => {
     case 'cost-estimate': return handleCostEstimate(req, res);
     case 'set-budget': return handleSetBudget(req, res);
     case 'set-maintenance': return handleSetMaintenance(req, res);
+    case 'list-events': return handleListEventsForAdmin(req, res);
+    case 'select-events': return handleSelectEvents(req, res);
     default: return res.status(404).json({ error: 'Unknown admin action.' });
   }
 };

@@ -207,6 +207,18 @@ alter table squares add column if not exists address text;
 alter table squares add column if not exists lat double precision;
 alter table squares add column if not exists lng double precision;
 
+-- ==== Admin curation of which events show on the public site ====
+-- When at least one event has admin_selected = true for a town, the
+-- public feed shows ONLY the admin-selected events (the admin UI caps
+-- this at 4) instead of the automatically popularity-ranked list -- lets
+-- an admin hand-pick exactly what's shown (e.g. during a major festival)
+-- rather than trusting the automatic ranking alone. admin_highlighted
+-- marks a subset of the selected events for extra visual emphasis on the
+-- board; it only has any effect on events that are also admin_selected.
+alter table local_feed_items add column if not exists admin_selected boolean not null default false;
+alter table local_feed_items add column if not exists admin_highlighted boolean not null default false;
+create index if not exists local_feed_items_admin_selected_idx on local_feed_items (town_id, item_type, admin_selected);
+
 -- ==== Auto-expanding capacity ====
 -- grid_size*grid_size (100) used to be the hard cap on how many slots a
 -- town could ever sell. capacity is a genuinely separate, plain number

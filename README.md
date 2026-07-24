@@ -1306,6 +1306,37 @@ order at all, since there's only one day to sort within). Shown 5 at a
 time; clicking "Show more" reveals 5 *additional* each click (not "reveal
 everything at once" like news does) — genuinely incremental pagination.
 
+## New: admin can hand-pick which events show, with optional highlighting
+
+A new "Choose today's featured events" card on `/admin` lists every
+currently-live event for the (currently single) enabled town, each with a
+checkbox and a "☆ Highlight" toggle. Checking up to 4 events and saving
+makes the public board show **only** those events, in place of the
+automatic popularity/date ranking — useful for making sure specific
+events (a major festival, a sponsored listing, etc.) are what visitors
+see, rather than trusting the automatic ranking alone. Unchecking
+everything and saving reverts to fully automatic selection.
+
+**Highlighting is a separate, optional layer on top of selection** — a
+highlighted event gets an amber outline and a small "Suositeltu"/
+"Featured" badge on the public board. The highlight toggle is disabled
+in the admin UI for any event that isn't checked, and the backend
+rejects a highlight for anything not also selected, so the two can never
+drift out of sync.
+
+**No new serverless function needed** — both actions
+(`/api/admin/list-events`, `/api/admin/select-events`) are two more cases
+in the existing `admin/[action].js` dispatcher, same pattern as the AI
+hints list/add/delete actions. Two new boolean columns on
+`local_feed_items` (`admin_selected`, `admin_highlighted`) hold the
+state; `getEventsSection` in `_localFeed.js` checks for any
+`admin_selected` row and, if found, returns only those events instead of
+the normal list — checked at every return path (cache hit, merge,
+nothing-new), so a saved selection sticks regardless of which branch of
+the caching logic produced the result. Saving the selection always
+resets the whole town's flags first, so unchecking something actually
+clears it rather than only ever accumulating.
+
 ## Weather widget: added today's hourly forecast
 
 Clicking the weather pill now shows two things stacked: an hourly strip

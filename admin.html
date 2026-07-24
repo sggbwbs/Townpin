@@ -163,6 +163,16 @@
   <div id="aiHintsList"><p class="sub">Loading…</p></div>
 </div>
 
+<div class="card" id="eventsCard" style="display:none;">
+  <h1>Choose today's featured events</h1>
+  <p class="sub">Pick up to 4 events to show on the public board instead of the automatic ranking — useful when you want specific events front and center (say, during a big festival). Optionally highlight a few of your picks to make them stand out. Uncheck everything and save to go back to automatic selection.</p>
+  <div id="eventsPickerTownNote" class="sub" style="margin:6px 0 12px;font-weight:700;"></div>
+  <div id="eventsPickerList"><p class="sub">Loading…</p></div>
+  <button id="saveEventsBtn" style="margin-top:14px;">Save selection</button>
+  <span class="saved" id="eventsSavedMsg">✓ Saved</span>
+  <div class="err" id="eventsErr"></div>
+</div>
+
 <div class="card" id="grantCard" style="display:none;">
   <h1>Grant free ad slots</h1>
   <p class="sub">Reserve one or more ad slots for a company of your choice — no payment, no subscription.</p>
@@ -438,6 +448,7 @@ async function showEditor(){
   document.getElementById('loginCard').style.display = 'none';
   document.getElementById('dashHeaderCard').style.display = 'block';
   document.getElementById('aiHintsCard').style.display = 'block';
+  document.getElementById('eventsCard').style.display = 'block';
   document.getElementById('grantCard').style.display = 'block';
   document.getElementById('moveCard').style.display = 'block';
   document.getElementById('townsCard').style.display = 'block';
@@ -473,6 +484,7 @@ async function showEditor(){
 
   loadCompedList();
   loadAiHints();
+  loadEventsPicker();
   loadTownsList();
   loadMaintenanceStatus();
   loadVisitorStats();
@@ -672,6 +684,96 @@ document.getElementById('addAiHintBtn').addEventListener('click', async () => {
     showErr(errBox, 'Network error.');
   } finally {
     btn.disabled = false;
+  }
+});
+
+let eventsPickerTownId = null;
+
+async function loadEventsPicker(){
+  const listBox = document.getElementById('eventsPickerList');
+  const note = document.getElementById('eventsPickerTownNote');
+  listBox.innerHTML = '<p class="sub">Loading…</p>';
+  try {
+    const townsRes = await fetch(`${API}/towns-list`);
+    const townsData = await townsRes.json();
+    const towns = townsData.towns || [];
+    const town = towns.find(t => t.enabled) || towns[0];
+    if (!town) { listBox.innerHTML = '<p class="sub">No towns yet.</p>'; return; }
+    eventsPickerTownId = town.id;
+    note.textContent = `Town: ${town.name}`;
+
+    const res = await fetch(`${API}/list-events?townId=${town.id}`);
+    const data = await res.json();
+    if (!res.ok) { listBox.innerHTML = `<p class="sub">${data.error || 'Could not load events.'}</p>`; return; }
+    const events = data.events || [];
+    if (events.length === 0) { listBox.innerHTML = '<p class="sub">No live events right now.</p>'; return; }
+
+    listBox.innerHTML = '';
+    events.forEach(ev => {
+      const row = document.createElement('div');
+      row.className = 'compedRow';
+      row.style.alignItems = 'flex-start';
+
+      const left = document.createElement('label');
+      left.style.cssText = 'display:flex;gap:8px;align-items:flex-start;cursor:pointer;flex:1;padding-right:12px;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!ev.admin_selected;
+      cb.dataset.id = ev.id;
+      cb.className = 'eventSelectCb';
+      cb.style.marginTop = '3px';
+      const dateStr = ev.event_date ? new Date(ev.event_date + 'T00:00:00').toLocaleDateString('fi-FI') : '';
+      const textWrap = document.createElement('span');
+      const titleSafe = (ev.title_fi || '').replace(/</g, '&lt;');
+      textWrap.innerHTML = `<b style="display:block;">${titleSafe}</b><span class="sub">${dateStr}${ev.event_start_time ? ' · ' + ev.event_start_time : ''}</span>`;
+      left.appendChild(cb);
+      left.appendChild(textWrap);
+
+      const starBtn = document.createElement('button');
+      starBtn.type = 'button';
+      starBtn.className = 'eventHighlightBtn';
+      starBtn.dataset.id = ev.id;
+      starBtn.dataset.on = ev.admin_highlighted ? '1' : '0';
+      starBtn.textContent = ev.admin_highlighted ? '★ Highlighted' : '☆ Highlight';
+      starBtn.style.cssText = 'padding:6px 10px;font-size:12px;flex:none;';
+      starBtn.disabled = !cb.checked;
+
+      cb.addEventListener('change', () => {
+        starBtn.disabled = !cb.checked;
+        if (!cb.checked) { starBtn.dataset.on = '0'; starBtn.textContent = '☆ Highlight'; }
+      });
+      starBtn.addEventListener('click', () => {
+        const isOn = starBtn.dataset.on === '1';
+        starBtn.dataset.on = isOn ? '0' : '1';
+        starBtn.textContent = isOn ? '☆ Highlight' : '★ Highlighted';
+      });
+
+      row.appendChild(left);
+      row.appendChild(starBtn);
+      listBox.appendChild(row);
+    });
+  } catch (e) {
+    listBox.innerHTML = '<p class="sub">Network error.</p>';
+  }
+}
+
+document.getElementById('saveEventsBtn').addEventListener('click', async () => {
+  const errBox = document.getElementById('eventsErr');
+  const msg = document.getElementById('eventsSavedMsg');
+  clearErr(errBox);
+  const selectedIds = [...document.querySelectorAll('.eventSelectCb')].filter(cb => cb.checked).map(cb => cb.dataset.id);
+  if (selectedIds.length > 4) { showErr(errBox, 'Choose at most 4 events.'); return; }
+  const highlightedIds = [...document.querySelectorAll('.eventHighlightBtn')].filter(b => b.dataset.on === '1').map(b => b.dataset.id);
+  try {
+    const res = await fetch(`${API}/select-events`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ townId: eventsPickerTownId, selectedIds, highlightedIds })
+    });
+    const data = await res.json();
+    if (!res.ok) { showErr(errBox, data.error || 'Could not save.'); return; }
+    msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
+  } catch (e) {
+    showErr(errBox, 'Network error.');
   }
 });
 

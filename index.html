@@ -359,6 +359,9 @@
     #eventItems{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
     #newsItems{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);}
   }
+  .feedItem.highlighted{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset;position:relative;}
+  .feedItem.highlighted .highlightBadge{position:absolute;top:-9px;right:10px;background:var(--amber);color:#2a1c0d;
+    font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;}
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;}
   .feedItem .feedImg{flex:none;width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--panel);}
@@ -1184,6 +1187,7 @@ const STRINGS = {
     newsSectionTitle: 'Uutiset',
     eventsSectionTitle: 'Tapahtumat tänään',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
+    featuredBadge: 'Suositeltu',
     showMore: 'Näytä lisää',
     showLess: 'Näytä vähemmän',
     otherTown: 'Etsitkö toista kaupunkia? →',
@@ -1321,6 +1325,7 @@ const STRINGS = {
     newsSectionTitle: 'News',
     eventsSectionTitle: 'Events today',
     noEventsThisWeek: 'No known events for this week.',
+    featuredBadge: 'Featured',
     showMore: 'Show more',
     showLess: 'Show less',
     otherTown: 'Looking for another town? →',
@@ -1922,6 +1927,14 @@ function makeFeedItemEl(item){
   el.className = 'feedItem';
   const title = lang === 'fi' ? item.title_fi : item.title_en;
   const summary = lang === 'fi' ? item.summary_fi : item.summary_en;
+
+  if (item.admin_highlighted){
+    el.classList.add('highlighted');
+    const badge = document.createElement('span');
+    badge.className = 'highlightBadge';
+    badge.textContent = t('featuredBadge');
+    el.appendChild(badge);
+  }
 
   if (item.event_date){
     const startD = new Date(item.event_date + 'T00:00:00');

@@ -537,6 +537,18 @@ async function getNewsSection(supabase, townId, category) {
   }
 }
 
+// If an admin has hand-picked events for this town (admin_selected = true
+// on at least one row), the public board should show ONLY those events --
+// the admin UI caps selection at 4 -- instead of the automatic
+// popularity/date ranking. Otherwise, fall through to whatever was passed
+// in unchanged. Applied at every return point below so a hand-picked
+// selection sticks regardless of which branch (cache hit, merge, etc.)
+// produced the final list.
+function applyAdminEventCuration(events) {
+  const selected = events.filter(e => e.admin_selected);
+  return selected.length > 0 ? selected : events;
+}
+
 async function getEventsSection(supabase, townId, townName) {
   try {
     const { data: existingRaw } = await supabase
@@ -559,7 +571,7 @@ async function getEventsSection(supabase, townId, townName) {
     const eventsAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
 
     if (existingEvents.length > 0 && eventsAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
-      return existingEvents;
+      return applyAdminEventCuration(existingEvents);
     }
     const fresh = await generateEventItems(townName);
 
@@ -572,7 +584,7 @@ async function getEventsSection(supabase, townId, townName) {
       .or(`event_end_date.lt.${helsinkiToday},and(event_end_date.is.null,event_date.lt.${helsinkiToday})`);
 
     if (fresh.length === 0) {
-      return existingEvents; // still useless if this is also empty, but never worse than what we had
+      return applyAdminEventCuration(existingEvents); // still useless if this is also empty, but never worse than what we had
     }
 
     // Merge with what's already known for TODAY rather than replacing it
@@ -583,7 +595,7 @@ async function getEventsSection(supabase, townId, townName) {
     const genuinelyNew = fresh.filter(e => !alreadyKnown.has(e.source_url || e.title_fi));
 
     if (genuinelyNew.length === 0) {
-      return existingEvents; // nothing new to add, what we had is still complete
+      return applyAdminEventCuration(existingEvents); // nothing new to add, what we had is still complete
     }
 
     // Deliberately NOT running enrichWithImages here -- each Kaleva
@@ -593,7 +605,7 @@ async function getEventsSection(supabase, townId, townName) {
     // No image is a better outcome than a wrong, duplicated one.
     const rows = genuinelyNew.map(i => ({ town_id: townId, ...i }));
     const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
-    return [...existingEvents, ...(inserted || [])];
+    return applyAdminEventCuration([...existingEvents, ...(inserted || [])]);
   } catch (err) {
     console.error('Events feed lookup failed:', err);
     return [];
