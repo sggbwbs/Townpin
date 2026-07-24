@@ -1358,6 +1358,42 @@ order at all, since there's only one day to sort within). Shown 5 at a
 time; clicking "Show more" reveals 5 *additional* each click (not "reveal
 everything at once" like news does) — genuinely incremental pagination.
 
+## Legal/disclosure fixes: expanded privacy text, AI disclaimers, weather attribution
+
+Addressed gaps found in a legal review, all deliberately kept low-profile
+— no new popups, banners, or consent dialogs, just more complete text in
+places that already existed:
+
+- **Terms & Privacy modal** (`/` → "Ehdot ja tietosuoja", both FI and EN)
+  now discloses the IP addresses already being stored (checkout
+  reservation limits, admin login attempts, AI search rate limiting) and
+  names the third-party processors actually handling data — Stripe,
+  Supabase, Anthropic — plus a rough retention note for abuse-prevention
+  logs. Also added a **content-rights clause** (buyer confirms they have
+  the right to use any logo/content they upload, and is responsible for
+  not infringing anyone else's) and an **AI-content clause** (search
+  answers and "automatically found" business blurbs are AI-generated,
+  can be wrong, and businesses can edit/remove their own via `/manage`).
+  Still just a modal opened by clicking a footer link — nothing pops up
+  unprompted.
+- **AI search disclaimer** — one small, muted line ("Vastaukset ovat
+  tekoälyn tuottamia...") under the search box on the homepage, styled to
+  read as fine print, not a warning banner.
+- **Pin page AI-blurb caveat** — the existing "🔎 Automaattisesti löydetty
+  tieto" quick-info box now has a small caption underneath noting it's
+  AI-assembled and may be inaccurate, matching the size/weight of the
+  existing source-link text right above it.
+- **Open-Meteo attribution** — a small credit line ("Sää: Open-Meteo.com",
+  linked) at the bottom of the forecast panel, satisfying their
+  attribution license term without adding any visual weight to the
+  widget itself.
+
+Not done here, since they're not code changes: reaching out to Kaleva
+about the events API (see the email drafted for this), and confirming
+Data Processing Agreements are actually in place with Stripe, Supabase,
+and Anthropic — both flagged in the same review but need action outside
+the codebase.
+
 ## Weather widget: animated Meteocons icons instead of plain emoji
 
 Replaced the emoji weather icons (☀️🌧️❄️ etc.) with [Meteocons](https://meteocons.com) — hand-crafted, animated SVG weather icons, loaded straight from their CDN as plain `<img>` tags (no npm package, no bundler, no new backend dependency). Applies everywhere a weather icon shows: the header pill, the hourly-today strip, and the 7-day forecast.

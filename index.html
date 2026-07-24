@@ -517,6 +517,7 @@
       <button id="askMicBtn" type="button" aria-label="Puhu" style="display:none;">🎤</button>
       <button id="askHeroSendBtn" data-i18n="askHeroButton">Kysy →</button>
     </div>
+    <p style="font-size:11px;color:var(--ink-dim);opacity:0.75;margin:8px 0 0;text-align:center;" data-i18n="askAiDisclaimer">Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.</p>
     <div id="askHeroResults">
       <div id="askResultsList"></div>
       <div id="askFollowupRow" style="display:none;">
@@ -1178,6 +1179,7 @@ const STRINGS = {
     askHeroSub: 'Kysy retkistä, ruokapaikoista tai tekemisestä — vastaan oikeiden oululaisten yritysten ja tämän päivän tapahtumien pohjalta.',
     askHeroPlaceholder: 'Esim. "lähde vaeltamaan" tai "missä syödä sushia"',
     askHeroButton: 'Kysy →',
+    askAiDisclaimer: 'Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.',
     askMentionsNote: 'löytyy tämän taulun yrityksistä',
     askFollowupPlaceholder: 'Kysy jotain muuta…',
     installBannerTextChrome: 'Asenna PaikallisCanvas puhelimeesi nopeampaa käyttöä varten.',
@@ -1190,6 +1192,7 @@ const STRINGS = {
     eventsSectionTitle: 'Tapahtumat tänään',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
     featuredBadge: 'Suositeltu',
+    weatherSourceNote: 'Sää: Open-Meteo.com',
     showMore: 'Näytä lisää',
     showLess: 'Näytä vähemmän',
     otherTown: 'Etsitkö toista kaupunkia? →',
@@ -1244,7 +1247,9 @@ const STRINGS = {
       <p><b>Mitä saat:</b> kiinteän banneripaikan kaupunkisi PaikallisCanvas-taulusta, joka linkittää antamaasi verkko-osoitteeseen, sekä oman erillisen verkkosivun. Näkyvillä heti maksun jälkeen.</p>
       <p><b>Peruuttamisoikeus:</b> vahvistamalla ostoksen yritysostoksi, vahvistat ettei kuluttajansuojalain 14 päivän peruutusoikeus sovellu, ja että näkyvyys alkaa heti.</p>
       <p><b>Sisältö:</b> voimme poistaa minkä tahansa ilmoituksen harkintamme mukaan (esim. laiton, haitallinen tai harhaanjohtava sisältö) ilman hyvitystä.</p>
-      <p><b>Tiedot:</b> tallennamme yrityksen nimen, sähköpostin ja verkko-osoitteen tilauksen toimittamista ja laskutusta varten. Emme myy tietoja eteenpäin. Ota yhteyttä yllä olevaan sähköpostiin tietojen poistamiseksi.</p>
+      <p><b>Sisällön oikeudet:</b> lisäämällä logon tai muuta sisältöä vahvistat, että sinulla on oikeus käyttää sitä. Vastaat itse siitä, ettei sisältösi loukkaa kolmannen osapuolen oikeuksia; voimme poistaa epäillyn loukkauksen ilmoituksen perusteella.</p>
+      <p><b>Tekoäly:</b> hakuvastaukset ja yritysten "automaattisesti löydetty tieto" -kuvaukset ovat tekoälyn tuottamia tai koostamia ja voivat satunnaisesti sisältää virheitä. Tarkista tärkeät tiedot (esim. aukioloajat) suoraan yritykseltä. Yritykset voivat muokata tai poistaa oman kuvauksensa hallintapaneelissa (/manage).</p>
+      <p><b>Tiedot:</b> tallennamme yrityksen nimen, sähköpostin ja verkko-osoitteen tilauksen toimittamista ja laskutusta varten, sekä IP-osoitteita väärinkäytösten estämiseksi (esim. varauslukot, kirjautumisyritysten ja tekoälyhaun rajoitus). Väärinkäytöslokit säilytetään vain muutamia kuukausia. Käytämme tietojen käsittelyyn seuraavia palveluntarjoajia: Stripe (maksut), Supabase (tietokanta) ja Anthropic (tekoälyvastaukset ja -kuvaukset). Emme myy tietoja eteenpäin. Ota yhteyttä yllä olevaan sähköpostiin tietojesi tarkastamiseksi tai poistamiseksi.</p>
       <p><b>Maksut:</b> käsittelee Stripe. Emme näe tai tallenna korttitietojasi.</p>`,
     perMonth: ' / kk',
     renewNote: 'Uusiutuu automaattisesti. Peruuta milloin vain — banneripaikat vapautuvat takaisin.',
@@ -1316,6 +1321,7 @@ const STRINGS = {
     askHeroSub: "Ask about trips, places to eat, or things to do -- I'll answer using real Oulu businesses and today's actual events.",
     askHeroPlaceholder: 'e.g. "go hiking" or "where to eat sushi"',
     askHeroButton: 'Ask →',
+    askAiDisclaimer: 'Answers are AI-generated and may contain errors.',
     askMentionsNote: 'is one of the businesses on this board',
     askFollowupPlaceholder: 'Ask something else…',
     installBannerTextChrome: 'Install PaikallisCanvas on your phone for faster access.',
@@ -1328,6 +1334,7 @@ const STRINGS = {
     eventsSectionTitle: 'Events today',
     noEventsThisWeek: 'No known events for this week.',
     featuredBadge: 'Featured',
+    weatherSourceNote: 'Weather: Open-Meteo.com',
     showMore: 'Show more',
     showLess: 'Show less',
     otherTown: 'Looking for another town? →',
@@ -1382,7 +1389,9 @@ const STRINGS = {
       <p><b>What you get:</b> a fixed ad slot on your town's PaikallisCanvas board, linking to the URL you provide, plus its own separate webpage. Live immediately after payment.</p>
       <p><b>Right of withdrawal:</b> by confirming this as a business purchase, you confirm the EU consumer 14-day withdrawal right does not apply, and that visibility begins immediately.</p>
       <p><b>Content:</b> we may remove any listing at our discretion (e.g. illegal, harmful, or misleading content) without refund.</p>
-      <p><b>Data:</b> we store your company name, email, and website URL to fulfil and bill the subscription. We don't sell this data. Contact the email above to request deletion.</p>
+      <p><b>Content rights:</b> by adding a logo or other content, you confirm you have the right to use it. You're responsible for ensuring your content doesn't infringe anyone else's rights; we may remove suspected infringing content on request.</p>
+      <p><b>AI content:</b> search answers and businesses' "automatically found" descriptions are AI-generated or AI-assembled and can occasionally be inaccurate. Please verify important details (e.g. opening hours) directly with the business. Businesses can edit or remove their own description in the self-service dashboard (/manage).</p>
+      <p><b>Data:</b> we store your company name, email, and website URL to fulfil and bill the subscription, plus IP addresses to prevent abuse (e.g. reservation limits, login attempts, and the AI search's rate limit). Abuse-prevention logs are kept for a few months at most. We use the following processors to handle this data: Stripe (payments), Supabase (database), and Anthropic (AI answers and descriptions). We don't sell this data. Contact the email above to review or delete your data.</p>
       <p><b>Payments:</b> handled by Stripe. We never see or store your card details.</p>`,
     perMonth: ' / month',
     renewNote: 'Renews automatically. Cancel anytime — your slots open back up.',
@@ -3009,6 +3018,15 @@ function renderWeatherForecast(){
     daysRow.appendChild(card);
   });
   panel.appendChild(daysRow);
+
+  // Discreet attribution for Open-Meteo's data (their license asks for
+  // credit) -- deliberately tiny and muted, same treatment as the
+  // existing news "Lähde: Kaleva" note, so it reads as fine print rather
+  // than competing with the actual forecast for attention.
+  const credit = document.createElement('p');
+  credit.style.cssText = 'font-size:11px;color:#8a8168;margin:2px 0 0;text-align:center;';
+  credit.innerHTML = `<a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:inherit;">${t('weatherSourceNote')}</a>`;
+  panel.appendChild(credit);
 
   panel.style.display = 'flex';
 }
