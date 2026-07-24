@@ -538,15 +538,23 @@ async function getNewsSection(supabase, townId, category) {
 }
 
 // If an admin has hand-picked events for this town (admin_selected = true
-// on at least one row), the public board should show ONLY those events --
-// the admin UI caps selection at 4 -- instead of the automatic
-// popularity/date ranking. Otherwise, fall through to whatever was passed
-// in unchanged. Applied at every return point below so a hand-picked
-// selection sticks regardless of which branch (cache hit, merge, etc.)
-// produced the final list.
+// on at least one row), the board still always shows CURATED_EVENT_COUNT
+// (4) events -- the admin's picks first, then the automatic ranking fills
+// any remaining slots if fewer than 4 were picked. Order within that: any
+// highlighted picks first, then the rest of the manual picks, then the
+// automatic fill-ins -- so a highlight always reads as "top of the list",
+// not just a badge buried further down. Otherwise (nothing picked at all),
+// falls through to whatever was passed in unchanged. Applied at every
+// return point below so a hand-picked selection sticks regardless of
+// which branch (cache hit, merge, etc.) produced the final list.
+const CURATED_EVENT_COUNT = 4;
 function applyAdminEventCuration(events) {
   const selected = events.filter(e => e.admin_selected);
-  return selected.length > 0 ? selected : events;
+  if (selected.length === 0) return events;
+  const highlighted = selected.filter(e => e.admin_highlighted);
+  const plainSelected = selected.filter(e => !e.admin_highlighted);
+  const rest = events.filter(e => !e.admin_selected);
+  return [...highlighted, ...plainSelected, ...rest].slice(0, CURATED_EVENT_COUNT);
 }
 
 async function getEventsSection(supabase, townId, townName) {
