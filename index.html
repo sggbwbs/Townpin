@@ -679,7 +679,7 @@
       <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
     </div>
 
-    <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi mainospaikka ja säästä: 4€/kk per mainospaikka.</div>
+    <div id="volumeNote" data-i18n="volumeNote">Osta 4 tai useampi mainospaikka ja säästä: 4€/kk per mainospaikka. 11–19 paikkaa: kimalteleva reunus. Suurin mahdollinen, 20 paikkaa: 👑 legendaarinen.</div>
 
     <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
 
@@ -1123,7 +1123,7 @@ const STRINGS = {
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
     value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
-    volumeNote: 'Osta 4 tai useampi mainospaikka ja säästä: 4€/kk per mainospaikka.',
+    volumeNote: 'Osta 4 tai useampi mainospaikka ja säästä: 4€/kk per mainospaikka. 11–19 paikkaa: kimalteleva reunus. Suurin mahdollinen, 20 paikkaa: 👑 legendaarinen.',
     factsTitle: 'Miksi paikallinen näkyvyys kannattaa',
     fact1: 'kaikista Google-hauista koskee jotain paikallista',
     fact2: 'hakijoista, jotka etsivät jotain "lähellä", käy yrityksessä 24 tunnin sisällä',
@@ -1243,7 +1243,7 @@ const STRINGS = {
     squareTitle: '{n} paikkaa — {town}',
     squareTitleOne: '1 paikka — {town}',
     qtyLabel: 'Kuinka ison mainospaikan haluat?',
-    qtySizePreviewNote: 'Näin suurena logosi näkyy taulussa (suuntaa antava). 11+ paikkaa: kimalteleva reunus ja etusija. 25+ paikkaa: 👑 legendaarinen, sateenkaaren värinen kehys.',
+    qtySizePreviewNote: 'Näin suurena logosi näkyy taulussa (suuntaa antava). 11–19 paikkaa: kimalteleva reunus ja etusija. Suurin mahdollinen, 20 paikkaa: 👑 legendaarinen, sateenkaaren värinen kehys.',
     claimTitle: 'Varaa mainospaikka — 5€/kk',
     cancelSelection: 'Peruuta',
     continueSelection: 'Jatka →',
@@ -1260,7 +1260,7 @@ const STRINGS = {
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: 'Findable on Google', value2: 'your business gets its own showcase page on our site that can appear in search results, even if nobody browses the board itself',
     value3b: 'Cancel anytime', value3: 'no contract period, no notice period',
-    volumeNote: 'Buy 4 or more slots and save: €4/mo each.',
+    volumeNote: 'Buy 4 or more slots and save: €4/mo each. 11–19 slots: a shimmering border. The maximum, 20 slots: 👑 legendary.',
     factsTitle: 'Why local visibility matters',
     fact1: 'of all Google searches are for something local',
     fact2: 'of people who search for something "nearby" visit a business within 24 hours',
@@ -1380,7 +1380,7 @@ const STRINGS = {
     squareTitle: '{n} slots — {town}',
     squareTitleOne: '1 slot — {town}',
     qtyLabel: 'How big an ad slot would you like?',
-    qtySizePreviewNote: 'How big your logo will show on the board (approximate). 11+ slots: a shimmering border and front-of-row placement. 25+ slots: 👑 legendary, color-shifting border.',
+    qtySizePreviewNote: 'How big your logo will show on the board (approximate). 11–19 slots: a shimmering border and front-of-row placement. The maximum, 20 slots: 👑 legendary, color-shifting border.',
     claimTitle: 'Claim a ad slot — €5/month',
     cancelSelection: 'Cancel',
     continueSelection: 'Continue →',
@@ -1684,13 +1684,13 @@ function renderLogoBanner(){
   empty.style.display = 'none';
 
   // Size grows smoothly up to 10 slots, then caps -- beyond that, size
-  // alone stops being a reason to buy more. 11+ gets the premium golden
-  // shine; 25+ (near the very top of what's purchasable) gets something
-  // genuinely more dramatic -- a rotating rainbow border and a crown --
-  // since a purchase that big deserves a payoff that actually looks like it.
+  // alone stops being a reason to buy more. 11-19 gets the premium golden
+  // shine; 20 (the actual maximum purchasable) gets something genuinely
+  // more dramatic -- a color-cycling border and a crown -- since hitting
+  // the true ceiling deserves a payoff that actually looks like it.
   const BASE_SIZE = 25, PER_SLOT = 15, MAX_SIZE = 175;
   const PREMIUM_THRESHOLD = 11;
-  const LEGENDARY_THRESHOLD = 25;
+  const LEGENDARY_THRESHOLD = 20;
   const sized = businesses.map(({ rep, count }) => ({
     rep, count,
     size: Math.round(Math.min(BASE_SIZE + count * PER_SLOT, MAX_SIZE)),
@@ -2260,7 +2260,7 @@ document.getElementById('askFollowupInput').addEventListener('keydown', (e)=>{
 // create-checkout-session.js) instead of the visitor picking specific
 // grid positions.
 let selectedCount = 1;
-const MAX_QTY_PER_PURCHASE = 50; // client-side cap; server enforces the real combined max across towns
+const MAX_QTY_PER_PURCHASE = 20; // client-side cap; server enforces the real combined max across towns
 
 function updateQtyControls(){
   document.getElementById('qtyDisplay').textContent = selectedCount;
@@ -2276,7 +2276,7 @@ function updateQtyControls(){
 function updateQtySizePreview(){
   const BASE_SIZE = 25, PER_SLOT = 15, MAX_SIZE = 175;
   const PREMIUM_THRESHOLD = 11;
-  const LEGENDARY_THRESHOLD = 25;
+  const LEGENDARY_THRESHOLD = 20;
   const size = Math.round(Math.min(BASE_SIZE + selectedCount * PER_SLOT, MAX_SIZE));
   const box = document.getElementById('qtySizePreviewBox');
   if (box){
