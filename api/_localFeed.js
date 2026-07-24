@@ -538,23 +538,27 @@ async function getNewsSection(supabase, townId, category) {
 }
 
 // If an admin has hand-picked events for this town (admin_selected = true
-// on at least one row), the board still always shows CURATED_EVENT_COUNT
-// (4) events -- the admin's picks first, then the automatic ranking fills
-// any remaining slots if fewer than 4 were picked. Order within that: any
-// highlighted picks first, then the rest of the manual picks, then the
-// automatic fill-ins -- so a highlight always reads as "top of the list",
-// not just a badge buried further down. Otherwise (nothing picked at all),
-// falls through to whatever was passed in unchanged. Applied at every
-// return point below so a hand-picked selection sticks regardless of
-// which branch (cache hit, merge, etc.) produced the final list.
-const CURATED_EVENT_COUNT = 4;
+// on at least one row), the events array is REORDERED so those picks lead
+// -- any highlighted picks first, then the rest of the manual picks, then
+// everything else -- but the full list (and its true count) is preserved.
+// The frontend already only *shows* 4 by default with a "Show more"
+// toggle (EVENTS_COLLAPSED_COUNT in index.html), so picks naturally sit in
+// that default view without picking fewer than 4 ever silently shrinking
+// the real "X events today" count or hiding events that still exist.
+// Truncating this list server-side was an earlier bug: it made the count
+// shown ("4 events today") wrong whenever more than 4 real events existed
+// for the day, and made "Show more" disappear entirely. Otherwise
+// (nothing picked at all), falls through to whatever was passed in
+// unchanged. Applied at every return point below so a hand-picked
+// selection sticks regardless of which branch (cache hit, merge, etc.)
+// produced the final list.
 function applyAdminEventCuration(events) {
   const selected = events.filter(e => e.admin_selected);
   if (selected.length === 0) return events;
   const highlighted = selected.filter(e => e.admin_highlighted);
   const plainSelected = selected.filter(e => !e.admin_highlighted);
   const rest = events.filter(e => !e.admin_selected);
-  return [...highlighted, ...plainSelected, ...rest].slice(0, CURATED_EVENT_COUNT);
+  return [...highlighted, ...plainSelected, ...rest];
 }
 
 async function getEventsSection(supabase, townId, townName) {
