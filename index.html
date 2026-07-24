@@ -89,7 +89,7 @@
   #logoBannerDots span{width:6px;height:6px;border-radius:50%;background:var(--line);cursor:pointer;}
   #logoBannerDots span.active{background:var(--amber);}
 
-  #companyInfoCta{display:block;margin:0 0 20px;background:rgba(242,166,90,0.14);
+  #companyInfoCta{display:block;margin:0 auto 20px;width:fit-content;background:rgba(242,166,90,0.14);
     border:1px solid rgba(242,166,90,0.35);color:var(--amber);font-family:'IBM Plex Mono',monospace;
     font-size:12px;padding:8px 16px;border-radius:999px;cursor:pointer;}
 
@@ -1805,6 +1805,34 @@ function highlightBusinessesInBanner(companyNames){
   const firstTile = track.querySelector('.logoBannerHighlight');
   if (firstTile) firstTile.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
+
+// Swipe left/right to browse between banner pages manually, mainly for
+// mobile -- reuses the exact same page-switching logic the dots already
+// use (restartLogoBannerAt), just adding touch gestures as another way
+// to trigger it. Set up once; the banner element itself is never
+// recreated across re-renders, only its contents are.
+(function setupLogoBannerSwipe(){
+  const banner = document.getElementById('logoBanner');
+  if (!banner) return;
+  let touchStartX = null;
+  const SWIPE_THRESHOLD_PX = 40;
+
+  banner.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+
+  banner.addEventListener('touchend', (e) => {
+    if (touchStartX === null || logoBannerPages.length <= 1) { touchStartX = null; return; }
+    const deltaX = e.changedTouches[0].clientX - touchStartX;
+    touchStartX = null;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return;
+
+    logoBannerPinnedCompanies = new Set(); // manual navigation clears pins, same as clicking a dot
+    const direction = deltaX < 0 ? 1 : -1; // swipe left -> next page, swipe right -> previous page
+    const newIndex = (logoBannerPageIndex + direction + logoBannerPages.length) % logoBannerPages.length;
+    restartLogoBannerAt(newIndex);
+  }, { passive: true });
+})();
 
 let logoBannerWasDesktop = window.innerWidth >= 1000;
 let logoBannerResizeTimer = null;
