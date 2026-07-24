@@ -1,11 +1,23 @@
-# PaikallisCanvas — Oulu's local business board
+# PaikallisCanvas — an AI-powered local guide for Oulu
 
-Businesses claim one or more squares on a visual grid representing Oulu —
-€5/month per square (4+ squares at €4/square), or a discounted prepaid
-term (3/6/12 months, up to "2 months free"). Each square is also its own
-indexed webpage at `/pin/{id}` — that's the real product, not just the
-grid. No contract, cancel anytime — squares stay live until the end of
-the period already paid for, then release automatically.
+The main product is what a person living in or visiting Oulu actually
+opens the site for: an **AI-powered search** ("Mitä haluaisit tehdä
+tänään?") that answers questions about what to do, eat, or find in town
+right now, backed by **real local events** and **real local news** —
+not a generic chatbot guessing at things. Weather is in there too, as
+useful daily-glance context.
+
+Local businesses take part by claiming one or more squares on a visual
+grid of Oulu — each square is a small logo banner, and squares bought
+together render as one bigger block with one logo spanning the area.
+That's how the site pays for itself, and it's also a genuine advantage
+for the visitor experience: the AI search actively recommends board
+businesses first when they're genuinely relevant to the question, ahead
+of a generic web result, and links straight to that business's own
+`/pin/{id}` page. €5/month per square (4+ squares at €4/square), or a
+discounted prepaid term (3/6/12 months, up to "2 months free"). No
+contract, cancel anytime — squares stay live until the end of the
+period already paid for, then release automatically.
 
 **Deliberately Oulu-only right now**, on the advice of Oulun Seudun
 Uusyrityskeskus: prove the concept in one town before expanding. The
@@ -14,29 +26,53 @@ open to the public" in `/admin`), but only Oulu is currently enabled —
 the public search box for other cities is hidden, and both the frontend
 and the checkout backend itself enforce this (not just the UI).
 
-The site is Finnish-first with an English toggle.
+The site is Finnish-first with an English toggle, and installable as a
+home-screen app (PWA) on both Android and iOS.
 
-## What's actually on the site right now
+## What a visitor actually sees, in the order it matters
 
-- **The board**: a 10×10 (100-square) grid for Oulu. Click one square to
-  select it, click a second to select every square in the rectangle
-  between them — works the same on phone, tablet, and desktop. Squares
-  bought together render as one block with a single logo spanning the
-  area.
-- **An AI local-guide search** — a hero search box ("Mitä haluaisit tehdä tänään?") at the top of the page, not a hidden chat widget. Answers are grounded first in this town's real active board businesses and today's real news/events, with web search only as a fallback for things that data doesn't cover (a trail, a museum, a one-off festival). Board businesses are actively promoted when relevant (linked to their own `/pin/{id}` page); anything else recommended gets a real direct link to its own site specifically — never a directory, review site, or booking platform, checked both by instruction and by a real server-side heuristic (does the business's own name actually appear in the domain?) — falling back to a Google search rather than a wrong link or a dead end. Rate-limited per IP (~25 questions/day) since, unlike the RSS-based feeds, every question is a real API call.
-- **Installable as an app (PWA)** — a manifest + service worker mean visitors can install PaikallisCanvas to their home screen like a native app, on Android/Chrome via a real install button, or on iOS via the manual "Add to Home Screen" share-sheet flow (which Safari never exposes a programmatic button for). The service worker deliberately only caches the static shell, never `/api/*` — this is a live-data site, not a good candidate for aggressive offline caching.
-- **A local weather widget** — current Oulu temperature, click to expand
-  a 7-day forecast. Uses Open-Meteo (free, no API key, no backend
-  endpoint needed — called directly from the browser).
-- **A real local news feed** — actual headlines from Kaleva's public RSS
-  feed for the Oulu region, refreshed every ~2 hours. No AI involved in
-  the news itself; genuine journalism with a link back to the source.
-- **A real local events feed** — actual events (titles, dates, venues,
-  ticket links) from Kaleva's own event platform, scoped to the current
-  week, ranked by real popularity (Kaleva's own view-count figure), shown
-  5 at a time with a "Show more" button. The only AI involvement here is
-  translating the real Finnish text to English — nothing is generated or
-  invented. Includes a direct link to Kaleva's full events page.
+1. **AI local-guide search** — a hero search box, not a hidden chat
+   bubble, and the first thing anyone sees. Grounded first in this
+   town's real active board businesses (name, industry, tagline,
+   AI-researched blurb) and today's real news/events; falls back to a
+   real web search only for things that local data doesn't cover (a
+   trail, a museum, a one-off festival). Anything recommended by name —
+   board business or not — gets a real, direct link to its own site,
+   never a directory/review/booking platform, checked both by
+   instruction and by a server-side heuristic; falls back to a Google
+   search when no confident direct link exists. Anchored to the real
+   current date (Europe/Helsinki), so "this weekend"/"last week"
+   reasoning is actually correct. Rate-limited per IP (~25
+   questions/day), since unlike the RSS-based feeds, every question is a
+   real API call.
+2. **Real local events** — actual events (titles, dates, times, venues,
+   ticket links) from Kaleva's own event platform, scoped to today,
+   normally ranked by real popularity (Kaleva's own view-count figure).
+   Admins can also hand-pick up to 4 events to lead the list — with an
+   optional highlight for a subset of those — for days that deserve
+   deliberate curation (a major festival, a sponsored listing) rather
+   than trusting the automatic ranking alone; the true daily count and
+   "Show more" still reflect every real event, picks just lead.
+3. **Real local news** — actual headlines from Kaleva's public RSS feed
+   for the Oulu region, refreshed every ~2 hours. No AI involved in the
+   news itself; genuine journalism with a link back to the source.
+4. **A local weather widget** — current Oulu temperature, click to
+   expand an hourly-today strip plus a 7-day forecast. Uses Open-Meteo
+   (free, no API key, no backend endpoint needed).
+5. **The board** — a click-to-select grid (click one square, click a
+   second to select the whole rectangle between them) where businesses'
+   logo banners actually live, and where the AI search, news, and events
+   above give people a real, recurring reason to visit in the first
+   place.
+6. **"Today in Oulu" shareable card** (`/today-card.html`, linked from
+   `/admin`) — a downloadable PNG combining today's real weather and
+   most popular event, for outreach/social use, not a public-facing page.
+
+## For the businesses on the board
+
+- Each square is also its own indexed webpage at `/pin/{id}` — that's a
+  real product in its own right, not just a grid position, and it's what
+  the AI search links to directly.
 - **Self-service management** (`/manage`, linked after purchase) —
   businesses can edit their tagline, logo, color, and AI-researched
   "quick info" blurb; see real view-count analytics for their page; and
@@ -55,12 +91,19 @@ The site is Finnish-first with an English toggle.
 - Edit site copy (hero text, value props, footer) with live preview
 - Grant free squares or move a company to a different town
 - Enable/disable which towns are open to the public
+- **Choose today's featured events** — hand-pick up to 4 events to lead
+  the public events list, with an optional highlight for a subset
+- **Teach the AI agent** — freeform standing instructions injected into
+  every chat request's system prompt (e.g. "always mention X by name
+  when asked about car rentals")
 - **Maintenance mode** — one click puts the homepage under construction
   (a simple "back soon" message) without touching `/manage`, individual
   business pin pages, or this admin panel itself
 - **Kävijälaskuri** — a simple page-load counter (today / last 7 days /
   all-time). Deliberately basic: no unique-visitor dedup, no per-page
-  breakdown, just "how much traffic are we getting" at a glance.
+  breakdown, just "how much traffic are we getting" at a glance
+- **Daily share card** — link to `/today-card.html` for generating the
+  outreach PNG above
 
 ## Anti-abuse protections worth knowing about
 
@@ -151,19 +194,25 @@ anyone real.
 
 ## Files
 ```
-index.html                     frontend — Finnish/English toggle, click-to-select
-                                grid, weather widget, news/events feed, claim modal
+index.html                     frontend — Finnish/English toggle, AI search box,
+                                weather widget, news/events feed, click-to-select
+                                grid, claim modal, PWA install banner
 admin.html                     copy editor, grant/move squares, towns open/closed,
-                                maintenance mode toggle
+                                AI agent hints, event selection/highlighting,
+                                maintenance mode toggle, visitor stats
 manage.html                    self-service listing management (tagline/logo/color/
                                 blurb, view analytics, cancel subscription)
+today-card.html                admin-linked "Today in Oulu" shareable PNG generator
 generate-hash.html             one-time browser tool to generate admin credentials
+manifest.json, sw.js, icons/   PWA install support (static-shell-only service worker)
 
 api/town.js                    finds/enables a town board (public: enabled-only;
                                 admin: any town, via an authenticated bypass)
-api/board.js                   returns a town's claimed squares only (fast, no feed data)
-api/feed.js                    returns news + events for a town (separate from board.js
-                                so feed generation can never block the grid from loading)
+api/data.js                    merged board+feed endpoint (same public /api/board and
+                                /api/feed URLs via vercel.json rewrites) — returns
+                                claimed squares, or news+events for a town
+api/ask.js                     AI local-guide chat endpoint — grounded in board
+                                businesses + real news/events, web search fallback
 api/create-checkout-session.js validates + reserves squares (5 min, IP-capped), starts
                                 a Stripe subscription or one-time prepaid charge
 api/webhook.js                 activates squares on payment; expires them on cancellation
@@ -171,26 +220,29 @@ api/webhook.js                 activates squares on payment; expires them on can
 api/manage.js                  self-service editing + cancel-subscription endpoint
 api/pin/[id].js                the SEO page for each claimed square; tracks view_count
 api/fetch-site-info.js         website autofill: name/tagline/real-logo-only/industry
-api/cleanup.js                 daily cron — clears abandoned reservations + expired
-                                prepaid terms
-api/recheck-squares.js         weekly cron — re-screens active squares for link swaps
+api/maintenance.js             merged cron endpoint (abandoned reservations, expired
+                                prepaid terms, active-square re-screening) — dispatches
+                                on Vercel's cron header, never called from the frontend
 api/upload-logo.js             direct logo upload + crop
-api/admin/[action].js          merged admin actions (login, content, grant, revoke,
-                                move, towns list/enable/disable, maintenance toggle)
+api/admin/[action].js           merged admin actions (login, content, grant, revoke,
+                                move, towns list/enable/disable, AI hints, event
+                                selection/highlighting, visitor stats, maintenance toggle)
 api/admin/_auth.js             admin session token sign/verify
-api/_db.js, api/_linkCheck.js, api/_moderate.js, api/_companyInfo.js   shared helpers
+api/_db.js, api/_geocode.js, api/_linkCheck.js, api/_moderate.js,
+api/_companyInfo.js, api/_pricing.js, api/_rateLimit.js, api/_squares.js   shared helpers
 api/_localFeed.js               news (real RSS) + events (real Kaleva API) fetching/
-                                caching logic; offers code still here but unused
+                                caching/admin-curation logic; offers code still here
+                                but unused
 
 schema.sql                     run once in Supabase (all migrations, safe to re-run)
 vercel.json                    routing (including the /oulu clean URL) + cron schedules
 .env.example                   environment variables needed
 ```
 
-*(All 12 of 12 available Vercel Hobby serverless functions currently in
-use — `api/feed.js` was the last one added, right at the limit. Any
-future new endpoint needs consolidating into an existing file rather
-than adding a 13th.)*
+*(11 of 12 available Vercel Hobby serverless functions currently in use
+— one slot of headroom, not sitting exactly at the ceiling. Any future
+new endpoint should still prefer consolidating into an existing file
+over adding a new one, since the ceiling is easy to hit again.)*
 
 ## Everything below this point is the detailed build history
 
@@ -1311,11 +1363,16 @@ everything at once" like news does) — genuinely incremental pagination.
 A new "Choose today's featured events" card on `/admin` lists every
 currently-live event for the (currently single) enabled town, each with a
 checkbox and a "☆ Highlight" toggle. Checking up to 4 events and saving
-makes the public board show **only** those events, in place of the
-automatic popularity/date ranking — useful for making sure specific
-events (a major festival, a sponsored listing, etc.) are what visitors
-see, rather than trusting the automatic ranking alone. Unchecking
-everything and saving reverts to fully automatic selection.
+puts those events at the top of the public board, ahead of the automatic
+ranking. Order is: highlighted picks first, then the rest of the manual
+picks, then everything else — so a highlight reads as "top of the list,"
+not just a badge further down. **The full list and its true count are
+preserved** — only the order changes — so the existing "X events today"
+count and "Show more" toggle on the board still reflect the real number
+of events happening, with picks simply leading. (An earlier version of
+this truncated the list to 4 server-side, which made the displayed count
+wrong whenever more than 4 real events existed for the day — fixed.)
+Unchecking everything and saving reverts to fully automatic ordering.
 
 **Highlighting is a separate, optional layer on top of selection** — a
 highlighted event gets an amber outline and a small "Suositeltu"/
