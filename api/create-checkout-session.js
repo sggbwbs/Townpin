@@ -4,6 +4,7 @@ const { isSuspicious } = require('./_linkCheck');
 const { moderate } = require('./_moderate');
 const { pickRandomEmptySquares } = require('./_squares');
 const { geocodeAddress } = require('./_geocode');
+const { pricePerSquareEur } = require('./_pricing');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
@@ -35,14 +36,8 @@ const ALLOWED_INDUSTRIES = [
 // its own clear incentive.
 const FOUNDING_COUPON_ID = process.env.STRIPE_FOUNDING_COUPON_ID;
 
-// Volume pricing -- more squares in one purchase costs less per square.
-// Computed server-side on the TOTAL count (primary square(s) + one square
-// per additional town), so a customer can never manipulate the price from
-// the browser.
-function pricePerSquareEur(count) {
-  if (count >= 4) return 4;
-  return 5;
-}
+// pricePerSquareEur now lives in ./_pricing.js, shared with manage.js's
+// self-service "add more slots" feature.
 
 // Prepaid multi-month terms: pay once upfront instead of an ongoing
 // subscription. Discount is layered on top of the per-square rate above.

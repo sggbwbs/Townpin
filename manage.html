@@ -140,6 +140,21 @@ function render(squares, towns){
 
     ${s.subscription_id ? `
     <div class="card">
+      <h2>Buy more slots</h2>
+      <p class="sub" style="margin-bottom:12px;">
+        More slots means a bigger logo on the board and your page. Buying 4 or more total drops the price to €4/slot for all of them, not just the new ones.
+      </p>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
+        <button type="button" id="addSlotsMinus" style="width:36px;height:36px;border-radius:50%;border:1px solid #d8cfb4;background:#fffdf8;font-size:18px;font-weight:700;cursor:pointer;">−</button>
+        <span id="addSlotsQty" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;min-width:24px;text-align:center;">1</span>
+        <button type="button" id="addSlotsPlus" style="width:36px;height:36px;border-radius:50%;border:1px solid #d8cfb4;background:#fffdf8;font-size:18px;font-weight:700;cursor:pointer;">+</button>
+        <span class="note" id="addSlotsPreview" style="margin:0;"></span>
+      </div>
+      <button class="primary" onclick="addSlots()">Buy more slots</button>
+      <span class="saved" id="savedAddSlots">✓ Added</span>
+      <div class="err" id="errAddSlots"></div>
+    </div>
+    <div class="card">
       <h2>Cancel subscription</h2>
       <p class="sub" style="margin-bottom:12px;">
         No contract, no notice period. If you cancel, your square(s) stay live and visible for the rest of the period you've already paid for — then they're removed automatically. You won't be charged again.
@@ -151,7 +166,7 @@ function render(squares, towns){
     <div class="card">
       <h2>Prepaid term</h2>
       <p class="sub">
-        This was paid upfront for a fixed term and does not auto-renew. Your square(s) stay live until <b>${new Date(s.active_until).toLocaleDateString()}</b>, then become available for someone else to claim. You can come back and buy again anytime before or after that date.
+        This was paid upfront for a fixed term and does not auto-renew. Your square(s) stay live until <b>${new Date(s.active_until).toLocaleDateString()}</b>, then become available for someone else to claim. You can come back and buy again anytime before or after that date. Adding more slots to a prepaid term isn't self-service yet — contact us directly if you'd like more before then.
       </p>
     </div>` : '')}
   `;
@@ -170,6 +185,25 @@ function render(squares, towns){
     colorRow.appendChild(sw);
   });
   window._getChosenColor = () => chosenColor;
+
+  if (s.subscription_id){
+    let addSlotsQty = 1;
+    const updateAddSlotsPreview = () => {
+      document.getElementById('addSlotsQty').textContent = addSlotsQty;
+      const newTotal = squares.length + addSlotsQty;
+      const newPerSquare = newTotal >= 4 ? 4 : 5;
+      document.getElementById('addSlotsPreview').textContent =
+        `→ ${newTotal} total, €${newPerSquare}/slot (€${newTotal * newPerSquare}/mo)`;
+    };
+    updateAddSlotsPreview();
+    document.getElementById('addSlotsMinus').addEventListener('click', () => {
+      if (addSlotsQty > 1){ addSlotsQty--; updateAddSlotsPreview(); }
+    });
+    document.getElementById('addSlotsPlus').addEventListener('click', () => {
+      if (addSlotsQty < 20){ addSlotsQty++; updateAddSlotsPreview(); }
+    });
+    window._getAddSlotsQty = () => addSlotsQty;
+  }
 
   // ---- logo upload + crop ----
   let cropper = null;
@@ -307,6 +341,20 @@ async function clearBlurb(){
     await post({ action: 'clear_blurb' });
     flash('savedBlurb');
     load();
+  }catch(e){ errBox.textContent = e.message; }
+}
+
+async function addSlots(){
+  const errBox = document.getElementById('errAddSlots');
+  errBox.textContent = '';
+  const qty = window._getAddSlotsQty ? window._getAddSlotsQty() : 1;
+  if (!confirm(`Add ${qty} more slot${qty>1?'s':''}? Your subscription will be updated and prorated for the rest of this billing period.`)) return;
+  try{
+    const data = await post({ action: 'add_slots', additionalCount: qty });
+    flash('savedAddSlots');
+    errBox.style.color = '#4a7a5c';
+    errBox.textContent = `Done — you now have ${data.newTotal} slots at €${data.newPerSquare}/slot.`;
+    setTimeout(load, 2500); // let the success message actually be seen before load() re-renders the whole page and replaces it
   }catch(e){ errBox.textContent = e.message; }
 }
 

@@ -2,6 +2,8 @@ const Stripe = require('stripe');
 const { supabase } = require('./_db');
 const { isSuspicious } = require('./_linkCheck');
 const { generateCompanyBlurb } = require('./_companyInfo');
+const { pricePerSquareEur } = require('./_pricing');
+const { insertSquaresWithRetry } = require('./_squares');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -41,7 +43,7 @@ module.exports = async (req, res) => {
   if (req.method === 'POST') {
     const { data: squares, error } = await supabase
       .from('squares')
-      .select('id, company_name, website_url, subscription_id')
+      .select('id, company_name, website_url, logo_url, tagline, industry, address, subscription_id, town_id, group_id')
       .eq('edit_token', token)
       .eq('status', 'active');
     if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }
@@ -61,6 +63,86 @@ module.exports = async (req, res) => {
         console.error(stripeErr);
         return res.status(500).json({ error: 'Could not cancel — please contact us directly.' });
       }
+    }
+
+    if (action === 'add_slots') {
+      const additionalCount = parseInt(req.body.additionalCount, 10);
+      if (!Number.isInteger(additionalCount) || additionalCount < 1 || additionalCount > 20) {
+        return res.status(400).json({ error: 'Pick a valid number of additional slots (1-20).' });
+      }
+      const subscriptionId = squares[0].subscription_id;
+      if (!subscriptionId) {
+        return res.status(400).json({
+          error: 'Adding slots isn\'t available for prepaid purchases yet — please contact us directly and we\'ll sort it out.'
+        });
+      }
+
+      const currentCount = squares.length;
+      const newTotal = currentCount + additionalCount;
+      const newPerSquare = pricePerSquareEur(newTotal);
+      const townId = squares[0].town_id;
+      const groupId = squares[0].group_id;
+
+      // Auto-assign the new slots from whatever's actually free in the
+      // same town, same helper the original purchase and admin grant/edit
+      // flows all use -- retries automatically if a concurrent purchase
+      // grabs one of the same positions in the meantime.
+      const { error: insertErr, rows: newRows } = await insertSquaresWithRetry(townId, additionalCount, (indices) =>
+        indices.map(idx => ({
+          town_id: townId,
+          idx,
+          company_name: squares[0].company_name,
+          website_url: squares[0].website_url,
+          logo_url: squares[0].logo_url,
+          tagline: squares[0].tagline,
+          industry: squares[0].industry,
+          address: squares[0].address,
+          status: 'active',
+          subscription_id: subscriptionId,
+          group_id: groupId,
+          edit_token: token
+        }))
+      );
+      if (insertErr) return res.status(409).json({ error: insertErr });
+
+      // Re-price the WHOLE subscription at whatever tier the new total
+      // qualifies for -- going from 3 to 5 slots should drop all 5 to the
+      // 4+ rate, not just charge extra for the 2 new ones at the old
+      // price. One updated subscription, one clean bill, rather than a
+      // second separate one stacked on top.
+      try {
+        const sub = await stripe.subscriptions.retrieve(subscriptionId);
+        const itemId = sub.items.data[0].id;
+        await stripe.subscriptions.update(subscriptionId, {
+          items: [{
+            id: itemId,
+            quantity: newTotal,
+            price_data: {
+              currency: 'eur',
+              unit_amount: newPerSquare * 100,
+              recurring: { interval: 'month' },
+              product_data: {
+                name: newTotal === 1
+                  ? `PaikallisCanvas square — ${squares[0].company_name}`
+                  : `PaikallisCanvas squares (x${newTotal}, €${newPerSquare}/square) — ${squares[0].company_name}`
+              }
+            }
+          }],
+          proration_behavior: 'create_prorations'
+        });
+      } catch (stripeErr) {
+        console.error('Subscription update failed after inserting new squares:', stripeErr);
+        // The new squares are already live at this point -- rather than
+        // leave them live but unbilled (or try to roll back a purchase
+        // that already happened), surface this clearly so it gets a real
+        // human look rather than silently under-charging someone.
+        return res.status(500).json({
+          error: 'Your new slots are live, but updating your billing failed — we\'ll follow up by email to sort out the correct charge.',
+          newSlotIds: newRows.map(r => r.id)
+        });
+      }
+
+      return res.status(200).json({ ok: true, newTotal, newPerSquare, added: newRows.length });
     }
 
     const update = {};
