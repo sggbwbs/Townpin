@@ -93,6 +93,11 @@
     border:1px solid rgba(242,166,90,0.35);color:var(--amber);font-family:'IBM Plex Mono',monospace;
     font-size:12px;padding:8px 16px;border-radius:999px;cursor:pointer;}
 
+  @media (min-width:1000px){
+    #companyInfoCta{margin:0 auto 24px;width:fit-content;font-size:14.5px;font-weight:600;
+      padding:12px 28px;background:rgba(242,166,90,0.22);border-width:1.5px;}
+  }
+
   #newsCol{min-width:0;}
   #companyInfoCta:hover{background:rgba(242,166,90,0.24);}
 
@@ -2099,21 +2104,13 @@ async function askAsk(question, sendBtn){
       // unrelated.
       highlightBusinessesInBanner(data.mentioned.map(m => m.name));
     }
-    if (Array.isArray(data.webResults) && data.webResults.length > 0){
-      const resultId = 'askWebResults' + (askResultBlockCounter++);
-      html += `<div class="askWebResults" id="${resultId}">` + data.webResults.map((r, i) =>
-        `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? '🔍' : '↗'}</a>`
-      ).join('') + '</div>';
-      if (data.webResults.length > 4){
-        html += `<button class="askShowMoreBtn logoBtn" data-expanded="false" onclick="toggleAskWebResults('${resultId}', this)">${t('showMore')}</button>`;
-      }
-    }
 
     // A light map of wherever real coordinates exist -- board businesses
     // always have real, stored ones (never AI-supplied); general places
     // only get a pin when the model found (and we successfully geocoded)
     // a genuine address, never a guessed one. No pin for something is
-    // normal and expected, not an error.
+    // normal and expected, not an error. Sits between the promoted
+    // (mentioned) chips above and the unpromoted (webResults) ones below.
     const mapPoints = [
       ...(Array.isArray(data.mentioned) ? data.mentioned : []),
       ...(Array.isArray(data.webResults) ? data.webResults : [])
@@ -2123,6 +2120,16 @@ async function askAsk(question, sendBtn){
     if (mapPoints.length > 0){
       mapId = 'askMap' + (askResultBlockCounter++);
       html += `<div class="askMap" id="${mapId}"></div>`;
+    }
+
+    if (Array.isArray(data.webResults) && data.webResults.length > 0){
+      const resultId = 'askWebResults' + (askResultBlockCounter++);
+      html += `<div class="askWebResults" id="${resultId}">` + data.webResults.map((r, i) =>
+        `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? '🔍' : '↗'}</a>`
+      ).join('') + '</div>';
+      if (data.webResults.length > 4){
+        html += `<button class="askShowMoreBtn logoBtn" data-expanded="false" onclick="toggleAskWebResults('${resultId}', this)">${t('showMore')}</button>`;
+      }
     }
 
     askAppendResult(html);
