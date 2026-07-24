@@ -41,6 +41,31 @@ function cleanAnswerText(text) {
     .trim();
 }
 
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Rather than trust the model to remember to bold every name it also
+// linked (the same "compliance isn't guaranteed" problem the whole
+// mentioned/webResults linking requirement has), this makes it a real
+// guarantee: any business or place that ended up with an actual link
+// always gets bolded in the text too, regardless of whether the model
+// bolded it itself. Only wraps the first occurrence of each name, and
+// skips one that's already bolded (avoids double-wrapping).
+function boldLinkedNames(text, names) {
+  let result = text;
+  for (const name of names) {
+    if (!name) continue;
+    const escaped = escapeRegex(name);
+    if (new RegExp(`\\*\\*${escaped}\\*\\*`).test(result)) continue; // already bolded
+    const plainPattern = new RegExp(escaped);
+    if (plainPattern.test(result)) {
+      result = result.replace(plainPattern, `**${name}**`);
+    }
+  }
+  return result;
+}
+
 // The model is never otherwise told what "today" actually is -- without
 // this, date reasoning ("this weekend", "next week") is pure guesswork
 // built from whatever a search result happens to say, and search results
@@ -360,8 +385,9 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       // just triggered from this failure branch too instead of only when
       // parsing succeeds but comes back with nothing linked.
       const recoveredLinks = await extractLinksFromText(cleanedSalvaged, new Set());
+      const boldedSalvaged = boldLinkedNames(cleanedSalvaged, recoveredLinks.map(r => r.name));
       return res.status(200).json({
-        answer: cleanedSalvaged || 'Pahoittelut, en osannut vastata juuri nyt. / Sorry, I couldn\'t answer that just now.',
+        answer: boldedSalvaged || 'Pahoittelut, en osannut vastata juuri nyt. / Sorry, I couldn\'t answer that just now.',
         mentioned: [],
         webResults: recoveredLinks
       });
@@ -460,7 +486,9 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       }
     }
 
-    res.status(200).json({ answer: cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), mentioned, webResults });
+    const linkedNames = [...mentioned.map(m => m.name), ...webResults.map(w => w.name)];
+    const finalAnswer = boldLinkedNames(cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), linkedNames);
+    res.status(200).json({ answer: finalAnswer, mentioned, webResults });
   } catch (err) {
     console.error('Ask agent failed:', err);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
