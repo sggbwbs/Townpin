@@ -13,7 +13,7 @@ const { supabase } = require('./_db');
 // empty indices) so everyone doesn't pile into the same top-left corner
 // of every board.
 async function pickRandomEmptySquares(townId, count) {
-  const { data: town, error: townErr } = await supabase.from('towns').select('grid_size').eq('id', townId).maybeSingle();
+  const { data: town, error: townErr } = await supabase.from('towns').select('capacity').eq('id', townId).maybeSingle();
   if (townErr || !town) return [];
 
   const { data: taken, error: takenErr } = await supabase
@@ -24,9 +24,24 @@ async function pickRandomEmptySquares(townId, count) {
   if (takenErr) return [];
 
   const takenSet = new Set((taken || []).map(r => r.idx));
-  const total = town.grid_size * town.grid_size;
+  let capacity = town.capacity;
   const emptyIndices = [];
-  for (let i = 0; i < total; i++) { if (!takenSet.has(i)) emptyIndices.push(i); }
+  for (let i = 0; i < capacity; i++) { if (!takenSet.has(i)) emptyIndices.push(i); }
+
+  // For maximum growth potential: if there genuinely isn't enough room
+  // for what's being requested right now, grow the town's capacity by
+  // another full page (100) rather than turning the buyer away or
+  // silently granting fewer than they're paying for. More demand for a
+  // town should mean more room to sell, not a hard ceiling.
+  if (emptyIndices.length < count) {
+    const shortfall = count - emptyIndices.length;
+    const newCapacity = capacity + Math.ceil(shortfall / 100) * 100;
+    const { error: growErr } = await supabase.from('towns').update({ capacity: newCapacity }).eq('id', townId);
+    if (!growErr) {
+      for (let i = capacity; i < newCapacity; i++) emptyIndices.push(i);
+      capacity = newCapacity;
+    }
+  }
 
   // shuffle, then take as many as requested (or as many as actually exist)
   for (let i = emptyIndices.length - 1; i > 0; i--) {

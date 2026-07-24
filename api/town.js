@@ -46,7 +46,7 @@ module.exports = async (req, res) => {
     }
     const { data: created, error: insertErr } = await supabase
       .from('towns')
-      .insert({ slug, name: name.toString().trim(), country: countryCode, grid_size: GRID_SIZE, enabled: false })
+      .insert({ slug, name: name.toString().trim(), country: countryCode, grid_size: GRID_SIZE, capacity: 100, enabled: false })
       .select()
       .single();
     if (insertErr) { console.error(insertErr); return res.status(500).json({ error: 'Could not create town board.' }); }

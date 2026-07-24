@@ -207,3 +207,11 @@ alter table squares add column if not exists address text;
 alter table squares add column if not exists lat double precision;
 alter table squares add column if not exists lng double precision;
 
+-- ==== Auto-expanding capacity ====
+-- grid_size*grid_size (100) used to be the hard cap on how many slots a
+-- town could ever sell. capacity is a genuinely separate, plain number
+-- of sellable slots -- when demand exceeds it, api/_squares.js grows it
+-- by another 100 automatically instead of turning buyers away. Existing
+-- towns get 100 to start, matching their current effective cap.
+alter table towns add column if not exists capacity integer not null default 100;
+

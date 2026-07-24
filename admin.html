@@ -552,7 +552,7 @@ document.getElementById('grantLoadBtn').addEventListener('click', async () => {
     grantQty = 1;
     updateGrantQtyDisplay();
 
-    const total = grantTown.grid_size * grantTown.grid_size;
+    const total = grantTown.capacity;
     document.getElementById('grantTownStatus').textContent =
       `${grantTown.name}: ${grantSquares.length} / ${total} ad slots claimed, ${total - grantSquares.length} free.`;
     document.getElementById('grantGridWrap').style.display = 'block';
@@ -875,7 +875,7 @@ document.getElementById('moveDestLoadBtn').addEventListener('click', async () =>
 
     const boardRes = await fetch(`/api/board?townId=${moveDestTown.id}`);
     const boardData = await boardRes.json();
-    const total = moveDestTown.grid_size * moveDestTown.grid_size;
+    const total = moveDestTown.capacity;
     const free = total - (boardData.squares || []).length;
     document.getElementById('movePickCount').textContent =
       `${moveDestTown.name}: ${free} free ad slot${free === 1 ? '' : 's'} — need ${moveSelectedGroup.count}.`;

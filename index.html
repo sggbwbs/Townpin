@@ -1501,7 +1501,7 @@ function sortSelectOptions(selectId, keepFirstValue){
 
 function updateClaimedMeta(){
   if (!currentTown) return;
-  const total = currentTown.grid_size * currentTown.grid_size;
+  const total = currentTown.capacity;
   document.getElementById('claimedMeta').textContent =
     t('claimedOf').replace('{n}', currentSquares.length).replace('{t}', total);
 }
