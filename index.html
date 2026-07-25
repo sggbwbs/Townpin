@@ -167,7 +167,8 @@
   /* ---- news column (top-left, what visitors actually come to see) ---- */
   #newsCol{text-align:left;}
   #newsCol #localFeed{margin:0;max-width:none;}
-  #newsCol #localFeed h2{text-align:left;margin:0 0 16px;}
+  #newsCol #localFeedHeaderRow{justify-content:flex-start;margin:0 0 16px;}
+  #newsCol #localFeed h2{text-align:left;margin:0;}
   #newsCol #weatherWidget{margin:0;width:fit-content;justify-content:flex-start;}
   #newsCol #weatherForecast{margin:12px 0 0;max-width:none;}
   #newsCol .feedSubhead{text-align:left;}
@@ -369,9 +370,14 @@
   .hiwStep span{font-size:13px;color:var(--ink-dim);line-height:1.5;}
 
   #localFeed{margin:44px auto 0;max-width:1000px;}
-  #localFeed h2{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 20px;}
-  #weatherWidget{display:flex;align-items:center;justify-content:center;gap:8px;width:fit-content;margin:0 auto;
-    background:var(--panelT4);border:1px solid var(--line);border-radius:999px;padding:7px 16px;}
+  #localFeedHeaderRow{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:0 0 20px;}
+  #localFeed h2{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0;}
+  #weatherWidget{display:flex;align-items:center;justify-content:center;gap:8px;width:fit-content;margin:0;
+    background:var(--panelT4);border:1px solid var(--line);border-radius:999px;padding:7px 16px;
+    cursor:pointer;transition:background-color 0.15s;}
+  #weatherWidget:hover{background:var(--panelT7);}
+  #weatherWidget .weatherChevron{font-size:10px;color:var(--ink-dim);transition:transform 0.15s;}
+  #weatherWidget.expanded .weatherChevron{transform:rotate(180deg);}
   #weatherIcon{font-size:20px;line-height:1;display:inline-flex;align-items:center;}
   #weatherIcon img{width:24px;height:24px;display:block;}
   #weatherTemp{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--ink);}
@@ -601,11 +607,13 @@
 
   <div id="newsCol">
     <div id="localFeed">
-      <h2 id="localFeedTitle"></h2>
-
-      <div id="weatherWidget" style="display:none;">
-        <span id="weatherIcon"></span>
-        <span id="weatherTemp"></span>
+      <div id="localFeedHeaderRow">
+        <h2 id="localFeedTitle"></h2>
+        <div id="weatherWidget" style="display:none;">
+          <span id="weatherIcon"></span>
+          <span id="weatherTemp"></span>
+          <span class="weatherChevron">▼</span>
+        </div>
       </div>
       <div id="weatherForecast" style="display:none;"></div>
 
@@ -3277,6 +3285,7 @@ function weatherIconHtml(code, isDay, sizePx){
 }
 let weatherForecastData = null;
 let weatherHourlyData = null;
+let weatherExpanded = false; // forecast starts collapsed -- only opens when the pill itself is clicked
 
 async function loadWeather(){
   try {
@@ -3329,7 +3338,7 @@ function renderWeatherForecast(){
     hourlyRow.id = 'weatherHourlyRow';
     let shown = 0;
     weatherHourlyData.time.forEach((timeStr, i) => {
-      if (shown >= 8) return; // one compact strip's worth, matching the old 8-card width
+      if (shown >= 7) return; // matches the 7-day row below so both rows line up column-for-column
       const hour = Number(timeStr.slice(11, 13));
       if (hour % 3 !== 0) return; // every 3 hours, matches a typical compact hourly strip
       const isToday = timeStr.startsWith(todayStr);
@@ -3372,8 +3381,19 @@ function renderWeatherForecast(){
   credit.innerHTML = `<a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:inherit;">${t('weatherSourceNote')}</a>`;
   panel.appendChild(credit);
 
-  panel.style.display = 'flex';
+  panel.style.display = weatherExpanded ? 'flex' : 'none';
+  document.getElementById('weatherWidget').classList.toggle('expanded', weatherExpanded);
 }
+
+// Forecast only opens when the pill itself is clicked -- see
+// weatherExpanded above. Re-renders rather than just toggling display,
+// so a click after a language switch still shows day names in the
+// right language (renderWeatherForecast rebuilds from the already-
+// fetched data, no re-fetch needed).
+document.getElementById('weatherWidget').addEventListener('click', () => {
+  weatherExpanded = !weatherExpanded;
+  renderWeatherForecast();
+});
 
 async function checkMaintenanceMode(){
   try{
