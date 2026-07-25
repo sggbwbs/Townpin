@@ -32,8 +32,10 @@
   .pickerSub{color:var(--ink-dim);font-size:12.5px;margin:0 0 14px;}
   .pickerRow{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
   .pickerRow input{margin-top:3px;flex:none;width:16px;height:16px;accent-color:var(--amber);cursor:pointer;}
-  .pickerRow label{font-size:13.5px;line-height:1.4;cursor:pointer;}
+  .pickerRow label{font-size:13.5px;line-height:1.4;cursor:pointer;flex:1;}
   .pickerRow.disabled label{color:var(--ink-dim);}
+  .customRowBtn{background:none;border:none;cursor:pointer;font-size:13px;padding:2px 5px;color:var(--ink-dim);flex:none;}
+  .customRowBtn:hover{color:var(--amber-deep);}
   #eventCheckboxes{max-height:340px;overflow-y:auto;}
   #customEventForm{background:var(--paper);border:1px solid var(--line);border-radius:10px;
     padding:14px;margin-bottom:16px;}
@@ -256,6 +258,10 @@ function renderEventPicker(){
     <div class="pickerRow">
       <input type="checkbox" id="ev-${ev._id}" data-id="${ev._id}" ${selectedIds.has(ev._id) ? 'checked' : ''} />
       <label for="ev-${ev._id}">${ev.isCustom ? '✏️ ' : ''}${ev.title_fi}${ev.event_start_time ? ` (${ev.event_start_time}${ev.event_end_time ? '–' + ev.event_end_time : ''})` : ''}</label>
+      ${ev.isCustom ? `
+        <button type="button" class="customRowBtn customRowEditBtn" data-id="${ev._id}" title="Muokkaa">Muokkaa</button>
+        <button type="button" class="customRowBtn customRowDeleteBtn" data-id="${ev._id}" title="Poista">Poista</button>
+      ` : ''}
     </div>
   `).join('');
 
@@ -268,6 +274,41 @@ function renderEventPicker(){
       drawCard(getSelectedEvents());
     });
   });
+  box.querySelectorAll('.customRowEditBtn').forEach(btn => {
+    btn.addEventListener('click', () => editCustomEvent(Number(btn.dataset.id)));
+  });
+  box.querySelectorAll('.customRowDeleteBtn').forEach(btn => {
+    btn.addEventListener('click', () => deleteCustomEvent(Number(btn.dataset.id)));
+  });
+}
+
+// Edits a custom entry in place (title, and optionally its time) -- uses
+// plain prompt()s rather than reopening the add-form, since this is a
+// small internal tool and a full inline-editing UI isn't worth the extra
+// weight for something used a few times a day at most.
+function editCustomEvent(id){
+  const ev = allEvents.find(e => e._id === id);
+  if (!ev) return;
+  const newTitle = prompt('Muokkaa tapahtuman tekstiä:', ev.title_fi);
+  if (newTitle === null) return; // cancelled
+  const trimmedTitle = newTitle.trim();
+  if (!trimmedTitle) return; // empty title isn't a valid edit -- leave the entry as it was
+
+  const newTime = prompt('Aika (valinnainen, esim. 10:00–14:00, tyhjennä poistaaksesi):', ev.event_start_time || '');
+  if (newTime === null) return; // cancelled -- title change is discarded too, so one edit is all-or-nothing
+
+  ev.title_fi = trimmedTitle;
+  ev.event_start_time = newTime.trim() || null;
+  renderEventPicker();
+  drawCard(getSelectedEvents());
+}
+
+function deleteCustomEvent(id){
+  if (!confirm('Poista tämä oma tapahtuma kortilta?')) return;
+  allEvents = allEvents.filter(ev => ev._id !== id);
+  selectedIds.delete(id);
+  renderEventPicker();
+  drawCard(getSelectedEvents());
 }
 
 // Disables any unchecked box once MAX_SELECTABLE_EVENTS are already
