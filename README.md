@@ -1672,3 +1672,46 @@ No new serverless function needed — both the public tracking endpoint
 and the admin-only stats endpoint were added as two new cases in the
 existing `admin/[action].js` dispatcher, the same pattern already used
 for login/logout/content/grant/etc.
+
+## Visitor accounts, AI-chat credits, two-admin logins, perf tweaks, and a rebrand
+
+A larger batch of changes, still inside Vercel Hobby's 12-function cap:
+
+- **Visitor accounts** — email + password only (`users` table), opt-in
+  personalization consent (off by default), password reset via a
+  Resend-sent email link. All new `/api/user/*` actions live inside
+  `api/data.js` (routed through `vercel.json` rewrites, same trick as
+  `/api/board`/`/api/feed`) — zero new functions.
+- **AI-chat quota** — 10 free questions/day, resetting at midnight
+  Europe/Helsinki (a real calendar day, not a rolling 24h window — see
+  `countIpToday`/`countUserToday` in `api/_rateLimit.js`), tracked by
+  account for logged-in visitors and by IP for anonymous ones. Past the
+  free 10, a logged-in visitor can buy 10 more for €0.99 (one-time
+  Stripe Checkout); an anonymous visitor is prompted to register
+  instead. Admins are unlimited.
+- **Two admins, same access** — separate password hashes
+  (`ADMIN_PASSWORD_HASH` / `ADMIN2_PASSWORD_HASH`), the session token
+  carries a label so the panel can show "logged in as: X" for
+  accountability. Not a permissions split — both admins can do
+  everything.
+- **Performance** — longer edge-cache lifetimes on `/api/board` and
+  `/api/feed` (15s → 60s, matching how infrequently the underlying data
+  actually changes), `defer` on the Cropper.js/Leaflet `<script>` tags
+  so they stop blocking initial page parse, and `preconnect` hints for
+  the external font/CDN domains.
+- **Rebrand** — tab title, meta description, and footer tagline now
+  lead with "paikallinen tekoälyopas" (local AI guide) instead of the
+  ad-slot pitch, and the footer tagline deliberately no longer names
+  Oulu specifically, so it reads correctly once other cities launch.
+
+**Known next step, not yet done:** the hero headline
+(`heroTitle`/`heroSub` in `site_content`) still hardcodes "Oulu" by
+name ("Näytä yrityksesi koko Oululle."). `site_content` is a *global*
+table today — one row per key/language, not per town — so as written,
+every town's board would show the same Oulu-specific hero text once a
+second city goes live. Before adding city #2, this needs either (a) a
+`town_id` column on `site_content` so each town gets its own hero copy
+(more admin work per city, but correct Finnish grammar every time), or
+(b) a template with the town name substituted in, which will need a
+human check per city since Finnish case endings (-lle/-lla/-ssa) don't
+always attach cleanly to an arbitrary city name. Leaning toward (a).
