@@ -537,27 +537,31 @@ async function getNewsSection(supabase, townId, category) {
   }
 }
 
-// If an admin has hand-picked events for this town (admin_selected = true
-// on at least one row), the events array is REORDERED so those picks lead
-// -- any highlighted picks first, then the rest of the manual picks, then
-// everything else -- but the full list (and its true count) is preserved.
-// The frontend already only *shows* 4 by default with a "Show more"
-// toggle (EVENTS_COLLAPSED_COUNT in index.html), so picks naturally sit in
-// that default view without picking fewer than 4 ever silently shrinking
-// the real "X events today" count or hiding events that still exist.
-// Truncating this list server-side was an earlier bug: it made the count
-// shown ("4 events today") wrong whenever more than 4 real events existed
-// for the day, and made "Show more" disappear entirely. Otherwise
-// (nothing picked at all), falls through to whatever was passed in
-// unchanged. Applied at every return point below so a hand-picked
-// selection sticks regardless of which branch (cache hit, merge, etc.)
-// produced the final list.
-function applyAdminEventCuration(events) {
-  const selected = events.filter(e => e.admin_selected);
+// If an admin has hand-picked events for TODAY specifically (a matching
+// row in event_picks for today's date -- see schema.sql), the events
+// array is REORDERED so those picks lead -- any highlighted picks first,
+// then the rest of the manual picks, then everything else -- but the
+// full list (and its true count) is preserved. The frontend already only
+// *shows* 4 by default with a "Show more" toggle (EVENTS_COLLAPSED_COUNT
+// in index.html), so picks naturally sit in that default view without
+// picking fewer than 4 ever silently shrinking the real "X events today"
+// count or hiding events that still exist. Truncating this list
+// server-side was an earlier bug: it made the count shown ("4 events
+// today") wrong whenever more than 4 real events existed for the day,
+// and made "Show more" disappear entirely. Otherwise (nothing picked for
+// today), falls through to whatever was passed in unchanged. Applied at
+// every return point below so a hand-picked selection sticks regardless
+// of which branch (cache hit, merge, etc.) produced the final list.
+//
+// picksMap is (event id -> highlighted boolean) for TODAY's date only --
+// picks made for other days (see the date-scoped event_picks table) are
+// simply never fetched here, so they can't leak into today's ordering.
+function applyAdminEventCuration(events, picksMap) {
+  const selected = events.filter(e => picksMap.has(e.id));
   if (selected.length === 0) return events;
-  const highlighted = selected.filter(e => e.admin_highlighted);
-  const plainSelected = selected.filter(e => !e.admin_highlighted);
-  const rest = events.filter(e => !e.admin_selected);
+  const highlighted = selected.filter(e => picksMap.get(e.id));
+  const plainSelected = selected.filter(e => !picksMap.get(e.id));
+  const rest = events.filter(e => !picksMap.has(e.id));
   return [...highlighted, ...plainSelected, ...rest];
 }
 
@@ -582,8 +586,17 @@ async function getEventsSection(supabase, townId, townName) {
       ? Math.max(...existingEvents.map(e => new Date(e.created_at).getTime())) : 0;
     const eventsAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
 
+    // Whatever's been picked for TODAY (see event_picks in schema.sql) --
+    // fetched once regardless of which branch below ends up returning, so
+    // a pick made yesterday for today already applies the instant today
+    // begins, with no separate job needed to "activate" it.
+    const { data: picksRaw } = await supabase
+      .from('event_picks').select('event_id, highlighted')
+      .eq('town_id', townId).eq('pick_date', helsinkiToday);
+    const picksMap = new Map((picksRaw || []).map(p => [p.event_id, p.highlighted]));
+
     if (existingEvents.length > 0 && eventsAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
-      return applyAdminEventCuration(existingEvents);
+      return applyAdminEventCuration(existingEvents, picksMap);
     }
     const fresh = await generateEventItems(townName);
 
@@ -596,7 +609,7 @@ async function getEventsSection(supabase, townId, townName) {
       .or(`event_end_date.lt.${helsinkiToday},and(event_end_date.is.null,event_date.lt.${helsinkiToday})`);
 
     if (fresh.length === 0) {
-      return applyAdminEventCuration(existingEvents); // still useless if this is also empty, but never worse than what we had
+      return applyAdminEventCuration(existingEvents, picksMap); // still useless if this is also empty, but never worse than what we had
     }
 
     // Merge with what's already known for TODAY rather than replacing it
@@ -607,7 +620,7 @@ async function getEventsSection(supabase, townId, townName) {
     const genuinelyNew = fresh.filter(e => !alreadyKnown.has(e.source_url || e.title_fi));
 
     if (genuinelyNew.length === 0) {
-      return applyAdminEventCuration(existingEvents); // nothing new to add, what we had is still complete
+      return applyAdminEventCuration(existingEvents, picksMap); // nothing new to add, what we had is still complete
     }
 
     // Deliberately NOT running enrichWithImages here -- each Kaleva
@@ -617,7 +630,7 @@ async function getEventsSection(supabase, townId, townName) {
     // No image is a better outcome than a wrong, duplicated one.
     const rows = genuinelyNew.map(i => ({ town_id: townId, ...i }));
     const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
-    return applyAdminEventCuration([...existingEvents, ...(inserted || [])]);
+    return applyAdminEventCuration([...existingEvents, ...(inserted || [])], picksMap);
   } catch (err) {
     console.error('Events feed lookup failed:', err);
     return [];

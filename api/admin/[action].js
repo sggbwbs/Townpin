@@ -231,36 +231,62 @@ async function handleDeleteAiHint(req, res) {
 
 const MAX_SELECTED_EVENTS = 4;
 
-// Lists this town's currently-live events (same "still relevant" scoping
-// getEventsSection itself uses -- ended events shouldn't even be
-// choosable) alongside each row's current admin_selected/admin_highlighted
-// state, so the admin UI can render checkboxes pre-filled with whatever
-// was picked last time.
+// Lists this town's events still relevant as of the requested date (same
+// "still relevant" scoping getEventsSection itself uses, just anchored on
+// whatever date is being planned rather than always today) alongside
+// that SPECIFIC date's picks from event_picks, so the admin UI can
+// render checkboxes pre-filled with whatever was picked for that day --
+// and only that day, not whatever's picked for today or any other date.
 async function handleListEventsForAdmin(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
   const townId = req.query.townId;
   if (!townId) return res.status(400).json({ error: 'Missing townId.' });
 
   const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
+  // Defaults to today if no date is given, so any existing caller (or a
+  // browser tab left open from before this feature existed) keeps working
+  // exactly as before.
+  const targetDate = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : helsinkiToday;
+
   const { data, error } = await supabase
     .from('local_feed_items')
-    .select('id, title_fi, title_en, summary_fi, event_date, event_end_date, event_start_time, source_url, admin_selected, admin_highlighted')
+    .select('id, title_fi, title_en, summary_fi, event_date, event_end_date, event_start_time, event_end_time, source_url')
     .eq('town_id', townId).eq('item_type', 'event')
-    .or(`event_end_date.gte.${helsinkiToday},and(event_end_date.is.null,event_date.gte.${helsinkiToday})`)
+    .or(`event_end_date.gte.${targetDate},and(event_end_date.is.null,event_date.gte.${targetDate})`)
     .order('event_date', { ascending: true });
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not load events.' }); }
-  res.status(200).json({ events: data || [], maxSelected: MAX_SELECTED_EVENTS });
+
+  const { data: picks, error: picksErr } = await supabase
+    .from('event_picks')
+    .select('event_id, highlighted')
+    .eq('town_id', townId).eq('pick_date', targetDate);
+  if (picksErr) { console.error(picksErr); return res.status(500).json({ error: 'Could not load picks.' }); }
+
+  const pickedById = new Map((picks || []).map(p => [p.event_id, p.highlighted]));
+  const events = (data || []).map(ev => ({
+    ...ev,
+    admin_selected: pickedById.has(ev.id),
+    admin_highlighted: pickedById.get(ev.id) || false
+  }));
+
+  res.status(200).json({ events, maxSelected: MAX_SELECTED_EVENTS, date: targetDate });
 }
 
-// Saves which events (max 4) should override the automatic ranking on the
-// public board, plus which of those are highlighted. Always resets the
-// whole town's events first so unchecking something in the same request
-// actually clears it, rather than only ever adding.
+// Saves which events (max 4) should override the automatic ranking for
+// ONE SPECIFIC calendar day -- always resets just that day's picks first
+// (in event_picks, scoped to town_id + pick_date) so unchecking something
+// for that day actually clears it, without touching any other day's plan.
 async function handleSelectEvents(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
-  const { townId, selectedIds, highlightedIds } = req.body || {};
+  const { townId, selectedIds, highlightedIds, date } = req.body || {};
   if (!townId) return res.status(400).json({ error: 'Missing townId.' });
+
+  const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
+  const pickDate = /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? date : helsinkiToday;
+  if (pickDate < helsinkiToday) {
+    return res.status(400).json({ error: "Can't plan picks for a date that's already passed." });
+  }
 
   const selected = Array.isArray(selectedIds) ? [...new Set(selectedIds)] : [];
   const highlighted = Array.isArray(highlightedIds) ? [...new Set(highlightedIds)] : [];
@@ -272,24 +298,22 @@ async function handleSelectEvents(req, res) {
   }
 
   const { error: resetErr } = await supabase
-    .from('local_feed_items')
-    .update({ admin_selected: false, admin_highlighted: false })
-    .eq('town_id', townId).eq('item_type', 'event');
+    .from('event_picks')
+    .delete()
+    .eq('town_id', townId).eq('pick_date', pickDate);
   if (resetErr) { console.error(resetErr); return res.status(500).json({ error: 'Could not update selection.' }); }
 
   if (selected.length > 0) {
-    const { error: selErr } = await supabase
-      .from('local_feed_items').update({ admin_selected: true })
-      .eq('town_id', townId).eq('item_type', 'event').in('id', selected);
-    if (selErr) { console.error(selErr); return res.status(500).json({ error: 'Could not update selection.' }); }
+    const rows = selected.map(eventId => ({
+      town_id: townId,
+      event_id: eventId,
+      pick_date: pickDate,
+      highlighted: highlighted.includes(eventId)
+    }));
+    const { error: insErr } = await supabase.from('event_picks').insert(rows);
+    if (insErr) { console.error(insErr); return res.status(500).json({ error: 'Could not update selection.' }); }
   }
-  if (highlighted.length > 0) {
-    const { error: hlErr } = await supabase
-      .from('local_feed_items').update({ admin_highlighted: true })
-      .eq('town_id', townId).eq('item_type', 'event').in('id', highlighted);
-    if (hlErr) { console.error(hlErr); return res.status(500).json({ error: 'Could not update selection.' }); }
-  }
-  res.status(200).json({ ok: true });
+  res.status(200).json({ ok: true, date: pickDate });
 }
 
 async function handleFindCompany(req, res) {

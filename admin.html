@@ -53,7 +53,7 @@
     border-bottom:1px solid #e4dcc4;font-size:13px;}
   .compedRow:last-child{border-bottom:none;}
   .revokeBtn{background:none;color:#b8452f;text-decoration:underline;padding:4px 8px;font-size:12px;}
-  .field input[type=text],.field input[type=url]{width:100%;padding:9px 11px;border:1px solid #d8cfb4;
+  .field input[type=text],.field input[type=url],.field input[type=date]{width:100%;padding:9px 11px;border:1px solid #d8cfb4;
     border-radius:6px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;}
   .grantColorRow{display:flex;gap:8px;margin-top:6px;}
   .grantColorRow .swatch{width:26px;height:26px;border-radius:6px;cursor:pointer;border:2px solid transparent;}
@@ -167,8 +167,12 @@
 </div>
 
 <div class="card" id="eventsCard" style="display:none;">
-  <h1>Choose today's featured events</h1>
-  <p class="sub">Pick up to 4 events to show on the public board instead of the automatic ranking — useful when you want specific events front and center (say, during a big festival). Optionally highlight a few of your picks to make them stand out. Uncheck everything and save to go back to automatic selection.</p>
+  <h1>Choose featured events</h1>
+  <p class="sub">Pick up to 4 events to show on the public board instead of the automatic ranking for the day below — useful when you want specific events front and center (say, during a big festival). Optionally highlight a few of your picks to make them stand out. Uncheck everything and save to go back to automatic selection for that day. Pick a future date to plan ahead — it takes effect automatically once that day arrives, without touching any other day's plan.</p>
+  <div class="field">
+    <label>Day to plan</label>
+    <input type="date" id="eventsPickerDate" />
+  </div>
   <div id="eventsPickerTownNote" class="sub" style="margin:6px 0 12px;font-weight:700;"></div>
   <div id="eventsPickerList"><p class="sub">Loading…</p></div>
   <button id="saveEventsBtn" style="margin-top:14px;">Save selection</button>
@@ -694,9 +698,21 @@ document.getElementById('addAiHintBtn').addEventListener('click', async () => {
 
 let eventsPickerTownId = null;
 
+// Helsinki-local "today" as YYYY-MM-DD, same as the backend uses -- the
+// date input's default and its min (can't plan for a day that's already
+// passed).
+function helsinkiTodayStr(){
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
+}
+
 async function loadEventsPicker(){
   const listBox = document.getElementById('eventsPickerList');
   const note = document.getElementById('eventsPickerTownNote');
+  const dateInput = document.getElementById('eventsPickerDate');
+  const today = helsinkiTodayStr();
+  if (!dateInput.value) dateInput.value = today;
+  dateInput.min = today;
+
   listBox.innerHTML = '<p class="sub">Loading…</p>';
   try {
     const townsRes = await fetch(`${API}/towns-list`);
@@ -705,13 +721,13 @@ async function loadEventsPicker(){
     const town = towns.find(t => t.enabled) || towns[0];
     if (!town) { listBox.innerHTML = '<p class="sub">No towns yet.</p>'; return; }
     eventsPickerTownId = town.id;
-    note.textContent = `Town: ${town.name}`;
+    note.textContent = `Town: ${town.name} — planning for ${dateInput.value}${dateInput.value === today ? ' (today)' : ''}`;
 
-    const res = await fetch(`${API}/list-events?townId=${town.id}`);
+    const res = await fetch(`${API}/list-events?townId=${town.id}&date=${dateInput.value}`);
     const data = await res.json();
     if (!res.ok) { listBox.innerHTML = `<p class="sub">${data.error || 'Could not load events.'}</p>`; return; }
     const events = data.events || [];
-    if (events.length === 0) { listBox.innerHTML = '<p class="sub">No live events right now.</p>'; return; }
+    if (events.length === 0) { listBox.innerHTML = '<p class="sub">No live events for that day.</p>'; return; }
 
     listBox.innerHTML = '';
     events.forEach(ev => {
@@ -762,6 +778,8 @@ async function loadEventsPicker(){
   }
 }
 
+document.getElementById('eventsPickerDate').addEventListener('change', () => { loadEventsPicker(); });
+
 document.getElementById('saveEventsBtn').addEventListener('click', async () => {
   const errBox = document.getElementById('eventsErr');
   const msg = document.getElementById('eventsSavedMsg');
@@ -769,10 +787,11 @@ document.getElementById('saveEventsBtn').addEventListener('click', async () => {
   const selectedIds = [...document.querySelectorAll('.eventSelectCb')].filter(cb => cb.checked).map(cb => cb.dataset.id);
   if (selectedIds.length > 4) { showErr(errBox, 'Choose at most 4 events.'); return; }
   const highlightedIds = [...document.querySelectorAll('.eventHighlightBtn')].filter(b => b.dataset.on === '1').map(b => b.dataset.id);
+  const pickDate = document.getElementById('eventsPickerDate').value || helsinkiTodayStr();
   try {
     const res = await fetch(`${API}/select-events`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ townId: eventsPickerTownId, selectedIds, highlightedIds })
+      body: JSON.stringify({ townId: eventsPickerTownId, selectedIds, highlightedIds, date: pickDate })
     });
     const data = await res.json();
     if (!res.ok) { showErr(errBox, data.error || 'Could not save.'); return; }

@@ -219,6 +219,33 @@ alter table local_feed_items add column if not exists admin_selected boolean not
 alter table local_feed_items add column if not exists admin_highlighted boolean not null default false;
 create index if not exists local_feed_items_admin_selected_idx on local_feed_items (town_id, item_type, admin_selected);
 
+-- ==== Date-scoped event curation (replaces the flat columns above) ====
+-- The admin_selected/admin_highlighted columns above applied ALWAYS,
+-- with no concept of "which day" -- there was no way to pick today's
+-- featured events without also overwriting whatever might have been
+-- planned for tomorrow. This table adds that: the same picks, but each
+-- one tied to a specific calendar day (pick_date), so an admin can
+-- prepare tomorrow's (or next week's) featured events in advance without
+-- touching today's, and they take effect automatically the moment that
+-- date actually arrives -- no cron job needed, see getEventsSection in
+-- api/_localFeed.js, which always just asks "what's picked for today's
+-- actual date right now".
+--
+-- The old boolean columns are left in place rather than dropped (nothing
+-- reads or writes them anymore) -- see README for why: dropping columns
+-- is destructive and this app has no reason to risk it for a cleanup
+-- that has zero functional benefit.
+create table if not exists event_picks (
+  id bigserial primary key,
+  town_id bigint not null references towns(id),
+  event_id bigint not null references local_feed_items(id) on delete cascade,
+  pick_date date not null,
+  highlighted boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (town_id, event_id, pick_date)
+);
+create index if not exists event_picks_lookup_idx on event_picks (town_id, pick_date);
+
 -- ==== Auto-expanding capacity ====
 -- grid_size*grid_size (100) used to be the hard cap on how many slots a
 -- town could ever sell. capacity is a genuinely separate, plain number

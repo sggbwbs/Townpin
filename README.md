@@ -1743,3 +1743,42 @@ board itself isn't a grid of visible tiles (see the earlier
 "scrolling logo banner" note) -- a business's logo only appears at all
 in that banner and on its own `/pin/{id}` page, and the banner already
 skipped squares with no logo before this change.
+
+## Date-scoped event curation -- plan tomorrow's picks today
+
+Admin event curation ("choose up to 4 events to feature") used to be
+a single flat always-on state (`admin_selected`/`admin_highlighted`
+columns on `local_feed_items`) with no concept of *which day* it
+applied to -- there was no way to prepare tomorrow's picks without
+overwriting today's, and no way to prepare anything further ahead at
+all.
+
+Replaced with a new `event_picks` table (`town_id`, `event_id`,
+`pick_date`, `highlighted`) -- the old columns are left in place,
+unused, rather than dropped (see the "website and logo" entry above
+for why this app doesn't do destructive schema changes). Both
+`list-events` and `select-events` in `api/admin/[action].js` now take
+a `date` (default: today), and the live public feed
+(`getEventsSection` in `api/_localFeed.js`) always asks "what's picked
+for *today's actual date*, right now" -- so picks made in advance for
+tomorrow apply automatically the moment tomorrow begins, with no cron
+job needed to "activate" them.
+
+Two places now expose this:
+
+- **`admin.html`**'s existing "Choose featured events" card gained a
+  date field. Switching it reloads that day's events and picks;
+  saving only ever touches that one day's plan.
+- **`today-card.html`** (the shareable social-image tool) gained a
+  date picker too. Today keeps working exactly as it always did (the
+  public feed, no login required) -- picking a *future* date requires
+  an admin login (the date input's `max` is clamped to today for
+  anyone not logged in, so a logged-out visitor can't even reach the
+  future-date code path) and pulls that day's events via the
+  authenticated admin endpoint, plus that day's forecast instead of a
+  "current" reading -- there's no "current" temperature for a day
+  that hasn't happened yet, so the layout swaps to lead with the
+  high/low instead. The date pill, section header ("TÄNÄÄN" /
+  "HUOMENNA" / the correct Finnish essive form of the weekday for
+  anything further out), page title, and download filename all follow
+  the chosen day.
