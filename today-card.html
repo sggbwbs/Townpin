@@ -98,7 +98,13 @@ const MONTHS_FI = ['tammikuuta','helmikuuta','maaliskuuta','huhtikuuta','toukoku
   'heinäkuuta','elokuuta','syyskuuta','lokakuuta','marraskuuta','joulukuuta'];
 const WEEKDAYS_FI = ['sunnuntai','maanantai','tiistai','keskiviikko','torstai','perjantai','lauantai'];
 
-function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines){
+// Pure measurement, no drawing -- ctx.font must already be set to the
+// font this measurement should use (ctx.measureText respects it).
+// Shared by wrapText (below) and the adaptive event-layout sizing
+// further down, which needs to know how many lines something will
+// actually take at a candidate font size before committing to drawing
+// anything at that size.
+function computeWrappedLines(ctx, text, maxWidth, maxLines){
   const words = text.split(' ');
   let line = '';
   let lines = [];
@@ -116,6 +122,11 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines){
     lines = lines.slice(0, maxLines);
     lines[maxLines - 1] = lines[maxLines - 1].replace(/\s*\S*$/, '') + '…';
   }
+  return lines;
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines){
+  const lines = computeWrappedLines(ctx, text, maxWidth, maxLines);
   lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
   return lines.length * lineHeight;
 }
@@ -356,9 +367,38 @@ function drawCard(selectedEvents){
 
   if (selectedEvents.length > 0){
     const n = selectedEvents.length;
-    const layout = n <= 3
-      ? { font: 33, lineHeight: 36, gap: 20, markerR: 18, markerFont: 19, timeFont: 18, timeLineHeight: 23 }
-      : { font: 17, lineHeight: 19, gap: 10, markerR: 13, markerFont: 14, timeFont: 16, timeLineHeight: 21 };
+    // n<=3 already had plenty of room at full size -- untouched.
+    // For 4-5, the old code always assumed the pessimistic case (every
+    // title wraps to 2 lines) and picked one small fixed size to stay
+    // safe for that -- which is why there was so much leftover space
+    // whenever the real titles were actually short. Instead, try a few
+    // tiers biggest-first and measure the REAL titles at each one
+    // (maxTitleLines-per-tier below always still caps at 2 lines, same
+    // safety net as before) -- use the biggest tier whose actual content
+    // fits above the footer, only falling back to the small tier if the
+    // real titles genuinely need it.
+    const candidateLayouts = n <= 3
+      ? [{ font: 33, lineHeight: 36, gap: 20, markerR: 18, markerFont: 19, timeFont: 18, timeLineHeight: 23 }]
+      : [
+          { font: 26, lineHeight: 28, gap: 15, markerR: 16, markerFont: 17, timeFont: 18, timeLineHeight: 22 },
+          { font: 22, lineHeight: 24, gap: 13, markerR: 14, markerFont: 15, timeFont: 17, timeLineHeight: 21 },
+          { font: 17, lineHeight: 19, gap: 10, markerR: 13, markerFont: 14, timeFont: 16, timeLineHeight: 21 } // original, proven-safe fallback
+        ];
+    // Content must never run past this y, however it's sized -- leaves a
+    // clear ~30px gap above the footer CTA text at H-70.
+    const EVENTS_BOTTOM_LIMIT = 955;
+
+    let layout = candidateLayouts[candidateLayouts.length - 1]; // safe default if nothing measures better
+    for (const candidate of candidateLayouts){
+      ctx.font = `700 ${candidate.font}px 'Space Grotesk'`;
+      let y = 610;
+      selectedEvents.forEach(ev => {
+        if (ev.event_start_time) y += candidate.timeLineHeight;
+        const lines = computeWrappedLines(ctx, ev.title_fi, W - 210, 2);
+        y += lines.length * candidate.lineHeight + candidate.gap;
+      });
+      if (y <= EVENTS_BOTTOM_LIMIT){ layout = candidate; break; }
+    }
 
     let cursorY = 610;
     selectedEvents.forEach((ev, i) => {
