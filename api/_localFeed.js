@@ -198,32 +198,41 @@ async function fetchOuluEventsFromAPI() {
 
     const data = await res.json();
     const pages = data.pages || [];
-    const { start, end: cutoff } = getHelsinkiDayBounds();
+    const { start, end: todayEnd } = getHelsinkiDayBounds();
+    // Fetched one day further out than what's actually shown on the
+    // public "today" feed -- see applyAdminEventCuration's "hasn't
+    // started yet" filter below -- purely so there's real data for an admin
+    // to plan TOMORROW's featured-events pick against (see event_picks in
+    // schema.sql). Kaleva's own API already returns these occurrences;
+    // this just stops throwing tomorrow's away before they're ever
+    // stored. Deliberately capped at exactly one extra day, not further --
+    // that's the only lookahead this app actually needs right now.
+    const cutoff = todayEnd + 24 * 60 * 60 * 1000;
     const now = Date.now();
 
     // An event occurrence is relevant if it's either still ongoing right
-    // now, or hasn't started yet today -- NOT if it's already fully over.
-    // The previous version only checked whether the occurrence's START
-    // fell within today's bounds, which had two real bugs: (1) a
-    // multi-day event that started yesterday and is still running today
-    // was wrongly excluded (its start isn't "today"), and (2) a
-    // same-day event that already ended hours ago was wrongly still
-    // shown (nothing checked its end time at all).
+    // now, or hasn't started yet today or tomorrow -- NOT if it's already
+    // fully over. The previous version only checked whether the
+    // occurrence's START fell within today's bounds, which had two real
+    // bugs: (1) a multi-day event that started yesterday and is still
+    // running today was wrongly excluded (its start isn't "today"), and
+    // (2) a same-day event that already ended hours ago was wrongly
+    // still shown (nothing checked its end time at all).
     //
     // ASSUMPTION worth verifying against real API responses: this
     // assumes each date entry has an `end` field alongside `start`
     // (a standard shape for this kind of data, but not something this
     // sandbox can confirm against Kaleva's live API directly). If an
     // entry has no `end` at all, this falls back to the old "starts
-    // today" behavior for that entry specifically, rather than guessing
-    // at when an unknown-length event finishes.
+    // today or tomorrow" behavior for that entry specifically, rather
+    // than guessing at when an unknown-length event finishes.
     const findRelevantDate = (page) => {
       const dates = (page.event && page.event.dates) || [];
       return dates.find(d => {
         const startT = new Date(d.start).getTime();
-        if (startT > cutoff) return false; // starts later than today -- not part of "today"
+        if (startT > cutoff) return false; // starts later than tomorrow -- out of range entirely
         const endT = d.end ? new Date(d.end).getTime() : null;
-        if (endT !== null) return endT >= now; // ongoing or upcoming later today; excluded once truly over
+        if (endT !== null) return endT >= now; // ongoing or upcoming; excluded once truly over
         return startT >= start; // no end known -- keep the original same-day-start behavior
       });
     };
@@ -556,12 +565,24 @@ async function getNewsSection(supabase, townId, category) {
 // picksMap is (event id -> highlighted boolean) for TODAY's date only --
 // picks made for other days (see the date-scoped event_picks table) are
 // simply never fetched here, so they can't leak into today's ordering.
+//
+// Also where "hasn't started yet" events get filtered back out. The
+// underlying table can now hold tomorrow's events too (fetched a day
+// ahead purely so an admin has something to plan tomorrow's picks
+// against -- see fetchOuluEventsFromAPI above) -- this is the one
+// chokepoint every return path below goes through, so it's the right
+// place to keep those out of what ordinary visitors see today, without
+// touching the admin's own separately-scoped list-events query (which
+// deliberately WANTS tomorrow's not-yet-started events to show up).
 function applyAdminEventCuration(events, picksMap) {
-  const selected = events.filter(e => picksMap.has(e.id));
-  if (selected.length === 0) return events;
+  const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
+  const visibleNow = events.filter(e => e.event_date <= helsinkiToday);
+
+  const selected = visibleNow.filter(e => picksMap.has(e.id));
+  if (selected.length === 0) return visibleNow;
   const highlighted = selected.filter(e => picksMap.get(e.id));
   const plainSelected = selected.filter(e => !picksMap.get(e.id));
-  const rest = events.filter(e => !picksMap.has(e.id));
+  const rest = visibleNow.filter(e => !picksMap.has(e.id));
   return [...highlighted, ...plainSelected, ...rest];
 }
 
