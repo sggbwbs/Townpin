@@ -47,15 +47,8 @@
 </head>
 <body>
 
-  <h1 id="cardPageTitle">Tänään Oulussa</h1>
+  <h1>Tänään Oulussa</h1>
   <p class="sub">Lataa kuva ja jaa se somessa tai paikallisessa Facebook-ryhmässä — nopea, hyödyllinen tapa saada kävijöitä sivulle joka päivä.</p>
-
-  <div id="dayPickerWrap" style="width:100%;max-width:440px;margin-bottom:16px;text-align:left;">
-    <label for="cardDate" style="font-size:12.5px;font-weight:600;display:block;margin-bottom:6px;">Minkä päivän kortti?</label>
-    <input type="date" id="cardDate" style="width:100%;box-sizing:border-box;padding:9px 12px;
-      border:1px solid var(--line);border-radius:8px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;" />
-    <p id="dayPickerAuthNote" style="font-size:11.5px;color:var(--ink-dim);margin:6px 0 0;display:none;"></p>
-  </div>
 
   <div id="cardWrap">
     <canvas id="cardCanvas" width="1080" height="1080"></canvas>
@@ -104,58 +97,6 @@ const WEATHER_DESC_FI = {
 const MONTHS_FI = ['tammikuuta','helmikuuta','maaliskuuta','huhtikuuta','toukokuuta','kesäkuuta',
   'heinäkuuta','elokuuta','syyskuuta','lokakuuta','marraskuuta','joulukuuta'];
 const WEEKDAYS_FI = ['sunnuntai','maanantai','tiistai','keskiviikko','torstai','perjantai','lauantai'];
-// Essive/adessive form ("on Monday") -- used for the section header and
-// page title when the chosen day is neither today nor tomorrow, where
-// "TÄNÄÄN"/"HUOMENNA" wouldn't be correct Finnish.
-const WEEKDAYS_ESSIVE_FI = ['sunnuntaina','maanantaina','tiistaina','keskiviikkona','torstaina','perjantaina','lauantaina'];
-
-function helsinkiTodayStr(){
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
-}
-
-// "Tänään" / "Huomenna" / "Maanantaina" -- whatever's grammatically
-// correct for how far out dateStr is from today, used for both the page
-// title and the card's own section header.
-function dayLabelFi(dateStr, forSectionHeader){
-  const today = helsinkiTodayStr();
-  if (dateStr === today) return forSectionHeader ? 'TÄNÄÄN' : 'Tänään';
-  const tomorrow = new Date(today + 'T12:00:00');
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  if (dateStr === tomorrow.toISOString().slice(0, 10)) return forSectionHeader ? 'HUOMENNA' : 'Huomenna';
-  const d = new Date(dateStr + 'T12:00:00');
-  const word = WEEKDAYS_ESSIVE_FI[d.getDay()];
-  return forSectionHeader ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1);
-}
-
-// Only admins can plan a card for a day other than today -- see
-// dayPickerAuthNote below. Non-admins simply can't pick a later date at
-// all (the input's own max is clamped to today), rather than letting
-// them pick one and then failing later when the events fetch needs a
-// login it doesn't have.
-let isAdminLoggedIn = false;
-async function checkAdminAuth(){
-  try {
-    const res = await fetch('/api/admin/check');
-    const data = await res.json();
-    isAdminLoggedIn = !!data.authenticated;
-  } catch (e) {
-    isAdminLoggedIn = false;
-  }
-  const dateInput = document.getElementById('cardDate');
-  const today = helsinkiTodayStr();
-  dateInput.min = today;
-  dateInput.value = today;
-  const note = document.getElementById('dayPickerAuthNote');
-  if (isAdminLoggedIn) {
-    note.style.display = 'none';
-    dateInput.removeAttribute('max');
-  } else {
-    dateInput.max = today;
-    note.style.display = 'block';
-    note.innerHTML = 'Kirjaudu sisään <a href="/admin" target="_blank" rel="noopener">adminina</a> suunnitellaksesi tulevien päivien kortteja.';
-  }
-}
-
 // Pure measurement, no drawing -- ctx.font must already be set to the
 // font this measurement should use (ctx.measureText respects it).
 // Shared by wrapText (below) and the adaptive event-layout sizing
@@ -263,47 +204,22 @@ let cachedWeather = { temp: null, weatherCode: 0, tempMax: null, tempMin: null }
 let allEvents = [];
 let selectedIds = new Set();
 let nextEventId = 0;
-let currentCardDate = helsinkiTodayStr();
 
 function tagWithIds(events){
   return events.map(ev => ({ ...ev, _id: nextEventId++ }));
 }
 
-async function fetchCardData(targetDate){
+async function fetchCardData(){
   const statusEl = document.getElementById('status');
-  const today = helsinkiTodayStr();
-  const isToday = targetDate === today;
-  currentCardDate = targetDate;
-
-  cachedWeather = { temp: null, weatherCode: 0, tempMax: null, tempMin: null };
-  allEvents = [];
 
   try {
-    if (isToday){
-      // Unchanged from before: today's actual live current reading, plus
-      // today's own high/low.
-      const wRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FHelsinki&forecast_days=1');
-      const wData = await wRes.json();
-      cachedWeather.temp = wData.current ? Math.round(wData.current.temperature_2m) : null;
-      cachedWeather.weatherCode = wData.current ? wData.current.weather_code : 0;
-      if (wData.daily){
-        cachedWeather.tempMax = Math.round(wData.daily.temperature_2m_max[0]);
-        cachedWeather.tempMin = Math.round(wData.daily.temperature_2m_min[0]);
-      }
-    } else {
-      // No "current" reading exists yet for a future day -- temp stays
-      // null (drawCard uses that to switch to the forecast-only layout),
-      // just the day's own forecast high/low/condition, matched by date
-      // out of the daily array (up to a week out is safely within
-      // Open-Meteo's free-tier daily forecast range).
-      const wRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Europe%2FHelsinki&forecast_days=8');
-      const wData = await wRes.json();
-      const idx = wData.daily ? wData.daily.time.indexOf(targetDate) : -1;
-      if (idx !== -1){
-        cachedWeather.tempMax = Math.round(wData.daily.temperature_2m_max[idx]);
-        cachedWeather.tempMin = Math.round(wData.daily.temperature_2m_min[idx]);
-        cachedWeather.weatherCode = wData.daily.weather_code[idx];
-      }
+    const wRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FHelsinki&forecast_days=1');
+    const wData = await wRes.json();
+    cachedWeather.temp = wData.current ? Math.round(wData.current.temperature_2m) : null;
+    cachedWeather.weatherCode = wData.current ? wData.current.weather_code : 0;
+    if (wData.daily){
+      cachedWeather.tempMax = Math.round(wData.daily.temperature_2m_max[0]);
+      cachedWeather.tempMin = Math.round(wData.daily.temperature_2m_min[0]);
     }
   } catch (e) { /* fail quietly -- card still works without weather */ }
 
@@ -311,27 +227,16 @@ async function fetchCardData(targetDate){
     const tRes = await fetch(`/api/town?name=Oulu&country=FI`);
     const tData = await tRes.json();
     if (tData.town){
-      if (isToday){
-        // Unchanged from before: today's live public feed, already
-        // ranked by popularity/today's own picks -- no login needed,
-        // same as this page always worked for the default case.
-        const fRes = await fetch(`/api/feed?townId=${tData.town.id}`);
-        const fData = await fRes.json();
-        if (fData.events && fData.events.length > 0) allEvents = tagWithIds(fData.events.slice(0, 30)); // matches the backend's own max -- see getEventsSection
-      } else {
-        // A future date needs the admin-authenticated list (see
-        // checkAdminAuth/dateInput.max above -- a non-admin can't even
-        // reach this branch, since they can't pick a date past today).
-        const eRes = await fetch(`/api/admin/list-events?townId=${tData.town.id}&date=${targetDate}`);
-        const eData = await eRes.json();
-        if (eRes.ok && eData.events && eData.events.length > 0) allEvents = tagWithIds(eData.events.slice(0, 30));
-      }
+      const fRes = await fetch(`/api/feed?townId=${tData.town.id}`);
+      const fData = await fRes.json();
+      // Fetch more than we'll necessarily use -- these become the picker's
+      // candidate list, already ranked by popularity/today-first from the backend.
+      if (fData.events && fData.events.length > 0) allEvents = tagWithIds(fData.events.slice(0, 30)); // matches the backend's own max -- see getEventsSection
     }
   } catch (e) { /* fail quietly -- card still works without events */ }
 
   selectedIds = new Set(allEvents.slice(0, DEFAULT_SELECTED_COUNT).map(ev => ev._id));
 
-  document.getElementById('cardPageTitle').textContent = `${dayLabelFi(targetDate, false)} Oulussa`;
   statusEl.textContent = '';
   renderEventPicker();
   drawCard(getSelectedEvents());
@@ -384,11 +289,9 @@ function drawCard(selectedEvents){
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const { temp, weatherCode, tempMax, tempMin } = cachedWeather;
-  const targetDate = currentCardDate;
-  const isToday = targetDate === helsinkiTodayStr();
 
   // ---- draw ----
-  const cardDate = new Date(targetDate + 'T12:00:00'); // midday avoids any DST/timezone edge shifting the date itself
+  const now = new Date();
 
   // background
   ctx.fillStyle = '#f7f2e7';
@@ -411,7 +314,7 @@ function drawCard(selectedEvents){
 
   // date -- a filled pill behind bigger, bolder text so it reads as the
   // card's "when", not just another line of body copy
-  const dateLabel = `${WEEKDAYS_FI[cardDate.getDay()].charAt(0).toUpperCase() + WEEKDAYS_FI[cardDate.getDay()].slice(1)} ${cardDate.getDate()}. ${MONTHS_FI[cardDate.getMonth()]}`;
+  const dateLabel = `${WEEKDAYS_FI[now.getDay()].charAt(0).toUpperCase() + WEEKDAYS_FI[now.getDay()].slice(1)} ${now.getDate()}. ${MONTHS_FI[now.getMonth()]}`;
   ctx.font = "700 34px 'Space Grotesk'";
   const dateWidth = ctx.measureText(dateLabel).width;
   const datePadX = 22, datePillH = 58, datePillY = 148;
@@ -421,12 +324,9 @@ function drawCard(selectedEvents){
   ctx.fillStyle = '#c1712a';
   ctx.fillText(dateLabel, 72 + datePadX, datePillY + 40);
 
-  // weather -- today shows the real live current reading (icon + big
-  // current temp + short condition + today's own high/low, exactly as
-  // before); a future day has no "current" reading to show yet, so the
-  // forecast high/low becomes the primary big number instead.
+  // weather: icon + current temp + short description + today's high/low
   const weatherTop = 250;
-  if (isToday && temp !== null){
+  if (temp !== null){
     ctx.fillStyle = '#2a2110';
     ctx.font = "120px sans-serif";
     ctx.fillText(WEATHER_ICONS[weatherCode] || '🌡️', 72, weatherTop + 110);
@@ -448,22 +348,6 @@ function drawCard(selectedEvents){
       ctx.font = "600 26px 'IBM Plex Sans'";
       ctx.fillText(`Ylin ${tempMax}° · Alin ${tempMin}°`, 262, weatherTop + 198);
     }
-  } else if (!isToday && tempMax !== null && tempMin !== null){
-    ctx.fillStyle = '#2a2110';
-    ctx.font = "120px sans-serif";
-    ctx.fillText(WEATHER_ICONS[weatherCode] || '🌡️', 72, weatherTop + 110);
-
-    ctx.fillStyle = '#2a2110';
-    ctx.font = "700 68px 'Space Grotesk'";
-    ctx.fillText(`${tempMax}° / ${tempMin}°`, 260, weatherTop + 66);
-
-    ctx.fillStyle = '#6b6248';
-    ctx.font = "600 26px 'IBM Plex Sans'";
-    ctx.fillText(`Sääennuste — ${dayLabelFi(targetDate, false).toLowerCase()}`, 262, weatherTop + 104);
-
-    ctx.fillStyle = '#4a4330';
-    ctx.font = "400 26px 'IBM Plex Sans'";
-    ctx.fillText(WEATHER_DESC_FI[weatherCode] || '', 262, weatherTop + 138);
   }
 
   // divider
@@ -471,14 +355,14 @@ function drawCard(selectedEvents){
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(72, 500); ctx.lineTo(W - 72, 500); ctx.stroke();
 
-  // most popular events for the chosen day -- picked via the checklist
-  // below, ranked by Kaleva's real view counts. Layout scales down in
-  // tiers as the count grows, verified (worst case: every title wraps to
-  // 2 lines) to stay clear of the footer at each tier rather than
+  // today's most popular events -- picked via the checklist below,
+  // ranked by Kaleva's real view counts. Layout scales down in tiers as
+  // the count grows, verified (worst case: every title wraps to 2
+  // lines) to stay clear of the footer at each tier rather than
   // assuming a fixed count of 3 the way this used to.
   ctx.fillStyle = '#c1712a';
   ctx.font = "700 26px 'Space Grotesk'";
-  ctx.fillText(`SUOSITUIMMAT TAPAHTUMAT ${dayLabelFi(targetDate, true)}`, 72, 550);
+  ctx.fillText('SUOSITUIMMAT TAPAHTUMAT TÄNÄÄN', 72, 550);
 
   if (selectedEvents.length > 0){
     const n = selectedEvents.length;
@@ -546,7 +430,7 @@ function drawCard(selectedEvents){
   } else {
     ctx.fillStyle = '#6b6248';
     ctx.font = "400 28px 'IBM Plex Sans'";
-    ctx.fillText('Ei tiedossa erityisiä tapahtumia tälle päivälle.', 72, 610);
+    ctx.fillText('Ei tiedossa erityisiä tapahtumia juuri nyt.', 72, 610);
   }
 
   // footer CTA
@@ -563,7 +447,8 @@ function drawCard(selectedEvents){
 document.getElementById('downloadBtn').addEventListener('click', () => {
   const canvas = document.getElementById('cardCanvas');
   const link = document.createElement('a');
-  link.download = `oulussa-${currentCardDate}.png`;
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.download = `tanaan-oulussa-${dateStr}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
 });
@@ -590,19 +475,12 @@ document.getElementById('addCustomEventBtn').addEventListener('click', () => {
   drawCard(getSelectedEvents());
 });
 
-document.getElementById('cardDate').addEventListener('change', (e) => {
-  fetchCardData(e.target.value);
-});
-
 // wait for the display font to actually be loaded before drawing -- canvas
 // text falls back to a default font silently otherwise, even if the CSS
 // font is already applied to the rest of the page
 document.fonts.load("700 40px 'Space Grotesk'").then(() => {
   document.fonts.load("400 28px 'IBM Plex Sans'").then(() => {
-    document.fonts.load("600 16px 'IBM Plex Sans'").then(async () => {
-      await checkAdminAuth();
-      fetchCardData(document.getElementById('cardDate').value);
-    });
+    document.fonts.load("600 16px 'IBM Plex Sans'").then(fetchCardData);
   });
 });
 </script>

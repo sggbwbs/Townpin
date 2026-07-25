@@ -1782,3 +1782,24 @@ Two places now expose this:
   "HUOMENNA" / the correct Finnish essive form of the weekday for
   anything further out), page title, and download filename all follow
   the chosen day.
+
+## Date-scoped event curation -- reverted
+
+The feature described immediately above didn't reliably pick the right
+events once deployed (events for other days weren't showing up as
+expected in practice) and was reverted rather than debugged further.
+`admin.html`, `today-card.html`, `api/admin/[action].js`, and
+`api/_localFeed.js` are all back to the always-today flat
+`admin_selected`/`admin_highlighted` behavior described further above,
+and `today-card.html` is back to being a plain single-day ("today
+only") card generator -- no date picker, no admin login required to
+use it.
+
+The `event_picks` table added for this feature is left in the schema
+(harmless, unused -- same reasoning as the old boolean columns further
+up: this app doesn't do destructive schema changes). If picking events
+for future days comes back as a priority later, it's worth
+approaching as its own focused piece of work rather than bundled with
+other changes, given how many places actually touch event curation
+(the public feed, the admin panel, and the card generator all read or
+write it).

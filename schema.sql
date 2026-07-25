@@ -238,7 +238,7 @@ create index if not exists local_feed_items_admin_selected_idx on local_feed_ite
 create table if not exists event_picks (
   id bigserial primary key,
   town_id bigint not null references towns(id),
-  event_id bigint not null references local_feed_items(id) on delete cascade,
+  event_id uuid not null references local_feed_items(id) on delete cascade,
   pick_date date not null,
   highlighted boolean not null default false,
   created_at timestamptz not null default now(),
