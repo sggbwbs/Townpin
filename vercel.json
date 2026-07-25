@@ -5,7 +5,8 @@
     { "source": "/board/:slug", "destination": "/" },
     { "source": "/oulu", "destination": "/" },
     { "source": "/api/board", "destination": "/api/data?endpoint=board" },
-    { "source": "/api/feed", "destination": "/api/data?endpoint=feed" }
+    { "source": "/api/feed", "destination": "/api/data?endpoint=feed" },
+    { "source": "/api/user/:action", "destination": "/api/data?endpoint=user&action=:action" }
   ],
   "crons": [
     { "path": "/api/maintenance", "schedule": "0 4 * * *" },

@@ -9,26 +9,35 @@ function sign(payloadStr) {
 
 // Token format: base64(json payload) + "." + hmac signature.
 // Stateless — no session table needed, just verify + check expiry.
-function createToken() {
-  const payload = JSON.stringify({ exp: Date.now() + SESSION_HOURS * 60 * 60 * 1000 });
+//
+// `label` identifies *which* of the two admins this is (e.g. "Coding
+// admin" / "Business admin") -- purely so the panel can show "logged in
+// as: X" for accountability. It is NOT a permissions boundary: both
+// admins get the exact same access, on purpose (see schema.sql).
+function createToken(label) {
+  const payload = JSON.stringify({ exp: Date.now() + SESSION_HOURS * 60 * 60 * 1000, label: label || null });
   const payloadB64 = Buffer.from(payload).toString('base64');
   const sig = sign(payloadB64);
   return `${payloadB64}.${sig}`;
 }
 
+// Returns the decoded payload ({ exp, label }) if the token is valid and
+// unexpired, or null otherwise. Callers that only need a yes/no answer
+// should use isAuthenticated below, which preserves the original boolean
+// behavior.
 function verifyToken(token) {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+  if (!token || typeof token !== 'string' || !token.includes('.')) return null;
   const [payloadB64, sig] = token.split('.');
   const expectedSig = sign(payloadB64);
   // constant-time comparison to avoid leaking signature info via timing
   const a = Buffer.from(sig || '', 'hex');
   const b = Buffer.from(expectedSig, 'hex');
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
   try {
     const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString());
-    return payload.exp > Date.now();
+    return payload.exp > Date.now() ? payload : null;
   } catch (e) {
-    return false;
+    return null;
   }
 }
 
@@ -44,13 +53,24 @@ function parseCookies(req) {
   return out;
 }
 
+// Preserved as a strict boolean -- every existing call site (data.js,
+// ask.js, the various admin/[action].js handlers) does `if
+// (!isAuthenticated(req))`, and that must keep working exactly as before.
 function isAuthenticated(req) {
+  const cookies = parseCookies(req);
+  return !!verifyToken(cookies.admin_token);
+}
+
+// For callers that also want to know WHICH admin this is (currently
+// just handleCheck, for the "logged in as: X" display). Returns
+// { label } or null.
+function getAdminSession(req) {
   const cookies = parseCookies(req);
   return verifyToken(cookies.admin_token);
 }
 
-function setSessionCookie(res) {
-  const token = createToken();
+function setSessionCookie(res, label) {
+  const token = createToken(label);
   const maxAge = SESSION_HOURS * 60 * 60;
   res.setHeader('Set-Cookie',
     `admin_token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`);
@@ -66,4 +86,4 @@ function getClientIp(req) {
   return req.socket && req.socket.remoteAddress || 'unknown';
 }
 
-module.exports = { isAuthenticated, setSessionCookie, clearSessionCookie, getClientIp };
+module.exports = { isAuthenticated, getAdminSession, setSessionCookie, clearSessionCookie, getClientIp };

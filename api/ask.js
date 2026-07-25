@@ -1,7 +1,10 @@
 const { supabase } = require('./_db');
 const { getNewsSection, getEventsSection } = require('./_localFeed');
-const { getClientIp, isRateLimited, recordRequest } = require('./_rateLimit');
+const { getClientIp, recordRequest, recordUserRequest, countIpToday, countUserToday } = require('./_rateLimit');
 const { geocodeAddress } = require('./_geocode');
+const { isAuthenticated: isAdminAuthenticated } = require('./admin/_auth');
+const { getUserId } = require('./_userAuth');
+const { FREE_QUESTIONS_PER_DAY } = require('./_limits');
 
 // AI local-guide chat widget: "what's on today", "where should I eat",
 // "things to do this weekend" -- grounded first in this town's own real
@@ -22,8 +25,17 @@ const { geocodeAddress } = require('./_geocode');
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-haiku-4-5-20251001';
 
-const MAX_QUESTIONS_PER_DAY = 25;
-const RATE_LIMIT_WINDOW_HOURS = 24;
+// 10 free questions/day (see api/_limits.js), resetting at midnight
+// Europe/Helsinki -- a real calendar day, not a rolling 24h window, so
+// it's something visitors can actually be told and rely on. Tracked by
+// IP for anonymous visitors and by account for logged-in ones (an
+// account survives switching wifi/phone, an IP doesn't). Admins (see
+// isAdminAuthenticated below) are unlimited. Past the free 10: a
+// logged-in visitor can buy 10 more for €0.99 (see handleUserBuyCredits
+// in api/data.js); an anonymous one is prompted to register instead of
+// being offered anonymous top-ups, since there'd be no account to
+// actually attach purchased credits to.
+// no rolling window needed here -- see countIpToday/countUserToday, which reset at midnight Europe/Helsinki instead
 const MAX_HISTORY_TURNS = 6; // trailing turns only -- keeps a long-running chat's cost bounded
 const MAX_QUESTION_LENGTH = 500;
 const MAX_BUSINESSES_IN_CONTEXT = 200; // defensive cap even for a hypothetical fully-booked board
@@ -123,16 +135,53 @@ module.exports = async (req, res) => {
   }
 
   const ip = getClientIp(req);
+
+  // usageMode decides how this request gets recorded further down (once
+  // it's known the question will actually be answered), and is echoed
+  // back in the response as `usage` so the frontend can show something
+  // meaningful ("7 free left today" / "using 1 credit, 3 left" / an
+  // admin badge) instead of guessing.
+  const isAdmin = isAdminAuthenticated(req);
+  const userId = isAdmin ? null : getUserId(req);
+  let user = null;
+  if (userId) {
+    const { data } = await supabase
+      .from('users')
+      .select('id, credit_balance, consent_personalization')
+      .eq('id', userId)
+      .maybeSingle();
+    user = data || null;
+  }
+
+  let usageMode = 'admin';
   try {
-    const limited = await isRateLimited(supabase, 'ask_agent_log', ip, MAX_QUESTIONS_PER_DAY, RATE_LIMIT_WINDOW_HOURS);
-    if (limited) {
-      return res.status(429).json({
-        error: 'rate_limited',
-        message: `Liian monta kysymystä tänään -- kokeile huomenna uudelleen. / Too many questions today -- try again tomorrow.`
-      });
+    if (isAdmin) {
+      usageMode = 'admin';
+    } else if (user) {
+      const usedToday = await countUserToday(supabase, 'user_ai_usage', user.id);
+      if (usedToday < FREE_QUESTIONS_PER_DAY) {
+        usageMode = 'user_free';
+      } else if (user.credit_balance > 0) {
+        usageMode = 'user_paid';
+      } else {
+        return res.status(402).json({
+          error: 'need_credits',
+          message: `Päivän ${FREE_QUESTIONS_PER_DAY} ilmaista kysymystä on käytetty (palautuu klo 00 Suomen aikaa) -- osta lisää 0,99 €/10 kysymystä. / Today's ${FREE_QUESTIONS_PER_DAY} free questions are used up (resets at midnight Finland time) -- buy 10 more for €0.99.`
+        });
+      }
+    } else {
+      const usedToday = await countIpToday(supabase, 'ask_agent_log', ip);
+      if (usedToday >= FREE_QUESTIONS_PER_DAY) {
+        return res.status(401).json({
+          error: 'need_login',
+          message: `Päivän ${FREE_QUESTIONS_PER_DAY} ilmaista kysymystä on käytetty (palautuu klo 00 Suomen aikaa) -- kirjaudu sisään jatkaaksesi. / Today's ${FREE_QUESTIONS_PER_DAY} free questions are used up (resets at midnight Finland time) -- log in to keep going.`
+        });
+      }
+      usageMode = 'anon';
     }
   } catch (err) {
-    console.error('Ask agent rate-limit check failed (proceeding anyway):', err);
+    console.error('Ask agent usage check failed (proceeding as anonymous):', err);
+    usageMode = 'anon';
   }
 
   try {
@@ -235,7 +284,32 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       : [];
     const messages = [...trimmedHistory, { role: 'user', content: question.trim() }];
 
-    await recordRequest(supabase, 'ask_agent_log', ip);
+    // Recorded here (before the AI call resolves), matching the original
+    // behavior -- a question that's about to be sent counts against the
+    // relevant allowance regardless of whether the AI call itself later
+    // succeeds or fails.
+    if (usageMode === 'anon') {
+      await recordRequest(supabase, 'ask_agent_log', ip);
+    } else if (usageMode === 'user_free') {
+      await recordUserRequest(supabase, 'user_ai_usage', user.id);
+    } else if (usageMode === 'user_paid') {
+      await supabase.rpc('increment_credit_balance', { p_user_id: user.id, p_amount: -1 });
+    }
+    // usageMode === 'admin' -> nothing to record, unlimited.
+
+    // Opt-in only (see consent_personalization in schema.sql) -- never
+    // written for a user who hasn't explicitly turned personalization on,
+    // and not used for anything yet (see project notes: this is
+    // groundwork for future recommendations, logged now, wired in later).
+    if (user && user.consent_personalization) {
+      try {
+        await supabase.from('user_activity').insert({
+          user_id: user.id, activity_type: 'search', detail: question.trim().slice(0, 200)
+        });
+      } catch (activityErr) {
+        console.error('Activity logging failed (non-fatal):', activityErr);
+      }
+    }
 
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -391,7 +465,8 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       return res.status(200).json({
         answer: boldedSalvaged || 'Pahoittelut, en osannut vastata juuri nyt. / Sorry, I couldn\'t answer that just now.',
         mentioned: [],
-        webResults: recoveredLinks
+        webResults: recoveredLinks,
+        usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined }
       });
     }
 
@@ -490,7 +565,10 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
 
     const linkedNames = [...mentioned.map(m => m.name), ...webResults.map(w => w.name)];
     const finalAnswer = boldLinkedNames(cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), linkedNames);
-    res.status(200).json({ answer: finalAnswer, mentioned, webResults });
+    res.status(200).json({
+      answer: finalAnswer, mentioned, webResults,
+      usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined }
+    });
   } catch (err) {
     console.error('Ask agent failed:', err);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });

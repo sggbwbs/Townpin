@@ -323,6 +323,31 @@
     background:none;border:none;width:28px;height:28px;border-radius:50%;}
   #legalModal .close:hover{background:rgba(0,0,0,0.06);}
 
+  #authOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
+    align-items:center;justify-content:center;padding:20px;}
+  #authModal{position:relative;background:var(--paper);color:#26210f;width:100%;max-width:380px;
+    border-radius:14px;padding:32px;box-shadow:var(--shadow-lg);font-family:'IBM Plex Sans',sans-serif;}
+  #authModal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 6px;font-size:19px;}
+  #authModal p.authSub{font-size:12.5px;color:#8a8168;margin:0 0 18px;line-height:1.5;}
+  #authModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:#8a8168;
+    background:none;border:none;width:28px;height:28px;border-radius:50%;}
+  #authModal .close:hover{background:rgba(0,0,0,0.06);}
+  #authModal input[type=email], #authModal input[type=password]{width:100%;box-sizing:border-box;
+    padding:10px 12px;margin-bottom:10px;border:1px solid #d8cfb8;border-radius:8px;font-size:13.5px;
+    font-family:'IBM Plex Sans',sans-serif;}
+  #authModal label.authConsent{display:flex;gap:8px;align-items:flex-start;font-size:12px;
+    color:#5a5238;line-height:1.4;margin:2px 0 14px;cursor:pointer;}
+  #authModal label.authConsent input{margin-top:2px;}
+  #authModal button.authSubmit{width:100%;background:var(--amber);color:#2a1c0d;border:none;
+    border-radius:8px;padding:11px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;}
+  #authModal .authSwitch{text-align:center;font-size:12.5px;margin-top:14px;color:#8a8168;}
+  #authModal .authSwitch a{color:#b9773a;cursor:pointer;text-decoration:underline;}
+  #authModal .authErr{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
+    font-size:12px;margin-bottom:10px;}
+  #accountBtn{border:none;background:var(--panelT7);border:1px solid var(--line);border-radius:999px;
+    padding:0 14px;height:34px;cursor:pointer;font-size:12.5px;color:var(--ink);font-family:'IBM Plex Mono',monospace;
+    display:flex;align-items:center;gap:6px;white-space:nowrap;}
+
   #howItWorks{margin-top:56px;text-align:center;}
   #howItWorks h2{font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--ink);margin:0 0 28px;}
   .hiwSteps{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;}
@@ -485,6 +510,7 @@
     <div class="name">PAIKALLIS<span>CANVAS</span></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
+    <button id="accountBtn" onclick="openAuthModal()">👤 <span id="accountBtnLabel" data-i18n="loginBtnLabel">Kirjaudu</span></button>
     <button id="themeToggle" title="Vaihda vaalea/tumma teema" style="border:none;background:var(--panelT7);
       border:1px solid var(--line);border-radius:999px;width:34px;height:34px;cursor:pointer;
       font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--ink);">🌙</button>
@@ -494,6 +520,40 @@
     </div>
   </div>
 </header>
+
+<div id="authOverlay">
+  <div id="authModal">
+    <button class="close" onclick="closeAuthModal()">✕</button>
+    <div id="authErr" class="authErr"></div>
+
+    <div id="authLoggedOutView">
+      <h2 id="authTitle" data-i18n="authLoginTitle">Kirjaudu sisään</h2>
+      <p class="authSub" id="authSubText" data-i18n="authSub">Kirjautuneena saat 10 ilmaista tekoälykysymystä päivässä (palautuu joka yö klo 00) ja voit ostaa lisää.</p>
+      <p class="authSub" id="authForgotSentMsg" style="display:none;color:#3a7d3a;"></p>
+      <input type="email" id="authEmail" autocomplete="email" data-i18n-placeholder="authEmailPlaceholder" placeholder="Sähköposti">
+      <input type="password" id="authPassword" autocomplete="current-password" data-i18n-placeholder="authPasswordPlaceholder" placeholder="Salasana (väh. 8 merkkiä)">
+      <label class="authConsent" id="authConsentRow" style="display:none;">
+        <input type="checkbox" id="authConsent">
+        <span data-i18n="authConsentLabel">Saa käyttää hakujani ja klikkauksiani suositusten personointiin. Vapaaehtoista -- voit peruuttaa milloin vain poistamalla tilisi.</span>
+      </label>
+      <button class="authSubmit" id="authSubmitBtn" onclick="submitAuth()" data-i18n="authLoginButton">Kirjaudu</button>
+      <div class="authSwitch" id="authForgotLink" data-i18n="authForgotLink">Unohditko salasanan? <a onclick="setAuthMode('forgot')">Palauta se</a></div>
+      <div class="authSwitch" id="authSwitchToRegister" data-i18n="authSwitchToRegister">Eikö sinulla ole tiliä? <a onclick="setAuthMode('register')">Rekisteröidy</a></div>
+      <div class="authSwitch" id="authSwitchToLogin" style="display:none;" data-i18n="authSwitchToLogin">Onko sinulla jo tili? <a onclick="setAuthMode('login')">Kirjaudu</a></div>
+      <div class="authSwitch" id="authBackToLogin" style="display:none;" data-i18n="authBackToLogin">Takaisin <a onclick="setAuthMode('login')">kirjautumiseen</a></div>
+    </div>
+
+    <div id="authLoggedInView" style="display:none;">
+      <h2 data-i18n="authAccountTitle">Oma tili</h2>
+      <p class="authSub"><span id="authAccountEmail"></span></p>
+      <p class="authSub" id="authCreditsLine"></p>
+      <p class="authSub" id="authFreeSearchesLine"></p>
+      <button class="authSubmit" id="authBuyCreditsBtn" onclick="buyCredits()" data-i18n="authBuyCredits">Osta 10 lisää -- 0,99 €</button>
+      <div class="authSwitch"><a onclick="logoutUser()" data-i18n="authLogout">Kirjaudu ulos</a></div>
+      <div class="authSwitch"><a onclick="deleteAccountPrompt()" data-i18n="authDeleteAccount">Poista tilini</a></div>
+    </div>
+  </div>
+</div>
 
 <div id="installBanner">
   <span id="installBannerText"></span>
@@ -1188,6 +1248,35 @@ const STRINGS = {
     askThinking: 'Mietitään…',
     askError: 'Jokin meni pieleen. Kokeile hetken kuluttua uudelleen.',
     askRateLimited: 'Liian monta kysymystä tänään -- kokeile huomenna uudelleen.',
+    askNeedLogin: 'Päivän 10 ilmaista kysymystä on käytetty (palautuu klo 00 Suomen aikaa). Kirjaudu sisään jatkaaksesi tai osta lisää.',
+    askNeedCredits: 'Päivän ilmaiset kysymykset on käytetty (palautuu klo 00 Suomen aikaa). Osta 10 lisää 0,99 €:lla.',
+    askLoginBtn: 'Kirjaudu / rekisteröidy',
+    askBuyCreditsBtn: 'Osta 10 lisää -- 0,99 €',
+    loginBtnLabel: 'Kirjaudu',
+    authLoginTitle: 'Kirjaudu sisään',
+    authRegisterTitle: 'Luo tili',
+    authSub: 'Kirjautuneena saat 10 ilmaista tekoälykysymystä päivässä (palautuu joka yö klo 00 Suomen aikaa) ja voit ostaa lisää.',
+    authEmailPlaceholder: 'Sähköposti',
+    authPasswordPlaceholder: 'Salasana (väh. 8 merkkiä)',
+    authNewPasswordPlaceholder: 'Uusi salasana (väh. 8 merkkiä)',
+    authConsentLabel: 'Saa käyttää hakujani ja klikkauksiani suositusten personointiin. Vapaaehtoista -- voit peruuttaa milloin vain poistamalla tilisi.',
+    authLoginButton: 'Kirjaudu',
+    authRegisterButton: 'Luo tili',
+    authForgotLink: 'Unohditko salasanan? <a onclick="setAuthMode(\'forgot\')">Palauta se</a>',
+    authForgotTitle: 'Palauta salasana',
+    authForgotButton: 'Lähetä palautuslinkki',
+    authForgotSentMessage: 'Jos tämä sähköposti on rekisteröity, lähetimme sille palautuslinkin.',
+    authResetTitle: 'Aseta uusi salasana',
+    authResetButton: 'Tallenna uusi salasana',
+    authBackToLogin: 'Takaisin <a onclick="setAuthMode(\'login\')">kirjautumiseen</a>',
+    authSwitchToRegister: 'Eikö sinulla ole tiliä? <a onclick="setAuthMode(\'register\')">Rekisteröidy</a>',
+    authSwitchToLogin: 'Onko sinulla jo tili? <a onclick="setAuthMode(\'login\')">Kirjaudu</a>',
+    authAccountTitle: 'Oma tili',
+    authBuyCredits: 'Osta 10 lisää -- 0,99 €',
+    authLogout: 'Kirjaudu ulos',
+    authDeleteAccount: 'Poista tilini',
+    authDeleteConfirm: 'Tämä poistaa tilisi ja kaikki siihen liittyvät tiedot pysyvästi. Jatketaanko?',
+    authGenericError: 'Jokin meni pieleen. Yritä uudelleen.',
     newsSectionTitle: 'Uutiset',
     eventsSectionTitle: 'Tapahtumat tänään',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
@@ -1330,6 +1419,35 @@ const STRINGS = {
     askThinking: 'Thinking…',
     askError: 'Something went wrong. Please try again in a moment.',
     askRateLimited: 'Too many questions today -- try again tomorrow.',
+    askNeedLogin: "Today's 10 free questions are used up (resets at midnight Finland time). Log in to keep going, or buy more.",
+    askNeedCredits: "Today's free questions are used up (resets at midnight Finland time). Buy 10 more for €0.99.",
+    askLoginBtn: 'Log in / register',
+    askBuyCreditsBtn: 'Buy 10 more -- €0.99',
+    loginBtnLabel: 'Log in',
+    authLoginTitle: 'Log in',
+    authRegisterTitle: 'Create an account',
+    authSub: "Logged in, you get 10 free AI questions a day (resets every night at midnight Finland time) and can buy more.",
+    authEmailPlaceholder: 'Email',
+    authPasswordPlaceholder: 'Password (8+ characters)',
+    authNewPasswordPlaceholder: 'New password (8+ characters)',
+    authConsentLabel: "Allow my searches and clicks to be used to personalize recommendations. Optional -- you can withdraw anytime by deleting your account.",
+    authLoginButton: 'Log in',
+    authRegisterButton: 'Create account',
+    authForgotLink: 'Forgot your password? <a onclick="setAuthMode(\'forgot\')">Reset it</a>',
+    authForgotTitle: 'Reset password',
+    authForgotButton: 'Send reset link',
+    authForgotSentMessage: "If that email is registered, we've sent it a reset link.",
+    authResetTitle: 'Set a new password',
+    authResetButton: 'Save new password',
+    authBackToLogin: 'Back to <a onclick="setAuthMode(\'login\')">login</a>',
+    authSwitchToRegister: 'No account yet? <a onclick="setAuthMode(\'register\')">Register</a>',
+    authSwitchToLogin: 'Already have an account? <a onclick="setAuthMode(\'login\')">Log in</a>',
+    authAccountTitle: 'My account',
+    authBuyCredits: 'Buy 10 more -- €0.99',
+    authLogout: 'Log out',
+    authDeleteAccount: 'Delete my account',
+    authDeleteConfirm: 'This permanently deletes your account and all associated data. Continue?',
+    authGenericError: 'Something went wrong. Please try again.',
     newsSectionTitle: 'News',
     eventsSectionTitle: 'Events today',
     noEventsThisWeek: 'No known events for this week.',
@@ -2093,6 +2211,163 @@ document.getElementById('newsCategoryFilter').addEventListener('change', (e)=>{
   loadFeed();
 });
 
+// ---- Visitor accounts: login/register, credits, account panel ----
+// Deliberately minimal client state -- currentUser is either null
+// (logged out) or the small object /api/user/check returns
+// ({email, creditBalance, consentPersonalization}). Never cached beyond
+// this page load; every load re-asks the server via the session cookie.
+let currentUser = null;
+let authMode = 'login';
+let pendingResetToken = null; // set from ?resetToken= on page load, see init()
+
+async function checkUserAuth(){
+  try {
+    const res = await fetch(`${API_BASE}/user/check`);
+    const data = await res.json();
+    currentUser = data.authenticated ? data.user : null;
+  } catch (e) {
+    currentUser = null;
+  }
+  updateAccountButton();
+}
+
+function updateAccountButton(){
+  const label = document.getElementById('accountBtnLabel');
+  label.textContent = currentUser ? currentUser.email : t('loginBtnLabel');
+}
+
+function openAuthModal(){
+  document.getElementById('authErr').style.display = 'none';
+  if (currentUser){
+    document.getElementById('authLoggedOutView').style.display = 'none';
+    document.getElementById('authLoggedInView').style.display = 'block';
+    document.getElementById('authAccountEmail').textContent = currentUser.email;
+    document.getElementById('authCreditsLine').textContent =
+      (lang === 'fi' ? 'Ostettuja kysymyksiä jäljellä: ' : 'Purchased questions remaining: ') + currentUser.creditBalance;
+    const used = currentUser.freeSearchesUsedToday || 0;
+    const limit = currentUser.freeSearchesLimit || 10;
+    document.getElementById('authFreeSearchesLine').textContent = lang === 'fi'
+      ? `Ilmaisia kysymyksiä tänään käytetty: ${used}/${limit} — palautuu klo 00 (Suomen aika)`
+      : `Free questions used today: ${used}/${limit} — resets at midnight (Finland time)`;
+  } else {
+    document.getElementById('authLoggedOutView').style.display = 'block';
+    document.getElementById('authLoggedInView').style.display = 'none';
+    setAuthMode(pendingResetToken ? 'reset' : 'login');
+  }
+  document.getElementById('authOverlay').style.display = 'flex';
+}
+function closeAuthModal(){
+  document.getElementById('authOverlay').style.display = 'none';
+}
+document.getElementById('authOverlay').addEventListener('click', (e)=>{
+  if (e.target.id === 'authOverlay') closeAuthModal();
+});
+
+function setAuthMode(mode){
+  authMode = ['login', 'register', 'forgot', 'reset'].includes(mode) ? mode : 'login';
+  document.getElementById('authErr').style.display = 'none';
+  document.getElementById('authForgotSentMsg').style.display = 'none';
+
+  const titles = { login: 'authLoginTitle', register: 'authRegisterTitle', forgot: 'authForgotTitle', reset: 'authResetTitle' };
+  const buttons = { login: 'authLoginButton', register: 'authRegisterButton', forgot: 'authForgotButton', reset: 'authResetButton' };
+  document.getElementById('authTitle').textContent = t(titles[authMode]);
+  document.getElementById('authSubmitBtn').textContent = t(buttons[authMode]);
+
+  document.getElementById('authEmail').style.display = (authMode === 'reset') ? 'none' : 'block';
+  document.getElementById('authPassword').style.display = (authMode === 'forgot') ? 'none' : 'block';
+  document.getElementById('authPassword').placeholder = t(authMode === 'reset' ? 'authNewPasswordPlaceholder' : 'authPasswordPlaceholder');
+  document.getElementById('authConsentRow').style.display = (authMode === 'register') ? 'flex' : 'none';
+  document.getElementById('authForgotLink').style.display = (authMode === 'login') ? 'block' : 'none';
+  document.getElementById('authSwitchToRegister').style.display = (authMode === 'login') ? 'block' : 'none';
+  document.getElementById('authSwitchToLogin').style.display = (authMode === 'register') ? 'block' : 'none';
+  document.getElementById('authBackToLogin').style.display = (authMode === 'forgot' || authMode === 'reset') ? 'block' : 'none';
+}
+
+async function submitAuth(){
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const consentPersonalization = document.getElementById('authConsent').checked;
+  const errBox = document.getElementById('authErr');
+  errBox.style.display = 'none';
+
+  const endpoints = {
+    login: 'login', register: 'register',
+    forgot: 'request-password-reset', reset: 'reset-password'
+  };
+  const body = authMode === 'forgot'
+    ? { email }
+    : authMode === 'reset'
+      ? { token: pendingResetToken, newPassword: password }
+      : { email, password, consentPersonalization };
+
+  try {
+    const res = await fetch(`${API_BASE}/user/${endpoints[authMode]}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok){
+      errBox.textContent = data.error || t('authGenericError');
+      errBox.style.display = 'block';
+      return;
+    }
+
+    if (authMode === 'forgot'){
+      const msgEl = document.getElementById('authForgotSentMsg');
+      msgEl.textContent = data.message || t('authForgotSentMessage');
+      msgEl.style.display = 'block';
+      return;
+    }
+
+    // login, register, and a successful reset all land here with a real
+    // logged-in user -- reset also strips the one-time token from the
+    // URL so refreshing the page can't try to reuse it.
+    currentUser = data.user;
+    if (authMode === 'reset'){
+      pendingResetToken = null;
+      const url = new URL(window.location.href);
+      url.searchParams.delete('resetToken');
+      window.history.replaceState({}, '', url.toString());
+    }
+    updateAccountButton();
+    closeAuthModal();
+  } catch (e) {
+    errBox.textContent = t('authGenericError');
+    errBox.style.display = 'block';
+  }
+}
+
+async function logoutUser(){
+  try { await fetch(`${API_BASE}/user/logout`, { method: 'POST' }); } catch (e) {}
+  currentUser = null;
+  updateAccountButton();
+  closeAuthModal();
+}
+
+async function deleteAccountPrompt(){
+  if (!confirm(t('authDeleteConfirm'))) return;
+  try { await fetch(`${API_BASE}/user/delete-account`, { method: 'POST' }); } catch (e) {}
+  currentUser = null;
+  updateAccountButton();
+  closeAuthModal();
+}
+
+// Also called directly from the AI-chat "buy more" prompt (see askAsk
+// below), not just from the account panel -- either way lands the
+// visitor back on a real Stripe Checkout page, same pattern as buying a
+// board square.
+async function buyCredits(){
+  try {
+    const res = await fetch(`${API_BASE}/user/buy-credits`, { method: 'POST' });
+    const data = await res.json();
+    if (data.url) { location.href = data.url; return; }
+    if (data.error === 'Please log in first.') openAuthModal();
+  } catch (e) {
+    // network error -- nothing sensible to show from here, the button
+    // simply does nothing and the visitor can try again
+  }
+}
+
 // ---- AI local guide: hero search ----
 let askHistory = [];   // {role:'user'|'assistant', content:string}[] sent to /api/ask as context
 let askResultBlockCounter = 0; // gives each chat result's webResults block a unique id for show-more/less
@@ -2231,6 +2506,17 @@ async function askAsk(question, sendBtn){
       body: JSON.stringify({ townId: currentTown.id, question, history: askHistory })
     });
 
+    if (res.status === 401 || res.status === 402){
+      pendingEl.remove();
+      const isCredits = res.status === 402;
+      const msg = t(isCredits ? 'askNeedCredits' : 'askNeedLogin');
+      const btnLabel = t(isCredits ? 'askBuyCreditsBtn' : 'askLoginBtn');
+      const btnAction = isCredits ? 'buyCredits()' : 'openAuthModal()';
+      askAppendResult(
+        `<p>${escapeAskText(msg)}</p><button class="logoBtn" onclick="${btnAction}">${escapeAskText(btnLabel)}</button>`
+      );
+      return;
+    }
     if (res.status === 429){
       pendingEl.remove();
       askAppendResult(escapeAskText(t('askRateLimited')));
@@ -2244,6 +2530,13 @@ async function askAsk(question, sendBtn){
 
     const data = await res.json();
     pendingEl.remove();
+
+    // Keep the header's account button (email / credit count) fresh
+    // right after a chat response spends a free question or a credit --
+    // best-effort, never blocks showing the answer itself.
+    if (data.usage && (data.usage.mode === 'user_free' || data.usage.mode === 'user_paid')) {
+      checkUserAuth();
+    }
 
     const answer = data.answer || t('askError');
     let html = escapeAskText(answer).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -2848,6 +3141,13 @@ async function init(){
   await applyContentOverrides();
   setLang(lang);
   showSuccessBannerIfNeeded();
+  showCreditsBannerIfNeeded();
+  await checkUserAuth();
+  const resetTokenParam = new URLSearchParams(window.location.search).get('resetToken');
+  if (resetTokenParam) {
+    pendingResetToken = resetTokenParam;
+    openAuthModal();
+  }
   const path = window.location.pathname;
   if (path.startsWith('/board/')){
     // legacy URL format -- kept working for any existing bookmarks/links
@@ -3064,6 +3364,19 @@ function showSuccessBannerIfNeeded(){
   banner.innerHTML = (lang === 'fi'
     ? `🎉 Kiitos ostoksesta! <a href="${manageUrl}" style="color:#2a1c0d;font-weight:700;">Muokkaa ilmoitustasi täältä</a> — tallenna tämä linkki, se on ainoa tapa hallita ilmoitustasi myöhemmin.`
     : `🎉 Thanks for your purchase! <a href="${manageUrl}" style="color:#2a1c0d;font-weight:700;">Manage your listing here</a> — save this link, it's the only way back in to edit it later.`)
+    + ` <span style="cursor:pointer;text-decoration:underline;margin-left:10px;" onclick="this.parentElement.remove()">✕</span>`;
+  document.body.prepend(banner);
+}
+
+function showCreditsBannerIfNeeded(){
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('credits') !== 'success') return;
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:3000;background:#f2a65a;color:#2a1c0d;'
+    + 'padding:14px 20px;text-align:center;font-family:IBM Plex Sans,sans-serif;font-size:14px;';
+  banner.innerHTML = (lang === 'fi'
+    ? `🎉 Kiitos! 10 kysymystä lisää tililläsi.`
+    : `🎉 Thanks! 10 more questions have been added to your account.`)
     + ` <span style="cursor:pointer;text-decoration:underline;margin-left:10px;" onclick="this.parentElement.remove()">✕</span>`;
   document.body.prepend(banner);
 }

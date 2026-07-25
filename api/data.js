@@ -1,17 +1,29 @@
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const Stripe = require('stripe');
 const { supabase } = require('./_db');
 const { getNewsSection, getEventsSection } = require('./_localFeed');
+const { getUserId, setUserSessionCookie, clearUserSessionCookie } = require('./_userAuth');
+const { getClientIp, isRateLimited, recordRequest, countUserToday } = require('./_rateLimit');
+const { sendPasswordResetEmail } = require('./_email');
+const { FREE_QUESTIONS_PER_DAY } = require('./_limits');
 
-// Combines what used to be board.js and feed.js into one file. Each
-// /api/*.js file counts as one Vercel Serverless Function regardless of
-// how much logic is inside it -- this merge exists purely to stay under
-// the Hobby plan's 12-function limit, not for any functional reason.
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const SITE_URL = process.env.SITE_URL;
+
+// Combines what used to be board.js and feed.js into one file, and now
+// also every /api/user/* account action. Each /api/*.js file counts as
+// one Vercel Serverless Function regardless of how much logic is inside
+// it -- this merge exists purely to stay under the Hobby plan's
+// 12-function limit (already fully used elsewhere), not for any
+// functional reason. User accounts are a genuinely separate concern from
+// the board/feed -- they just have to physically live here too.
 //
-// The frontend still calls the exact same /api/board and /api/feed URLs
-// as always -- see the rewrites in vercel.json, which route both to
-// this one file with an `endpoint` marker, merged in alongside the
-// original query params (townId, newsCategory etc.). So this is still
-// two separate HTTP requests at two separate times, not one combined
-// call -- the important part of the split below is fully preserved.
+// The frontend calls clean /api/board, /api/feed, and /api/user/:action
+// URLs -- see the rewrites in vercel.json, which route all of them to
+// this one file with an `endpoint` (and for user actions, `action`)
+// marker. So these are still separate HTTP requests at separate times,
+// not one combined call.
 
 async function handleBoard(req, res) {
   const { townId } = req.query;
@@ -67,7 +79,282 @@ async function handleFeed(req, res) {
   res.status(200).json({ news, events });
 }
 
+// ==== User accounts (email + password) ====
+// Deliberately minimal -- see schema.sql's note on the users table.
+// Registering does NOT require an email-confirmation step (no email
+// service exists in this stack, see the top-level project notes) --
+// possession of the email/password pair someone chose is enough, same
+// trust level as most small consumer sites' basic accounts.
+
+const AUTH_MAX_ATTEMPTS = 8;
+const AUTH_WINDOW_HOURS = 1;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 8;
+const CREDIT_BUNDLE_SIZE = 10;
+const CREDIT_BUNDLE_PRICE_EUR = 0.99;
+
+function publicUser(user) {
+  return {
+    email: user.email,
+    creditBalance: user.credit_balance,
+    consentPersonalization: user.consent_personalization
+  };
+}
+
+async function handleUserRegister(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const ip = getClientIp(req);
+  const { email, password, consentPersonalization } = req.body || {};
+
+  if (await isRateLimited(supabase, 'user_auth_attempts', ip, AUTH_MAX_ATTEMPTS, AUTH_WINDOW_HOURS)) {
+    return res.status(429).json({ error: 'Too many attempts -- please try again later.' });
+  }
+
+  const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!EMAIL_RE.test(cleanEmail)) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+  if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+  }
+
+  await recordRequest(supabase, 'user_auth_attempts', ip);
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const { data: user, error } = await supabase
+    .from('users')
+    .insert({
+      email: cleanEmail,
+      password_hash: passwordHash,
+      // Opt-in only -- an explicit true from the client, anything else
+      // (missing, false, a stray truthy string) is treated as "no".
+      consent_personalization: consentPersonalization === true
+    })
+    .select('id, email, credit_balance, consent_personalization')
+    .single();
+
+  if (error) {
+    if (error.code === '23505') { // unique constraint on email
+      return res.status(409).json({ error: 'An account with this email already exists.' });
+    }
+    console.error(error);
+    return res.status(500).json({ error: 'Could not create account.' });
+  }
+
+  setUserSessionCookie(res, user.id);
+  res.status(200).json({ ok: true, user: publicUser(user) });
+}
+
+async function handleUserLogin(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const ip = getClientIp(req);
+  const { email, password } = req.body || {};
+
+  if (await isRateLimited(supabase, 'user_auth_attempts', ip, AUTH_MAX_ATTEMPTS, AUTH_WINDOW_HOURS)) {
+    return res.status(429).json({ error: 'Too many attempts -- please try again later.' });
+  }
+
+  const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!cleanEmail || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, email, password_hash, credit_balance, consent_personalization')
+    .eq('email', cleanEmail)
+    .maybeSingle();
+
+  // Same generic error either way (unknown email vs wrong password) --
+  // no reason to let a failed login confirm whether an email is
+  // registered. Still runs bcrypt.compare against a dummy hash when no
+  // user was found, so response timing doesn't leak that either.
+  const validPassword = user
+    ? await bcrypt.compare(password, user.password_hash)
+    : await bcrypt.compare(password, '$2a$10$invalidinvalidinvalidueuudi1n2n3n4n5n6n7n8n9n0n1n2n3n4n5');
+  if (!user || !validPassword) {
+    await recordRequest(supabase, 'user_auth_attempts', ip);
+    return res.status(401).json({ error: 'Incorrect email or password.' });
+  }
+
+  setUserSessionCookie(res, user.id);
+  res.status(200).json({ ok: true, user: publicUser(user) });
+}
+
+async function handleUserLogout(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  clearUserSessionCookie(res);
+  res.status(200).json({ ok: true });
+}
+
+async function handleUserCheck(req, res) {
+  const userId = getUserId(req);
+  if (!userId) return res.status(200).json({ authenticated: false });
+
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, email, credit_balance, consent_personalization')
+    .eq('id', userId)
+    .maybeSingle();
+  if (!user) return res.status(200).json({ authenticated: false });
+
+  // Shown in the account panel as "X of 10 free searches used today,
+  // resets at midnight" -- see countUserToday (calendar-day, Europe/
+  // Helsinki) in api/_rateLimit.js. Best-effort: a failed count here
+  // just means the frontend shows 0 used, never blocks login itself.
+  let freeSearchesUsedToday = 0;
+  try {
+    freeSearchesUsedToday = await countUserToday(supabase, 'user_ai_usage', userId);
+  } catch (err) {
+    console.error('Free-search usage lookup failed (non-fatal):', err);
+  }
+
+  res.status(200).json({
+    authenticated: true,
+    user: { ...publicUser(user), freeSearchesUsedToday, freeSearchesLimit: FREE_QUESTIONS_PER_DAY }
+  });
+}
+
+// GDPR right to erasure -- deleting the account row cascades to
+// user_ai_usage, user_activity, and credit_purchases (all declared
+// "on delete cascade" in schema.sql), so this is a genuine full deletion
+// of everything tied to the account, not just a deactivation flag.
+async function handleUserDeleteAccount(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Not logged in.' });
+
+  const { error } = await supabase.from('users').delete().eq('id', userId);
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not delete account.' }); }
+
+  clearUserSessionCookie(res);
+  res.status(200).json({ ok: true });
+}
+
+// Buying more AI-chat search credits -- only available to logged-in
+// users (an anonymous visitor is prompted to register first, see
+// api/ask.js's need_login response). One-time Stripe payment, not a
+// subscription -- credits are a top-up, not a recurring charge.
+async function handleUserBuyCredits(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'Please log in first.' });
+
+  const { data: user } = await supabase.from('users').select('email').eq('id', userId).maybeSingle();
+  if (!user) return res.status(401).json({ error: 'Please log in first.' });
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: user.email,
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          unit_amount: Math.round(CREDIT_BUNDLE_PRICE_EUR * 100),
+          product_data: {
+            name: `PaikallisCanvas — ${CREDIT_BUNDLE_SIZE} more AI-chat questions`,
+            description: 'One-time top-up, does not auto-renew.'
+          }
+        },
+        quantity: 1
+      }],
+      // The webhook only ever trusts this metadata, never anything the
+      // client could otherwise influence, to decide whose balance to
+      // credit and by how much.
+      metadata: { creditUserId: userId, creditAmount: String(CREDIT_BUNDLE_SIZE) },
+      success_url: `${SITE_URL}/?credits=success`,
+      cancel_url: `${SITE_URL}/?credits=cancelled`
+    });
+    res.status(200).json({ url: session.url });
+  } catch (err) {
+    console.error('Credit checkout session failed:', err);
+    res.status(500).json({ error: 'Could not start checkout.' });
+  }
+}
+
+const RESET_TOKEN_VALID_HOURS = 1;
+
+// Always responds the same way whether or not the email is registered
+// -- never confirm/deny an email's existence through this endpoint.
+// Rate-limited by IP (same table as register/login) since this is the
+// one action here that triggers an actual outbound email per request.
+async function handleUserRequestPasswordReset(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const ip = getClientIp(req);
+  const { email } = req.body || {};
+  const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+  const GENERIC_RESPONSE = {
+    ok: true,
+    message: 'Jos tämä sähköposti on rekisteröity, lähetimme sille palautuslinkin. / If that email is registered, we\'ve sent it a reset link.'
+  };
+
+  if (await isRateLimited(supabase, 'user_auth_attempts', ip, AUTH_MAX_ATTEMPTS, AUTH_WINDOW_HOURS)) {
+    return res.status(429).json({ error: 'Too many attempts -- please try again later.' });
+  }
+  await recordRequest(supabase, 'user_auth_attempts', ip);
+
+  if (!EMAIL_RE.test(cleanEmail)) return res.status(200).json(GENERIC_RESPONSE);
+
+  const { data: user } = await supabase.from('users').select('id, email').eq('email', cleanEmail).maybeSingle();
+  if (!user) return res.status(200).json(GENERIC_RESPONSE); // don't reveal whether the email exists
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + RESET_TOKEN_VALID_HOURS * 60 * 60 * 1000).toISOString();
+  await supabase.from('users').update({ reset_token: token, reset_token_expires: expires }).eq('id', user.id);
+
+  const resetUrl = `${SITE_URL}/?resetToken=${token}`;
+  await sendPasswordResetEmail(user.email, resetUrl);
+
+  res.status(200).json(GENERIC_RESPONSE);
+}
+
+async function handleUserResetPassword(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const { token, newPassword } = req.body || {};
+  if (typeof token !== 'string' || !token) {
+    return res.status(400).json({ error: 'Missing reset token.' });
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+  }
+
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, email, credit_balance, consent_personalization, reset_token_expires')
+    .eq('reset_token', token)
+    .maybeSingle();
+  if (!user || !user.reset_token_expires || new Date(user.reset_token_expires) <= new Date()) {
+    return res.status(400).json({ error: 'This reset link is invalid or has expired -- please request a new one.' });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await supabase.from('users')
+    .update({ password_hash: passwordHash, reset_token: null, reset_token_expires: null })
+    .eq('id', user.id);
+
+  // A successful reset logs the visitor straight in -- same as a normal
+  // login would, no reason to make them re-enter the password they just set.
+  setUserSessionCookie(res, user.id);
+  res.status(200).json({ ok: true, user: publicUser(user) });
+}
+
+async function handleUser(req, res) {
+  switch (req.query.action) {
+    case 'register': return handleUserRegister(req, res);
+    case 'login': return handleUserLogin(req, res);
+    case 'logout': return handleUserLogout(req, res);
+    case 'check': return handleUserCheck(req, res);
+    case 'delete-account': return handleUserDeleteAccount(req, res);
+    case 'buy-credits': return handleUserBuyCredits(req, res);
+    case 'request-password-reset': return handleUserRequestPasswordReset(req, res);
+    case 'reset-password': return handleUserResetPassword(req, res);
+    default: return res.status(404).json({ error: 'Unknown action.' });
+  }
+}
+
 module.exports = async (req, res) => {
+  if (req.query.endpoint === 'user') return handleUser(req, res);
   if (req.method !== 'GET') return res.status(405).end();
   if (req.query.endpoint === 'feed') return handleFeed(req, res);
   return handleBoard(req, res);

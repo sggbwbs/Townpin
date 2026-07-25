@@ -667,4 +667,4 @@ async function getLocalFeed(supabase, townId, townName, newsCategory) {
   return { news, events, offers };
 }
 
-module.exports = { getLocalFeed, getNewsSection, getEventsSection, NEWS_RSS_FEEDS, DEFAULT_NEWS_CATEGORY };
+module.exports = { getLocalFeed, getNewsSection, getEventsSection, NEWS_RSS_FEEDS, DEFAULT_NEWS_CATEGORY, getHelsinkiDayBounds };

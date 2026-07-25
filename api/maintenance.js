@@ -34,6 +34,17 @@ async function runCleanup() {
     .eq('status', 'active');
   if (prepaidErr) { console.error(prepaidErr); throw new Error('Cleanup failed.'); }
 
+  // Personalization activity log retention -- see user_activity in
+  // schema.sql. Kept short (90 days) on purpose so this never becomes
+  // an unbounded profile of someone's whole history; failures here are
+  // logged but non-fatal, same as everything else in this cron.
+  const activityCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  const { error: activityErr } = await supabase
+    .from('user_activity')
+    .delete()
+    .lt('created_at', activityCutoff);
+  if (activityErr) console.error('Activity log pruning failed (non-fatal):', activityErr);
+
   return { ok: true };
 }
 

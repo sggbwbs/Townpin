@@ -227,3 +227,112 @@ create index if not exists local_feed_items_admin_selected_idx on local_feed_ite
 -- towns get 100 to start, matching their current effective cap.
 alter table towns add column if not exists capacity integer not null default 100;
 
+-- ==== Visitor accounts (email + password) ====
+-- Deliberately minimal by design, not a first pass to be expanded later:
+-- just email + password hash. No name, phone, or address -- there is no
+-- product reason to ask for more than this, and GDPR's data-minimisation
+-- principle means "we might want it someday" is not a reason to collect
+-- it now.
+--
+-- consent_personalization defaults to FALSE (opt-in, not opt-out) -- a
+-- real, affirmative choice is required before any activity is logged
+-- for personalization (see user_activity below). An account must be
+-- fully usable -- login, AI-chat credits, all of it -- with this left
+-- off forever; it only ever gates writes to user_activity.
+--
+-- credit_balance is purchased AI-chat search credits (see api/ask.js
+-- and the 'buy-credits' action in api/data.js) -- these never expire
+-- and roll over, unlike the free daily allowance which resets every
+-- day and does not accumulate.
+create extension if not exists pgcrypto;
+create table if not exists users (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  password_hash text not null,
+  credit_balance integer not null default 0,
+  consent_personalization boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- Atomic top-up -- same reasoning as increment_view_count above: a plain
+-- read-then-write update would risk under-counting if two purchases (or
+-- a purchase and a chat-credit spend) landed at the same moment.
+create or replace function increment_credit_balance(p_user_id uuid, p_amount integer)
+returns void as $$
+begin
+  update users set credit_balance = credit_balance + p_amount where id = p_user_id;
+end;
+$$ language plpgsql;
+
+-- ==== Brute-force protection for user register/login ====
+-- Same shape as admin_login_attempts -- one shared table for both
+-- actions is enough here (unlike the admin panel, there's no separate
+-- higher-value target to protect differently).
+create table if not exists user_auth_attempts (
+  id bigserial primary key,
+  ip text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists user_auth_attempts_ip_idx on user_auth_attempts (ip, created_at);
+
+-- ==== Per-account AI-chat usage ====
+-- Logged-in visitors get their free daily allowance tracked by account,
+-- not by IP -- an account survives switching wifi/phone/laptop, an IP
+-- doesn't. Same rolling-window-count pattern as ask_agent_log, just
+-- keyed by user_id instead of ip (see isUserRateLimited in
+-- api/_rateLimit.js). Anonymous visitors still use ask_agent_log/ip.
+create table if not exists user_ai_usage (
+  id bigserial primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+create index if not exists user_ai_usage_user_idx on user_ai_usage (user_id, created_at);
+
+-- ==== Idempotency for AI-credit top-up purchases ====
+-- Stripe can (and does, occasionally) redeliver the same webhook event
+-- more than once -- the unique constraint on stripe_session_id makes a
+-- retried delivery a no-op instead of granting credits twice.
+create table if not exists credit_purchases (
+  id bigserial primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  stripe_session_id text not null unique,
+  credits integer not null,
+  created_at timestamptz not null default now()
+);
+
+-- ==== Minimal activity log, for future personalized recommendations ====
+-- Opt-in only -- see consent_personalization above. Nothing should ever
+-- insert here for a user who hasn't explicitly turned this on.
+-- Deliberately thin: a type + a short label, nothing that on its own
+-- constitutes special-category data (no location trails, no precise
+-- behavioural profile beyond "asked about X" / "clicked Y"). Rows older
+-- than 90 days are pruned by the existing daily cron (see
+-- api/maintenance.js) so this never grows into an unbounded profile.
+create table if not exists user_activity (
+  id bigserial primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  activity_type text not null, -- 'search' | 'click'
+  detail text,
+  created_at timestamptz not null default now()
+);
+create index if not exists user_activity_user_idx on user_activity (user_id, created_at);
+
+-- ==== Two admin accounts, same access, separate credentials ====
+-- No new table needed -- both admins log into the same shared /admin
+-- panel with full access, just against two different password hashes
+-- (ADMIN_PASSWORD_HASH / ADMIN2_PASSWORD_HASH env vars). The session
+-- cookie carries which one signed in (see api/admin/_auth.js) purely so
+-- the panel can show "logged in as: X" -- that label is not a
+-- permissions boundary.
+
+-- ==== Password reset ====
+-- A single-use token + expiry stored directly on the user row -- same
+-- lightweight pattern as squares.edit_token, no separate table needed.
+-- reset_token is only ever set right when a reset is requested and
+-- cleared the moment it's used (or naturally stops working once
+-- reset_token_expires has passed) -- see the 'request-password-reset'
+-- and 'reset-password' actions in api/data.js.
+alter table users add column if not exists reset_token text;
+alter table users add column if not exists reset_token_expires timestamptz;
+create index if not exists users_reset_token_idx on users (reset_token);
+

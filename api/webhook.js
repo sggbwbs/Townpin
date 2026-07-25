@@ -33,6 +33,30 @@ module.exports = async (req, res) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
+
+        // AI-chat credit top-up (see handleUserBuyCredits in api/data.js)
+        // -- distinguished from a square purchase by its own metadata key,
+        // so the two flows can never be confused with each other even
+        // though they share this same webhook event type.
+        const creditUserId = session.metadata && session.metadata.creditUserId;
+        if (creditUserId) {
+          const credits = parseInt((session.metadata && session.metadata.creditAmount) || '0', 10);
+          if (credits > 0) {
+            // Idempotent: a unique constraint on stripe_session_id means a
+            // retried webhook delivery hits the 23505 branch below and
+            // grants nothing a second time.
+            const { error: purchaseErr } = await supabase.from('credit_purchases').insert({
+              user_id: creditUserId, stripe_session_id: session.id, credits
+            });
+            if (purchaseErr) {
+              if (purchaseErr.code !== '23505') console.error('Credit purchase insert failed:', purchaseErr);
+            } else {
+              await supabase.rpc('increment_credit_balance', { p_user_id: creditUserId, p_amount: credits });
+            }
+          }
+          break;
+        }
+
         const squareIdsRaw = session.metadata && session.metadata.squareIds;
         if (squareIdsRaw) {
           const squareIds = squareIdsRaw.split(',').map(s => s.trim()).filter(Boolean);

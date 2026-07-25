@@ -5,7 +5,7 @@
 
 const bcrypt = require('bcryptjs');
 const { supabase } = require('../_db');
-const { isAuthenticated, setSessionCookie, clearSessionCookie, getClientIp } = require('./_auth');
+const { isAuthenticated, getAdminSession, setSessionCookie, clearSessionCookie, getClientIp } = require('./_auth');
 const { pickRandomEmptySquares, insertSquaresWithRetry } = require('../_squares');
 const { geocodeAddress } = require('../_geocode');
 
@@ -38,17 +38,30 @@ async function handleLogin(req, res) {
     return res.status(429).json({ error: `Too many attempts. Try again in ${WINDOW_MINUTES} minutes.` });
   }
 
-  const hash = process.env.ADMIN_PASSWORD_HASH;
-  if (!hash) {
+  // Two admins, same full access -- see schema.sql's note on this. Each
+  // just has their own password hash + label so the panel can show who's
+  // logged in for accountability, not to restrict what either can do.
+  // ADMIN2_PASSWORD_HASH is optional -- leaving it unset means only the
+  // original single admin login works, exactly as before.
+  const admins = [
+    { hash: process.env.ADMIN_PASSWORD_HASH, label: process.env.ADMIN_LABEL || 'Admin 1' },
+    { hash: process.env.ADMIN2_PASSWORD_HASH, label: process.env.ADMIN2_LABEL || 'Admin 2' }
+  ].filter(a => !!a.hash);
+
+  if (admins.length === 0) {
     console.error('ADMIN_PASSWORD_HASH is not set');
     return res.status(500).json({ error: 'Admin login is not configured.' });
   }
-  const valid = await bcrypt.compare(password, hash);
-  if (!valid) {
+
+  let matched = null;
+  for (const admin of admins) {
+    if (await bcrypt.compare(password, admin.hash)) { matched = admin; break; }
+  }
+  if (!matched) {
     await supabase.from('admin_login_attempts').insert({ ip });
     return res.status(401).json({ error: 'Incorrect password.' });
   }
-  setSessionCookie(res);
+  setSessionCookie(res, matched.label);
   res.status(200).json({ ok: true });
 }
 
@@ -59,7 +72,8 @@ async function handleLogout(req, res) {
 }
 
 async function handleCheck(req, res) {
-  res.status(200).json({ authenticated: isAuthenticated(req) });
+  const session = getAdminSession(req);
+  res.status(200).json({ authenticated: !!session, admin: session ? session.label : null });
 }
 
 async function handleContent(req, res) {
