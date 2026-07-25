@@ -38,7 +38,7 @@ async function handleBoard(req, res) {
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not load board.' }); }
 
-  res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=60');
+  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
   res.status(200).json({ squares: data });
 }
 
@@ -75,7 +75,7 @@ async function handleFeed(req, res) {
   } catch (err) {
     console.error('Feed lookup failed (non-fatal):', err);
   }
-  res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=60');
+  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
   res.status(200).json({ news, events });
 }
 
