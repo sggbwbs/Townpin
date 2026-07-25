@@ -347,6 +347,7 @@
   #accountBtn{border:none;background:var(--panelT7);border:1px solid var(--line);border-radius:999px;
     padding:0 14px;height:34px;cursor:pointer;font-size:12.5px;color:var(--ink);font-family:'IBM Plex Mono',monospace;
     display:flex;align-items:center;gap:6px;white-space:nowrap;}
+  #accountBtn.accountBtnAdmin{background:var(--amber);border-color:var(--amber-deep);color:#2a1c0d;font-weight:700;cursor:default;}
 
   #howItWorks{margin-top:56px;text-align:center;}
   #howItWorks h2{font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--ink);margin:0 0 28px;}
@@ -2219,6 +2220,27 @@ document.getElementById('newsCategoryFilter').addEventListener('change', (e)=>{
 let currentUser = null;
 let authMode = 'login';
 let pendingResetToken = null; // set from ?resetToken= on page load, see init()
+let isAdminSession = false;
+let adminSessionLabel = null;
+
+// Checks the SAME admin_token cookie /admin itself uses -- logging into
+// /admin in this browser is enough to get unlimited AI-chat searches on
+// the main site too (see isAdminAuthenticated in api/ask.js); this just
+// makes that visible instead of silently working while the header still
+// says "Log in". Purely a visual cue -- has no effect on the actual
+// unlimited-search behavior either way.
+async function checkAdminSession(){
+  try {
+    const res = await fetch('/api/admin/check');
+    const data = await res.json();
+    isAdminSession = !!data.authenticated;
+    adminSessionLabel = data.admin || null;
+  } catch (e) {
+    isAdminSession = false;
+    adminSessionLabel = null;
+  }
+  updateAccountButton();
+}
 
 async function checkUserAuth(){
   try {
@@ -2233,10 +2255,21 @@ async function checkUserAuth(){
 
 function updateAccountButton(){
   const label = document.getElementById('accountBtnLabel');
-  label.textContent = currentUser ? currentUser.email : t('loginBtnLabel');
+  const btn = document.getElementById('accountBtn');
+  if (isAdminSession){
+    label.textContent = adminSessionLabel ? `🛠 ${adminSessionLabel}` : '🛠 Admin';
+    btn.classList.add('accountBtnAdmin');
+  } else {
+    btn.classList.remove('accountBtnAdmin');
+    label.textContent = currentUser ? currentUser.email : t('loginBtnLabel');
+  }
 }
 
 function openAuthModal(){
+  // Nothing useful to log into here for an admin session -- they
+  // already get unlimited searches via /admin, and registering a
+  // separate visitor account would just be confusing.
+  if (isAdminSession) return;
   document.getElementById('authErr').style.display = 'none';
   if (currentUser){
     document.getElementById('authLoggedOutView').style.display = 'none';
@@ -3143,6 +3176,7 @@ async function init(){
   showSuccessBannerIfNeeded();
   showCreditsBannerIfNeeded();
   await checkUserAuth();
+  checkAdminSession();
   const resetTokenParam = new URLSearchParams(window.location.search).get('resetToken');
   if (resetTokenParam) {
     pendingResetToken = resetTokenParam;
