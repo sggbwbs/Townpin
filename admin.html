@@ -203,11 +203,11 @@
       <input type="text" id="grantCompany" placeholder="Company name" />
     </div>
     <div class="field">
-      <label>Website URL</label>
+      <label>Website URL (optional)</label>
       <input type="url" id="grantWebsite" placeholder="https://company.fi" />
     </div>
     <div class="field">
-      <label>Logo URL (required)</label>
+      <label>Logo URL (optional)</label>
       <input type="url" id="grantLogo" placeholder="https://company.fi/logo.png" />
     </div>
     <div class="field">
@@ -273,11 +273,11 @@
       <input type="text" id="editCompany" placeholder="Company name" />
     </div>
     <div class="field">
-      <label>Website URL</label>
+      <label>Website URL (optional)</label>
       <input type="url" id="editWebsite" placeholder="https://company.fi" />
     </div>
     <div class="field">
-      <label>Logo URL (required)</label>
+      <label>Logo URL (optional)</label>
       <input type="url" id="editLogo" placeholder="https://company.fi/logo.png" />
     </div>
     <div class="field">
@@ -598,8 +598,7 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
   const websiteUrl = document.getElementById('grantWebsite').value.trim();
   const logoUrl = document.getElementById('grantLogo').value.trim();
   const address = document.getElementById('grantAddress').value.trim();
-  if (!companyName || !websiteUrl) { showErr(errBox, 'Company name and website are required.'); return; }
-  if (!logoUrl) { showErr(errBox, 'A logo URL is required.'); return; }
+  if (!companyName) { showErr(errBox, 'Company name is required.'); return; }
   if (!address) { showErr(errBox, 'An address is required.'); return; }
 
   btn.disabled = true;
@@ -938,8 +937,7 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
   const websiteUrl = document.getElementById('editWebsite').value.trim();
   const logoUrl = document.getElementById('editLogo').value.trim();
   const address = document.getElementById('editAddress').value.trim();
-  if (!companyName || !websiteUrl) { showErr(errBox, 'Company name and website are required.'); return; }
-  if (!logoUrl) { showErr(errBox, 'A logo URL is required.'); return; }
+  if (!companyName) { showErr(errBox, 'Company name is required.'); return; }
   if (!address) { showErr(errBox, 'An address is required.'); return; }
 
   btn.disabled = true;

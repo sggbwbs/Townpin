@@ -33,15 +33,18 @@ async function moderate({ companyName, websiteUrl }) {
     return { allowed: true, reason: 'AI moderation not configured' };
   }
 
-  const pageText = await fetchPageSnippet(websiteUrl);
+  // Some businesses don't have a website (see README) — there's nothing
+  // to fetch or judge in that case, so skip straight to asking about the
+  // company name alone rather than calling fetch() with an empty/missing URL.
+  const pageText = websiteUrl ? await fetchPageSnippet(websiteUrl) : null;
 
   const prompt = `You are a content-safety screen for a local advertising marketplace ("PaikallisCanvas") where small businesses claim a square on their town's community board, linking to their website. Decide if this submission should be BLOCKED.
 
-Block only on clear evidence of: illegal goods/services, scams or fraud, malware/phishing, hate speech or harassment, sexual content, or anything facilitating harm to minors. Do NOT block merely because a site is unfinished, under construction, a placeholder/parked domain, or unreachable — treat those as ALLOW, since real businesses often haven't finished their site yet. Be conservative: block on clear evidence, not vague suspicion.
+Block only on clear evidence of: illegal goods/services, scams or fraud, malware/phishing, hate speech or harassment, sexual content, or anything facilitating harm to minors. Do NOT block merely because a site is unfinished, under construction, a placeholder/parked domain, or unreachable — treat those as ALLOW, since real businesses often haven't finished their site yet. Some businesses genuinely have no website at all — that is normal and NOT itself a reason to block; judge on the company name alone in that case. Be conservative: block on clear evidence, not vague suspicion.
 
 Company name: ${companyName}
-Destination URL: ${websiteUrl}
-Page content (may be empty if unreachable): ${pageText || '[page unreachable]'}
+Destination URL: ${websiteUrl || '[no website provided]'}
+Page content (may be empty if unreachable or no website exists): ${pageText || '[no page to check]'}
 
 Respond with ONLY a JSON object, no other text: {"allowed": true or false, "reason": "one short sentence"}`;
 

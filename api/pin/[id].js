@@ -90,7 +90,7 @@ module.exports = async (req, res) => {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
     name: square.company_name,
-    url: square.website_url,
+    ...(square.website_url ? { url: square.website_url } : {}),
     ...(square.logo_url ? { image: square.logo_url } : {}),
     ...(square.tagline ? { description: square.tagline } : {}),
     address: { '@type': 'PostalAddress', addressLocality: townName, addressCountry: town ? town.country : 'FI' }
@@ -139,7 +139,7 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
     <h1>${escapeHtml(square.company_name)}</h1>
     ${square.industry && INDUSTRY_LABELS[square.industry] ? `<div class="industryBadge">${escapeHtml(INDUSTRY_LABELS[square.industry])}</div>` : ''}
     <p class="tagline">${description}</p>
-    <a class="visit" href="${escapeHtml(square.website_url)}" rel="nofollow">Visit website →</a>
+    ${square.website_url ? `<a class="visit" href="${escapeHtml(square.website_url)}" rel="nofollow">Visit website →</a>` : ''}
     ${square.ai_blurb_fi ? `
     <div class="quickInfo">
       <div class="quickInfoLabel">🔎 Automaattisesti löydetty tieto / Automatically found</div>

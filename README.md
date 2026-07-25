@@ -1715,3 +1715,31 @@ second city goes live. Before adding city #2, this needs either (a) a
 (b) a template with the town name substituted in, which will need a
 human check per city since Finnish case endings (-lle/-lla/-ssa) don't
 always attach cleanly to an arbitrary city name. Leaning toward (a).
+
+## Website and logo are now optional, not required
+
+Not every business has a website or a logo yet -- both were previously
+hard-required at every entry point (the public purchase flow, and the
+admin panel's grant/edit-company forms), which meant those businesses
+simply couldn't buy a square at all. Nothing in the database ever
+required this (`website_url`/`logo_url` were always nullable columns);
+the requirement was purely validation logic, in four places:
+`api/create-checkout-session.js`, `api/admin/[action].js` (grant and
+edit-company), and their matching frontend checks in `index.html` and
+`admin.html`.
+
+Knock-on fixes needed once both could be genuinely absent:
+- `api/_moderate.js` and `api/_companyInfo.js` no longer try to
+  fetch/reference an empty URL -- they fall back to judging/describing
+  the business on its name alone.
+- `api/pin/[id].js`'s "Visit website →" button and schema.org `url`
+  field are now conditional (the logo `<img>`/`og:image` already were).
+- Empty-string values are normalized to `null` on save, matching the
+  existing pattern for every other optional field, rather than storing
+  `''`.
+
+No display fix was needed for the "no logo" case beyond that: the
+board itself isn't a grid of visible tiles (see the earlier
+"scrolling logo banner" note) -- a business's logo only appears at all
+in that banner and on its own `/pin/{id}` page, and the banner already
+skipped squares with no logo before this change.

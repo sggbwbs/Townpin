@@ -16,7 +16,7 @@ async function generateCompanyBlurb({ companyName, websiteUrl }) {
   const prompt = `Search the web for public information about this company, then write a short, neutral, factual "about" blurb in your own words (never a direct quote) -- 1-2 sentences, describing what the company does and where it's based if that's findable.
 
 Company name: ${companyName}
-Website: ${websiteUrl}
+Website: ${websiteUrl || '[no website provided -- search on the company name alone]'}
 
 If you can't find reliable public information specifically about this company, respond with exactly this JSON and nothing else: {"found": false}
 

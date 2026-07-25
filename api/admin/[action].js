@@ -127,16 +127,13 @@ async function handleGrant(req, res) {
   if (wanted < 1) {
     return res.status(400).json({ error: 'Grant at least one square.' });
   }
-  if (!companyName || !websiteUrl) {
-    return res.status(400).json({ error: 'Company name and website are required.' });
-  }
-  if (!logoUrl) {
-    return res.status(400).json({ error: 'A logo is required.' });
+  if (!companyName) {
+    return res.status(400).json({ error: 'Company name is required.' });
   }
   if (!address || !address.trim()) {
     return res.status(400).json({ error: 'An address is required.' });
   }
-  const linkProblem = isSuspicious(websiteUrl);
+  const linkProblem = websiteUrl ? isSuspicious(websiteUrl) : null;
   if (linkProblem) return res.status(400).json({ error: linkProblem });
 
   // Geocoding failure is never fatal -- a business whose address
@@ -154,8 +151,8 @@ async function handleGrant(req, res) {
       town_id: townId,
       idx,
       company_name: companyName,
-      website_url: websiteUrl,
-      logo_url: logoUrl,
+      website_url: websiteUrl || null,
+      logo_url: logoUrl || null,
       tagline: tagline || null,
       industry: industry || null,
       address: address.trim(),
@@ -367,16 +364,13 @@ async function handleEditCompany(req, res) {
 
   const { groupId, companyName, websiteUrl, logoUrl, tagline, industry, squareCount, address } = req.body || {};
   if (!groupId) return res.status(400).json({ error: 'Missing groupId.' });
-  if (!companyName || !websiteUrl) {
-    return res.status(400).json({ error: 'Company name and website are required.' });
-  }
-  if (!logoUrl) {
-    return res.status(400).json({ error: 'A logo is required.' });
+  if (!companyName) {
+    return res.status(400).json({ error: 'Company name is required.' });
   }
   if (!address || !address.trim()) {
     return res.status(400).json({ error: 'An address is required.' });
   }
-  const linkProblem = isSuspicious(websiteUrl);
+  const linkProblem = websiteUrl ? isSuspicious(websiteUrl) : null;
   if (linkProblem) return res.status(400).json({ error: linkProblem });
 
   const { data: existing, error: existingErr } = await supabase
@@ -408,8 +402,8 @@ async function handleEditCompany(req, res) {
         town_id: townId,
         idx,
         company_name: companyName,
-        website_url: websiteUrl,
-        logo_url: logoUrl,
+        website_url: websiteUrl || null,
+        logo_url: logoUrl || null,
         tagline: tagline || null,
         industry: industry || null,
         address: trimmedAddress,
@@ -431,8 +425,8 @@ async function handleEditCompany(req, res) {
 
   const updatePayload = {
     company_name: companyName,
-    website_url: websiteUrl,
-    logo_url: logoUrl,
+    website_url: websiteUrl || null,
+    logo_url: logoUrl || null,
     tagline: tagline || null,
     industry: industry || null,
     address: trimmedAddress

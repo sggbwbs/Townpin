@@ -132,11 +132,8 @@ module.exports = async (req, res) => {
       }
     }
 
-    if (!companyName || !websiteUrl || !email) {
-      return res.status(400).json({ error: 'Company name, website and email are required.' });
-    }
-    if (!logoUrl) {
-      return res.status(400).json({ error: 'A logo is required.' });
+    if (!companyName || !email) {
+      return res.status(400).json({ error: 'Company name and email are required.' });
     }
     if (!address || !address.trim()) {
       return res.status(400).json({ error: 'A business address is required.' });
@@ -168,7 +165,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'One of the selected towns is not currently open to new listings.' });
     }
 
-    const linkProblem = isSuspicious(websiteUrl);
+    const linkProblem = websiteUrl ? isSuspicious(websiteUrl) : null;
     if (linkProblem) return res.status(400).json({ error: linkProblem });
 
     const modResult = await moderate({ companyName, websiteUrl });
@@ -202,7 +199,7 @@ module.exports = async (req, res) => {
       town_id: townId,
       idx,
       company_name: companyName,
-      website_url: websiteUrl,
+      website_url: websiteUrl || null,
       email,
       logo_url: logoUrl || null,
       color: color || '#f2a65a',
@@ -231,7 +228,7 @@ module.exports = async (req, res) => {
           town_id: extra.townId,
           idx,
           company_name: companyName,
-          website_url: websiteUrl,
+          website_url: websiteUrl || null,
           email,
           logo_url: logoUrl || null,
           color: color || '#f2a65a',
