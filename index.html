@@ -3317,14 +3317,14 @@ function renderWeatherForecast(){
 
   panel.innerHTML = '';
 
-  // Today's hourly forecast, every 3 hours, starting from the current hour --
-  // shown first, above the 7-day view
+  // Rolling next-24-hours forecast, anchored on right now -- not fixed
+  // calendar marks (00/03/06...) -- shown first, above the 7-day view.
   if (weatherHourlyData && weatherHourlyData.time){
     // Open-Meteo returns time strings in the requested timezone (Europe/Helsinki),
-    // e.g. "2026-07-20T00:00" -- no UTC offset in them. Deriving "today" from
+    // e.g. "2026-07-20T00:00" -- no UTC offset in them. Deriving "now" from
     // new Date().toISOString() compares that against a UTC date instead, which
-    // is wrong for several hours around midnight (Helsinki is UTC+2/+3), so the
-    // filter would show no hours -- or the wrong day -- for that stretch.
+    // is wrong for several hours around midnight (Helsinki is UTC+2/+3), so
+    // the lookup below would land on the wrong hour for that stretch.
     // Format "now" in the same timezone instead so the comparison lines up.
     const fmt = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -3334,24 +3334,32 @@ function renderWeatherForecast(){
     const todayStr = `${parts.year}-${parts.month}-${parts.day}`;
     const nowHour = Number(parts.hour) % 24; // Intl can return "24" for midnight in some environments
 
+    const hourlyTimes = weatherHourlyData.time;
+    // The array index of the current hour -- Open-Meteo's hourly data is
+    // one entry per hour with no gaps, so this doubles as an "hours from
+    // now" offset for every later index too. Falls back to 0 (the start
+    // of the array) in the unlikely case the exact hour isn't found.
+    const nowIndex = hourlyTimes.findIndex(ts => ts === `${todayStr}T${String(nowHour).padStart(2, '0')}:00`);
+    const anchor = nowIndex === -1 ? 0 : nowIndex;
+
     const hourlyRow = document.createElement('div');
     hourlyRow.id = 'weatherHourlyRow';
-    let shown = 0;
-    weatherHourlyData.time.forEach((timeStr, i) => {
-      if (shown >= 7) return; // matches the 7-day row below so both rows line up column-for-column
+    // 7 cards spread across the next 24 hours -- first at +1h (the next
+    // upcoming hour), last at +24h -- evenly spaced in between, rather
+    // than a fixed every-3-hours step that resets at midnight.
+    const HOURLY_OFFSETS = [1, 5, 9, 13, 16, 20, 24];
+    HOURLY_OFFSETS.forEach(offset => {
+      const idx = anchor + offset;
+      if (idx >= hourlyTimes.length) return; // past the end of the fetched forecast data
+      const timeStr = hourlyTimes[idx];
       const hour = Number(timeStr.slice(11, 13));
-      if (hour % 3 !== 0) return; // every 3 hours, matches a typical compact hourly strip
-      const isToday = timeStr.startsWith(todayStr);
-      if (isToday && hour < nowHour - 2) return; // drop hours already well in the past
-      if (!isToday && timeStr.slice(0, 10) < todayStr) return; // never show yesterday
       const card = document.createElement('div');
       card.className = 'forecastHour';
-      const hcode = weatherHourlyData.weather_code[i];
-      const htemp = Math.round(weatherHourlyData.temperature_2m[i]);
-      const hIsDay = !weatherHourlyData.is_day || weatherHourlyData.is_day[i] !== 0;
+      const hcode = weatherHourlyData.weather_code[idx];
+      const htemp = Math.round(weatherHourlyData.temperature_2m[idx]);
+      const hIsDay = !weatherHourlyData.is_day || weatherHourlyData.is_day[idx] !== 0;
       card.innerHTML = `<div class="hTime">${String(hour).padStart(2, '0')}:00</div><div class="dIcon">${weatherIconHtml(hcode, hIsDay, 32)}</div><div class="dTemps"><b>${htemp}°</b></div>`;
       hourlyRow.appendChild(card);
-      shown++;
     });
     if (hourlyRow.children.length > 0) panel.appendChild(hourlyRow);
   }
