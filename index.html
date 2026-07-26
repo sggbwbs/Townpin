@@ -2559,6 +2559,10 @@ async function askAsk(question, sendBtn){
 
   askPending = true;
   if (sendBtn) sendBtn.disabled = true;
+  // Only the current question+answer is ever shown -- a new question
+  // clears whatever's there first, rather than stacking on top of every
+  // previous one (which got messy fast once more than one was on screen).
+  document.getElementById('askResultsList').innerHTML = '';
   askAppendResult(escapeAskText(question), 'askQuestionEcho');
   const pendingEl = askAppendResult(escapeAskText(t('askThinking')), 'pending');
   document.getElementById('askFollowupRow').style.display = 'flex';
