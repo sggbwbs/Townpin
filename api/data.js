@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const Stripe = require('stripe');
 const { supabase } = require('./_db');
 const { getNewsSection, getEventsSection } = require('./_localFeed');
+const { isAuthenticated } = require('./admin/_auth');
 const { getUserId, setUserSessionCookie, clearUserSessionCookie } = require('./_userAuth');
 const { getClientIp, isRateLimited, recordRequest, countUserToday } = require('./_rateLimit');
 const { sendPasswordResetEmail } = require('./_email');
@@ -26,8 +27,17 @@ const SITE_URL = process.env.SITE_URL;
 // not one combined call.
 
 async function handleBoard(req, res) {
-  const { townId } = req.query;
+  const { townId, admin } = req.query;
   if (!townId) return res.status(400).json({ error: 'Missing townId.' });
+
+  // Same gate as api/town.js -- a closed town's board is only reachable
+  // by a genuinely authenticated admin (see the preview feature),
+  // regardless of what townId a request happens to guess or already know.
+  const { data: town, error: townErr } = await supabase.from('towns').select('enabled').eq('id', townId).maybeSingle();
+  if (townErr) { console.error(townErr); return res.status(500).json({ error: 'Could not load board.' }); }
+  if (!town) return res.status(404).json({ error: 'not_available' });
+  const isAdminRequest = admin === '1' && isAuthenticated(req);
+  if (!town.enabled && !isAdminRequest) return res.status(404).json({ error: 'not_available' });
 
   const { data, error } = await supabase
     .from('squares')
@@ -59,18 +69,26 @@ async function handleBoard(req, res) {
 // falls back to the Oulu-region default if this is missing or isn't a
 // recognized category, so there's no need to validate it here too.
 async function handleFeed(req, res) {
-  const { townId, newsCategory } = req.query;
+  const { townId, newsCategory, admin } = req.query;
   if (!townId) return res.status(400).json({ error: 'Missing townId.' });
 
   let news = [];
   let events = [];
   try {
-    const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
+    const { data: town } = await supabase.from('towns').select('name, enabled').eq('id', townId).maybeSingle();
     if (town) {
-      [news, events] = await Promise.all([
-        getNewsSection(supabase, townId, newsCategory, town.name),
-        getEventsSection(supabase, townId, town.name)
-      ]);
+      // Same gate as api/town.js and handleBoard above -- this is the one
+      // that actually costs real money if skipped: a closed town reached
+      // this way would still trigger a genuine, billable AI search call
+      // for its events/news (see getEventsSection/getNewsSection), not
+      // just return some harmless empty data.
+      const isAdminRequest = admin === '1' && isAuthenticated(req);
+      if (town.enabled || isAdminRequest) {
+        [news, events] = await Promise.all([
+          getNewsSection(supabase, townId, newsCategory, town.name),
+          getEventsSection(supabase, townId, town.name)
+        ]);
+      }
     }
   } catch (err) {
     console.error('Feed lookup failed (non-fatal):', err);

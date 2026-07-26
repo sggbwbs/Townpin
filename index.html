@@ -1784,7 +1784,7 @@ let currentFeedItems = { news: [], events: [] };
 let currentNewsCategory = 'oulun-seutu';
 
 async function loadBoard(){
-  const res = await fetch(`${API_BASE}/board?townId=${currentTown.id}`);
+  const res = await fetch(`${API_BASE}/board?townId=${currentTown.id}${previewMode ? '&admin=1' : ''}`);
   const data = await res.json();
   currentSquares = data.squares || [];
   updateClaimedMeta();
@@ -2072,7 +2072,7 @@ window.addEventListener('resize', () => {
 
 async function loadFeed(){
   try {
-    const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${currentNewsCategory}`);
+    const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${currentNewsCategory}${previewMode ? '&admin=1' : ''}`);
     const data = await res.json();
     currentFeedItems = { news: data.news || [], events: data.events || [] };
   } catch (e) {

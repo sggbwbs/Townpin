@@ -2031,3 +2031,24 @@ real API call per cache refresh (roughly once a day per town, per the
 existing refresh-interval pattern), unlike Oulu's free RSS/API-based
 path. Worth watching per-town AI cost on the admin cost dashboard once
 a second city is actually opened.
+
+## Closed a real cost gap: /api/board and /api/feed didn't check "enabled" at all
+
+`/api/town` already blocked a closed town from being found or visited
+normally, but `/api/board` and `/api/feed` never checked a town's
+`enabled` status at all -- they just took whatever townId a request
+gave them and ran with it. Since town ids are plain sequential
+integers, a direct call like `/api/feed?townId=5` for a closed town's
+id would still trigger a genuine, billable AI search call for its
+events/news (see getEventsSection/getNewsSection) and return its real
+board data -- without going through the public gate, an admin login,
+or the preview flow at all. Not reachable through normal use of the
+site, but a real gap for anyone calling the API directly.
+
+Both now use the exact same gate `/api/town` already had: enabled, or
+a genuinely authenticated admin session with `admin=1`. The frontend's
+own board/feed fetches now pass `admin=1` automatically whenever
+`previewMode` is on (see the Preview feature above), same as the
+`/api/town` call already did -- so previewing a closed town's board
+and feed still works exactly as before, this only closes the gap for
+anyone going around the normal page entirely.
