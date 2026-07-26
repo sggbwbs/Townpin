@@ -68,7 +68,7 @@ async function handleFeed(req, res) {
     const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
     if (town) {
       [news, events] = await Promise.all([
-        getNewsSection(supabase, townId, newsCategory),
+        getNewsSection(supabase, townId, newsCategory, town.name),
         getEventsSection(supabase, townId, town.name)
       ]);
     }

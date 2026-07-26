@@ -194,7 +194,7 @@ module.exports = async (req, res) => {
         .eq('town_id', townId).eq('status', 'active').eq('flagged', false)
         .limit(MAX_BUSINESSES_IN_CONTEXT),
       getEventsSection(supabase, townId, town.name),
-      getNewsSection(supabase, townId),
+      getNewsSection(supabase, townId, undefined, town.name),
       supabase.from('ai_agent_hints').select('hint_text').or(`town_id.eq.${townId},town_id.is.null`).order('created_at', { ascending: false })
     ]);
 

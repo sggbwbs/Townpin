@@ -141,6 +141,71 @@ async function fetchNewsFromRSS(category) {
 
 const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72edb9364237309bf/content/63198844806f262926e72683?country=FI&lang=fi&mode=event&sort=startDate&limit=100';
 
+// The only news path for any town besides Oulu -- there's no RSS feed
+// configured for these cities (see README on why: the equivalent local
+// papers don't all offer the same kind of free public feed Kaleva does,
+// and need checking one at a time rather than assumed). Mirrors
+// generateEventItemsViaAISearch's exact structure/tone on purpose --
+// same model, same style of prompt, same failure handling.
+async function generateNewsItemsViaAISearch(townName) {
+  if (!ANTHROPIC_API_KEY) return [];
+
+  const prompt = `Search the web for genuinely current local news specifically about ${townName}, Finland -- real news from the last day or two: local government/council decisions, business openings or closures, local events being planned, weather/traffic disruptions, community happenings. Skip national news that just happens to mention ${townName} in passing, and skip anything older than a couple of days.
+
+Write up to 8 news items, ranked by how significant/interesting each one is locally. Each needs a headline and a 1-2 sentence summary IN YOUR OWN WORDS (never a direct quote) in both Finnish and English, and the single source URL you found it from.
+
+Do not narrate your search process or explain your reasoning. Do not write anything like "I'll search for..." or "Based on my search results...". Just search, then respond with only the JSON below -- nothing before it, nothing after it.
+
+If you can't find anything genuinely current and local, respond with exactly: {"items": []}
+
+Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
+{"items": [{"title_fi": "...", "title_en": "...", "summary_fi": "...", "summary_en": "...", "source_url": "..."}]}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content || [])
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('\n');
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
+    if (!jsonStr) {
+      console.error('News generation (AI search): empty response from model. Full response:', JSON.stringify(data));
+      return [];
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      console.error('News generation (AI search): could not parse model output as JSON. Raw text was:', cleaned);
+      return [];
+    }
+    if (!Array.isArray(parsed.items)) return [];
+    return parsed.items
+      .slice(0, 8)
+      .filter(i => i.title_fi && i.title_en && i.summary_fi && i.summary_en && i.source_url)
+      .map(i => ({ ...i, source_name: null, event_date: null }));
+  } catch (err) {
+    console.error('News generation (AI search) failed:', err);
+    return [];
+  }
+}
+
 // End of TODAY, calculated in Europe/Helsinki local time -- not the
 // server's default timezone, which is not necessarily Finland's.
 // Real UTC instant of the start and end of TODAY in Europe/Helsinki
@@ -332,29 +397,37 @@ ${JSON.stringify(events.map(e => ({ title_fi: e.title_fi, summary_fi: e.summary_
 }
 
 async function generateEventItems(townName) {
-  const realEvents = await fetchOuluEventsFromAPI();
-  if (realEvents.length > 0) {
-    // Translation deliberately disabled for now -- it was a real,
-    // recurring AI cost on every events cache refresh. English display
-    // just reuses the Finnish text instead (same fallback already used
-    // above when no API key is configured at all). The function itself
-    // is left in place below, unused, in case this is worth revisiting
-    // later -- same pattern as the offers feature.
-    return realEvents.map(e => ({ ...e, title_en: e.title_fi, summary_en: e.summary_fi, item_type: 'event', source_name: 'Kaleva' }));
+  // This real, structured API is Oulu-specific (a hardcoded Kaleva
+  // collection id) -- calling it regardless of townName was a real bug:
+  // since it practically never returns empty for Oulu, every OTHER
+  // town silently ended up with Oulu's own events, mislabeled as if
+  // they were local to that town. Every other town goes straight to
+  // the generic AI-search fallback below instead.
+  if (townName === 'Oulu') {
+    const realEvents = await fetchOuluEventsFromAPI();
+    if (realEvents.length > 0) {
+      // Translation deliberately disabled for now -- it was a real,
+      // recurring AI cost on every events cache refresh. English display
+      // just reuses the Finnish text instead (same fallback already used
+      // above when no API key is configured at all). The function itself
+      // is left in place below, unused, in case this is worth revisiting
+      // later -- same pattern as the offers feature.
+      return realEvents.map(e => ({ ...e, title_en: e.title_fi, summary_en: e.summary_fi, item_type: 'event', source_name: 'Kaleva' }));
+    }
   }
-  // Fallback only -- the real API above should normally cover this, but
-  // AI search is a reasonable safety net if that API is ever down or
-  // returns nothing for a stretch.
+  // Fallback for Oulu if the real API above is ever down or returns
+  // nothing, and the ONLY path for every other town right now -- see
+  // README for real per-city event sources (LinkedEvents, etc.) worth
+  // building as a real integration later.
   return await generateEventItemsViaAISearch(townName);
 }
 
 async function generateEventItemsViaAISearch(townName) {
   if (!ANTHROPIC_API_KEY) return [];
 
+  const isOulu = townName === 'Oulu';
   const prompt = `Search the web for genuinely current events happening TODAY specifically in ${townName}, Finland (festivals, markets, concerts, sports, exhibitions, council/community events) -- not this week, not this month, only today. Skip anything from a different day, already happened, or too generic/national.
-
-Good sources to check specifically for Oulu-area events: tapahtumat.kaleva.fi, ouka.fi/tapahtumapalvelut/tapahtumakalenteri, and tapahtumat.munoulu.fi -- these are real local event calendars, likely to have better and more current results than a generic search.
-
+${isOulu ? '\nGood sources to check specifically for Oulu-area events: tapahtumat.kaleva.fi, ouka.fi/tapahtumapalvelut/tapahtumakalenteri, and tapahtumat.munoulu.fi -- these are real local event calendars, likely to have better and more current results than a generic search.\n' : ''}
 Write up to 10 events, ranked by how popular/well-known each one seems. Each needs a title, a 1-2 sentence description IN YOUR OWN WORDS (never a direct quote) in both Finnish and English, today's actual date (as an ISO date "YYYY-MM-DD" -- every event must be dated today, not any other day), and the single most relevant source URL.
 
 Do not narrate your search process or explain your reasoning. Do not write anything like "I'll search for..." or "Based on my search results...". Just search, then respond with only the JSON below -- nothing before it, nothing after it.
@@ -498,7 +571,12 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
 // NEWS_RSS_FEEDS above) -- defaults to DEFAULT_NEWS_CATEGORY
 // ("oulun-seutu") if omitted or unrecognized, so every existing caller
 // that doesn't know about categories keeps working exactly as before.
-async function getNewsSection(supabase, townId, category) {
+// Only meaningful for Oulu -- every other town ignores it entirely and
+// goes straight to the generic per-town AI search below, since there's
+// no equivalent RSS feed configured for them (see README for real
+// per-city news sources worth checking one at a time later).
+async function getNewsSection(supabase, townId, category, townName) {
+  const isOulu = townName === 'Oulu';
   const validCategory = NEWS_RSS_FEEDS[category] ? category : DEFAULT_NEWS_CATEGORY;
 
   // The default category deliberately keeps the original plain 'news'
@@ -508,8 +586,9 @@ async function getNewsSection(supabase, townId, category) {
   // refetch. Other categories each get their own compound item_type so
   // they cache and refresh independently of the default and of each
   // other (switching between them repeatedly doesn't thrash the cache
-  // or refetch on every request).
-  const itemType = validCategory === DEFAULT_NEWS_CATEGORY ? 'news' : `news:${validCategory}`;
+  // or refetch on every request). Non-Oulu towns always use the plain
+  // 'news' type -- they have no categories to switch between at all.
+  const itemType = (!isOulu || validCategory === DEFAULT_NEWS_CATEGORY) ? 'news' : `news:${validCategory}`;
 
   try {
     const { data: existingNews } = await supabase
@@ -522,7 +601,7 @@ async function getNewsSection(supabase, townId, category) {
     if (existingNews && existingNews.length > 0 && newsAgeHours < NEWS_REFRESH_AFTER_HOURS) {
       return existingNews;
     }
-    const fresh = await fetchNewsFromRSS(validCategory);
+    const fresh = isOulu ? await fetchNewsFromRSS(validCategory) : await generateNewsItemsViaAISearch(townName);
     if (fresh.length > 0) {
       const enriched = await enrichWithImages(fresh, supabase);
       await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', itemType);
@@ -676,7 +755,7 @@ async function getOffersSection(supabase, townId, townName) {
 // worst-case wait down to roughly the slowest single one instead.
 async function getLocalFeed(supabase, townId, townName, newsCategory) {
   const [news, events, offers] = await Promise.all([
-    getNewsSection(supabase, townId, newsCategory),
+    getNewsSection(supabase, townId, newsCategory, townName),
     getEventsSection(supabase, townId, townName),
     getOffersSection(supabase, townId, townName)
   ]);

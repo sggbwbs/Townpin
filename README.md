@@ -1974,3 +1974,60 @@ an already-logged-in admin, not a bypass on its own.
 `/board/:slug` already had a generic wildcard rewrite in `vercel.json`
 (unlike the short clean-URL form, which needs an explicit entry per
 city) -- so this needed zero routing changes.
+
+## Weather, events, news, and AI chat are now genuinely per-city
+
+The last major piece: making a previewed (or opened) non-Oulu town
+actually show its own real content instead of Oulu's, in every one of
+these.
+
+**Weather** -- `towns` gains `lat`/`lng` columns, seeded with real
+coordinates for Oulu and all 7 expansion cities. Both the widget and
+its forecast now read `currentTown.lat`/`.lng` instead of a hardcoded
+Oulu coordinate.
+
+**Events -- a real bug, not just a missing feature.** `generateEventItems`
+was calling Oulu's real Kaleva-events API unconditionally, regardless
+of which town asked. Since that call almost never returns empty for
+Oulu, the fallback path (a genuinely generic, already-built AI-web-search
+event finder, `generateEventItemsViaAISearch`) never actually ran for
+any other town -- every non-Oulu board was silently showing Oulu's own
+events, mislabeled as if they were local. Fixed by only calling the
+Oulu-specific API when the town actually is Oulu; every other town now
+correctly goes straight to the AI search fallback, which already
+existed and already worked, it just never used to be reachable.
+
+**News -- built the same missing half.** Unlike events, there was no
+generic fallback for news at all -- only Kaleva's Oulu RSS feeds
+existed. Added `generateNewsItemsViaAISearch`, mirroring the events
+fallback's exact structure and tone: search for genuinely current
+local news about the given town, write original 1-2 sentence
+summaries in both languages, cite a real source URL. `getNewsSection`
+now branches the same way `generateEventItems` does -- Oulu uses the
+real RSS feeds, every other town uses this.
+
+**The source attribution shown on the page** ("Lähde: Kaleva" + a
+"see all events" link to Kaleva's own platform) was also hardcoded
+regardless of town. Now shows the real Kaleva attribution and a
+working "view all" link only for Oulu; every other town shows a plain,
+honest "Found via AI web search" note instead, with no fake link to
+a page that doesn't exist for that city.
+
+**AI chat needed no prompt changes at all** -- it was already fully
+town-agnostic (no hardcoded "Oulu" anywhere in `ask.js`'s prompt
+construction), built entirely from whatever town's businesses, hints,
+and now-correctly-scoped events/news get passed in. Once the
+news/events data itself became genuinely per-town, the chat became
+accurate per-town automatically, for free.
+
+**Not covered by this pass:** `today-card.html` (the shareable daily
+image tool) is still Oulu-only -- it has no town selector and wasn't
+part of this specific request. Worth a follow-up once a second city's
+event/news pipeline is confirmed working well through the main site
+first.
+
+**Known limitation, not a bug:** AI-search-generated events/news cost a
+real API call per cache refresh (roughly once a day per town, per the
+existing refresh-interval pattern), unlike Oulu's free RSS/API-based
+path. Worth watching per-town AI cost on the admin cost dashboard once
+a second city is actually opened.

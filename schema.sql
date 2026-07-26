@@ -423,3 +423,21 @@ insert into towns (slug, name, country, grid_size, capacity, enabled) values
   ('turku-fi', 'Turku', 'FI', 10, 100, false)
 on conflict (slug) do nothing;
 
+-- ==== Per-town coordinates, for per-city weather ====
+-- Weather (the widget and the shareable daily card) used to be
+-- hardcoded to Oulu's own lat/lng -- this is what makes it possible to
+-- ask Open-Meteo for whichever town's actual weather, once the frontend
+-- reads it off currentTown instead of a fixed number. City-center
+-- coordinates, not anything precise enough to matter beyond "which
+-- city's weather".
+alter table towns add column if not exists lat double precision;
+alter table towns add column if not exists lng double precision;
+update towns set lat = 65.0121, lng = 25.4651 where slug = 'oulu-fi' and lat is null;
+update towns set lat = 61.4978, lng = 23.7610 where slug = 'tampere-fi' and lat is null;
+update towns set lat = 60.1699, lng = 24.9384 where slug = 'helsinki-fi' and lat is null;
+update towns set lat = 60.2934, lng = 25.0378 where slug = 'vantaa-fi' and lat is null;
+update towns set lat = 60.2055, lng = 24.6559 where slug = 'espoo-fi' and lat is null;
+update towns set lat = 66.5039, lng = 25.7294 where slug = 'rovaniemi-fi' and lat is null;
+update towns set lat = 62.2426, lng = 25.7473 where slug = 'jyvaskyla-fi' and lat is null;
+update towns set lat = 60.4518, lng = 22.2666 where slug = 'turku-fi' and lat is null;
+

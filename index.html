@@ -621,9 +621,9 @@
         <div id="eventsSection">
           <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat tänään</h3>
           <p class="note" id="eventsCountNote"></p>
-          <p class="note">
-            <span data-i18n="eventsSourceNote">Lähde: Kaleva</span> —
-            <a href="https://tapahtumat.kaleva.fi/fi-FI" target="_blank" rel="noopener" data-i18n="viewAllEventsLink">katso kaikki tapahtumat ↗</a>
+          <p class="note" id="eventsSourceNoteWrap">
+            <span id="eventsSourceNoteText">Lähde: Kaleva</span>
+            <span id="viewAllEventsLinkWrap"> — <a id="viewAllEventsLinkEl" href="https://tapahtumat.kaleva.fi/fi-FI" target="_blank" rel="noopener">katso kaikki tapahtumat ↗</a></span>
           </p>
           <div id="eventItems"></div>
           <p class="note" id="noEventsThisWeek" style="display:none;"></p>
@@ -2168,6 +2168,7 @@ function renderLocalFeed(feed){
   const news = (feed && feed.news) || [];
   const events = (feed && feed.events) || [];
   const wrap = document.getElementById('localFeed');
+  const isOulu = currentTown && currentTown.name === 'Oulu';
 
   if (news.length === 0 && events.length === 0){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
@@ -2179,8 +2180,9 @@ function renderLocalFeed(feed){
   if (news.length === 0){ newsSection.style.display = 'none'; }
   else {
     newsSection.style.display = 'block';
-    document.getElementById('newsSourceNote').textContent =
-      (lang === 'fi' ? 'Lähde: Kaleva' : 'Source: Kaleva');
+    document.getElementById('newsSourceNote').textContent = isOulu
+      ? (lang === 'fi' ? 'Lähde: Kaleva' : 'Source: Kaleva')
+      : (lang === 'fi' ? 'Haettu verkosta tekoälyllä' : 'Found via AI web search');
     const newsBox = document.getElementById('newsItems');
     newsBox.innerHTML = '';
     const visibleCount = newsExpanded ? news.length : Math.min(NEWS_COLLAPSED_COUNT, news.length);
@@ -2200,6 +2202,16 @@ function renderLocalFeed(feed){
   if (events.length === 0){ eventsSection.style.display = 'none'; }
   else {
     eventsSection.style.display = 'block';
+    // Real Kaleva attribution + a genuine "view all" page only makes
+    // sense for Oulu -- every other town's events come from a generic
+    // AI web search (see generateEventItemsViaAISearch in
+    // api/_localFeed.js), which has no single equivalent page to link
+    // to, so that link is hidden rather than pointing somewhere wrong.
+    document.getElementById('eventsSourceNoteText').textContent = isOulu
+      ? (lang === 'fi' ? 'Lähde: Kaleva' : 'Source: Kaleva')
+      : (lang === 'fi' ? 'Haettu verkosta tekoälyllä' : 'Found via AI web search');
+    document.getElementById('viewAllEventsLinkWrap').style.display = isOulu ? 'inline' : 'none';
+    document.getElementById('viewAllEventsLinkEl').textContent = lang === 'fi' ? 'katso kaikki tapahtumat ↗' : 'see all events ↗';
     renderEventsList(events);
   }
 
@@ -3257,9 +3269,9 @@ async function init(){
 }
 
 // Free, keyless, CORS-enabled weather API -- called directly from the
-// browser, no backend endpoint needed at all. Hardcoded to Oulu's
-// coordinates for now since the site is Oulu-only; would need to become
-// town-aware if more towns open up later.
+// browser, no backend endpoint needed at all. Uses currentTown's own
+// lat/lng (see schema.sql's per-town coordinate seed) so each city gets
+// its own real weather, not Oulu's.
 //
 // WEATHER_ICONS (plain emoji) is kept as a genuine fallback, not just a
 // leftover -- if a Meteocons icon ever fails to load (an unexpected
@@ -3331,7 +3343,12 @@ let weatherExpanded = false; // forecast starts collapsed -- only opens when the
 
 async function loadWeather(){
   try {
-    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=65.0121&longitude=25.4651&current=temperature_2m,weather_code,is_day&hourly=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Europe%2FHelsinki&forecast_days=7');
+    // Falls back to Oulu's coordinates only if this town is somehow
+    // missing its own (shouldn't happen for any real town -- see the
+    // lat/lng seed in schema.sql -- but better than a broken request).
+    const lat = (currentTown && currentTown.lat) || 65.0121;
+    const lng = (currentTown && currentTown.lng) || 25.4651;
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,is_day&hourly=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Europe%2FHelsinki&forecast_days=7`);
     const data = await res.json();
     const temp = data.current && data.current.temperature_2m;
     const code = data.current && data.current.weather_code;
