@@ -1946,3 +1946,31 @@ in the current town's own overrides once `/api/town` has actually
 resolved which town this page is for -- re-running `setLang()` itself
 so the DOM reflects the more specific text, not just an in-memory
 object nobody re-rendered from.
+
+## Preview a closed town before opening it to the public
+
+There was no way to actually see a closed town's real board -- the
+`admin=1` bypass already existed in `api/town.js`, but only
+admin.html's own internal tools (grant/move squares) ever used it;
+the real public-facing page never did, so the only way to check a new
+city's board, news, events, weather, and AI chat before launch was to
+open it to the public first and hope.
+
+The Towns card now has a **Preview →** link on every closed town,
+opening `/board/{slug}?preview=1` in a new tab -- the actual real
+page, not a mockup, including this town's own site_content overrides,
+its news/events (once those are wired up per-city), the AI chat, all
+of it. A clear banner at the top makes it obvious this isn't the live
+public view.
+
+The real security boundary is server-side, same as before: the
+`?preview=1` param only does anything if the browser also has a valid
+admin session cookie (`isAdminRequest = admin === '1' &&
+isAuthenticated(req)` in `api/town.js`) -- someone without that cookie
+hitting the exact same URL still gets the normal "not available" wall,
+same as any other visitor. The query param is just a convenience for
+an already-logged-in admin, not a bypass on its own.
+
+`/board/:slug` already had a generic wildcard rewrite in `vercel.json`
+(unlike the short clean-URL form, which needs an explicit entry per
+city) -- so this needed zero routing changes.

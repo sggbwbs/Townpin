@@ -1207,6 +1207,7 @@ const FINNISH_CITIES = [
 ];
 
 let currentTown = null;
+let previewMode = false; // set from the ?preview=1 URL param in init() -- see there for what this actually unlocks and why it's safe
 let currentSquares = [];
 
 let lang = 'fi';
@@ -1746,6 +1747,7 @@ async function openBoard(name, country, population){
   try{
     let url = `${API_BASE}/town?name=${encodeURIComponent(name)}&country=${encodeURIComponent(country||'FI')}`;
     if (population) url += `&population=${population}`;
+    if (previewMode) url += `&admin=1`; // means nothing without a real admin cookie -- see api/town.js's isAdminRequest check
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok){
@@ -1769,7 +1771,7 @@ async function openBoard(name, country, population){
     // vercel.json) -- deliberately not a generic wildcard, which would
     // risk shadowing /admin, /manage, and /generate-hash.
     const cleanSlug = currentTown.slug.replace(/-[a-z]{2}$/i, '');
-    history.pushState({}, '', `/${cleanSlug}`);
+    history.pushState({}, '', previewMode ? `/${cleanSlug}?preview=1` : `/${cleanSlug}`);
     document.getElementById('boardTitle').textContent = currentTown.name;
     await loadBoard();
   }catch(e){
@@ -3212,6 +3214,22 @@ async function applyContentOverrides(townId){
 async function init(){
   const underMaintenance = await checkMaintenanceMode();
   if (underMaintenance) return; // page replaced entirely -- nothing else should run
+
+  // Preview mode -- only ever actually unlocks anything if this browser
+  // also has a real, valid admin session (see openBoard's admin=1 flag
+  // below and the server-side check in api/town.js -- the query param
+  // alone means nothing without that cookie). Lets an admin check a
+  // closed town's real board, news, events, and AI chat before opening
+  // it to the public, rather than the only way to see any of that
+  // being to flip it open first and hope.
+  previewMode = new URLSearchParams(window.location.search).get('preview') === '1';
+  if (previewMode) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:4000;background:#2a2110;color:#f2a65a;'
+      + 'padding:10px 20px;text-align:center;font-family:IBM Plex Sans,sans-serif;font-size:13.5px;font-weight:600;';
+    banner.textContent = '🔒 Preview mode — this town is not open to the public yet. Only visible to you, logged in as admin.';
+    document.body.prepend(banner);
+  }
 
   await applyContentOverrides();
   setLang(lang);

@@ -1169,6 +1169,18 @@ async function loadTownsList(){
       });
       row.appendChild(btn);
 
+      // Only for closed towns -- an open one is just the regular live
+      // site, no need for a special preview link to see it.
+      if (!town.enabled) {
+        const previewLink = document.createElement('a');
+        previewLink.href = `/board/${town.slug}?preview=1`;
+        previewLink.target = '_blank';
+        previewLink.rel = 'noopener';
+        previewLink.textContent = 'Preview →';
+        previewLink.style.cssText = 'font-size:12px;margin-left:10px;color:#8a8168;text-decoration:underline;';
+        row.appendChild(previewLink);
+      }
+
       // Only offered for closed towns -- an open one has to be closed
       // first (see handleDeleteTown), and the database itself refuses
       // the delete outright if the town has any squares at all, even
