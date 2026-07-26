@@ -200,10 +200,14 @@ alter table local_feed_items add column if not exists event_end_time text;
 -- that dogs are welcome on outdoor terraces" type of thing).
 create table if not exists ai_agent_hints (
   id bigserial primary key,
-  town_id bigint references towns(id) on delete cascade,
   hint_text text not null,
   created_at timestamptz not null default now()
 );
+-- Separate ALTER, not just added to the CREATE TABLE above -- this table
+-- already existed on a live deploy before town_id was added, and CREATE
+-- TABLE IF NOT EXISTS is a no-op against an existing table, so it would
+-- silently never add the new column on its own.
+alter table ai_agent_hints add column if not exists town_id bigint references towns(id) on delete cascade;
 create index if not exists ai_agent_hints_town_idx on ai_agent_hints (town_id);
 
 -- ==== Business address + geocoded coordinates, for the map feature ====
@@ -370,4 +374,24 @@ create index if not exists user_activity_user_idx on user_activity (user_id, cre
 alter table users add column if not exists reset_token text;
 alter table users add column if not exists reset_token_expires timestamptz;
 create index if not exists users_reset_token_idx on users (reset_token);
+
+-- ==== Seed the planned expansion cities ====
+-- Pre-creates the 7 cities identified as the next expansion targets, so
+-- they show up ready to enable in the admin Towns card immediately,
+-- rather than only existing once some visitor happens to search for
+-- that city by name first (which is how Espoo/Helsinki/Tampere ended up
+-- in the list already -- real visitor searches, not a deliberate seed).
+-- Slugs match slugify() in api/town.js exactly (lowercase, accents
+-- stripped) so these are the identical rows that function would create
+-- on its own -- "on conflict do nothing" means this is safe to re-run
+-- and won't touch a city that's already been enabled or customized.
+insert into towns (slug, name, country, grid_size, capacity, enabled) values
+  ('tampere-fi', 'Tampere', 'FI', 10, 100, false),
+  ('helsinki-fi', 'Helsinki', 'FI', 10, 100, false),
+  ('vantaa-fi', 'Vantaa', 'FI', 10, 100, false),
+  ('espoo-fi', 'Espoo', 'FI', 10, 100, false),
+  ('rovaniemi-fi', 'Rovaniemi', 'FI', 10, 100, false),
+  ('jyvaskyla-fi', 'Jyväskylä', 'FI', 10, 100, false),
+  ('turku-fi', 'Turku', 'FI', 10, 100, false)
+on conflict (slug) do nothing;
 

@@ -239,6 +239,23 @@ async function handleDeleteAiHint(req, res) {
   res.status(200).json({ ok: true });
 }
 
+// Fixes a hint's town scope after the fact -- mainly for hints created
+// before per-town scoping existed at all (they all defaulted to town_id
+// null, i.e. "applies everywhere", when several were actually written
+// with one specific city's businesses in mind). Lets an admin one-click
+// move a hint like that onto whichever town they're currently viewing,
+// rather than having to delete and retype it.
+async function handleReassignAiHint(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const id = req.body && req.body.id;
+  const townId = (req.body && req.body.townId) || null;
+  if (!id) return res.status(400).json({ error: 'Missing id.' });
+  const { error } = await supabase.from('ai_agent_hints').update({ town_id: townId }).eq('id', id);
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not update hint.' }); }
+  res.status(200).json({ ok: true });
+}
+
 const MAX_SELECTED_EVENTS = 4;
 
 // Lists this town's currently-live events (same "still relevant" scoping
@@ -775,6 +792,7 @@ module.exports = async (req, res) => {
     case 'list-ai-hints': return handleListAiHints(req, res);
     case 'add-ai-hint': return handleAddAiHint(req, res);
     case 'delete-ai-hint': return handleDeleteAiHint(req, res);
+    case 'reassign-ai-hint': return handleReassignAiHint(req, res);
     case 'company-details': return handleCompanyDetails(req, res);
     case 'edit-company': return handleEditCompany(req, res);
     case 'move': return handleMove(req, res);

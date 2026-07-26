@@ -668,7 +668,11 @@ async function populateGlobalTownSelect(){
     select.innerHTML = adminTowns.map(t =>
       `<option value="${t.id}">${t.name}${t.enabled ? '' : ' (closed)'}</option>`).join('');
     if (!currentAdminTownId || !adminTowns.some(t => String(t.id) === String(currentAdminTownId))) {
-      currentAdminTownId = String(adminTowns[0].id);
+      // Oulu is the pilot/main town -- that's the sensible default to
+      // land on, not whichever town happens to sort first alphabetically
+      // (which is how this ended up defaulting to Espoo before).
+      const oulu = adminTowns.find(t => t.slug === 'oulu-fi');
+      currentAdminTownId = String(oulu ? oulu.id : adminTowns[0].id);
     }
     select.value = currentAdminTownId;
     localStorage.setItem('adminTownId', currentAdminTownId);
@@ -706,6 +710,28 @@ async function loadAiHints(){
       row.style.alignItems = 'flex-start';
       const scopeLabel = h.town_id ? currentAdminTownName() : 'All towns';
       row.innerHTML = `<span style="flex:1;padding-right:12px;">${h.hint_text.replace(/</g, '&lt;')}<br><span class="sub" style="margin:2px 0 0;">${scopeLabel}</span></span>`;
+
+      // Only offered for global hints -- lets an admin fix a hint that
+      // was actually written with one specific city in mind (common for
+      // anything created before per-town scoping existed) without
+      // having to delete and retype it.
+      if (!h.town_id) {
+        const moveBtn = document.createElement('button');
+        moveBtn.textContent = `Move to ${currentAdminTownName()}`;
+        moveBtn.style.cssText = 'padding:6px 10px;font-size:12px;flex:none;margin-right:8px;';
+        moveBtn.addEventListener('click', async () => {
+          try {
+            const moveRes = await fetch(`${API}/reassign-ai-hint`, {
+              method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ id: h.id, townId: currentAdminTownId })
+            });
+            if (!moveRes.ok) { alert('Could not move — try again.'); return; }
+            loadAiHints();
+          } catch (e) { alert('Network error.'); }
+        });
+        row.appendChild(moveBtn);
+      }
+
       const btn = document.createElement('button');
       btn.className = 'revokeBtn';
       btn.textContent = 'Remove';

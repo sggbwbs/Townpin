@@ -1877,3 +1877,26 @@ or not yet needed:
   selector -- left as-is on purpose, since granting or editing a
   business isn't necessarily about "the town I'm currently managing"
   specifically.
+
+## Three follow-up fixes to the town-aware admin panel
+
+- **Seeded the 7 planned expansion cities** (Tampere, Helsinki, Vantaa,
+  Espoo, Rovaniemi, Jyväskylä, Turku) directly in `schema.sql`, so they
+  show up ready to enable in the Towns card immediately -- previously
+  a city only existed once some visitor happened to search for it by
+  name first (which is how Espoo/Helsinki/Tampere had already
+  appeared, as real visitor searches, not a deliberate seed).
+- **Fixed the default "Managing" town** -- it was defaulting to
+  whichever town sorted first alphabetically (Espoo), since
+  `towns-list` orders by name and nothing told it to prefer Oulu.
+  Now explicitly defaults to Oulu specifically.
+- **Added a way to fix legacy AI hints.** Hints written before
+  per-town scoping existed all defaulted to town_id null ("applies
+  everywhere") -- correct for the data as it was, but wrong for
+  several that were actually written with Oulu specifically in mind
+  (one links directly to visitoulu.fi/ouka.fi). Rather than guessing
+  which old hints were really city-specific vs. genuinely universal
+  (a national chain mentioned in one hint might reasonably apply
+  everywhere), any hint still shown as "All towns" now gets a
+  "Move to [current town]" button so the admin can fix the ones that
+  need it, one at a time, with the actual content in front of them.
