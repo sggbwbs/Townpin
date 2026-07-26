@@ -1754,6 +1754,7 @@ async function openBoard(name, country, population){
       return;
     }
     currentTown = data.town;
+    applyContentOverrides(currentTown.id); // layers this town's own overrides on top of the shared defaults already applied in init()
 
     // Fire-and-forget visit counter for the admin dashboard -- never
     // awaited, never allowed to affect the real page load either way.
@@ -3184,9 +3185,17 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
   }
 });
 
-async function applyContentOverrides(){
+// Two-phase on purpose: called once early with no townId (just the
+// shared defaults, town_id=0 -- fast, doesn't wait on resolving which
+// town this page is actually for) and again from openBoard() once
+// currentTown.id is known, to layer that specific town's own overrides
+// on top. Re-runs setLang() itself after a town-specific fetch so the
+// DOM actually reflects the more specific text, not just the STRINGS
+// object in memory.
+async function applyContentOverrides(townId){
   try{
-    const res = await fetch(`${API_BASE}/admin/content`);
+    const url = townId ? `${API_BASE}/admin/content?townId=${townId}` : `${API_BASE}/admin/content`;
+    const res = await fetch(url);
     if (!res.ok) return;
     const data = await res.json();
     (data.content || []).forEach(row => {
@@ -3194,6 +3203,7 @@ async function applyContentOverrides(){
         STRINGS[row.lang][row.key] = row.value;
       }
     });
+    if (townId) setLang(lang); // refresh the DOM with this town's specific text
   }catch(e){
     // if this fails, the site just falls back to its built-in default copy
   }

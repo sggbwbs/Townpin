@@ -1913,3 +1913,36 @@ app logic: `squares.town_id` has no cascade, so Postgres refuses the
 delete outright (a foreign-key violation) if the town has any squares
 at all, even old expired ones -- the app just turns that into a clear
 message instead of a raw DB error.
+
+## site_content is now per-town
+
+The last piece flagged as global-only back when the hero-text problem
+was first noted. `site_content` gains a `town_id` column: `0` is a
+sentinel meaning "the default/fallback text, shown to any town without
+its own override" (not a real town id, so deliberately no foreign key
+on it), a real town id is an explicit override for just that one town.
+
+Existing content all became the default via the column's own default
+value -- zero migration needed for Oulu to keep working exactly as it
+already did. Oulu additionally got its own explicit override, copied
+from that same default text, since it was written specifically
+naming Oulu in the first place ("Näytä yrityksesi koko Oululle") --
+making that fact explicit in the data rather than accidental. Every
+*other* town still falls back to that same Oulu-flavored default text
+until someone writes a real override for it -- expected and fine, not
+a bug: better to show something (even if it's not perfectly tailored
+yet) than nothing.
+
+The admin editor now shows, per field, whether it's using the shared
+default or has actually been customized for whichever town is
+currently selected (the same shared selector from the earlier
+town-aware admin work) -- saving always writes an override for that
+specific town, never touches the shared default.
+
+The public site applies content in two passes, not one, and this
+mattered enough to note: the shared defaults apply immediately on page
+load (fast, no need to know which town yet), and a second pass layers
+in the current town's own overrides once `/api/town` has actually
+resolved which town this page is for -- re-running `setLang()` itself
+so the DOM reflects the more specific text, not just an in-memory
+object nobody re-rendered from.

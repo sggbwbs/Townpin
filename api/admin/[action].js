@@ -78,19 +78,41 @@ async function handleCheck(req, res) {
 
 async function handleContent(req, res) {
   if (req.method === 'GET') {
-    const { data, error } = await supabase.from('site_content').select('key, lang, value');
+    // townId is optional for backward compatibility (any caller that
+    // doesn't pass one just gets the raw defaults, same as before this
+    // town-awareness existed) -- but the admin panel and the public site
+    // both always pass one now (see admin.html and index.html).
+    const townId = req.query.townId;
+    const { data: defaults, error } = await supabase.from('site_content').select('key, lang, value').eq('town_id', 0);
     if (error) { console.error(error); return res.status(500).json({ error: 'Could not load content.' }); }
+
+    let content = defaults;
+    if (townId && String(townId) !== '0') {
+      const { data: overrides, error: overrideErr } = await supabase
+        .from('site_content').select('key, lang, value').eq('town_id', townId);
+      if (overrideErr) { console.error(overrideErr); return res.status(500).json({ error: 'Could not load content.' }); }
+      // Override wins over the default for the same key+lang -- merge by
+      // building a map keyed on "key:lang" so a town customizing just a
+      // few fields still gets the rest of the defaults filled in.
+      const merged = new Map(defaults.map(row => [`${row.key}:${row.lang}`, { ...row, isOverride: false }]));
+      overrides.forEach(row => merged.set(`${row.key}:${row.lang}`, { ...row, isOverride: true }));
+      content = [...merged.values()];
+    }
+
     res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
-    return res.status(200).json({ content: data, editableKeys: EDITABLE_KEYS });
+    return res.status(200).json({ content, editableKeys: EDITABLE_KEYS });
   }
 
   if (req.method === 'POST') {
     if (!isAuthenticated(req)) {
       return res.status(401).json({ error: 'Not authenticated.' });
     }
-    const { updates } = req.body || {};
+    const { updates, townId } = req.body || {};
     if (!Array.isArray(updates)) {
       return res.status(400).json({ error: 'Expected an array of updates.' });
+    }
+    if (!townId) {
+      return res.status(400).json({ error: 'Missing townId.' });
     }
     for (const u of updates) {
       if (!EDITABLE_KEYS.includes(u.key)) {
@@ -103,8 +125,8 @@ async function handleContent(req, res) {
         return res.status(400).json({ error: `"${u.key}" is empty or too long (max ${MAX_VALUE_LENGTH} chars).` });
       }
     }
-    const rows = updates.map(u => ({ key: u.key, lang: u.lang, value: u.value, updated_at: new Date().toISOString() }));
-    const { error } = await supabase.from('site_content').upsert(rows, { onConflict: 'key,lang' });
+    const rows = updates.map(u => ({ key: u.key, lang: u.lang, value: u.value, town_id: townId, updated_at: new Date().toISOString() }));
+    const { error } = await supabase.from('site_content').upsert(rows, { onConflict: 'key,lang,town_id' });
     if (error) { console.error(error); return res.status(500).json({ error: 'Save failed.' }); }
     return res.status(200).json({ ok: true });
   }

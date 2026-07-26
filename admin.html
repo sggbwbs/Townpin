@@ -130,6 +130,7 @@
 <div class="card" id="editCard" style="display:none;">
   <h1>Edit site copy</h1>
   <p class="sub">Changes go live within a few seconds — no redeploy needed. Only the main marketing copy is editable here.</p>
+  <div id="editCardTownNote" class="sub" style="font-weight:700;margin-bottom:14px;"></div>
 
   <div id="previewLangToggle">
     <button id="previewLangFi" class="active">FI</button>
@@ -472,33 +473,9 @@ async function showEditor(){
   document.getElementById('costCard').style.display = 'block';
   document.getElementById('shareCardCard').style.display = 'block';
 
-  const res = await fetch(`${API}/content`);
-  const data = await res.json();
-  const existing = {};
-  (data.content || []).forEach(row => { existing[`${row.key}:${row.lang}`] = row.value; });
-
-  const container = document.getElementById('fields');
-  container.innerHTML = '';
-  FIELD_DEFS.forEach(f => {
-    const wrap = document.createElement('div');
-    wrap.className = 'field';
-    wrap.innerHTML = `
-      <label>${f.label}</label>
-      <div class="langLabel">Finnish</div>
-      <textarea data-key="${f.key}" data-lang="fi">${existing[`${f.key}:fi`] || ''}</textarea>
-      <div class="langLabel">English</div>
-      <textarea data-key="${f.key}" data-lang="en">${existing[`${f.key}:en`] || ''}</textarea>
-    `;
-    container.appendChild(wrap);
-  });
-
-  document.querySelectorAll('#fields textarea').forEach(ta => {
-    ta.addEventListener('input', updatePreview);
-  });
-  updatePreview();
-
-  loadCompedList();
   await populateGlobalTownSelect();
+  await loadContentEditor();
+  loadCompedList();
   loadAiHints();
   loadEventsPicker();
   loadTownsList();
@@ -511,6 +488,43 @@ function getFieldValue(key, lang){
   const ta = document.querySelector(`#fields textarea[data-key="${key}"][data-lang="${lang}"]`);
   const val = ta ? ta.value.trim() : '';
   return val || DEFAULTS[lang][key] || '';
+}
+
+async function loadContentEditor(){
+  if (!currentAdminTownId) return;
+  const res = await fetch(`${API}/content?townId=${currentAdminTownId}`);
+  const data = await res.json();
+  const existing = {};
+  const overrideFlags = {};
+  (data.content || []).forEach(row => {
+    existing[`${row.key}:${row.lang}`] = row.value;
+    overrideFlags[`${row.key}:${row.lang}`] = !!row.isOverride;
+  });
+
+  const note = document.getElementById('editCardTownNote');
+  if (note) note.textContent = `Editing for: ${currentAdminTownName()} — fields not yet customized here show the shared default text (used by any town without its own override).`;
+
+  const container = document.getElementById('fields');
+  container.innerHTML = '';
+  FIELD_DEFS.forEach(f => {
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    const fiIsOverride = overrideFlags[`${f.key}:fi`];
+    const enIsOverride = overrideFlags[`${f.key}:en`];
+    wrap.innerHTML = `
+      <label>${f.label}</label>
+      <div class="langLabel">Finnish ${fiIsOverride ? '<span style="color:#4a7a5c;font-weight:700;">(customized for this town)</span>' : '<span class="sub" style="display:inline;">(using shared default)</span>'}</div>
+      <textarea data-key="${f.key}" data-lang="fi">${existing[`${f.key}:fi`] || ''}</textarea>
+      <div class="langLabel">English ${enIsOverride ? '<span style="color:#4a7a5c;font-weight:700;">(customized for this town)</span>' : '<span class="sub" style="display:inline;">(using shared default)</span>'}</div>
+      <textarea data-key="${f.key}" data-lang="en">${existing[`${f.key}:en`] || ''}</textarea>
+    `;
+    container.appendChild(wrap);
+  });
+
+  document.querySelectorAll('#fields textarea').forEach(ta => {
+    ta.addEventListener('input', updatePreview);
+  });
+  updatePreview();
 }
 
 function updatePreview(){
@@ -547,13 +561,14 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   });
   const res = await fetch(`${API}/content`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ updates })
+    body: JSON.stringify({ updates, townId: currentAdminTownId })
   });
   const data = await res.json();
   if (res.ok){
     const msg = document.getElementById('savedMsg');
     msg.style.display = 'inline';
     setTimeout(()=> msg.style.display = 'none', 2500);
+    loadContentEditor(); // refresh the "(customized for this town)" labels
   } else {
     alert(data.error || 'Save failed.');
   }
@@ -684,6 +699,7 @@ async function populateGlobalTownSelect(){
 document.getElementById('globalTownSelect').addEventListener('change', (e) => {
   currentAdminTownId = e.target.value;
   localStorage.setItem('adminTownId', currentAdminTownId);
+  loadContentEditor();
   loadAiHints();
   loadEventsPicker();
 });

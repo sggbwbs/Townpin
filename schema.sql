@@ -44,6 +44,18 @@ values ('oulu-fi', 'Oulu', 'FI', 15)
 on conflict (slug) do nothing;
 
 -- ==== Admin-editable site copy ====
+-- town_id 0 is a sentinel meaning "the default/fallback text, shown to
+-- any town that doesn't have its own override" -- NOT a real town id
+-- (those start at 1), so deliberately no foreign key constraint here;
+-- a real value is an explicit override for just that one town.
+--
+-- Existing rows all get town_id=0 via the column's own default, which
+-- means they become the fallback -- exactly what they already are for
+-- Oulu today, so this needed zero migration for the site to keep
+-- working exactly as it does right now. The primary key gains town_id
+-- (dropping and recreating it, since it already existed as (key, lang)
+-- before this column existed) so a town can override a handful of keys
+-- without needing a full duplicate copy of every single one.
 create table if not exists site_content (
   key text not null,
   lang text not null,
@@ -51,6 +63,22 @@ create table if not exists site_content (
   updated_at timestamptz not null default now(),
   primary key (key, lang)
 );
+alter table site_content add column if not exists town_id bigint not null default 0;
+alter table site_content drop constraint if exists site_content_pkey;
+alter table site_content add constraint site_content_pkey primary key (key, lang, town_id);
+
+-- Gives Oulu its own explicit override, copied from whatever the
+-- current default text is, rather than leaving Oulu implicitly
+-- dependent on the fallback the way every other town now is. The
+-- current default text was written specifically for Oulu in the first
+-- place (it names Oulu directly), so this just makes that fact
+-- explicit in the data instead of accidental. Safe to re-run --
+-- "on conflict do nothing" skips rows that already have an Oulu-specific
+-- override.
+insert into site_content (key, lang, value, town_id, updated_at)
+select key, lang, value, (select id from towns where slug = 'oulu-fi'), now()
+from site_content where town_id = 0
+on conflict (key, lang, town_id) do nothing;
 
 -- ==== Login attempt tracking, for brute-force protection ====
 create table if not exists admin_login_attempts (
