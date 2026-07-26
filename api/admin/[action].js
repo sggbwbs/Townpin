@@ -587,6 +587,40 @@ async function handleDisableTown(req, res) {
   res.status(200).json({ ok: true });
 }
 
+// Removes a town row entirely -- for cleaning up stub towns that got
+// auto-created by a visitor searching for a place name that isn't
+// actually a planned city (see api/town.js's auto-create-on-search
+// behavior). Deliberately narrow:
+// - Never allowed on a currently-open town, even an empty one -- close
+//   it first, as a deliberate extra step before something this
+//   permanent.
+// - The real backstop is the database itself: squares.town_id has no
+//   cascade, so Postgres will simply refuse (a foreign-key violation,
+//   code 23503) to delete a town that has ANY squares at all, even old
+//   expired ones -- this just turns that into a clear message instead
+//   of a raw DB error reaching the admin.
+async function handleDeleteTown(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { townId } = req.body || {};
+  if (!townId) return res.status(400).json({ error: 'Missing townId.' });
+
+  const { data: town, error: fetchErr } = await supabase.from('towns').select('enabled').eq('id', townId).maybeSingle();
+  if (fetchErr) { console.error(fetchErr); return res.status(500).json({ error: 'Could not look up town.' }); }
+  if (!town) return res.status(404).json({ error: 'Town not found.' });
+  if (town.enabled) return res.status(400).json({ error: 'Close this town to the public before deleting it.' });
+
+  const { error } = await supabase.from('towns').delete().eq('id', townId);
+  if (error) {
+    if (error.code === '23503') {
+      return res.status(400).json({ error: "This town has squares on it (even old or expired ones) and can't be deleted." });
+    }
+    console.error(error);
+    return res.status(500).json({ error: 'Could not delete town.' });
+  }
+  res.status(200).json({ ok: true });
+}
+
 async function handleMaintenanceStatus(req, res) {
   // deliberately public, no auth check -- the homepage itself needs to
   // read this before deciding what to show visitors
@@ -799,6 +833,7 @@ module.exports = async (req, res) => {
     case 'towns-list': return handleTownsList(req, res);
     case 'enable-town': return handleEnableTown(req, res);
     case 'disable-town': return handleDisableTown(req, res);
+    case 'delete-town': return handleDeleteTown(req, res);
     case 'maintenance-status': return handleMaintenanceStatus(req, res);
     case 'track-visit': return handleTrackVisit(req, res);
     case 'visitor-stats': return handleVisitorStats(req, res);

@@ -1900,3 +1900,16 @@ or not yet needed:
   everywhere), any hint still shown as "All towns" now gets a
   "Move to [current town]" button so the admin can fix the ones that
   need it, one at a time, with the actual content in front of them.
+
+## Delete a town
+
+The Towns card only ever let you open/close a town, not remove one --
+no way to clear out a stub town that got auto-created by a visitor
+searching a name that isn't actually a planned city (Kempele,
+Merikarvia, Rauma, Tyrnävä showed up this way, cluttering the list
+next to the real 7 expansion cities). Added a Delete button, shown
+only for closed towns. Safety is mostly the database itself, not just
+app logic: `squares.town_id` has no cascade, so Postgres refuses the
+delete outright (a foreign-key violation) if the town has any squares
+at all, even old expired ones -- the app just turns that into a clear
+message instead of a raw DB error.

@@ -1152,6 +1152,29 @@ async function loadTownsList(){
         populateGlobalTownSelect();
       });
       row.appendChild(btn);
+
+      // Only offered for closed towns -- an open one has to be closed
+      // first (see handleDeleteTown), and the database itself refuses
+      // the delete outright if the town has any squares at all, even
+      // old expired ones, so this can't accidentally destroy real data.
+      if (!town.enabled) {
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Delete';
+        delBtn.style.cssText = 'padding:6px 12px;font-size:12px;margin-left:8px;background:none;color:#8a8168;border:1px solid #d8cfb4;';
+        delBtn.addEventListener('click', async () => {
+          if (!confirm(`Delete ${town.name} entirely? Only works if it has no ad slots on it at all -- this can't be undone.`)) return;
+          const delRes = await fetch(`${API}/delete-town`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ townId: town.id })
+          });
+          const delData = await delRes.json();
+          if (!delRes.ok) { alert(delData.error || 'Could not delete town.'); return; }
+          loadTownsList();
+          populateGlobalTownSelect();
+        });
+        row.appendChild(delBtn);
+      }
+
       box.appendChild(row);
     });
   } catch (e) {
