@@ -1847,12 +1847,28 @@ function renderLogoBanner(){
   }
   empty.style.display = 'none';
 
-  // Size grows smoothly up to 10 slots, then caps -- beyond that, size
-  // alone stops being a reason to buy more. 11-19 gets the premium golden
-  // shine; 20 (the actual maximum purchasable) gets something genuinely
-  // more dramatic -- a color-cycling border and a crown -- since hitting
-  // the true ceiling deserves a payoff that actually looks like it.
-  const BASE_SIZE = 25, PER_SLOT = 15, MAX_SIZE = 175;
+  // Real row-wrapping depends on the banner's actual current width, so
+  // this is checked once up front (reused below for both sizing and
+  // pagination) rather than guessing at a fixed items-per-row count.
+  const isDesktop = window.innerWidth >= 1000;
+
+  // Size grows smoothly up to the max size, then caps -- beyond that,
+  // size alone stops being a reason to buy more. 11-19 gets the premium
+  // golden shine; 20 (the actual maximum purchasable) gets something
+  // genuinely more dramatic -- a color-cycling border and a crown --
+  // since hitting the true ceiling deserves a payoff that actually
+  // looks like it.
+  //
+  // Mobile gets meaningfully smaller numbers than desktop, not just a
+  // scaled-down version of the same ones: main's 24px side padding +
+  // the track's own 14px padding + a 12px gap between tiles leaves
+  // roughly 280-310px of real width on a typical phone. A single
+  // 20-slot business at the old desktop cap (175px) alone nearly filled
+  // that -- there was no room left for a second logo on the same row,
+  // so it landed on its own page by itself regardless of how much other
+  // real content there was to show. 110px keeps two 20-slot logos (the
+  // worst case) comfortably side by side even on a narrow ~320px phone.
+  const BASE_SIZE = isDesktop ? 25 : 16, PER_SLOT = isDesktop ? 15 : 9, MAX_SIZE = isDesktop ? 175 : 110;
   const PREMIUM_THRESHOLD = 11;
   const LEGENDARY_THRESHOLD = 20;
   const sized = businesses.map(({ rep, count }) => ({
@@ -1889,7 +1905,6 @@ function renderLogoBanner(){
   // Mobile keeps the fixed 2-row cap with pagination, since there
   // generally isn't screen room for everyone there regardless of how
   // full the board actually is.
-  const isDesktop = window.innerWidth >= 1000;
   const MAX_ROWS_PER_PAGE = isDesktop ? Infinity : 1; // mobile: one row at a time (side-by-side), cycling through more via pagination -- confirmed preferred over 2 rows
   const pages = [];
   let pageItems = [];
