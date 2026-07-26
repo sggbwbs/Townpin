@@ -116,7 +116,12 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
     display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
   .card{background:#f4efe4;color:#26210f;max-width:420px;width:100%;border-radius:14px;
     padding:36px 32px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.35);}
-  .logo{width:${logoSize}px;height:${logoSize}px;border-radius:14px;object-fit:contain;margin-bottom:18px;background:#eae3d3;}
+  .backLink{display:inline-flex;align-items:center;gap:6px;color:#8a8168;text-decoration:none;
+    font-size:13px;font-weight:600;margin:0 0 20px;}
+  .backLink:hover{color:#5c5440;text-decoration:underline;}
+  .logoWrap{width:${logoSize}px;max-height:${Math.round(logoSize * 1.5)}px;margin:0 auto 18px;
+    background:#eae3d3;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .logo{width:100%;height:auto;max-height:${Math.round(logoSize * 1.5)}px;object-fit:contain;display:block;}
   h1{font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0 0 8px;}
   p.tagline{color:#5c5440;font-size:14.5px;margin:0 0 22px;}
   a.visit{display:inline-block;background:#f2a65a;color:#2a1c0d;text-decoration:none;
@@ -135,7 +140,8 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
 </head>
 <body>
   <div class="card">
-    ${square.logo_url ? `<img class="logo" src="${escapeHtml(square.logo_url)}" alt="${escapeHtml(square.company_name)} logo" />` : ''}
+    <a class="backLink" href="/board/${escapeHtml(townSlug)}">← ${escapeHtml(townName)} community board</a>
+    ${square.logo_url ? `<div class="logoWrap"><img class="logo" src="${escapeHtml(square.logo_url)}" alt="${escapeHtml(square.company_name)} logo" /></div>` : ''}
     <h1>${escapeHtml(square.company_name)}</h1>
     ${square.industry && INDUSTRY_LABELS[square.industry] ? `<div class="industryBadge">${escapeHtml(INDUSTRY_LABELS[square.industry])}</div>` : ''}
     <p class="tagline">${description}</p>
