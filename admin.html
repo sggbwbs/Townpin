@@ -71,7 +71,11 @@
 </div>
 
 <div class="card" id="dashHeaderCard" style="display:none;padding:16px 32px;">
-  <div style="display:flex;justify-content:space-between;align-items:center;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <label for="globalTownSelect" style="font-size:12px;color:#8a8168;font-weight:700;">Managing:</label>
+      <select id="globalTownSelect" style="font-size:13px;padding:5px 8px;"><option>Loading…</option></select>
+    </div>
     <button id="toggleEditCardBtn" type="button" style="background:none;color:#8a8168;text-decoration:underline;
       padding:4px 0;font-size:12.5px;font-weight:400;">⚙ Edit site copy (advanced)</button>
     <span style="font-size:12px;color:#8a8168;display:flex;align-items:center;gap:10px;">
@@ -153,10 +157,15 @@
   <h1>Teach the AI agent</h1>
   <p class="sub">Give the chat agent standing instructions — e.g. "When someone asks about car rentals (autovuokraamo), always mention Rese Autovuokraamo and Casahouse Rent by name." Plain language, short and direct works best. Applies to every question from now on.</p>
 
+  <div id="aiHintsTownNote" class="sub" style="margin:0 0 10px;font-weight:700;"></div>
   <div class="field">
     <label>New instruction</label>
     <textarea id="aiHintInput" placeholder='e.g. When asked about car rentals, mention Rese Autovuokraamo and Casahouse Rent.' style="min-height:70px;"></textarea>
   </div>
+  <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5c5440;margin-bottom:12px;cursor:pointer;">
+    <input type="checkbox" id="aiHintGlobalCb" />
+    Apply to every town's chat, not just the one selected above
+  </label>
   <button id="addAiHintBtn">Add instruction</button>
   <span class="saved" id="aiHintSavedMsg">✓ Added</span>
   <div class="err" id="aiHintErr"></div>
@@ -489,6 +498,7 @@ async function showEditor(){
   updatePreview();
 
   loadCompedList();
+  await populateGlobalTownSelect();
   loadAiHints();
   loadEventsPicker();
   loadTownsList();
@@ -636,10 +646,56 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
   }
 });
 
+// Shared across every town-scoped admin section below (hints, events --
+// more to come later) so switching town once updates all of them,
+// rather than each section needing its own separate picker that could
+// drift out of sync with the others. Persisted in localStorage purely
+// as a convenience -- reloading the admin panel keeps you on whichever
+// town you were last managing instead of always resetting to the first one.
+let currentAdminTownId = localStorage.getItem('adminTownId') || null;
+let adminTowns = [];
+
+async function populateGlobalTownSelect(){
+  const select = document.getElementById('globalTownSelect');
+  try {
+    const res = await fetch(`${API}/towns-list`);
+    const data = await res.json();
+    adminTowns = data.towns || [];
+    if (adminTowns.length === 0) { select.innerHTML = '<option>No towns yet</option>'; return; }
+    // Shows closed towns too, not just open ones -- you'll often want to
+    // prep a new city's events/hints before flipping it to "Open to
+    // public" in the Towns card below, not only after.
+    select.innerHTML = adminTowns.map(t =>
+      `<option value="${t.id}">${t.name}${t.enabled ? '' : ' (closed)'}</option>`).join('');
+    if (!currentAdminTownId || !adminTowns.some(t => String(t.id) === String(currentAdminTownId))) {
+      currentAdminTownId = String(adminTowns[0].id);
+    }
+    select.value = currentAdminTownId;
+    localStorage.setItem('adminTownId', currentAdminTownId);
+  } catch (e) {
+    select.innerHTML = '<option>Could not load towns</option>';
+  }
+}
+
+document.getElementById('globalTownSelect').addEventListener('change', (e) => {
+  currentAdminTownId = e.target.value;
+  localStorage.setItem('adminTownId', currentAdminTownId);
+  loadAiHints();
+  loadEventsPicker();
+});
+
+function currentAdminTownName(){
+  const town = adminTowns.find(t => String(t.id) === String(currentAdminTownId));
+  return town ? town.name : '';
+}
+
 async function loadAiHints(){
   const box = document.getElementById('aiHintsList');
+  const note = document.getElementById('aiHintsTownNote');
+  if (!currentAdminTownId) { box.innerHTML = '<p class="sub">No towns yet.</p>'; return; }
+  note.textContent = `Adding instructions for: ${currentAdminTownName()} (list below also shows instructions that apply everywhere)`;
   try {
-    const res = await fetch(`${API}/list-ai-hints`);
+    const res = await fetch(`${API}/list-ai-hints?townId=${currentAdminTownId}`);
     const data = await res.json();
     if (!res.ok) { box.innerHTML = `<p class="sub">${data.error || 'Could not load instructions.'}</p>`; return; }
     if (!data.hints || data.hints.length === 0) { box.innerHTML = '<p class="sub">No instructions yet — the agent is using its default judgment only.</p>'; return; }
@@ -648,7 +704,8 @@ async function loadAiHints(){
       const row = document.createElement('div');
       row.className = 'compedRow';
       row.style.alignItems = 'flex-start';
-      row.innerHTML = `<span style="flex:1;padding-right:12px;">${h.hint_text.replace(/</g, '&lt;')}</span>`;
+      const scopeLabel = h.town_id ? currentAdminTownName() : 'All towns';
+      row.innerHTML = `<span style="flex:1;padding-right:12px;">${h.hint_text.replace(/</g, '&lt;')}<br><span class="sub" style="margin:2px 0 0;">${scopeLabel}</span></span>`;
       const btn = document.createElement('button');
       btn.className = 'revokeBtn';
       btn.textContent = 'Remove';
@@ -675,16 +732,19 @@ document.getElementById('addAiHintBtn').addEventListener('click', async () => {
   const btn = document.getElementById('addAiHintBtn');
   clearErr(errBox);
   const hintText = document.getElementById('aiHintInput').value.trim();
+  const isGlobal = document.getElementById('aiHintGlobalCb').checked;
   if (!hintText) { showErr(errBox, 'Write an instruction first.'); return; }
 
   btn.disabled = true;
   try {
     const res = await fetch(`${API}/add-ai-hint`, {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ hintText })
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ hintText, townId: isGlobal ? null : currentAdminTownId })
     });
     const data = await res.json();
     if (!res.ok) { showErr(errBox, data.error || 'Could not save.'); return; }
     document.getElementById('aiHintInput').value = '';
+    document.getElementById('aiHintGlobalCb').checked = false;
     const msg = document.getElementById('aiHintSavedMsg');
     msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
     loadAiHints();
@@ -695,22 +755,15 @@ document.getElementById('addAiHintBtn').addEventListener('click', async () => {
   }
 });
 
-let eventsPickerTownId = null;
-
 async function loadEventsPicker(){
   const listBox = document.getElementById('eventsPickerList');
   const note = document.getElementById('eventsPickerTownNote');
+  if (!currentAdminTownId) { listBox.innerHTML = '<p class="sub">No towns yet.</p>'; return; }
   listBox.innerHTML = '<p class="sub">Loading…</p>';
   try {
-    const townsRes = await fetch(`${API}/towns-list`);
-    const townsData = await townsRes.json();
-    const towns = townsData.towns || [];
-    const town = towns.find(t => t.enabled) || towns[0];
-    if (!town) { listBox.innerHTML = '<p class="sub">No towns yet.</p>'; return; }
-    eventsPickerTownId = town.id;
-    note.textContent = `Town: ${town.name}`;
+    note.textContent = `Town: ${currentAdminTownName()}`;
 
-    const res = await fetch(`${API}/list-events?townId=${town.id}`);
+    const res = await fetch(`${API}/list-events?townId=${currentAdminTownId}`);
     const data = await res.json();
     if (!res.ok) { listBox.innerHTML = `<p class="sub">${data.error || 'Could not load events.'}</p>`; return; }
     const events = data.events || [];
@@ -775,7 +828,7 @@ document.getElementById('saveEventsBtn').addEventListener('click', async () => {
   try {
     const res = await fetch(`${API}/select-events`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ townId: eventsPickerTownId, selectedIds, highlightedIds })
+      body: JSON.stringify({ townId: currentAdminTownId, selectedIds, highlightedIds })
     });
     const data = await res.json();
     if (!res.ok) { showErr(errBox, data.error || 'Could not save.'); return; }
@@ -1039,6 +1092,7 @@ document.getElementById('enableTownBtn').addEventListener('click', async () => {
     const msg = document.getElementById('townsSavedMsg');
     msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
     loadTownsList();
+    populateGlobalTownSelect();
   } catch (e) {
     showErr(errBox, 'Network error.');
   }
@@ -1069,6 +1123,7 @@ async function loadTownsList(){
           body: JSON.stringify(body)
         });
         loadTownsList();
+        populateGlobalTownSelect();
       });
       row.appendChild(btn);
       box.appendChild(row);

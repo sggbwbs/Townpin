@@ -1829,3 +1829,51 @@ panel flows (granting a free square, editing an existing business) --
 previously uncapped, so a stray extra click (or holding the button
 down) could run the requested count up into the hundreds with nothing
 stopping it.
+
+## Admin panel is now town-aware (first step toward multi-city)
+
+Step one of expanding beyond Oulu (Tampere, Helsinki, Vantaa, Espoo,
+Rovaniemi, Jyväskylä, Turku are the planned next cities). Two things
+that used to silently assume "whichever town happens to be enabled"
+now genuinely respect which town you're managing:
+
+- **One shared town selector**, always visible in the admin header
+  ("Managing: ___"), persisted in localStorage across reloads. Every
+  town-scoped section reads from this single source of truth instead
+  of picking its own -- previously the events-picker card had already
+  grown its own separate town dropdown; that's been consolidated into
+  the shared one rather than left as a second, independently-drifting
+  picker.
+- **AI chat hints are now genuinely per-town**, not global-only. New
+  `town_id` column on `ai_agent_hints` (nullable -- null means "applies
+  to every town's chat", a specific value scopes it to just that one).
+  The hints list shows both this town's hints and the global ones
+  together, clearly labeled which is which.
+- The shared selector lists closed (not-yet-public) towns too, not
+  just open ones -- you'll often want to prep a new city's events and
+  hints before flipping it to "Open to public," not only after.
+
+**What this does NOT yet cover** -- still genuinely single-city (Oulu)
+or not yet needed:
+- **`site_content` (hero text, footer, etc.) is still global**, one
+  row per key/language, no `town_id`. This is the next real piece of
+  work before a second city can go live with its own correct copy --
+  see the earlier note on this same limitation for why it's a bigger
+  change (Finnish grammar doesn't template cleanly across arbitrary
+  city names).
+- **News and events are still 100% hardcoded to Oulu** -- Kaleva's RSS
+  feed URLs, Kaleva's event API (one hardcoded Oulu-specific collection
+  ID), and even the weather widgets' lat/long are all Oulu-only right
+  now, in `api/_localFeed.js`, `index.html`, and `today-card.html`.
+  Real per-city sources still need to be built -- LinkedEvents (the
+  open, multi-city Finnish events API standard) looks like a strong
+  candidate covering Helsinki, Espoo, Vantaa, Turku, and Tampere, but
+  this needs its own dedicated build, plus a genuine per-city check for
+  news (Kaleva's free public RSS is unusually generous for a regional
+  paper -- the equivalent papers for other cities may not offer the
+  same, and need checking one at a time rather than assumed).
+- The grant-square and edit-company admin flows still let you type or
+  search for a town directly rather than defaulting to the shared
+  selector -- left as-is on purpose, since granting or editing a
+  business isn't necessarily about "the town I'm currently managing"
+  specifically.

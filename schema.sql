@@ -192,11 +192,19 @@ alter table local_feed_items add column if not exists event_end_time text;
 -- Casahouse Rent by name." Deliberately just plain text, not a rigid
 -- trigger/business structure -- lets the admin phrase things however
 -- makes sense rather than forcing everything into fixed fields.
+--
+-- town_id is nullable on purpose: a hint about a specific town's
+-- business (the common case) is scoped to just that town's chat, but
+-- leaving it blank makes a hint apply everywhere -- useful for a
+-- standing instruction that isn't about any one city ("always mention
+-- that dogs are welcome on outdoor terraces" type of thing).
 create table if not exists ai_agent_hints (
   id bigserial primary key,
+  town_id bigint references towns(id) on delete cascade,
   hint_text text not null,
   created_at timestamptz not null default now()
 );
+create index if not exists ai_agent_hints_town_idx on ai_agent_hints (town_id);
 
 -- ==== Business address + geocoded coordinates, for the map feature ====
 -- address is what the business/admin actually typed; lat/lng are

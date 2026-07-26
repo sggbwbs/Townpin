@@ -198,10 +198,17 @@ async function handleCompedList(req, res) {
 // into every chat request's system prompt (see ask.js). Deliberately
 // simple: list, add, delete. No structured trigger/business matching --
 // the admin just writes the instruction in plain language.
+//
+// townId is optional here (unlike most other town-scoped actions) --
+// omitting it just means "show me everything" (this town's hints plus
+// global ones), which is the more useful default for a list view where
+// the admin wants to see what's already there before adding more.
 async function handleListAiHints(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
-  const { data, error } = await supabase
-    .from('ai_agent_hints').select('id, hint_text, created_at').order('created_at', { ascending: false });
+  const townId = req.query.townId;
+  let query = supabase.from('ai_agent_hints').select('id, town_id, hint_text, created_at').order('created_at', { ascending: false });
+  query = townId ? query.or(`town_id.eq.${townId},town_id.is.null`) : query;
+  const { data, error } = await query;
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not load hints.' }); }
   res.status(200).json({ hints: data || [] });
 }
@@ -210,11 +217,14 @@ async function handleAddAiHint(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
   const hintText = (req.body && req.body.hintText || '').trim();
+  // A blank/omitted townId is a deliberate choice, not a missing one --
+  // it makes the hint apply to every town's chat rather than just one.
+  const townId = (req.body && req.body.townId) || null;
   if (!hintText) return res.status(400).json({ error: 'Hint text is required.' });
   if (hintText.length > 500) return res.status(400).json({ error: 'Keep hints under 500 characters -- short, direct instructions work best.' });
 
   const { data, error } = await supabase
-    .from('ai_agent_hints').insert({ hint_text: hintText }).select().maybeSingle();
+    .from('ai_agent_hints').insert({ hint_text: hintText, town_id: townId }).select().maybeSingle();
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not save hint.' }); }
   res.status(200).json({ ok: true, hint: data });
 }

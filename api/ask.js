@@ -195,7 +195,7 @@ module.exports = async (req, res) => {
         .limit(MAX_BUSINESSES_IN_CONTEXT),
       getEventsSection(supabase, townId, town.name),
       getNewsSection(supabase, townId),
-      supabase.from('ai_agent_hints').select('hint_text').order('created_at', { ascending: false })
+      supabase.from('ai_agent_hints').select('hint_text').or(`town_id.eq.${townId},town_id.is.null`).order('created_at', { ascending: false })
     ]);
 
     // A business can own several slots (see the banner's per-slot pricing
