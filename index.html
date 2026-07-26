@@ -1361,6 +1361,7 @@ const STRINGS = {
       <p><b>Tiedot:</b> tallennamme yrityksen nimen, sähköpostin ja verkko-osoitteen tilauksen toimittamista ja laskutusta varten, sekä IP-osoitteita väärinkäytösten estämiseksi (esim. varauslukot, kirjautumisyritysten ja tekoälyhaun rajoitus). Väärinkäytöslokit säilytetään vain muutamia kuukausia. Käytämme tietojen käsittelyyn seuraavia palveluntarjoajia: Stripe (maksut), Supabase (tietokanta) ja Anthropic (tekoälyvastaukset ja -kuvaukset). Emme myy tietoja eteenpäin. Ota yhteyttä yllä olevaan sähköpostiin tietojesi tarkastamiseksi tai poistamiseksi.</p>
       <p><b>Maksut:</b> käsittelee Stripe. Emme näe tai tallenna korttitietojasi.</p>`,
     perMonth: ' / kk',
+    thenPerMonth: 'sitten {price}€/kk',
     renewNote: 'Uusiutuu automaattisesti. Peruuta milloin vain — banneripaikat vapautuvat takaisin.',
     continueBtn: 'Jatka maksuun →',
     footerText: 'PaikallisCanvas · paikallinen tekoälyopas',
@@ -1531,6 +1532,7 @@ const STRINGS = {
       <p><b>Data:</b> we store your company name, email, and website URL to fulfil and bill the subscription, plus IP addresses to prevent abuse (e.g. reservation limits, login attempts, and the AI search's rate limit). Abuse-prevention logs are kept for a few months at most. We use the following processors to handle this data: Stripe (payments), Supabase (database), and Anthropic (AI answers and descriptions). We don't sell this data. Contact the email above to review or delete your data.</p>
       <p><b>Payments:</b> handled by Stripe. We never see or store your card details.</p>`,
     perMonth: ' / month',
+    thenPerMonth: 'then €{price}/month',
     renewNote: 'Renews automatically. Cancel anytime — your slots open back up.',
     continueBtn: 'Continue to payment →',
     footerText: 'PaikallisCanvas · your local AI guide',
@@ -2899,9 +2901,20 @@ function updateModalPricing(){
   const rateNote = perSquare < 5
     ? (lang === 'fi' ? ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(${perSquare}€/paikka, alennushinta)</span>` : ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(€${perSquare}/slot, discounted)</span>`)
     : '';
-  document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:#8a8168;font-weight:400;">${t('perMonth')}</span>${rateNote}`;
-  document.getElementById('priceNote').textContent = t('renewNote');
   const halfPrice = Math.round(price / 2 * 100) / 100;
+
+  // When the founding discount is live, the headline number is what's
+  // actually charged today (a real Stripe Coupon, not just marketing
+  // copy) -- showing the steady-state price here instead would disagree
+  // with both the "-50%" badge right above it and the real charge one
+  // step later at Stripe's own checkout.
+  if (FOUNDING_DISCOUNT_ACTIVE){
+    document.getElementById('priceDisplay').innerHTML =
+      `${halfPrice}€<span style="font-size:14px;color:#8a8168;font-weight:400;"> (${t('thenPerMonth').replace('{price}', price)})</span>${rateNote}`;
+  } else {
+    document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:#8a8168;font-weight:400;">${t('perMonth')}</span>${rateNote}`;
+  }
+  document.getElementById('priceNote').textContent = t('renewNote');
   if (discountNoteEl) discountNoteEl.style.display = FOUNDING_DISCOUNT_ACTIVE ? 'inline-block' : 'none';
   document.getElementById('confirmText').textContent = FOUNDING_DISCOUNT_ACTIVE
     ? t('confirmText').replace('{price}', price).replace('{halfPrice}', halfPrice)
