@@ -1810,7 +1810,7 @@ const LOGO_BANNER_ADVANCE_MS = 5000;
 
 function logoTileHtml(b){
   const tierClass = b.isLegendary ? ' logoBannerLegendary' : (b.isPremium ? ' logoBannerPremium' : '');
-  return `<a class="logoBannerItem${tierClass}" href="/pin/${b.rep.id}" target="_blank" rel="noopener"
+  return `<a class="logoBannerItem${tierClass}" href="/pin/${b.rep.id}?lang=${lang}" target="_blank" rel="noopener"
      data-company="${escapeAskText(b.rep.company_name || '')}"
      style="width:${b.size}px;height:${b.size}px;" title="${escapeAskText(b.rep.company_name || '')}">
     ${b.isLegendary ? '<span class="logoBannerCrown">👑</span>' : ''}
@@ -2607,7 +2607,7 @@ async function askAsk(question, sendBtn){
     if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
       html += '<p class="askMentionsNote">📍 = ' + t('askMentionsNote') + '</p>';
       html += '<div class="askMentions">' + data.mentioned.map(m =>
-        `<a class="askMentionChip" href="/pin/${m.squareId}" target="_blank" rel="noopener">📍 ${escapeAskText(m.name)} ↗</a>`
+        `<a class="askMentionChip" href="/pin/${m.squareId}?lang=${lang}" target="_blank" rel="noopener">📍 ${escapeAskText(m.name)} ↗</a>`
       ).join('') + '</div>';
       // The banner now paginates (see renderLogoBanner) -- if a business
       // just recommended here isn't on whatever page happens to be
