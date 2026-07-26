@@ -16,11 +16,27 @@ async function pickRandomEmptySquares(townId, count) {
   const { data: town, error: townErr } = await supabase.from('towns').select('capacity').eq('id', townId).maybeSingle();
   if (townErr || !town) return [];
 
+  // Deliberately NOT filtered by status. The unique constraint on
+  // (town_id, idx) has no status exception -- once ANY row has ever
+  // existed at an index, even an expired/cancelled one, that exact index
+  // can never be inserted again. Each square's /pin/{id} page is meant to
+  // be a stable, permanent URL, so silently handing a used-then-expired
+  // index to a completely different business later would also be
+  // confusing in its own right -- retiring it for good is the right
+  // behavior, not just an artifact of the constraint.
+  //
+  // Filtering this to only active/pending (as an earlier version did)
+  // caused a real bug: as squares churned (cancellations, downsizing,
+  // expired prepaid terms), this kept treating those retired indices as
+  // "free", repeatedly colliding with the real unique constraint on
+  // every single retry attempt -- not a rare race, a guaranteed failure
+  // once enough churn had happened in a town. See insertSquaresWithRetry
+  // below for where that surfaced as "Could not find available squares
+  // after several attempts."
   const { data: taken, error: takenErr } = await supabase
     .from('squares')
     .select('idx')
-    .eq('town_id', townId)
-    .in('status', ['active', 'pending']);
+    .eq('town_id', townId);
   if (takenErr) return [];
 
   const takenSet = new Set((taken || []).map(r => r.idx));
