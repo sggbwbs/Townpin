@@ -554,8 +554,23 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
 
     const totalLinked = mentioned.length + webResults.length;
     const rawAnswerText = typeof parsed.answer === 'string' ? parsed.answer : '';
-    if (totalLinked === 0) {
-      const newItems = await extractLinksFromText(rawAnswerText, mentionedNames);
+
+    // Catches a partial miss, not just a total one. The old check here
+    // (totalLinked === 0) only caught a fully-broken answer -- but the
+    // model can bold and link MOST of what it names while still quietly
+    // dropping one specific business (e.g. bolding **De Gamlas Hem** in
+    // the prose but never adding a matching mentioned/webResults entry
+    // for it) -- a real observed failure. Comparing every bolded name in
+    // the text against what's actually linked so far, rather than only
+    // asking "did anything get linked at all", means a mostly-correct
+    // answer with one dropped name still gets that name found and linked
+    // -- not just a fully-broken one with nothing linked whatsoever.
+    const linkedSoFar = new Set([...mentioned.map(m => m.name), ...webResults.map(w => w.name)]);
+    const boldedNames = [...rawAnswerText.matchAll(/\*\*([^*]+)\*\*/g)].map(m => m[1].trim());
+    const hasUnlinkedBoldedName = boldedNames.some(n => n && !linkedSoFar.has(n));
+
+    if (totalLinked === 0 || hasUnlinkedBoldedName) {
+      const newItems = await extractLinksFromText(rawAnswerText, linkedSoFar);
       if (newItems.length > 0) {
         webResults = webResults.concat(newItems)
           .sort((a, b) => (a.tier === 'local' ? 0 : 1) - (b.tier === 'local' ? 0 : 1))
