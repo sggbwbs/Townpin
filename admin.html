@@ -579,15 +579,18 @@ document.getElementById('grantLoadBtn').addEventListener('click', async () => {
   }
 });
 
+const MAX_QTY_STEPPER = 20; // sanity cap -- holding/mis-clicking + shouldn't be able to run away to hundreds
+
 function updateGrantQtyDisplay(){
   document.getElementById('grantQtyDisplay').textContent = grantQty;
   document.getElementById('grantQtyMinus').disabled = grantQty <= 1;
+  document.getElementById('grantQtyPlus').disabled = grantQty >= MAX_QTY_STEPPER;
 }
 document.getElementById('grantQtyMinus').addEventListener('click', () => {
   if (grantQty > 1){ grantQty--; updateGrantQtyDisplay(); }
 });
 document.getElementById('grantQtyPlus').addEventListener('click', () => {
-  grantQty++; updateGrantQtyDisplay();
+  if (grantQty < MAX_QTY_STEPPER){ grantQty++; updateGrantQtyDisplay(); }
 });
 
 document.getElementById('grantSubmitBtn').addEventListener('click', async () => {
@@ -891,12 +894,13 @@ let editQty = 1;
 function updateEditQtyDisplay(){
   document.getElementById('editQtyDisplay').textContent = editQty;
   document.getElementById('editQtyMinus').disabled = editQty <= 1;
+  document.getElementById('editQtyPlus').disabled = editQty >= MAX_QTY_STEPPER;
 }
 document.getElementById('editQtyMinus').addEventListener('click', () => {
   if (editQty > 1){ editQty--; updateEditQtyDisplay(); }
 });
 document.getElementById('editQtyPlus').addEventListener('click', () => {
-  editQty++; updateEditQtyDisplay();
+  if (editQty < MAX_QTY_STEPPER){ editQty++; updateEditQtyDisplay(); }
 });
 
 async function selectGroupToEdit(g){

@@ -1803,3 +1803,29 @@ approaching as its own focused piece of work rather than bundled with
 other changes, given how many places actually touch event curation
 (the public feed, the admin panel, and the card generator all read or
 write it).
+
+## Fixed: "Could not find available squares after several attempts"
+
+Real bug in `pickRandomEmptySquares` (`api/_squares.js`), hit when
+adding slots to an existing business from the admin panel (and
+latent anywhere else that grants/assigns squares). It only counted a
+square's index as "taken" if a row existed with status active or
+pending -- but the database's `unique(town_id, idx)` constraint has
+no such exception: once ANY row has ever existed at an index, even
+one that's since expired or been cancelled, that exact index can
+never be inserted again. As squares churned over time (downsizing,
+cancellations, expired prepaid terms), this kept treating those
+permanently-retired indices as available, so it collided with the
+real constraint on every single retry -- not an occasional race, a
+guaranteed failure once a town had enough churn in its history.
+Fixed by counting a square as taken based on ANY row ever existing at
+that index, regardless of status -- matching the constraint exactly,
+and arguably the more correct behavior anyway (a `/pin/{id}` page is
+meant to be a stable permanent URL; silently handing a used-then-expired
+index to a different business later would be its own kind of bug).
+
+Also capped the "number of ad slots" +/- stepper at 20 in both admin
+panel flows (granting a free square, editing an existing business) --
+previously uncapped, so a stray extra click (or holding the button
+down) could run the requested count up into the hundreds with nothing
+stopping it.
