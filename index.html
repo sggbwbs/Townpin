@@ -2182,9 +2182,16 @@ function renderLocalFeed(feed){
   if (news.length === 0){ newsSection.style.display = 'none'; }
   else {
     newsSection.style.display = 'block';
+    // The category dropdown (Oulun seutu / Uusimmat / etc.) only makes
+    // sense for Kaleva's categorized Oulu feed -- every other town has
+    // a single fixed source with no categories to switch between at all.
+    document.getElementById('newsCategoryFilter').style.display = isOulu ? 'inline-block' : 'none';
+    const isHelsinki = currentTown && currentTown.name === 'Helsinki';
     document.getElementById('newsSourceNote').textContent = isOulu
       ? (lang === 'fi' ? 'Lähde: Kaleva' : 'Source: Kaleva')
-      : (lang === 'fi' ? 'Haettu verkosta tekoälyllä' : 'Found via AI web search');
+      : isHelsinki
+        ? (lang === 'fi' ? 'Lähde: Yle' : 'Source: Yle')
+        : (lang === 'fi' ? 'Haettu verkosta tekoälyllä' : 'Found via AI web search');
     const newsBox = document.getElementById('newsItems');
     newsBox.innerHTML = '';
     const visibleCount = newsExpanded ? news.length : Math.min(NEWS_COLLAPSED_COUNT, news.length);
