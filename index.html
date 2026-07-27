@@ -545,7 +545,7 @@
 
     <div id="authLoggedOutView">
       <h2 id="authTitle" data-i18n="authLoginTitle">Kirjaudu sisään</h2>
-      <p class="authSub" id="authSubText" data-i18n="authSub">Kirjautuneena saat 10 ilmaista tekoälykysymystä päivässä (palautuu joka yö klo 00) ja voit ostaa lisää.</p>
+      <p class="authSub" id="authSubText" data-i18n="authSub">Kirjautuneena saat 5 ilmaista tekoälykysymystä päivässä (palautuu joka yö klo 00) ja voit ostaa lisää.</p>
       <p class="authSub" id="authForgotSentMsg" style="display:none;color:#3a7d3a;"></p>
       <input type="email" id="authEmail" autocomplete="email" data-i18n-placeholder="authEmailPlaceholder" placeholder="Sähköposti">
       <input type="password" id="authPassword" autocomplete="current-password" data-i18n-placeholder="authPasswordPlaceholder" placeholder="Salasana (väh. 8 merkkiä)">
@@ -563,9 +563,11 @@
     <div id="authLoggedInView" style="display:none;">
       <h2 data-i18n="authAccountTitle">Oma tili</h2>
       <p class="authSub"><span id="authAccountEmail"></span></p>
-      <p class="authSub" id="authCreditsLine"></p>
       <p class="authSub" id="authFreeSearchesLine"></p>
-      <button class="authSubmit" id="authBuyCreditsBtn" onclick="buyCredits()" data-i18n="authBuyCredits">Osta 10 lisää -- 0,99 €</button>
+      <p class="authSub" id="authCreditsLine"></p>
+      <button class="authSubmit" id="authBuyCreditsBtn" onclick="buyCredits('standard')" data-i18n="authBuyCredits">Osta 5 lisää -- 0,99 €</button>
+      <p class="authSub" id="authPremiumCreditsLine" style="margin-top:14px;"></p>
+      <button class="authSubmit" id="authBuyPremiumCreditsBtn" onclick="buyCredits('premium')" style="background:#2a2110;color:#f2a65a;" data-i18n="authBuyPremiumCredits">✨ Osta 5 premium-kysymystä -- 1,99 €</button>
       <div class="authSwitch"><a onclick="logoutUser()" data-i18n="authLogout">Kirjaudu ulos</a></div>
       <div class="authSwitch"><a onclick="deleteAccountPrompt()" data-i18n="authDeleteAccount">Poista tilini</a></div>
     </div>
@@ -594,6 +596,10 @@
       <button id="askMicBtn" type="button" aria-label="Puhu" style="display:none;">🎤</button>
       <button id="askHeroSendBtn" data-i18n="askHeroButton">Kysy →</button>
     </div>
+    <label id="usePremiumToggleRow" style="display:none;font-size:12.5px;color:#8a8168;margin:8px 0 0;justify-content:center;align-items:center;gap:6px;cursor:pointer;">
+      <input type="checkbox" id="usePremiumToggle" />
+      <span id="usePremiumToggleLabel"></span>
+    </label>
     <p style="font-size:11px;color:var(--ink-dim);opacity:0.75;margin:8px 0 0;text-align:center;" data-i18n="askAiDisclaimer">Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.</p>
     <div id="askHeroResults">
       <div id="askResultsList"></div>
@@ -1268,14 +1274,16 @@ const STRINGS = {
     askThinking: 'Mietitään…',
     askError: 'Jokin meni pieleen. Kokeile hetken kuluttua uudelleen.',
     askRateLimited: 'Liian monta kysymystä tänään -- kokeile huomenna uudelleen.',
-    askNeedLogin: 'Päivän 10 ilmaista kysymystä on käytetty (palautuu klo 00 Suomen aikaa). Kirjaudu sisään jatkaaksesi tai osta lisää.',
-    askNeedCredits: 'Päivän ilmaiset kysymykset on käytetty (palautuu klo 00 Suomen aikaa). Osta 10 lisää 0,99 €:lla.',
+    askNeedLogin: 'Päivän 5 ilmaista kysymystä on käytetty (palautuu klo 00 Suomen aikaa). Kirjaudu sisään jatkaaksesi tai osta lisää.',
+    askNeedCredits: 'Päivän ilmaiset kysymykset on käytetty (palautuu klo 00 Suomen aikaa). Osta 5 lisää 0,99 €:lla.',
+    askNeedCreditsHasPremium: 'Päivän ilmaiset kysymykset on käytetty. Sinulla on kuitenkin premium-kysymyksiä jäljellä -- haluatko käyttää yhden?',
+    askUsePremiumBtn: '✨ Käytä premium-kysymys',
     askLoginBtn: 'Kirjaudu / rekisteröidy',
-    askBuyCreditsBtn: 'Osta 10 lisää -- 0,99 €',
+    askBuyCreditsBtn: 'Osta 5 lisää -- 0,99 €',
     loginBtnLabel: 'Kirjaudu',
     authLoginTitle: 'Kirjaudu sisään',
     authRegisterTitle: 'Luo tili',
-    authSub: 'Kirjautuneena saat 10 ilmaista tekoälykysymystä päivässä (palautuu joka yö klo 00 Suomen aikaa) ja voit ostaa lisää.',
+    authSub: 'Kirjautuneena saat 5 ilmaista tekoälykysymystä päivässä (palautuu joka yö klo 00 Suomen aikaa) ja voit ostaa lisää.',
     authEmailPlaceholder: 'Sähköposti',
     authPasswordPlaceholder: 'Salasana (väh. 8 merkkiä)',
     authNewPasswordPlaceholder: 'Uusi salasana (väh. 8 merkkiä)',
@@ -1292,7 +1300,8 @@ const STRINGS = {
     authSwitchToRegister: 'Eikö sinulla ole tiliä? <a onclick="setAuthMode(\'register\')">Rekisteröidy</a>',
     authSwitchToLogin: 'Onko sinulla jo tili? <a onclick="setAuthMode(\'login\')">Kirjaudu</a>',
     authAccountTitle: 'Oma tili',
-    authBuyCredits: 'Osta 10 lisää -- 0,99 €',
+    authBuyCredits: 'Osta 5 lisää -- 0,99 €',
+    authBuyPremiumCredits: '✨ Osta 5 premium-kysymystä -- 1,99 €',
     authLogout: 'Kirjaudu ulos',
     authDeleteAccount: 'Poista tilini',
     authDeleteConfirm: 'Tämä poistaa tilisi ja kaikki siihen liittyvät tiedot pysyvästi. Jatketaanko?',
@@ -1439,14 +1448,16 @@ const STRINGS = {
     askThinking: 'Thinking…',
     askError: 'Something went wrong. Please try again in a moment.',
     askRateLimited: 'Too many questions today -- try again tomorrow.',
-    askNeedLogin: "Today's 10 free questions are used up (resets at midnight Finland time). Log in to keep going, or buy more.",
-    askNeedCredits: "Today's free questions are used up (resets at midnight Finland time). Buy 10 more for €0.99.",
+    askNeedLogin: "Today's 5 free questions are used up (resets at midnight Finland time). Log in to keep going, or buy more.",
+    askNeedCredits: "Today's free questions are used up (resets at midnight Finland time). Buy 5 more for €0.99.",
+    askNeedCreditsHasPremium: "Today's free questions are used up. You do have premium questions left, though -- want to use one?",
+    askUsePremiumBtn: '✨ Use a premium question',
     askLoginBtn: 'Log in / register',
-    askBuyCreditsBtn: 'Buy 10 more -- €0.99',
+    askBuyCreditsBtn: 'Buy 5 more -- €0.99',
     loginBtnLabel: 'Log in',
     authLoginTitle: 'Log in',
     authRegisterTitle: 'Create an account',
-    authSub: "Logged in, you get 10 free AI questions a day (resets every night at midnight Finland time) and can buy more.",
+    authSub: "Logged in, you get 5 free AI questions a day (resets every night at midnight Finland time) and can buy more.",
     authEmailPlaceholder: 'Email',
     authPasswordPlaceholder: 'Password (8+ characters)',
     authNewPasswordPlaceholder: 'New password (8+ characters)',
@@ -1463,7 +1474,8 @@ const STRINGS = {
     authSwitchToRegister: 'No account yet? <a onclick="setAuthMode(\'register\')">Register</a>',
     authSwitchToLogin: 'Already have an account? <a onclick="setAuthMode(\'login\')">Log in</a>',
     authAccountTitle: 'My account',
-    authBuyCredits: 'Buy 10 more -- €0.99',
+    authBuyCredits: 'Buy 5 more -- €0.99',
+    authBuyPremiumCredits: '✨ Buy 5 premium questions -- €1.99',
     authLogout: 'Log out',
     authDeleteAccount: 'Delete my account',
     authDeleteConfirm: 'This permanently deletes your account and all associated data. Continue?',
@@ -1677,6 +1689,7 @@ function setLang(l){
   updateSelectionBar();
   renderLocalFeed(currentFeedItems);
   renderWeatherForecast();
+  updatePremiumToggleVisibility();
   if (installBannerMode) showInstallBanner(installBannerMode);
 }
 
@@ -2318,6 +2331,24 @@ function updateAccountButton(){
     btn.classList.remove('accountBtnAdmin');
     label.textContent = currentUser ? currentUser.email : t('loginBtnLabel');
   }
+  updatePremiumToggleVisibility();
+}
+
+// Only shown when there's actually something to spend -- a visitor with
+// zero premium credits has no reason to see this at all. Re-checked
+// every time currentUser changes (login, logout, after buying credits,
+// after spending one down to zero) since this function is the one
+// central hook all of those already run through.
+function updatePremiumToggleVisibility(){
+  const row = document.getElementById('usePremiumToggleRow');
+  const hasPremium = currentUser && currentUser.premiumCreditBalance > 0;
+  row.style.display = hasPremium ? 'flex' : 'none';
+  if (!hasPremium) document.getElementById('usePremiumToggle').checked = false;
+  document.getElementById('usePremiumToggleLabel').textContent = hasPremium
+    ? (lang === 'fi'
+        ? `✨ Käytä premium-hakua (${currentUser.premiumCreditBalance} jäljellä)`
+        : `✨ Use premium search (${currentUser.premiumCreditBalance} left)`)
+    : '';
 }
 
 function openAuthModal(){
@@ -2332,8 +2363,10 @@ function openAuthModal(){
     document.getElementById('authAccountEmail').textContent = currentUser.email;
     document.getElementById('authCreditsLine').textContent =
       (lang === 'fi' ? 'Ostettuja kysymyksiä jäljellä: ' : 'Purchased questions remaining: ') + currentUser.creditBalance;
+    document.getElementById('authPremiumCreditsLine').textContent =
+      (lang === 'fi' ? '✨ Premium-kysymyksiä jäljellä: ' : '✨ Premium questions remaining: ') + (currentUser.premiumCreditBalance || 0);
     const used = currentUser.freeSearchesUsedToday || 0;
-    const limit = currentUser.freeSearchesLimit || 10;
+    const limit = currentUser.freeSearchesLimit || 5;
     document.getElementById('authFreeSearchesLine').textContent = lang === 'fi'
       ? `Ilmaisia kysymyksiä tänään käytetty: ${used}/${limit} — palautuu klo 00 (Suomen aika)`
       : `Free questions used today: ${used}/${limit} — resets at midnight (Finland time)`;
@@ -2444,9 +2477,12 @@ async function deleteAccountPrompt(){
 // below), not just from the account panel -- either way lands the
 // visitor back on a real Stripe Checkout page, same pattern as buying a
 // board square.
-async function buyCredits(){
+async function buyCredits(tier){
   try {
-    const res = await fetch(`${API_BASE}/user/buy-credits`, { method: 'POST' });
+    const res = await fetch(`${API_BASE}/user/buy-credits`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tier: tier === 'premium' ? 'premium' : 'standard' })
+    });
     const data = await res.json();
     if (data.url) { location.href = data.url; return; }
     if (data.error === 'Please log in first.') openAuthModal();
@@ -2595,11 +2631,25 @@ async function askAsk(question, sendBtn){
     const res = await fetch(`${API_BASE}/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ townId: currentTown.id, question, history: askHistory })
+      body: JSON.stringify({ townId: currentTown.id, question, history: askHistory, usePremium: document.getElementById('usePremiumToggle').checked })
     });
 
     if (res.status === 401 || res.status === 402){
       pendingEl.remove();
+      let data = {};
+      try { data = await res.json(); } catch (e) {}
+
+      if (data.error === 'need_credits_but_has_premium'){
+        const el = askAppendResult(
+          `<p>${escapeAskText(t('askNeedCreditsHasPremium'))}</p><button class="logoBtn" id="usePremiumRetryBtn">${escapeAskText(t('askUsePremiumBtn'))}</button>`
+        );
+        el.querySelector('#usePremiumRetryBtn').addEventListener('click', () => {
+          document.getElementById('usePremiumToggle').checked = true;
+          askAsk(question, sendBtn);
+        });
+        return;
+      }
+
       const isCredits = res.status === 402;
       const msg = t(isCredits ? 'askNeedCredits' : 'askNeedLogin');
       const btnLabel = t(isCredits ? 'askBuyCreditsBtn' : 'askLoginBtn');
@@ -3526,8 +3576,8 @@ function showCreditsBannerIfNeeded(){
   banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:3000;background:#f2a65a;color:#2a1c0d;'
     + 'padding:14px 20px;text-align:center;font-family:IBM Plex Sans,sans-serif;font-size:14px;';
   banner.innerHTML = (lang === 'fi'
-    ? `🎉 Kiitos! 10 kysymystä lisää tililläsi.`
-    : `🎉 Thanks! 10 more questions have been added to your account.`)
+    ? `🎉 Kiitos! 5 kysymystä lisää tililläsi.`
+    : `🎉 Thanks! 5 more questions have been added to your account.`)
     + ` <span style="cursor:pointer;text-decoration:underline;margin-left:10px;" onclick="this.parentElement.remove()">✕</span>`;
   document.body.prepend(banner);
 }

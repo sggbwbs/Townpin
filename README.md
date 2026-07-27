@@ -2119,3 +2119,45 @@ from an unrelated earlier search instead of genuinely re-fetching mine
 wrong with the real integration. Worth confirming Helsinki's actual
 live news (once deployed) is genuinely Uusimaa-scoped content and not
 some other Yle region, just to be sure.
+
+## Premium AI-chat tier: pay for a stronger model, not just more questions
+
+Two separate levers now, not one: the existing "buy more questions"
+credit system (quantity) gets a second, pricier sibling that buys
+*better* answers (quality) instead.
+
+- **Free daily cap dropped from 10 to 5** (`FREE_QUESTIONS_PER_DAY` in
+  `api/_limits.js`) -- deliberate, alongside adding the paid premium
+  option.
+- **Standard credits**: 5 for €0.99 (was 10 for €0.99 -- same price
+  point, smaller bundle, matching the new daily cap so "buy more" now
+  reads as "one more day's worth"). Still Haiku, unchanged quality.
+- **Premium credits**: 5 for €1.99, genuinely a different model
+  (Sonnet, not Haiku) -- a separate balance
+  (`premium_credit_balance`), not a multiplier on the standard one,
+  because spending one is under the visitor's explicit control (a
+  toggle in the chat UI), not automatic just because they're
+  available.
+- **Why explicit control, not automatic spending**: the point of
+  paying for premium is choosing *when* it's worth it (a complex
+  planning question) vs. not (a quick one-off question) -- silently
+  spending it every time would take that choice away and burn through
+  a purchase faster than intended.
+- **Priority order when a premium credit could apply**: checked
+  *before* the free daily quota, not after -- someone who bought
+  premium and explicitly asked for it should get it regardless of
+  whether they still have free questions left today; it's a separate
+  balance, not a fallback.
+- **A new, more specific error**: if the free quota is used up and the
+  visitor didn't ask for premium, but does have premium credits sitting
+  there unused, they get `need_credits_but_has_premium` instead of a
+  generic "buy more" -- the chat UI turns this into a one-click "use a
+  premium credit instead?" retry, not just another purchase prompt.
+- **Admins get the premium model by default**, same as they've always
+  gotten unlimited free access -- no credit-cost concern for an admin
+  account either way.
+- **The link-extraction backstop call stays on the cheap model always**,
+  even for a premium-answered question -- it's a mechanical
+  "find the names already in this text" task, not something that
+  benefits from a stronger model, so there's no reason to double the
+  premium cost on every single question just for that step.

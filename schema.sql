@@ -311,15 +311,24 @@ alter table towns add column if not exists capacity integer not null default 100
 -- and the 'buy-credits' action in api/data.js) -- these never expire
 -- and roll over, unlike the free daily allowance which resets every
 -- day and does not accumulate.
+--
+-- premium_credit_balance is the same idea but for a separate, pricier
+-- tier that answers with a stronger model (Sonnet instead of Haiku) --
+-- a genuinely separate balance, not just a multiplier on the standard
+-- one, since the two draw from different Stripe prices and get spent
+-- under explicit user control (see the "use premium" toggle in
+-- index.html), not spent automatically just because they're available.
 create extension if not exists pgcrypto;
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
   password_hash text not null,
   credit_balance integer not null default 0,
+  premium_credit_balance integer not null default 0,
   consent_personalization boolean not null default false,
   created_at timestamptz not null default now()
 );
+alter table users add column if not exists premium_credit_balance integer not null default 0;
 
 -- Atomic top-up -- same reasoning as increment_view_count above: a plain
 -- read-then-write update would risk under-counting if two purchases (or
@@ -328,6 +337,13 @@ create or replace function increment_credit_balance(p_user_id uuid, p_amount int
 returns void as $$
 begin
   update users set credit_balance = credit_balance + p_amount where id = p_user_id;
+end;
+$$ language plpgsql;
+
+create or replace function increment_premium_credit_balance(p_user_id uuid, p_amount integer)
+returns void as $$
+begin
+  update users set premium_credit_balance = premium_credit_balance + p_amount where id = p_user_id;
 end;
 $$ language plpgsql;
 
@@ -359,6 +375,10 @@ create index if not exists user_ai_usage_user_idx on user_ai_usage (user_id, cre
 -- Stripe can (and does, occasionally) redeliver the same webhook event
 -- more than once -- the unique constraint on stripe_session_id makes a
 -- retried delivery a no-op instead of granting credits twice.
+--
+-- tier distinguishes which balance a purchase topped up ('standard' or
+-- 'premium') -- purely a record for support/analytics; the actual
+-- crediting happens via whichever increment function the webhook calls.
 create table if not exists credit_purchases (
   id bigserial primary key,
   user_id uuid not null references users(id) on delete cascade,
@@ -366,6 +386,7 @@ create table if not exists credit_purchases (
   credits integer not null,
   created_at timestamptz not null default now()
 );
+alter table credit_purchases add column if not exists tier text not null default 'standard';
 
 -- ==== Minimal activity log, for future personalized recommendations ====
 -- Opt-in only -- see consent_personalization above. Nothing should ever

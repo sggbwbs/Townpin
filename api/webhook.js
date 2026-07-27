@@ -41,17 +41,19 @@ module.exports = async (req, res) => {
         const creditUserId = session.metadata && session.metadata.creditUserId;
         if (creditUserId) {
           const credits = parseInt((session.metadata && session.metadata.creditAmount) || '0', 10);
+          const tier = (session.metadata && session.metadata.creditTier === 'premium') ? 'premium' : 'standard';
           if (credits > 0) {
             // Idempotent: a unique constraint on stripe_session_id means a
             // retried webhook delivery hits the 23505 branch below and
             // grants nothing a second time.
             const { error: purchaseErr } = await supabase.from('credit_purchases').insert({
-              user_id: creditUserId, stripe_session_id: session.id, credits
+              user_id: creditUserId, stripe_session_id: session.id, credits, tier
             });
             if (purchaseErr) {
               if (purchaseErr.code !== '23505') console.error('Credit purchase insert failed:', purchaseErr);
             } else {
-              await supabase.rpc('increment_credit_balance', { p_user_id: creditUserId, p_amount: credits });
+              const rpcName = tier === 'premium' ? 'increment_premium_credit_balance' : 'increment_credit_balance';
+              await supabase.rpc(rpcName, { p_user_id: creditUserId, p_amount: credits });
             }
           }
           break;

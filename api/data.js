@@ -7,7 +7,7 @@ const { isAuthenticated } = require('./admin/_auth');
 const { getUserId, setUserSessionCookie, clearUserSessionCookie } = require('./_userAuth');
 const { getClientIp, isRateLimited, recordRequest, countUserToday } = require('./_rateLimit');
 const { sendPasswordResetEmail } = require('./_email');
-const { FREE_QUESTIONS_PER_DAY } = require('./_limits');
+const { FREE_QUESTIONS_PER_DAY, CREDIT_BUNDLE_SIZE, CREDIT_BUNDLE_PRICE_EUR, PREMIUM_CREDIT_BUNDLE_SIZE, PREMIUM_CREDIT_BUNDLE_PRICE_EUR } = require('./_limits');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
@@ -108,13 +108,12 @@ const AUTH_MAX_ATTEMPTS = 8;
 const AUTH_WINDOW_HOURS = 1;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
-const CREDIT_BUNDLE_SIZE = 10;
-const CREDIT_BUNDLE_PRICE_EUR = 0.99;
 
 function publicUser(user) {
   return {
     email: user.email,
     creditBalance: user.credit_balance,
+    premiumCreditBalance: user.premium_credit_balance,
     consentPersonalization: user.consent_personalization
   };
 }
@@ -148,7 +147,7 @@ async function handleUserRegister(req, res) {
       // (missing, false, a stray truthy string) is treated as "no".
       consent_personalization: consentPersonalization === true
     })
-    .select('id, email, credit_balance, consent_personalization')
+    .select('id, email, credit_balance, premium_credit_balance, consent_personalization')
     .single();
 
   if (error) {
@@ -179,7 +178,7 @@ async function handleUserLogin(req, res) {
 
   const { data: user } = await supabase
     .from('users')
-    .select('id, email, password_hash, credit_balance, consent_personalization')
+    .select('id, email, password_hash, credit_balance, premium_credit_balance, consent_personalization')
     .eq('email', cleanEmail)
     .maybeSingle();
 
@@ -211,7 +210,7 @@ async function handleUserCheck(req, res) {
 
   const { data: user } = await supabase
     .from('users')
-    .select('id, email, credit_balance, consent_personalization')
+    .select('id, email, credit_balance, premium_credit_balance, consent_personalization')
     .eq('id', userId)
     .maybeSingle();
   if (!user) return res.status(200).json({ authenticated: false });
@@ -261,6 +260,13 @@ async function handleUserBuyCredits(req, res) {
   const { data: user } = await supabase.from('users').select('email').eq('id', userId).maybeSingle();
   if (!user) return res.status(401).json({ error: 'Please log in first.' });
 
+  const tier = (req.body && req.body.tier === 'premium') ? 'premium' : 'standard';
+  const bundleSize = tier === 'premium' ? PREMIUM_CREDIT_BUNDLE_SIZE : CREDIT_BUNDLE_SIZE;
+  const bundlePrice = tier === 'premium' ? PREMIUM_CREDIT_BUNDLE_PRICE_EUR : CREDIT_BUNDLE_PRICE_EUR;
+  const productName = tier === 'premium'
+    ? `PaikallisCanvas — ${bundleSize} premium AI-chat questions (Sonnet)`
+    : `PaikallisCanvas — ${bundleSize} more AI-chat questions`;
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -268,9 +274,9 @@ async function handleUserBuyCredits(req, res) {
       line_items: [{
         price_data: {
           currency: 'eur',
-          unit_amount: Math.round(CREDIT_BUNDLE_PRICE_EUR * 100),
+          unit_amount: Math.round(bundlePrice * 100),
           product_data: {
-            name: `PaikallisCanvas — ${CREDIT_BUNDLE_SIZE} more AI-chat questions`,
+            name: productName,
             description: 'One-time top-up, does not auto-renew.'
           }
         },
@@ -278,8 +284,8 @@ async function handleUserBuyCredits(req, res) {
       }],
       // The webhook only ever trusts this metadata, never anything the
       // client could otherwise influence, to decide whose balance to
-      // credit and by how much.
-      metadata: { creditUserId: userId, creditAmount: String(CREDIT_BUNDLE_SIZE) },
+      // credit, by how much, and which tier (standard vs premium).
+      metadata: { creditUserId: userId, creditAmount: String(bundleSize), creditTier: tier },
       success_url: `${SITE_URL}/?credits=success`,
       cancel_url: `${SITE_URL}/?credits=cancelled`
     });
@@ -339,7 +345,7 @@ async function handleUserResetPassword(req, res) {
 
   const { data: user } = await supabase
     .from('users')
-    .select('id, email, credit_balance, consent_personalization, reset_token_expires')
+    .select('id, email, credit_balance, premium_credit_balance, consent_personalization, reset_token_expires')
     .eq('reset_token', token)
     .maybeSingle();
   if (!user || !user.reset_token_expires || new Date(user.reset_token_expires) <= new Date()) {

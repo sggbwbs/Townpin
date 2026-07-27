@@ -23,16 +23,19 @@ const { FREE_QUESTIONS_PER_DAY } = require('./_limits');
 // never come close to it.
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = 'claude-haiku-4-5-20251001';
+const MODEL_STANDARD = 'claude-haiku-4-5-20251001';
+const MODEL_PREMIUM = 'claude-sonnet-5';
 
-// 10 free questions/day (see api/_limits.js), resetting at midnight
+// 5 free questions/day (see api/_limits.js), resetting at midnight
 // Europe/Helsinki -- a real calendar day, not a rolling 24h window, so
 // it's something visitors can actually be told and rely on. Tracked by
 // IP for anonymous visitors and by account for logged-in ones (an
 // account survives switching wifi/phone, an IP doesn't). Admins (see
-// isAdminAuthenticated below) are unlimited. Past the free 10: a
-// logged-in visitor can buy 10 more for €0.99 (see handleUserBuyCredits
-// in api/data.js); an anonymous one is prompted to register instead of
+// isAdminAuthenticated below) are unlimited, and get the premium model
+// by default. Past the free 5: a logged-in visitor can buy 5 more
+// standard credits for €0.99, or 5 premium (Sonnet-quality) credits for
+// €1.99 (see handleUserBuyCredits in api/data.js); an anonymous one is
+// prompted to register instead of
 // being offered anonymous top-ups, since there'd be no account to
 // actually attach purchased credits to.
 // no rolling window needed here -- see countIpToday/countUserToday, which reset at midnight Europe/Helsinki instead
@@ -123,7 +126,7 @@ const INDUSTRY_LABELS = {
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { townId, question, history } = req.body || {};
+  const { townId, question, history, usePremium } = req.body || {};
   if (!townId || typeof question !== 'string' || !question.trim()) {
     return res.status(400).json({ error: 'Missing townId or question.' });
   }
@@ -137,17 +140,17 @@ module.exports = async (req, res) => {
   const ip = getClientIp(req);
 
   // usageMode decides how this request gets recorded further down (once
-  // it's known the question will actually be answered), and is echoed
-  // back in the response as `usage` so the frontend can show something
-  // meaningful ("7 free left today" / "using 1 credit, 3 left" / an
-  // admin badge) instead of guessing.
+  // it's known the question will actually be answered), and which model
+  // answers it -- and is echoed back in the response as `usage` so the
+  // frontend can show something meaningful ("7 free left today" / "using
+  // 1 credit, 3 left" / an admin badge) instead of guessing.
   const isAdmin = isAdminAuthenticated(req);
   const userId = isAdmin ? null : getUserId(req);
   let user = null;
   if (userId) {
     const { data } = await supabase
       .from('users')
-      .select('id, credit_balance, consent_personalization')
+      .select('id, credit_balance, premium_credit_balance, consent_personalization')
       .eq('id', userId)
       .maybeSingle();
     user = data || null;
@@ -157,16 +160,32 @@ module.exports = async (req, res) => {
   try {
     if (isAdmin) {
       usageMode = 'admin';
+    } else if (user && usePremium && user.premium_credit_balance > 0) {
+      // Deliberately checked before the free daily quota, not after --
+      // premium is an explicit choice (the visitor bought it and asked
+      // for it specifically), not something that should only kick in
+      // once the free tier runs out. Doesn't touch the free quota at
+      // all -- it's a genuinely separate balance.
+      usageMode = 'user_premium';
     } else if (user) {
       const usedToday = await countUserToday(supabase, 'user_ai_usage', user.id);
       if (usedToday < FREE_QUESTIONS_PER_DAY) {
         usageMode = 'user_free';
       } else if (user.credit_balance > 0) {
         usageMode = 'user_paid';
+      } else if (user.premium_credit_balance > 0) {
+        // Free quota's gone and they didn't ask for premium, but they
+        // do have premium credits sitting there -- worth surfacing as
+        // its own error code so the frontend can offer "use a premium
+        // credit instead?" rather than only "buy more".
+        return res.status(402).json({
+          error: 'need_credits_but_has_premium',
+          message: `Päivän ${FREE_QUESTIONS_PER_DAY} ilmaista kysymystä on käytetty (palautuu klo 00 Suomen aikaa) -- osta lisää tai käytä premium-krediittiäsi. / Today's ${FREE_QUESTIONS_PER_DAY} free questions are used up (resets at midnight Finland time) -- buy more, or use one of your premium credits.`
+        });
       } else {
         return res.status(402).json({
           error: 'need_credits',
-          message: `Päivän ${FREE_QUESTIONS_PER_DAY} ilmaista kysymystä on käytetty (palautuu klo 00 Suomen aikaa) -- osta lisää 0,99 €/10 kysymystä. / Today's ${FREE_QUESTIONS_PER_DAY} free questions are used up (resets at midnight Finland time) -- buy 10 more for €0.99.`
+          message: `Päivän ${FREE_QUESTIONS_PER_DAY} ilmaista kysymystä on käytetty (palautuu klo 00 Suomen aikaa) -- osta lisää 0,99 €/5 kysymystä. / Today's ${FREE_QUESTIONS_PER_DAY} free questions are used up (resets at midnight Finland time) -- buy 5 more for €0.99.`
         });
       }
     } else {
@@ -183,6 +202,12 @@ module.exports = async (req, res) => {
     console.error('Ask agent usage check failed (proceeding as anonymous):', err);
     usageMode = 'anon';
   }
+
+  // Only usageMode === 'user_premium' (and admins, who get the best
+  // model as a matter of course since there's no credit cost concern)
+  // gets the stronger model -- every free/standard-credit path uses the
+  // same cheap model as before, unchanged.
+  const MODEL = (usageMode === 'admin' || usageMode === 'user_premium') ? MODEL_PREMIUM : MODEL_STANDARD;
 
   try {
     const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
@@ -296,6 +321,8 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       await recordUserRequest(supabase, 'user_ai_usage', user.id);
     } else if (usageMode === 'user_paid') {
       await supabase.rpc('increment_credit_balance', { p_user_id: user.id, p_amount: -1 });
+    } else if (usageMode === 'user_premium') {
+      await supabase.rpc('increment_premium_credit_balance', { p_user_id: user.id, p_amount: -1 });
     }
     // usageMode === 'admin' -> nothing to record, unlimited.
 
@@ -405,7 +432,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({
-            model: MODEL,
+            model: MODEL_STANDARD, // always the cheap model here, even for a premium-answered question -- see comment above the function
             max_tokens: 400,
             temperature: 0,
             system: 'Extract every specific named business, restaurant, cafe, museum, park, or venue mentioned by name in the text below. Respond with ONLY a JSON array, no other text, no markdown fences: [{"name": "<exact name as written in the text>", "url": "<its own website if you are confident of one, otherwise an empty string>", "address": "<its real street address if you genuinely know it, otherwise an empty string -- never guess or approximate one>"}]. If nothing specific is named, respond with [].',
@@ -468,7 +495,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
         answer: boldedSalvaged || 'Pahoittelut, en osannut vastata juuri nyt. / Sorry, I couldn\'t answer that just now.',
         mentioned: [],
         webResults: recoveredLinks,
-        usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined }
+        usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined, premiumCreditBalance: usageMode === 'user_premium' ? user.premium_credit_balance - 1 : undefined }
       });
     }
 
@@ -584,7 +611,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
     const finalAnswer = boldLinkedNames(cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), linkedNames);
     res.status(200).json({
       answer: finalAnswer, mentioned, webResults,
-      usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined }
+      usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined, premiumCreditBalance: usageMode === 'user_premium' ? user.premium_credit_balance - 1 : undefined }
     });
   } catch (err) {
     console.error('Ask agent failed:', err);
