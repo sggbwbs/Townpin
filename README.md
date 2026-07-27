@@ -2161,3 +2161,34 @@ credit system (quantity) gets a second, pricier sibling that buys
   "find the names already in this text" task, not something that
   benefits from a stronger model, so there's no reason to double the
   premium cost on every single question just for that step.
+
+## Admin tool: manually fix a user's AI-chat credits
+
+Built after a real support case -- a customer was charged for credits
+but the Stripe webhook never credited the account (webhook delivery
+failures happen occasionally; nothing wrong was found in the crediting
+code itself when this was investigated). There was no way to fix this
+except hand-writing SQL directly in Supabase.
+
+New card in the admin panel: look up an account by email, see its
+current standard/premium balance, adjust either one by any amount
+(positive to add, negative to correct an accidental over-credit).
+Uses the same atomic increment functions the webhook itself calls, not
+a plain read-then-write, so this can't race with a purchase or a chat
+request happening at the same moment.
+
+**If a webhook failure like this happens again**, the two places to
+check first are Stripe Dashboard -> Developers -> Webhooks -> the
+specific event (shows the exact response your server sent back) and
+Vercel's function logs for `/api/webhook` around that timestamp (the
+handler logs both a failed insert and any other thrown error).
+
+**Root cause found, this time:** `STRIPE_WEBHOOK_SECRET` in Vercel was
+scoped to the Preview environment only, not Production -- so the real,
+live webhook endpoint was verifying signatures against the wrong
+secret on every single delivery, consistently, not intermittently.
+Fixed by re-scoping the env var to Production and redeploying.
+Worth remembering for any Stripe-related env var: Vercel scopes
+variables per environment (Production/Preview/Development), and it's
+easy to set one correctly for local testing (Preview) without
+realizing Production never got it.
