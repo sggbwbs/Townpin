@@ -374,6 +374,18 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
     });
     const data = await aiRes.json();
     const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+
+    // TEMPORARY diagnostic -- remove once the cause of the current
+    // "couldn't answer" reports is confirmed. Only logs when there's
+    // actually nothing to work with, so this stays silent on every
+    // normal successful request.
+    if (!text) {
+      console.error('[ask diagnostic] Empty response text. HTTP status:', aiRes.status,
+        '| model used:', MODEL, '| usageMode:', usageMode,
+        '| data.type:', data.type, '| data.error:', JSON.stringify(data.error || null),
+        '| content blocks:', JSON.stringify((data.content || []).map(b => b.type)));
+    }
+
     const cleaned = text.replace(/```json|```/g, '').trim();
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
 
