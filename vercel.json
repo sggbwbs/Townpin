@@ -1,5 +1,6 @@
 {
   "cleanUrls": true,
+  "regions": ["arn1"],
   "rewrites": [
     { "source": "/pin/:id", "destination": "/api/pin/:id" },
     { "source": "/board/:slug", "destination": "/" },
