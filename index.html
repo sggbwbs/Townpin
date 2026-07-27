@@ -2610,7 +2610,16 @@ function askAppendResult(html, extraClass){
 // HTML-escaping the rest of the text.
 function renderAskMarkdown(rawText){
   const escaped = escapeAskText(rawText);
-  const bold = (s) => s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Turns a written-out URL into a real clickable link -- purely
+  // client-side text processing on what the model already wrote, no
+  // extra API call or token cost involved. Trailing sentence
+  // punctuation (a period, comma, closing paren, etc. right after the
+  // URL) is deliberately excluded from the link itself, so "...osoitteessa
+  // https://example.fi." doesn't turn the sentence's own final period
+  // into part of the link.
+  const linkify = (s) => s.replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)"'])/g,
+    (url) => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`);
+  const format = (s) => linkify(s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'));
   const lines = escaped.split('\n');
   let html = '';
   let inList = false;
@@ -2622,13 +2631,13 @@ function renderAskMarkdown(rawText){
     }
     if (line.startsWith('## ')) {
       if (inList) { html += '</ul>'; inList = false; }
-      html += `<h4 class="askAnswerHeading">${bold(line.slice(3))}</h4>`;
+      html += `<h4 class="askAnswerHeading">${format(line.slice(3))}</h4>`;
     } else if (line.startsWith('- ')) {
       if (!inList) { html += '<ul class="askAnswerList">'; inList = true; }
-      html += `<li>${bold(line.slice(2))}</li>`;
+      html += `<li>${format(line.slice(2))}</li>`;
     } else {
       if (inList) { html += '</ul>'; inList = false; }
-      html += `<p>${bold(line)}</p>`;
+      html += `<p>${format(line)}</p>`;
     }
   }
   if (inList) html += '</ul>';
