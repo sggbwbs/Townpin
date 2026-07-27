@@ -254,7 +254,7 @@ module.exports = async (req, res) => {
       website: b.website_url || null
     }));
 
-    const eventContext = (events || []).map(e => ({ title: e.title_fi, summary: e.summary_fi }));
+    const eventContext = (events || []).map(e => ({ title: e.title_fi, summary: e.summary_fi, url: e.source_url || undefined }));
     const newsContext = (news || []).map(n => ({ title: n.title_fi, summary: n.summary_fi }));
 
     const systemPrompt = `You are a friendly, knowledgeable local guide for ${town.name}, Finland, embedded as the main search/ask box on PaikallisCanvas, a local business directory site. Someone just typed what they'd like to do -- an activity ("go hiking", "swim somewhere"), a craving ("where to eat sushi"), or a general question about local events or things to do.
@@ -301,6 +301,7 @@ Write your answer as plain, natural prose only -- no citation markup, footnotes,
 When you name a specific place someone could visit, always try to include a direct link:
 - BOARD_BUSINESSES match: put its exact name in "mentioned" -- don't invent a URL yourself, the site already has its page.
 - Anything else: add it to "webResults" with a "url" only if you found that SPECIFIC place's own site (never a directory, review site, or booking platform) -- omit "url" otherwise rather than guess or link to a directory.
+- If what you're recommending is one of TODAYS_EVENTS and that entry already has its own "url", use that url directly rather than searching for one or guessing -- it's already a real, verified link to that specific event, and more reliable than a name-based search for the venue could ever be. This matters especially for a venue whose own name is short, obscure, or could be confused with an unrelated business -- the event's own link avoids that ambiguity entirely, where a search for the bare venue name might resolve to the wrong place.
 - Each named business needs its own entry; never the same place in both lists; never share one link across multiple businesses.
 - Hard requirement: EVERY specific business or place named anywhere in your answer text must have a matching entry in "mentioned" or "webResults" (exact same name) -- this applies just as much to a multi-stop itinerary as a single recommendation. Before finalizing, reread your "answer" text and check every proper name against these two lists, adding any that are missing.
 
