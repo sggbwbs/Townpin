@@ -1280,6 +1280,7 @@ const STRINGS = {
     askUsePremiumBtn: '✨ Käytä premium-kysymys',
     askLoginBtn: 'Kirjaudu / rekisteröidy',
     askBuyCreditsBtn: 'Osta 5 lisää -- 0,99 €',
+    askBuyPremiumCreditsBtn: '✨ Osta 5 premium -- 1,99 €',
     loginBtnLabel: 'Kirjaudu',
     authLoginTitle: 'Kirjaudu sisään',
     authRegisterTitle: 'Luo tili',
@@ -1454,6 +1455,7 @@ const STRINGS = {
     askUsePremiumBtn: '✨ Use a premium question',
     askLoginBtn: 'Log in / register',
     askBuyCreditsBtn: 'Buy 5 more -- €0.99',
+    askBuyPremiumCreditsBtn: '✨ Buy 5 premium -- €1.99',
     loginBtnLabel: 'Log in',
     authLoginTitle: 'Log in',
     authRegisterTitle: 'Create an account',
@@ -2652,11 +2654,14 @@ async function askAsk(question, sendBtn){
 
       const isCredits = res.status === 402;
       const msg = t(isCredits ? 'askNeedCredits' : 'askNeedLogin');
-      const btnLabel = t(isCredits ? 'askBuyCreditsBtn' : 'askLoginBtn');
-      const btnAction = isCredits ? 'buyCredits()' : 'openAuthModal()';
-      askAppendResult(
-        `<p>${escapeAskText(msg)}</p><button class="logoBtn" onclick="${btnAction}">${escapeAskText(btnLabel)}</button>`
-      );
+      const buttonsHtml = isCredits
+        // Both options offered together -- someone who's willing to pay
+        // shouldn't only be shown the standard option and have to already
+        // know the premium one exists elsewhere (the account panel).
+        ? `<button class="logoBtn" onclick="buyCredits('standard')">${escapeAskText(t('askBuyCreditsBtn'))}</button>
+           <button class="logoBtn" onclick="buyCredits('premium')" style="background:#2a2110;color:#f2a65a;margin-left:8px;">${escapeAskText(t('askBuyPremiumCreditsBtn'))}</button>`
+        : `<button class="logoBtn" onclick="openAuthModal()">${escapeAskText(t('askLoginBtn'))}</button>`;
+      askAppendResult(`<p>${escapeAskText(msg)}</p>${buttonsHtml}`);
       return;
     }
     if (res.status === 429){
