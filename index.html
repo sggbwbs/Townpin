@@ -509,6 +509,11 @@
   .askFeedbackTextarea{width:100%;min-height:56px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);
     background:var(--panelT7);color:var(--ink);font-size:13px;font-family:'IBM Plex Sans',sans-serif;resize:vertical;}
   .askFeedbackThanks{font-size:12.5px;color:var(--ink-dim);}
+  .askAnswerHeading{font-size:16px;font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--ink);
+    margin:16px 0 8px;}
+  .askAnswerHeading:first-child{margin-top:0;}
+  .askAnswerList{margin:0 0 10px;padding-left:22px;}
+  .askAnswerList li{margin-bottom:6px;line-height:1.5;}
   #askFollowupRow{display:flex;gap:8px;margin-top:4px;}
   #askFollowupInput{flex:1;padding:10px 16px;border-radius:999px;border:1px solid var(--line);
     background:var(--panelT7);color:var(--ink);font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;}
@@ -2595,6 +2600,41 @@ function askAppendResult(html, extraClass){
   return el;
 }
 
+// Lightweight markdown -- headers ("## Heading") and bullet lists
+// ("- item"), on top of the existing **bold** support -- lets a
+// multi-item answer look like actual structured sections instead of one
+// dense wall-of-text paragraph, the same way a normal AI-generated
+// summary usually does. Escapes first, exactly like the old plain-bold
+// renderer did, so this is no less safe against injection -- the
+// structure markers themselves are plain ASCII characters unaffected by
+// HTML-escaping the rest of the text.
+function renderAskMarkdown(rawText){
+  const escaped = escapeAskText(rawText);
+  const bold = (s) => s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  const lines = escaped.split('\n');
+  let html = '';
+  let inList = false;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line === '') {
+      if (inList) { html += '</ul>'; inList = false; }
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<h4 class="askAnswerHeading">${bold(line.slice(3))}</h4>`;
+    } else if (line.startsWith('- ')) {
+      if (!inList) { html += '<ul class="askAnswerList">'; inList = true; }
+      html += `<li>${bold(line.slice(2))}</li>`;
+    } else {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<p>${bold(line)}</p>`;
+    }
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+
 // This doesn't retrain or fine-tune the model itself -- there's no such
 // pipeline here. What it actually does: lets an admin read real
 // question/answer pairs visitors flagged as unhelpful, in the admin
@@ -2700,7 +2740,7 @@ async function askAsk(question, sendBtn){
     }
 
     const answer = data.answer || t('askError');
-    let html = escapeAskText(answer).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    let html = renderAskMarkdown(answer);
     if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
       html += '<p class="askMentionsNote">📍 = ' + t('askMentionsNote') + '</p>';
       html += '<div class="askMentions">' + data.mentioned.map(m =>
