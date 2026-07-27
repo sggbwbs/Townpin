@@ -2671,7 +2671,7 @@ async function askAsk(question, sendBtn){
     if (Array.isArray(data.webResults) && data.webResults.length > 0){
       const resultId = 'askWebResults' + (askResultBlockCounter++);
       html += `<div class="askWebResults" id="${resultId}">` + data.webResults.map((r, i) =>
-        `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? '🔍' : '↗'}</a>`
+        `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? '📍' : '↗'}</a>`
       ).join('') + '</div>';
       if (data.webResults.length > 4){
         html += `<button class="askShowMoreBtn logoBtn" data-expanded="false" onclick="toggleAskWebResults('${resultId}', this)">${t('showMore')}</button>`;
