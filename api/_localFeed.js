@@ -357,6 +357,70 @@ async function fetchOuluEventsFromAPI() {
   }
 }
 
+// Real, structured event data for Helsinki via LinkedEvents
+// (api.hel.fi/linkedevents) -- the official open events API jointly
+// built by Finland's largest cities, covering all City of Helsinki
+// divisions and hel.fi web services. CC BY 4.0 licensed, so using the
+// real official title/description text directly (with attribution, see
+// source_name above) is explicitly permitted -- no AI paraphrasing
+// needed, unlike the AI-search fallback below. Already bilingual at the
+// source (FI/EN), so no translation step needed either.
+//
+// ASSUMPTION worth verifying against a real response once this is
+// live (this sandbox has no way to fetch api.hel.fi directly to check):
+// field names below (name/short_description/description as {fi, en}
+// objects, start_time/end_time as ISO strings, location as an object
+// once expanded via ?include=location) follow the standard, stable
+// LinkedEvents/Django-REST-framework shape documented at
+// api.hel.fi/linkedevents/v1/ and confirmed by its own API docs and
+// GitHub repo (City-of-Helsinki/linkedevents) -- but isn't something
+// this sandbox could fetch and confirm directly against a live
+// response. Defensive fallbacks throughout mean a wrong guess about
+// some minor field just means slightly less complete data, not a
+// crash.
+const HELSINKI_EVENTS_API = 'https://api.hel.fi/linkedevents/v1/event/';
+
+async function fetchHelsinkiEventsFromAPI() {
+  try {
+    const url = `${HELSINKI_EVENTS_API}?start=today&end=today&include=location&page_size=30`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const rawEvents = Array.isArray(data.data) ? data.data : (Array.isArray(data.results) ? data.results : []);
+
+    return rawEvents
+      .filter(e => e.event_status !== 'EventCancelled' && e.name && (e.name.fi || e.name.en))
+      .slice(0, 20)
+      .map(e => {
+        const titleFi = (e.name && (e.name.fi || e.name.en)) || '';
+        const titleEn = (e.name && (e.name.en || e.name.fi)) || titleFi;
+        const descSourceFi = (e.short_description && e.short_description.fi) || (e.description && e.description.fi) || '';
+        const descSourceEn = (e.short_description && e.short_description.en) || (e.description && e.description.en) || descSourceFi;
+        const locationName = (e.location && e.location.name && (e.location.name.fi || e.location.name.en)) || '';
+        const startDate = e.start_time ? e.start_time.slice(0, 10) : null;
+        const endDate = e.end_time ? e.end_time.slice(0, 10) : null;
+        return {
+          title_fi: locationName ? `${titleFi} (${locationName})` : titleFi,
+          title_en: locationName ? `${titleEn} (${locationName})` : titleEn,
+          // Trimmed, not truncated mid-word where reasonably avoidable --
+          // matches how the rest of this file keeps summaries short.
+          summary_fi: descSourceFi.slice(0, 400) || titleFi,
+          summary_en: (descSourceEn || descSourceFi).slice(0, 400) || titleEn,
+          event_date: startDate,
+          event_end_date: (endDate && endDate !== startDate) ? endDate : null,
+          event_start_time: e.is_all_day ? null : formatHelsinkiTime(e.start_time),
+          event_end_time: (e.is_all_day || e.end_time === e.start_time) ? null : formatHelsinkiTime(e.end_time),
+          source_url: (e.info_url && (e.info_url.fi || e.info_url.en)) || `https://tapahtumat.hel.fi/fi/search?text=${encodeURIComponent(titleFi)}`
+        };
+      })
+      .filter(ev => ev.title_fi && ev.event_date);
+  } catch (err) {
+    console.error('Helsinki events API fetch failed:', err);
+    return [];
+  }
+}
+
+
 // Translating real event text is a much lower-risk AI task than
 // generating event data from scratch -- no search needed, nothing to
 // hallucinate, just rephrasing text that's already known to be accurate.
@@ -413,6 +477,12 @@ async function generateEventItems(townName) {
       // is left in place below, unused, in case this is worth revisiting
       // later -- same pattern as the offers feature.
       return realEvents.map(e => ({ ...e, title_en: e.title_fi, summary_en: e.summary_fi, item_type: 'event', source_name: 'Kaleva' }));
+    }
+  }
+  if (townName === 'Helsinki') {
+    const realEvents = await fetchHelsinkiEventsFromAPI();
+    if (realEvents.length > 0) {
+      return realEvents.map(e => ({ ...e, item_type: 'event', source_name: 'LinkedEvents (City of Helsinki)' }));
     }
   }
   // Fallback for Oulu if the real API above is ever down or returns

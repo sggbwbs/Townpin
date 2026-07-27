@@ -2052,3 +2052,42 @@ own board/feed fetches now pass `admin=1` automatically whenever
 `/api/town` call already did -- so previewing a closed town's board
 and feed still works exactly as before, this only closes the gap for
 anyone going around the normal page entirely.
+
+## Helsinki opened -- real events via LinkedEvents, clean URL, weather already worked
+
+Three things needed for Helsinki specifically now that it's actually
+public:
+
+- **Clean URL**: `/helsinki` added to `vercel.json`, matching Oulu's
+  `/oulu` rewrite -- without this, only the generic `/board/helsinki-fi`
+  pattern worked; a direct visit or reload of `/helsinki` itself would
+  have 404'd at Vercel's routing layer before the page's own JS ever ran.
+- **Weather**: already working -- Helsinki's coordinates were seeded
+  back during the original multi-city groundwork, nothing new needed.
+- **Events**: real, structured, free data via LinkedEvents
+  (api.hel.fi/linkedevents) -- the official open events API jointly
+  built by Finland's largest cities. CC BY 4.0 licensed, so the real
+  official title/description text is used directly (no AI paraphrasing
+  needed, unlike the AI-search fallback), and it's already bilingual
+  FI/EN at the source, so no translation step either. `generateEventItems`
+  now has a second real branch (`fetchHelsinkiEventsFromAPI`) alongside
+  Oulu's Kaleva integration, same pattern: only Helsinki calls it, every
+  other town still goes to the generic AI-search fallback.
+
+**Field names in the Helsinki integration are based on LinkedEvents'
+documented, stable API shape, not a response this sandbox could
+actually fetch and verify live** (api.hel.fi disallows automated
+fetch tools, though a real server-side integration is exactly what
+that API is built for) -- worth checking Helsinki's actual preview
+once deployed to confirm titles/times/locations are extracting
+correctly, and adjusting field names in `fetchHelsinkiEventsFromAPI`
+if something's off.
+
+**News**: still using the generic AI-search fallback for Helsinki, not
+a dedicated feed. There's a real, promising lead -- the City of
+Helsinki's own hel.fi news is confirmed to be published as open-data
+RSS (CC BY 4.0) -- but the exact feed URL wasn't something a
+reasonable search budget could pin down with confidence this session,
+and guessing wrong would just silently do nothing (safe, but not
+useful). Worth a focused follow-up once the real feed URL is confirmed
+directly from hel.fi/fi/uutiset.
