@@ -485,6 +485,23 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
       return (matches / tokens.length) >= 0.5; // at least half the business name's real words appear in the domain
     }
 
+    // Shared core-name extractor, used by both the event-URL match below
+    // and the near-duplicate merge further down -- the model has now
+    // produced three different variants of the same disambiguation idea
+    // for the same real place ("Hellahuone", "Hellahuone (Pikisaari)",
+    // "Hellahuone Pikisaaressa" -- a bare trailing word in the inessive
+    // case, not in parentheses), and each new variant broke whichever
+    // narrower regex only handled the previous one. Strips both a
+    // trailing "(...)" and a bare trailing inessive-case location word
+    // (ends in -ssa/-ssä) so all three variants reduce to the same core
+    // name instead of needing a new special case every time the model tries
+    // a new way of saying the same thing.
+    function getCoreName(name) {
+      let cleaned = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      cleaned = cleaned.replace(/\s+\S*ss[aä]\s*$/i, '').trim();
+      return cleaned;
+    }
+
     // Deterministic backstop, not another prompt request -- three prompt
     // attempts at getting the model to reliably use an event's own URL
     // for its venue weren't consistent enough (it kept falling back to
@@ -503,7 +520,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     // unrelated by coincidence, but the actual recurring failure case
     // (venue names like "Hellahuone") is comfortably longer than that.
     function findMatchingEventUrl(name, eventsList) {
-      const cleanName = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      const cleanName = getCoreName(name);
       if (cleanName.length < 6) return null;
       const escaped = cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}`, 'iu');
@@ -522,14 +539,11 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     // not the other, "Hellahuone" vs "Hellahuone (Pikisaari)"), and each
     // got its own chip as if they were different places. Two safe rules,
     // not a general fuzzy-match (which risks merging genuinely different
-    // places that happen to be similar): stripping a trailing "(...)"
-    // and comparing for exact equality (very low false-merge risk), and
-    // a small Levenshtein distance (real typo territory) gated to names
-    // long enough that a coincidental near-match on unrelated places is
-    // very unlikely.
-    function stripParenthetical(name) {
-      return name.replace(/\s*\([^)]*\)\s*$/, '').trim();
-    }
+    // places that happen to be similar): the shared core-name extractor
+    // above and comparing for exact equality (very low false-merge
+    // risk), and a small Levenshtein distance (real typo territory)
+    // gated to names long enough that a coincidental near-match on
+    // unrelated places is very unlikely.
     function levenshteinDistance(a, b) {
       const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
       for (let j = 0; j <= b.length; j++) dp[0][j] = j;
@@ -544,9 +558,9 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     function mergeNearDuplicates(items) {
       const kept = [];
       for (const item of items) {
-        const base = stripParenthetical(item.name).toLowerCase();
+        const base = getCoreName(item.name).toLowerCase();
         let existing = kept.find(k => {
-          const existingBase = stripParenthetical(k.name).toLowerCase();
+          const existingBase = getCoreName(k.name).toLowerCase();
           if (base === existingBase) return true;
           const maxLen = Math.max(base.length, existingBase.length);
           return maxLen >= 8 && levenshteinDistance(base, existingBase) <= 2;
