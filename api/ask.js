@@ -106,6 +106,19 @@ function getHelsinkiTomorrowLabel() {
   }).format(tomorrow);
 }
 
+// Same reasoning as the date labels above, extended to time of day --
+// the real gap this closes: the model previously only ever knew
+// today's/tomorrow's *date*, never the actual current *time*, so a
+// question like "is anything still on today?" asked at 9pm had no way
+// to be checked against an event's own start/end time -- the model
+// could only compare dates, not tell whether something happening
+// "today" had already started, was ongoing, or was already over.
+function getHelsinkiTimeLabel() {
+  return new Intl.DateTimeFormat('fi-FI', {
+    timeZone: 'Europe/Helsinki', hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(new Date());
+}
+
 // Same category labels shown on pin pages (api/pin/[id].js) -- duplicated
 // here rather than imported, since it's small, static, and this keeps the
 // two endpoints from being coupled to each other's internals.
@@ -249,6 +262,8 @@ module.exports = async (req, res) => {
 Your entire response, no matter how much research you do or how long your answer is, must end up as a single JSON object (the exact shape is given again in full near the end of this prompt) -- never plain text on its own, never JSON with any other text before or after it. Keep this in mind through however much searching and writing you do below.
 
 Today's real date is ${getHelsinkiTodayLabel()} (Europe/Helsinki time), and tomorrow is ${getHelsinkiTomorrowLabel()} -- both given to you already calculated, so use these directly rather than computing "tomorrow" (or any other relative date) yourself from today's date. Treat both as ground truth for ANY relative date reasoning -- today, this weekend, tomorrow, last week, next month, and so on. Never infer today's date from a search result: a page saying an event is happening "this weekend" is describing the weekend relative to whenever that page was written, not relative to right now -- always re-derive whether something is upcoming, ongoing, or already over by comparing its actual date against the real dates above, not by repeating a search result's own relative phrasing.
+
+The current time right now is ${getHelsinkiTimeLabel()} (Europe/Helsinki time). This matters just as much as the date for anything in TODAYS_EVENTS or found via search that has its own start/end time -- if an event's end time (or its start time, when no end time is known) has already passed relative to the current time above, it's over, not something to still recommend today, even though its date is still today. Someone asking what's still on "right now" or "left today" deserves an answer that actually accounts for the time of day, not just the date.
 
 Answer in the SAME language the visitor asked in (Finnish or English) -- detect it from their question, don't ask which they prefer.
 
