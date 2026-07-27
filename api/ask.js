@@ -383,6 +383,25 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     const data = await aiRes.json();
     const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
 
+    // Real per-request cost, not an estimate -- Anthropic's own response
+    // includes exact token counts and how many web searches actually ran
+    // (data.usage.server_tool_use.web_search_requests). Greppable in
+    // Vercel logs as "[ask cost]" so real spend can actually be checked
+    // instead of guessed at. Haiku 4.5 pricing: $1/$5 per million
+    // input/output tokens; web search is a separate $10-per-1000-searches
+    // fee on top of tokens -- often the single biggest cost on a
+    // question that needed more than one search, easy to miss if you
+    // only think in tokens.
+    if (data.usage) {
+      const inTok = data.usage.input_tokens || 0;
+      const outTok = data.usage.output_tokens || 0;
+      const searches = (data.usage.server_tool_use && data.usage.server_tool_use.web_search_requests) || 0;
+      const estCostUsd = (inTok / 1e6) * 1 + (outTok / 1e6) * 5 + searches * 0.01;
+      console.log('[ask cost] usageMode:', usageMode, '| model:', MODEL,
+        '| input_tokens:', inTok, '| output_tokens:', outTok, '| web_searches:', searches,
+        '| est. cost: $' + estCostUsd.toFixed(4));
+    }
+
     // TEMPORARY diagnostic -- remove once the cause of the current
     // "couldn't answer" reports is confirmed. Only logs when there's
     // actually nothing to work with, so this stays silent on every
