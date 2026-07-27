@@ -485,6 +485,84 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
       return (matches / tokens.length) >= 0.5; // at least half the business name's real words appear in the domain
     }
 
+    // Deterministic backstop, not another prompt request -- three prompt
+    // attempts at getting the model to reliably use an event's own URL
+    // for its venue weren't consistent enough (it kept falling back to
+    // guessing/Maps for "Hellahuone" despite being told to check for a
+    // matching event). This checks directly in code instead: any
+    // webResults entry that still needed a fallback gets checked against
+    // today's real events, and if a real match is found, the fallback is
+    // replaced with that event's own verified link -- no dependence on
+    // the model remembering to do this itself.
+    //
+    // Prefix match (not exact equality) deliberately -- catches an
+    // inflected form in the event's own summary/title, e.g. "Hellahuone"
+    // matching "Hellahuoneella" (the adessive case, "at Hellahuone").
+    // Length-gated at 6+ characters specifically to keep this safe: a
+    // short name has a real chance of prefix-matching something
+    // unrelated by coincidence, but the actual recurring failure case
+    // (venue names like "Hellahuone") is comfortably longer than that.
+    function findMatchingEventUrl(name, eventsList) {
+      const cleanName = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      if (cleanName.length < 6) return null;
+      const escaped = cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}`, 'iu');
+      for (const e of (eventsList || [])) {
+        if (e.source_url && (pattern.test(e.summary_fi || '') || pattern.test(e.title_fi || ''))) {
+          return e.source_url;
+        }
+      }
+      return null;
+    }
+
+    // Merges near-duplicate names into one entry -- a real, observed
+    // failure: the model referred to the same place two slightly
+    // different ways within one answer (a typo, "kesäteatteri" vs
+    // "kesäteattteri"; or a disambiguation hint added to one mention but
+    // not the other, "Hellahuone" vs "Hellahuone (Pikisaari)"), and each
+    // got its own chip as if they were different places. Two safe rules,
+    // not a general fuzzy-match (which risks merging genuinely different
+    // places that happen to be similar): stripping a trailing "(...)"
+    // and comparing for exact equality (very low false-merge risk), and
+    // a small Levenshtein distance (real typo territory) gated to names
+    // long enough that a coincidental near-match on unrelated places is
+    // very unlikely.
+    function stripParenthetical(name) {
+      return name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    }
+    function levenshteinDistance(a, b) {
+      const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
+      for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+      for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+          dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1]
+            : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+        }
+      }
+      return dp[a.length][b.length];
+    }
+    function mergeNearDuplicates(items) {
+      const kept = [];
+      for (const item of items) {
+        const base = stripParenthetical(item.name).toLowerCase();
+        let existing = kept.find(k => {
+          const existingBase = stripParenthetical(k.name).toLowerCase();
+          if (base === existingBase) return true;
+          const maxLen = Math.max(base.length, existingBase.length);
+          return maxLen >= 8 && levenshteinDistance(base, existingBase) <= 2;
+        });
+        if (existing) {
+          if (item.name.length > existing.name.length) existing.name = item.name; // prefer the more descriptive/complete name
+          if (!item.isSearchFallback && existing.isSearchFallback) {
+            existing.url = item.url; existing.isSearchFallback = item.isSearchFallback; existing.isMapFallback = item.isMapFallback;
+          }
+        } else {
+          kept.push(item);
+        }
+      }
+      return kept;
+    }
+
     function googleSearchFallback(name, townName) {
       // Two different kinds of thing end up here, and they need
       // different fallbacks. Most of the time it's a genuine physical
@@ -661,12 +739,21 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
             }
           } catch (e) { /* invalid URL -- falls through to the search fallback below */ }
         }
-        const isSearchFallback = !url;
+        let isSearchFallback = false;
         let isMapFallback = false;
         if (!url) {
-          const fallback = googleSearchFallback(r.name, town.name);
-          url = fallback.url;
-          isMapFallback = fallback.isMapFallback;
+          // Check for a genuine matching event first -- a real, verified
+          // link beats any guess. Only actually falls back to a blind
+          // search/Maps guess if no matching event was found either.
+          const eventUrl = findMatchingEventUrl(r.name, events);
+          if (eventUrl) {
+            url = eventUrl;
+          } else {
+            isSearchFallback = true;
+            const fallback = googleSearchFallback(r.name, town.name);
+            url = fallback.url;
+            isMapFallback = fallback.isMapFallback;
+          }
         }
         const tier = r.tier === 'other' ? 'other' : 'local'; // default to local -- matches "lead with local" guidance
         const rawAddress = typeof r.address === 'string' ? r.address.trim() : '';
@@ -674,6 +761,8 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
       })
       .sort((a, b) => (a.tier === 'local' ? 0 : 1) - (b.tier === 'local' ? 0 : 1))
       .slice(0, 8); // frontend shows 4 at a time with show more/less -- this leaves room for a second page
+
+    webResults = mergeNearDuplicates(webResults);
 
     // Geocode any address the model found via search -- never trust raw
     // AI-supplied coordinates directly (models are much more prone to
