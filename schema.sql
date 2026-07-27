@@ -312,12 +312,17 @@ alter table towns add column if not exists capacity integer not null default 100
 -- and roll over, unlike the free daily allowance which resets every
 -- day and does not accumulate.
 --
--- premium_credit_balance is the same idea but for a separate, pricier
--- tier that answers with a stronger model (Sonnet instead of Haiku) --
--- a genuinely separate balance, not just a multiplier on the standard
--- one, since the two draw from different Stripe prices and get spent
--- under explicit user control (see the "use premium" toggle in
--- index.html), not spent automatically just because they're available.
+-- premium_credit_balance is a leftover from a Sonnet-quality paid tier
+-- that was removed entirely (turned out to cost far more per question
+-- than expected in real use -- see README). Left in place, unused,
+-- rather than dropped, since it's harmless and there may be a small
+-- existing balance from before removal worth honoring manually via the
+-- admin credits tool if anyone ever redeems it.
+--
+-- unlimited_searches is a simple admin-granted flag for specific
+-- trusted accounts (see the "Give unlimited searches" admin tool) --
+-- same no-cap treatment as an admin session, just for one particular
+-- registered visitor rather than the site owner.
 create extension if not exists pgcrypto;
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
@@ -325,10 +330,12 @@ create table if not exists users (
   password_hash text not null,
   credit_balance integer not null default 0,
   premium_credit_balance integer not null default 0,
+  unlimited_searches boolean not null default false,
   consent_personalization boolean not null default false,
   created_at timestamptz not null default now()
 );
 alter table users add column if not exists premium_credit_balance integer not null default 0;
+alter table users add column if not exists unlimited_searches boolean not null default false;
 
 -- Atomic top-up -- same reasoning as increment_view_count above: a plain
 -- read-then-write update would risk under-counting if two purchases (or

@@ -7,7 +7,7 @@ const { isAuthenticated } = require('./admin/_auth');
 const { getUserId, setUserSessionCookie, clearUserSessionCookie } = require('./_userAuth');
 const { getClientIp, isRateLimited, recordRequest, countUserToday } = require('./_rateLimit');
 const { sendPasswordResetEmail } = require('./_email');
-const { FREE_QUESTIONS_PER_DAY, CREDIT_BUNDLE_SIZE, CREDIT_BUNDLE_PRICE_EUR, PREMIUM_CREDIT_BUNDLE_SIZE, PREMIUM_CREDIT_BUNDLE_PRICE_EUR } = require('./_limits');
+const { FREE_QUESTIONS_PER_DAY, CREDIT_BUNDLE_SIZE, CREDIT_BUNDLE_PRICE_EUR } = require('./_limits');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
@@ -260,12 +260,16 @@ async function handleUserBuyCredits(req, res) {
   const { data: user } = await supabase.from('users').select('email').eq('id', userId).maybeSingle();
   if (!user) return res.status(401).json({ error: 'Please log in first.' });
 
-  const tier = (req.body && req.body.tier === 'premium') ? 'premium' : 'standard';
-  const bundleSize = tier === 'premium' ? PREMIUM_CREDIT_BUNDLE_SIZE : CREDIT_BUNDLE_SIZE;
-  const bundlePrice = tier === 'premium' ? PREMIUM_CREDIT_BUNDLE_PRICE_EUR : CREDIT_BUNDLE_PRICE_EUR;
-  const productName = tier === 'premium'
-    ? `PaikallisCanvas — ${bundleSize} premium AI-chat questions (Sonnet)`
-    : `PaikallisCanvas — ${bundleSize} more AI-chat questions`;
+  // Premium (Sonnet) tier discontinued entirely -- see api/ask.js for
+  // why (cost far more per question in real use than expected). Always
+  // sells standard now, regardless of what any client sends -- not
+  // trusting a client-supplied tier for something that no longer exists
+  // as an option, in case an old cached page or a direct API call still
+  // asks for it.
+  const tier = 'standard';
+  const bundleSize = CREDIT_BUNDLE_SIZE;
+  const bundlePrice = CREDIT_BUNDLE_PRICE_EUR;
+  const productName = `PaikallisCanvas — ${bundleSize} more AI-chat questions`;
 
   try {
     const session = await stripe.checkout.sessions.create({

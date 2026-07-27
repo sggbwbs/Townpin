@@ -711,8 +711,16 @@ async function getNewsSection(supabase, townId, category, townName) {
       .order('created_at', { ascending: false });
     const newsAgeHours = existingNews && existingNews.length > 0
       ? (Date.now() - new Date(existingNews[0].created_at).getTime()) / 3600000 : Infinity;
+    // 2 hours is fine for Oulu/Helsinki -- free RSS, cheap to refresh
+    // often. Every other town's news is a real, billable AI search call
+    // (generateNewsItemsViaAISearch below) -- refreshing that on the
+    // same 2-hour cadence meant a paid call roughly 10x more often than
+    // events use for the exact same kind of AI generation. Uses the
+    // same refresh interval as events for those towns instead.
+    const isFreeNewsSource = isOulu || townName === 'Helsinki';
+    const refreshAfterHours = isFreeNewsSource ? NEWS_REFRESH_AFTER_HOURS : EVENTS_REFRESH_AFTER_HOURS;
 
-    if (existingNews && existingNews.length > 0 && newsAgeHours < NEWS_REFRESH_AFTER_HOURS) {
+    if (existingNews && existingNews.length > 0 && newsAgeHours < refreshAfterHours) {
       return existingNews;
     }
     const fresh = isOulu

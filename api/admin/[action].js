@@ -261,6 +261,76 @@ async function handleDeleteAiHint(req, res) {
   res.status(200).json({ ok: true });
 }
 
+// Looks up a user's current credit balances by email -- the first step
+// of manually fixing an account after a failed/missing Stripe webhook
+// (paid, charged, but the credit-purchase webhook never arrived or
+// errored before crediting the balance). No SQL needed for this
+// specific, recurring kind of support request.
+async function handleFindUserCredits(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const email = (req.query.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ error: 'Missing email.' });
+  const { data: user, error } = await supabase
+    .from('users').select('id, email, credit_balance, premium_credit_balance, unlimited_searches, created_at')
+    .eq('email', email).maybeSingle();
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not look up user.' }); }
+  if (!user) return res.status(404).json({ error: 'No account with that email.' });
+  res.status(200).json({ user });
+}
+
+// Manually adds (or removes, with a negative delta) credits on either
+// balance -- the actual fix once handleFindUserCredits above has
+// confirmed who the account belongs to. Uses the same atomic increment
+// functions the webhook itself uses, not a plain read-then-write, for
+// the same reason: avoids a lost update if something else touches the
+// balance at the same moment.
+async function handleAdjustUserCredits(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const email = (req.body && req.body.email || '').trim().toLowerCase();
+  const standardDelta = parseInt((req.body && req.body.standardDelta) || 0, 10);
+  const premiumDelta = parseInt((req.body && req.body.premiumDelta) || 0, 10);
+  if (!email) return res.status(400).json({ error: 'Missing email.' });
+  if (!standardDelta && !premiumDelta) return res.status(400).json({ error: 'Enter a non-zero amount for at least one balance.' });
+
+  const { data: user, error: findErr } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
+  if (findErr) { console.error(findErr); return res.status(500).json({ error: 'Could not look up user.' }); }
+  if (!user) return res.status(404).json({ error: 'No account with that email.' });
+
+  if (standardDelta) await supabase.rpc('increment_credit_balance', { p_user_id: user.id, p_amount: standardDelta });
+  if (premiumDelta) await supabase.rpc('increment_premium_credit_balance', { p_user_id: user.id, p_amount: premiumDelta });
+
+  const { data: updated } = await supabase
+    .from('users').select('id, email, credit_balance, premium_credit_balance, unlimited_searches').eq('id', user.id).maybeSingle();
+  res.status(200).json({ ok: true, user: updated });
+}
+
+// Grants or revokes unlimited AI-chat searches for a specific,
+// trusted registered account -- same no-cap treatment ask.js already
+// gives an admin session, just for one particular visitor rather than
+// the site owner. Deliberately a plain boolean, not a credit balance --
+// this is meant for a handful of specifically trusted people (an
+// employee, a close partner business), not something with a quantity
+// to run out of.
+async function handleSetUnlimitedSearches(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const email = (req.body && req.body.email || '').trim().toLowerCase();
+  const unlimited = !!(req.body && req.body.unlimited);
+  if (!email) return res.status(400).json({ error: 'Missing email.' });
+
+  const { data: user, error: findErr } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
+  if (findErr) { console.error(findErr); return res.status(500).json({ error: 'Could not look up user.' }); }
+  if (!user) return res.status(404).json({ error: 'No account with that email.' });
+
+  const { error: updateErr } = await supabase.from('users').update({ unlimited_searches: unlimited }).eq('id', user.id);
+  if (updateErr) { console.error(updateErr); return res.status(500).json({ error: 'Could not update.' }); }
+
+  const { data: updated } = await supabase
+    .from('users').select('id, email, credit_balance, premium_credit_balance, unlimited_searches').eq('id', user.id).maybeSingle();
+  res.status(200).json({ ok: true, user: updated });
+}
+
 // Fixes a hint's town scope after the fact -- mainly for hints created
 // before per-town scoping existed at all (they all defaulted to town_id
 // null, i.e. "applies everywhere", when several were actually written
@@ -847,6 +917,9 @@ module.exports = async (req, res) => {
     case 'find-company': return handleFindCompany(req, res);
     case 'list-ai-hints': return handleListAiHints(req, res);
     case 'add-ai-hint': return handleAddAiHint(req, res);
+    case 'find-user-credits': return handleFindUserCredits(req, res);
+    case 'adjust-user-credits': return handleAdjustUserCredits(req, res);
+    case 'set-unlimited-searches': return handleSetUnlimitedSearches(req, res);
     case 'delete-ai-hint': return handleDeleteAiHint(req, res);
     case 'reassign-ai-hint': return handleReassignAiHint(req, res);
     case 'company-details': return handleCompanyDetails(req, res);

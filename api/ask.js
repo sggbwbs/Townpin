@@ -24,7 +24,6 @@ const { FREE_QUESTIONS_PER_DAY } = require('./_limits');
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL_STANDARD = 'claude-haiku-4-5-20251001';
-const MODEL_PREMIUM = 'claude-sonnet-5';
 
 // 5 free questions/day (see api/_limits.js), resetting at midnight
 // Europe/Helsinki -- a real calendar day, not a rolling 24h window, so
@@ -126,7 +125,7 @@ const INDUSTRY_LABELS = {
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { townId, question, history, usePremium } = req.body || {};
+  const { townId, question, history } = req.body || {};
   if (!townId || typeof question !== 'string' || !question.trim()) {
     return res.status(400).json({ error: 'Missing townId or question.' });
   }
@@ -150,7 +149,7 @@ module.exports = async (req, res) => {
   if (userId) {
     const { data } = await supabase
       .from('users')
-      .select('id, credit_balance, premium_credit_balance, consent_personalization')
+      .select('id, credit_balance, unlimited_searches, consent_personalization')
       .eq('id', userId)
       .maybeSingle();
     user = data || null;
@@ -160,28 +159,18 @@ module.exports = async (req, res) => {
   try {
     if (isAdmin) {
       usageMode = 'admin';
-    } else if (user && usePremium && user.premium_credit_balance > 0) {
-      // Deliberately checked before the free daily quota, not after --
-      // premium is an explicit choice (the visitor bought it and asked
-      // for it specifically), not something that should only kick in
-      // once the free tier runs out. Doesn't touch the free quota at
-      // all -- it's a genuinely separate balance.
-      usageMode = 'user_premium';
+    } else if (user && user.unlimited_searches) {
+      // A specific registered account an admin has chosen to grant
+      // unlimited access to (see the "Give unlimited searches" admin
+      // tool) -- same no-cap, no-count treatment as an admin session,
+      // just for one particular visitor rather than the site owner.
+      usageMode = 'user_unlimited';
     } else if (user) {
       const usedToday = await countUserToday(supabase, 'user_ai_usage', user.id);
       if (usedToday < FREE_QUESTIONS_PER_DAY) {
         usageMode = 'user_free';
       } else if (user.credit_balance > 0) {
         usageMode = 'user_paid';
-      } else if (user.premium_credit_balance > 0) {
-        // Free quota's gone and they didn't ask for premium, but they
-        // do have premium credits sitting there -- worth surfacing as
-        // its own error code so the frontend can offer "use a premium
-        // credit instead?" rather than only "buy more".
-        return res.status(402).json({
-          error: 'need_credits_but_has_premium',
-          message: `Päivän ${FREE_QUESTIONS_PER_DAY} ilmaista kysymystä on käytetty (palautuu klo 00 Suomen aikaa) -- osta lisää tai käytä premium-krediittiäsi. / Today's ${FREE_QUESTIONS_PER_DAY} free questions are used up (resets at midnight Finland time) -- buy more, or use one of your premium credits.`
-        });
       } else {
         return res.status(402).json({
           error: 'need_credits',
@@ -203,11 +192,17 @@ module.exports = async (req, res) => {
     usageMode = 'anon';
   }
 
-  // Only usageMode === 'user_premium' (and admins, who get the best
-  // model as a matter of course since there's no credit cost concern)
-  // gets the stronger model -- every free/standard-credit path uses the
-  // same cheap model as before, unchanged.
-  const MODEL = (usageMode === 'admin' || usageMode === 'user_premium') ? MODEL_PREMIUM : MODEL_STANDARD;
+  // Premium (Sonnet) tier removed entirely -- it turned out to cost far
+  // more per question than expected in real use. Sonnet is inherently
+  // pricier per token, and on top of that it was combining with the
+  // (now dialed-back) "at least 4 recommendations" prompt requirement
+  // to run multiple web-search rounds and write much longer answers per
+  // question -- both factors compounding on each other, not just one.
+  // Every usage mode, including admin and unlimited-whitelisted
+  // accounts, uses the same standard model now -- there is no cost
+  // concern for those being unlimited when they're all on the cheap
+  // model.
+  const MODEL = MODEL_STANDARD;
 
   try {
     const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
@@ -251,6 +246,8 @@ module.exports = async (req, res) => {
 
     const systemPrompt = `You are a friendly, knowledgeable local guide for ${town.name}, Finland, embedded as the main search/ask box on PaikallisCanvas, a local business directory site. Someone just typed what they'd like to do -- an activity ("go hiking", "swim somewhere"), a craving ("where to eat sushi"), or a general question about local events or things to do.
 
+Your entire response, no matter how much research you do or how long your answer is, must end up as a single JSON object (the exact shape is given again in full near the end of this prompt) -- never plain text on its own, never JSON with any other text before or after it. Keep this in mind through however much searching and writing you do below.
+
 Today's real date is ${getHelsinkiTodayLabel()} (Europe/Helsinki time), and tomorrow is ${getHelsinkiTomorrowLabel()} -- both given to you already calculated, so use these directly rather than computing "tomorrow" (or any other relative date) yourself from today's date. Treat both as ground truth for ANY relative date reasoning -- today, this weekend, tomorrow, last week, next month, and so on. Never infer today's date from a search result: a page saying an event is happening "this weekend" is describing the weekend relative to whenever that page was written, not relative to right now -- always re-derive whether something is upcoming, ongoing, or already over by comparing its actual date against the real dates above, not by repeating a search result's own relative phrasing.
 
 Answer in the SAME language the visitor asked in (Finnish or English) -- detect it from their question, don't ask which they prefer.
@@ -272,7 +269,7 @@ If you found the place's real street address through search, include it as "addr
 
 Don't search if BOARD_BUSINESSES, LOCAL_NEWS, and TODAYS_EVENTS together already answer the question well and confidently -- that costs time and money for no benefit. But when a question touches on anything current or time-sensitive and you're not genuinely confident the data below covers it, search rather than guess.
 
-Keep answers conversational, but aim to name at least 4 real, distinct recommendations (trails, businesses, events, or a mix) whenever that many genuinely exist for the question asked -- even a normal single-need recommendation question ("where can I get sushi") should surface 4 real options rather than settling for 1-2 just because that's technically an answer: more genuine options means more chances the visitor finds one that actually fits, and more of them end up mentioned, linked, and pinned on the map. Keep each one's own description brief (a clause or a short sentence, not a full paragraph) so the answer stays readable even at 4+ recommendations. Two situations call for even more: a genuine "plan my day/visit" question (name a place for each part of the day -- morning, afternoon, evening -- since that's actually what was asked for), and a "what are my options" comparison-style question about a whole category of business (car rentals, hairdressers, gyms, and so on) -- for that kind, aim for at least 5-6 real options total across BOARD_BUSINESSES and web search combined, mixing board businesses and other real local businesses as needed. Never pad the count with something that isn't a real, distinct business, though -- if a question genuinely only has 1-2 real local answers, say so plainly rather than reaching for chains or irrelevant filler just to hit a number; fewer genuine options is always better than inventing more.
+Keep answers conversational and reasonably concise -- name up to 3-4 real, distinct recommendations (trails, businesses, events, or a mix) when that many genuinely and easily fit the question, but don't turn an ordinary question into an exhaustive multi-search research task just to hit a specific count: if BOARD_BUSINESSES, LOCAL_NEWS, and TODAYS_EVENTS already answer it well with fewer, that's a complete answer on its own. Keep each one's own description brief -- a clause or a short sentence, not a full paragraph -- both for readability and because a long, heavily-researched answer for every single question is what was causing real, severe response-time problems in practice. Two situations call for more: a genuine "plan my day/visit" question (name a place for each part of the day -- morning, afternoon, evening -- since that's actually what was asked for), and a "what are my options" comparison-style question about a whole category of business (car rentals, hairdressers, gyms, and so on) -- for that kind, aim for 4-5 real options total across BOARD_BUSINESSES and web search combined, mixing board businesses and other real local businesses as needed. Never pad the count with something that isn't a real, distinct business, though -- if a question genuinely only has 1-2 real local answers, say so plainly rather than reaching for chains, irrelevant filler, or extended research just to hit a number; fewer genuine options is always better than inventing more or over-researching.
 
 Either way, never invent a business, event, trail name, opening hours, or price you don't actually have data for -- if you're genuinely not sure, say so plainly instead of guessing.
 
@@ -321,10 +318,8 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
       await recordUserRequest(supabase, 'user_ai_usage', user.id);
     } else if (usageMode === 'user_paid') {
       await supabase.rpc('increment_credit_balance', { p_user_id: user.id, p_amount: -1 });
-    } else if (usageMode === 'user_premium') {
-      await supabase.rpc('increment_premium_credit_balance', { p_user_id: user.id, p_amount: -1 });
     }
-    // usageMode === 'admin' -> nothing to record, unlimited.
+    // usageMode === 'admin' or 'user_unlimited' -> nothing to record, unlimited.
 
     // Opt-in only (see consent_personalization in schema.sql) -- never
     // written for a user who hasn't explicitly turned personalization on,
@@ -374,7 +369,15 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
         // tradeoff for the API accepting the request at all.
         system: systemPrompt,
         messages,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+        // max_uses bounds worst-case latency directly -- a real ceiling,
+        // not just hoping the prompt wording alone keeps searches
+        // limited. Observed response times of 47s-1.3min pointed at the
+        // model running several search rounds for a single question
+        // (consistent with the now-dialed-back "at least 4
+        // recommendations" requirement above driving much more research
+        // than intended) -- capping this gives a hard upper bound
+        // regardless of how thorough the model wants to be.
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }]
       })
     });
     const data = await aiRes.json();
@@ -513,7 +516,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
         answer: boldedSalvaged || 'Pahoittelut, en osannut vastata juuri nyt. / Sorry, I couldn\'t answer that just now.',
         mentioned: [],
         webResults: recoveredLinks,
-        usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined, premiumCreditBalance: usageMode === 'user_premium' ? user.premium_credit_balance - 1 : undefined }
+        usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined }
       });
     }
 
@@ -629,7 +632,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     const finalAnswer = boldLinkedNames(cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), linkedNames);
     res.status(200).json({
       answer: finalAnswer, mentioned, webResults,
-      usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined, premiumCreditBalance: usageMode === 'user_premium' ? user.premium_credit_balance - 1 : undefined }
+      usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined }
     });
   } catch (err) {
     console.error('Ask agent failed:', err);

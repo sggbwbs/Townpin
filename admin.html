@@ -53,7 +53,7 @@
     border-bottom:1px solid #e4dcc4;font-size:13px;}
   .compedRow:last-child{border-bottom:none;}
   .revokeBtn{background:none;color:#b8452f;text-decoration:underline;padding:4px 8px;font-size:12px;}
-  .field input[type=text],.field input[type=url],.field input[type=date]{width:100%;padding:9px 11px;border:1px solid #d8cfb4;
+  .field input[type=text],.field input[type=url],.field input[type=date],.field input[type=number]{width:100%;padding:9px 11px;border:1px solid #d8cfb4;
     border-radius:6px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;}
   .grantColorRow{display:flex;gap:8px;margin-top:6px;}
   .grantColorRow .swatch{width:26px;height:26px;border-radius:6px;cursor:pointer;border:2px solid transparent;}
@@ -151,6 +151,42 @@
   <div class="saveBar">
     <button id="saveBtn">Save changes</button>
     <span class="saved" id="savedMsg">✓ Saved</span>
+  </div>
+</div>
+
+<div class="card" id="userCreditsCard" style="display:none;">
+  <h1>Manage a user's AI-chat access</h1>
+  <p class="sub">Look an account up by email, then fix a credit balance (e.g. a purchase that was charged but never credited -- usually a Stripe webhook that didn't arrive or failed) or grant/revoke unlimited access for a specific trusted person.</p>
+  <div class="field">
+    <label>Account email</label>
+    <input type="text" id="creditsLookupEmail" placeholder="person@example.com" />
+  </div>
+  <button id="creditsLookupBtn">Find account</button>
+  <div class="err" id="creditsLookupErr"></div>
+
+  <div id="creditsAdjustWrap" style="display:none;margin-top:18px;">
+    <p class="sub" id="creditsCurrentBalances" style="font-weight:700;"></p>
+
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#5c5440;margin:14px 0;cursor:pointer;">
+      <input type="checkbox" id="unlimitedSearchesCb" />
+      ✨ Unlimited AI-chat searches for this account (no daily cap, no credits spent)
+    </label>
+    <button id="unlimitedSearchesSaveBtn">Save access</button>
+    <span class="saved" id="unlimitedSearchesSavedMsg">✓ Updated</span>
+    <div class="err" id="unlimitedSearchesErr"></div>
+
+    <hr style="margin:20px 0;border:none;border-top:1px solid #e4dcc4;">
+    <div class="field">
+      <label>Standard credits adjustment</label>
+      <input type="number" id="creditsStandardDelta" placeholder="e.g. 5, or -5 to remove" value="0" />
+    </div>
+    <div class="field">
+      <label>Premium credits adjustment (legacy -- the premium tier was discontinued, this only matters for an existing leftover balance)</label>
+      <input type="number" id="creditsPremiumDelta" placeholder="e.g. 5, or -5 to remove" value="0" />
+    </div>
+    <button id="creditsAdjustBtn">Apply credit adjustment</button>
+    <span class="saved" id="creditsAdjustSavedMsg">✓ Updated</span>
+    <div class="err" id="creditsAdjustErr"></div>
   </div>
 </div>
 
@@ -464,6 +500,7 @@ async function showEditor(){
   document.getElementById('loginCard').style.display = 'none';
   document.getElementById('dashHeaderCard').style.display = 'block';
   document.getElementById('aiHintsCard').style.display = 'block';
+  document.getElementById('userCreditsCard').style.display = 'block';
   document.getElementById('eventsCard').style.display = 'block';
   document.getElementById('grantCard').style.display = 'block';
   document.getElementById('moveCard').style.display = 'block';
@@ -708,6 +745,74 @@ function currentAdminTownName(){
   const town = adminTowns.find(t => String(t.id) === String(currentAdminTownId));
   return town ? town.name : '';
 }
+
+document.getElementById('creditsLookupBtn').addEventListener('click', async () => {
+  const errBox = document.getElementById('creditsLookupErr');
+  clearErr(errBox);
+  const email = document.getElementById('creditsLookupEmail').value.trim();
+  if (!email) { showErr(errBox, 'Enter an email first.'); return; }
+  document.getElementById('creditsAdjustWrap').style.display = 'none';
+  try {
+    const res = await fetch(`${API}/find-user-credits?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    if (!res.ok) { showErr(errBox, data.error || 'Could not find that account.'); return; }
+    document.getElementById('creditsCurrentBalances').textContent =
+      `${data.user.email} -- standard: ${data.user.credit_balance}, premium (legacy): ${data.user.premium_credit_balance}, unlimited: ${data.user.unlimited_searches ? 'yes' : 'no'}`;
+    document.getElementById('creditsStandardDelta').value = 0;
+    document.getElementById('creditsPremiumDelta').value = 0;
+    document.getElementById('unlimitedSearchesCb').checked = !!data.user.unlimited_searches;
+    document.getElementById('creditsAdjustWrap').style.display = 'block';
+    document.getElementById('creditsAdjustWrap').dataset.email = data.user.email;
+  } catch (e) {
+    showErr(errBox, 'Network error.');
+  }
+});
+
+document.getElementById('unlimitedSearchesSaveBtn').addEventListener('click', async () => {
+  const errBox = document.getElementById('unlimitedSearchesErr');
+  clearErr(errBox);
+  const email = document.getElementById('creditsAdjustWrap').dataset.email;
+  const unlimited = document.getElementById('unlimitedSearchesCb').checked;
+  try {
+    const res = await fetch(`${API}/set-unlimited-searches`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, unlimited })
+    });
+    const data = await res.json();
+    if (!res.ok) { showErr(errBox, data.error || 'Could not update.'); return; }
+    document.getElementById('creditsCurrentBalances').textContent =
+      `${data.user.email} -- standard: ${data.user.credit_balance}, premium (legacy): ${data.user.premium_credit_balance}, unlimited: ${data.user.unlimited_searches ? 'yes' : 'no'}`;
+    const msg = document.getElementById('unlimitedSearchesSavedMsg');
+    msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
+  } catch (e) {
+    showErr(errBox, 'Network error.');
+  }
+});
+
+document.getElementById('creditsAdjustBtn').addEventListener('click', async () => {
+  const errBox = document.getElementById('creditsAdjustErr');
+  clearErr(errBox);
+  const email = document.getElementById('creditsAdjustWrap').dataset.email;
+  const standardDelta = parseInt(document.getElementById('creditsStandardDelta').value, 10) || 0;
+  const premiumDelta = parseInt(document.getElementById('creditsPremiumDelta').value, 10) || 0;
+  if (!standardDelta && !premiumDelta) { showErr(errBox, 'Enter a non-zero amount for at least one balance.'); return; }
+  try {
+    const res = await fetch(`${API}/adjust-user-credits`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, standardDelta, premiumDelta })
+    });
+    const data = await res.json();
+    if (!res.ok) { showErr(errBox, data.error || 'Could not update.'); return; }
+    document.getElementById('creditsCurrentBalances').textContent =
+      `${data.user.email} -- standard: ${data.user.credit_balance}, premium (legacy): ${data.user.premium_credit_balance}, unlimited: ${data.user.unlimited_searches ? 'yes' : 'no'}`;
+    document.getElementById('creditsStandardDelta').value = 0;
+    document.getElementById('creditsPremiumDelta').value = 0;
+    const msg = document.getElementById('creditsAdjustSavedMsg');
+    msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
+  } catch (e) {
+    showErr(errBox, 'Network error.');
+  }
+});
 
 async function loadAiHints(){
   const box = document.getElementById('aiHintsList');

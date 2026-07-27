@@ -2192,3 +2192,65 @@ Worth remembering for any Stripe-related env var: Vercel scopes
 variables per environment (Production/Preview/Development), and it's
 easy to set one correctly for local testing (Preview) without
 realizing Production never got it.
+
+## Chat outage, then a real latency/cost problem, then premium removed entirely
+
+Three related fixes in sequence, worth reading together since each one
+uncovered the next.
+
+**The outage:** every single chat request was failing ("couldn't
+answer right now"). Root cause, confirmed via a captured API error:
+`temperature` is deprecated for the current models -- the API was
+rejecting every request outright with a 400, before generating any
+content at all. Removed the parameter entirely from both API calls in
+`api/ask.js`. Known tradeoff: this was originally set low specifically
+to reduce answer-to-answer inconsistency; losing that is an accepted
+cost of the API no longer accepting the parameter.
+
+**The latency/JSON problem that surfaced right after:** answers started
+taking 47 seconds to 1.3 minutes, and many still failed to parse as
+JSON even though real, substantial content was coming back. Root cause:
+the earlier "at least 4 recommendations" prompt change (see the
+site_content-era changelog entries above) was driving much more
+extensive web-search research and much longer generations than
+intended for an ordinary question -- both increasing latency and
+making the model more likely to never actually reach the JSON wrapper
+by the end of a very long answer. Dialed the requirement back to
+"up to 3-4 when they genuinely fit," added a hard `max_uses: 3` cap on
+the web search tool (a real ceiling, not just hoping the prompt wording
+keeps it bounded), and added an early JSON-format reminder near the
+top of the prompt in addition to the one at the end.
+
+**Premium (Sonnet) tier removed entirely.** It turned out to cost far
+more per question in real use than expected -- Sonnet's own higher
+per-token cost, compounding on top of the over-searching behavior
+above (which affected the free/standard tier too, not just premium).
+Removed from `api/ask.js` (admin and the new unlimited-whitelist users
+now use the standard model, same as everyone else), from the purchase
+flow in `api/data.js` (always sells standard now regardless of what
+any client sends), and from all of `index.html`'s UI (buy button,
+toggle, account panel line). `premium_credit_balance` and
+`credit_purchases.tier` are left in the schema, unused, rather than
+dropped -- harmless, and there may be a small existing balance worth
+manually honoring via the admin credits tool if anyone actually
+redeemed one before this was removed.
+
+## New: grant unlimited AI-chat access to specific trusted accounts
+
+New `unlimited_searches` boolean on `users` -- same no-cap treatment an
+admin session already gets, just for one particular registered
+visitor an admin has chosen to trust (an employee, a close partner
+business), not something with a quantity to run out of. Managed from
+the same admin card as the credit-fix tool: look an account up by
+email, toggle it on or off.
+
+## Found and fixed a real cost bug while auditing this: non-Oulu/Helsinki news was refreshing 10x too often
+
+News for any town using the AI-search fallback (everywhere except
+Oulu's Kaleva feed and Helsinki's Yle feed, both free) was using the
+same 2-hour refresh interval as those free RSS sources -- but that
+2-hour number was chosen because RSS is cheap to refresh often. A real,
+billable AI search call was inheriting that same cadence, roughly 10x
+more often than events use for the exact same kind of AI generation
+(events refresh every ~20 hours). Fixed: any town without a real free
+news source now uses the same ~20-hour interval events already use.
