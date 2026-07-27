@@ -141,6 +141,49 @@ async function fetchNewsFromRSS(category) {
 
 const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72edb9364237309bf/content/63198844806f262926e72683?country=FI&lang=fi&mode=event&sort=startDate&limit=100';
 
+// Yle (Finland's national public broadcaster -- license-fee funded, no
+// ads, not paywalled) publishes real regional news as standard RSS,
+// confirmed live and working -- fetched directly during this build --
+// via https://feeds.yle.fi/uutiset/v1/recent.rss with a publisherIds
+// and concepts (topic id) query. 18-177980 is Yle's own topic id for
+// "Uusimaa" (the region containing Helsinki) -- confirmed from Yle's own
+// topic page URL structure (yle.fi/t/18-177980/fi), though this
+// sandbox's browsing tool couldn't independently confirm that exact
+// topic id's feed content matches (it substituted a different,
+// previously-seen concept id from an unrelated search when tested) --
+// worth a quick spot-check of Helsinki's real news once this is live to
+// confirm it's genuinely Uusimaa-scoped and not some other region.
+const HELSINKI_NEWS_RSS = 'https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-177980';
+
+async function fetchHelsinkiNewsFromRSS() {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(HELSINKI_NEWS_RSS, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return [];
+
+    const xml = await res.text();
+    const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+    return itemBlocks.slice(0, 10).map(block => {
+      const title = extractTag(block, 'title');
+      const link = extractTag(block, 'link');
+      let description = extractTag(block, 'description') || '';
+      if (description.length > 180) description = description.slice(0, 177) + '...';
+      return {
+        title_fi: title, title_en: title, // Yle's own headline, not translated -- their real reporting, not ours to rewrite
+        summary_fi: description, summary_en: description,
+        source_url: link,
+        source_name: 'Yle',
+        event_date: null
+      };
+    }).filter(i => i.title_fi && i.source_url);
+  } catch (err) {
+    console.error('Helsinki news RSS fetch failed:', err);
+    return [];
+  }
+}
+
 // The only news path for any town besides Oulu -- there's no RSS feed
 // configured for these cities (see README on why: the equivalent local
 // papers don't all offer the same kind of free public feed Kaleva does,
@@ -641,10 +684,11 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
 // NEWS_RSS_FEEDS above) -- defaults to DEFAULT_NEWS_CATEGORY
 // ("oulun-seutu") if omitted or unrecognized, so every existing caller
 // that doesn't know about categories keeps working exactly as before.
-// Only meaningful for Oulu -- every other town ignores it entirely and
-// goes straight to the generic per-town AI search below, since there's
-// no equivalent RSS feed configured for them (see README for real
-// per-city news sources worth checking one at a time later).
+// Only meaningful for Oulu -- Helsinki has its own single real feed
+// (Yle's Uusimaa RSS, no categories to switch between), and every other
+// town goes straight to the generic per-town AI search below, since
+// there's no equivalent RSS feed configured for them yet (see README
+// for real per-city news sources worth checking one at a time later).
 async function getNewsSection(supabase, townId, category, townName) {
   const isOulu = townName === 'Oulu';
   const validCategory = NEWS_RSS_FEEDS[category] ? category : DEFAULT_NEWS_CATEGORY;
@@ -671,7 +715,11 @@ async function getNewsSection(supabase, townId, category, townName) {
     if (existingNews && existingNews.length > 0 && newsAgeHours < NEWS_REFRESH_AFTER_HOURS) {
       return existingNews;
     }
-    const fresh = isOulu ? await fetchNewsFromRSS(validCategory) : await generateNewsItemsViaAISearch(townName);
+    const fresh = isOulu
+      ? await fetchNewsFromRSS(validCategory)
+      : townName === 'Helsinki'
+        ? await fetchHelsinkiNewsFromRSS()
+        : await generateNewsItemsViaAISearch(townName);
     if (fresh.length > 0) {
       const enriched = await enrichWithImages(fresh, supabase);
       await supabase.from('local_feed_items').delete().eq('town_id', townId).eq('item_type', itemType);

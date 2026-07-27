@@ -2091,3 +2091,31 @@ reasonable search budget could pin down with confidence this session,
 and guessing wrong would just silently do nothing (safe, but not
 useful). Worth a focused follow-up once the real feed URL is confirmed
 directly from hel.fi/fi/uutiset.
+
+## Helsinki news -- found a real source after all: Yle's Uusimaa RSS
+
+Couldn't confirm a working hel.fi city-news feed URL (see above), but
+found a stronger option instead: **Yle**, Finland's national public
+broadcaster (license-fee funded, no ads, not paywalled), publishes real
+regional news as standard RSS. Confirmed live during this build --
+`https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-177980`
+actually returned real RSS/XML content when fetched directly, using
+the exact query syntax documented on Yle's own RSS-feeds page.
+`18-177980` is Yle's own topic id for "Uusimaa" (the region containing
+Helsinki), taken from Yle's own topic page URL structure.
+
+`fetchHelsinkiNewsFromRSS` reuses the exact same `extractTag`-based RSS
+parser already built for Oulu's Kaleva feed -- it's the same standard
+RSS 2.0 format, so no new parsing logic was needed, just a new URL.
+`getNewsSection` now has three branches: Oulu (Kaleva RSS), Helsinki
+(this new Yle RSS), everyone else (the generic AI-search fallback).
+
+**One thing worth spot-checking once this is live:** the sandbox's
+browsing tool could confirm the feed *mechanism* works (real RSS came
+back), but when re-fetching the exact same URL a second time to inspect
+its content, it substituted a different, previously-seen concept id
+from an unrelated earlier search instead of genuinely re-fetching mine
+-- a quirk of this environment's fetch tool, not evidence of anything
+wrong with the real integration. Worth confirming Helsinki's actual
+live news (once deployed) is genuinely Uusimaa-scoped content and not
+some other Yle region, just to be sure.
