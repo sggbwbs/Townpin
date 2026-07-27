@@ -381,8 +381,32 @@ async function handleUser(req, res) {
   }
 }
 
+// Thumbs up/down on a specific answer -- open to anyone, logged in or
+// not, same as asking a question itself is. No rate limiting beyond
+// the existing per-request size caps below -- feedback spam isn't a
+// meaningful risk here (nothing costs money or grants anything), and
+// gating it behind a login would just mean far fewer real people ever
+// bother to use it at all.
+async function handleFeedback(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const { townId, question, answer, rating, comment } = req.body || {};
+  if (!townId || !question || !answer) return res.status(400).json({ error: 'Missing required fields.' });
+  if (rating !== 'up' && rating !== 'down') return res.status(400).json({ error: 'Invalid rating.' });
+
+  const { error } = await supabase.from('ai_feedback').insert({
+    town_id: townId,
+    question: String(question).slice(0, 2000),
+    answer: String(answer).slice(0, 4000),
+    rating,
+    comment: comment ? String(comment).slice(0, 1000) : null
+  });
+  if (error) { console.error('Feedback insert failed:', error); return res.status(500).json({ error: 'Could not save feedback.' }); }
+  res.status(200).json({ ok: true });
+}
+
 module.exports = async (req, res) => {
   if (req.query.endpoint === 'user') return handleUser(req, res);
+  if (req.query.endpoint === 'feedback') return handleFeedback(req, res);
   if (req.method !== 'GET') return res.status(405).end();
   if (req.query.endpoint === 'feed') return handleFeed(req, res);
   return handleBoard(req, res);

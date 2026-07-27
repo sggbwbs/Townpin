@@ -499,6 +499,16 @@
   .askWebResultChip{font-size:14px;padding:9px 18px;border-radius:999px;border:1px solid var(--line);
     background:none;color:var(--ink-dim);text-decoration:none;}
   .askWebResultChip:hover{border-color:var(--ink-dim);color:var(--ink);}
+  .askFeedbackRow{display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:12px;
+    border-top:1px solid var(--line);}
+  .askFeedbackLabel{font-size:12.5px;color:var(--ink-dim);margin-right:2px;}
+  .askFeedbackBtn{background:none;border:1px solid var(--line);border-radius:999px;padding:5px 11px;
+    font-size:14px;cursor:pointer;line-height:1;}
+  .askFeedbackBtn:hover{border-color:var(--ink-dim);background:var(--panelT7);}
+  .askFeedbackCommentBox{display:flex;flex-direction:column;gap:8px;margin-top:10px;width:100%;}
+  .askFeedbackTextarea{width:100%;min-height:56px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);
+    background:var(--panelT7);color:var(--ink);font-size:13px;font-family:'IBM Plex Sans',sans-serif;resize:vertical;}
+  .askFeedbackThanks{font-size:12.5px;color:var(--ink-dim);}
   #askFollowupRow{display:flex;gap:8px;margin-top:4px;}
   #askFollowupInput{flex:1;padding:10px 16px;border-radius:999px;border:1px solid var(--line);
     background:var(--panelT7);color:var(--ink);font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;}
@@ -1260,6 +1270,10 @@ const STRINGS = {
     askHeroPlaceholder: 'Esim. "lähde vaeltamaan" tai "missä syödä sushia"',
     askHeroButton: 'Kysy →',
     askAiDisclaimer: 'Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.',
+    askFeedbackPrompt: 'Oliko tästä apua?',
+    askFeedbackCommentPlaceholder: 'Mikä meni pieleen? (valinnainen)',
+    askFeedbackSend: 'Lähetä palaute',
+    askFeedbackThanks: 'Kiitos palautteesta!',
     askMentionsNote: 'löytyy tämän taulun yrityksistä',
     askFollowupPlaceholder: 'Kysy jotain muuta…',
     installBannerTextChrome: 'Asenna PaikallisCanvas puhelimeesi nopeampaa käyttöä varten.',
@@ -1431,6 +1445,10 @@ const STRINGS = {
     askHeroPlaceholder: 'e.g. "go hiking" or "where to eat sushi"',
     askHeroButton: 'Ask →',
     askAiDisclaimer: 'Answers are AI-generated and may contain errors.',
+    askFeedbackPrompt: 'Was this helpful?',
+    askFeedbackCommentPlaceholder: "What went wrong? (optional)",
+    askFeedbackSend: 'Send feedback',
+    askFeedbackThanks: 'Thanks for the feedback!',
     askMentionsNote: 'is one of the businesses on this board',
     askFollowupPlaceholder: 'Ask something else…',
     installBannerTextChrome: 'Install PaikallisCanvas on your phone for faster access.',
@@ -2577,6 +2595,51 @@ function askAppendResult(html, extraClass){
   return el;
 }
 
+// This doesn't retrain or fine-tune the model itself -- there's no such
+// pipeline here. What it actually does: lets an admin read real
+// question/answer pairs visitors flagged as unhelpful, in the admin
+// panel, instead of only ever finding out about a bad answer from a
+// screenshot someone happened to send in. Thumbs up submits right away;
+// thumbs down reveals an optional comment box first, since that's the
+// genuinely useful case to get real detail on.
+function wireAskFeedback(container, question, answer){
+  if (!container) return;
+  const upBtn = container.querySelector('[data-rating="up"]');
+  const downBtn = container.querySelector('[data-rating="down"]');
+
+  upBtn.addEventListener('click', () => submitAskFeedback(container, question, answer, 'up', null));
+
+  downBtn.addEventListener('click', () => {
+    if (container.querySelector('.askFeedbackCommentBox')) return; // already shown, don't duplicate on a second click
+    const box = document.createElement('div');
+    box.className = 'askFeedbackCommentBox';
+    box.innerHTML = `
+      <textarea class="askFeedbackTextarea" placeholder="${escapeAskText(t('askFeedbackCommentPlaceholder'))}"></textarea>
+      <button class="askFeedbackSendBtn logoBtn" style="align-self:flex-start;">${escapeAskText(t('askFeedbackSend'))}</button>
+    `;
+    container.appendChild(box);
+    box.querySelector('.askFeedbackSendBtn').addEventListener('click', () => {
+      const comment = box.querySelector('.askFeedbackTextarea').value.trim();
+      submitAskFeedback(container, question, answer, 'down', comment || null);
+    });
+  });
+}
+
+async function submitAskFeedback(container, question, answer, rating, comment){
+  // Confirms immediately rather than waiting on the network round trip
+  // -- the visitor's part is done the moment they click, whether or not
+  // the request itself has resolved yet.
+  container.innerHTML = `<span class="askFeedbackThanks">${escapeAskText(t('askFeedbackThanks'))}</span>`;
+  try {
+    await fetch(`${API_BASE}/feedback`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ townId: currentTown.id, question, answer, rating, comment })
+    });
+  } catch (e) {
+    // best-effort -- the visitor already saw their thanks message either way
+  }
+}
+
 async function askAsk(question, sendBtn){
   if (!question || askPending) return;
   if (!currentTown){
@@ -2671,14 +2734,22 @@ async function askAsk(question, sendBtn){
     if (Array.isArray(data.webResults) && data.webResults.length > 0){
       const resultId = 'askWebResults' + (askResultBlockCounter++);
       html += `<div class="askWebResults" id="${resultId}">` + data.webResults.map((r, i) =>
-        `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? '📍' : '↗'}</a>`
+        `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? (r.isMapFallback ? '📍' : '🔍') : '↗'}</a>`
       ).join('') + '</div>';
       if (data.webResults.length > 4){
         html += `<button class="askShowMoreBtn logoBtn" data-expanded="false" onclick="toggleAskWebResults('${resultId}', this)">${t('showMore')}</button>`;
       }
     }
 
-    askAppendResult(html);
+    const feedbackId = 'askFeedback' + (askResultBlockCounter++);
+    html += `<div class="askFeedbackRow" id="${feedbackId}">
+      <span class="askFeedbackLabel">${t('askFeedbackPrompt')}</span>
+      <button class="askFeedbackBtn" data-rating="up" aria-label="Hyvä vastaus">👍</button>
+      <button class="askFeedbackBtn" data-rating="down" aria-label="Huono vastaus">👎</button>
+    </div>`;
+
+    const resultEl = askAppendResult(html);
+    wireAskFeedback(resultEl.querySelector('#' + feedbackId), question, answer);
     if (mapId) renderAskMap(mapId, mapPoints);
 
     // Keep server-side context bounded too (see MAX_HISTORY_TURNS in

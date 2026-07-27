@@ -331,6 +331,26 @@ async function handleSetUnlimitedSearches(req, res) {
   res.status(200).json({ ok: true, user: updated });
 }
 
+// Lets the admin actually read real feedback -- the real question, the
+// real (possibly bad) answer, and any comment -- rather than only ever
+// finding out about a bad answer from a screenshot someone happened to
+// send in. Filterable by rating since "down" is almost always the
+// interesting one to review; "up" mostly just confirms things are
+// working. Town-aware via the same shared selector as hints/events.
+async function handleListAiFeedback(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { townId, rating } = req.query;
+  let query = supabase.from('ai_feedback')
+    .select('id, town_id, question, answer, rating, comment, created_at')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (townId) query = query.eq('town_id', townId);
+  if (rating === 'up' || rating === 'down') query = query.eq('rating', rating);
+  const { data, error } = await query;
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not load feedback.' }); }
+  res.status(200).json({ feedback: data || [] });
+}
+
 // Fixes a hint's town scope after the fact -- mainly for hints created
 // before per-town scoping existed at all (they all defaulted to town_id
 // null, i.e. "applies everywhere", when several were actually written
@@ -920,6 +940,7 @@ module.exports = async (req, res) => {
     case 'find-user-credits': return handleFindUserCredits(req, res);
     case 'adjust-user-credits': return handleAdjustUserCredits(req, res);
     case 'set-unlimited-searches': return handleSetUnlimitedSearches(req, res);
+    case 'list-ai-feedback': return handleListAiFeedback(req, res);
     case 'delete-ai-hint': return handleDeleteAiHint(req, res);
     case 'reassign-ai-hint': return handleReassignAiHint(req, res);
     case 'company-details': return handleCompanyDetails(req, res);

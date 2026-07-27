@@ -2254,3 +2254,46 @@ billable AI search call was inheriting that same cadence, roughly 10x
 more often than events use for the exact same kind of AI generation
 (events refresh every ~20 hours). Fixed: any town without a real free
 news source now uses the same ~20-hour interval events already use.
+
+## AI chat answer feedback (thumbs up/down)
+
+Doesn't retrain or fine-tune the model itself -- there's no such
+pipeline here, and that's not how Claude works through the API. What
+this actually does: gives a real, structured way to see which real
+answers visitors found unhelpful, with the actual question and answer
+text right there to read, instead of only ever finding out about a
+bad answer from a screenshot someone happened to send in.
+
+- New `ai_feedback` table (question, answer, rating, optional comment,
+  town).
+- New public endpoint (`/api/feedback`, no login required, same as
+  asking a question itself) -- thumbs up submits immediately, thumbs
+  down reveals an optional "what went wrong?" comment box first, since
+  that's the genuinely useful case to get real detail on.
+- New admin card ("AI chat feedback") to actually read it -- filterable
+  to down-only, town-aware via the same shared selector as hints/events.
+
+The real "teaching" still happens exactly the way it has all session --
+reading real failures and adjusting the prompt -- this just makes
+that systematic and available to anyone with admin access, not
+dependent on someone happening to screenshot a bad answer.
+
+## The Maps fallback was too broad -- fixed with a real distinguishing signal
+
+The earlier "fall back to Google Maps instead of a generic search"
+change was right for genuine physical places (a beach, a trail) but
+wrong for a real case that showed up: "Visit Oulu - Luontoreitit" and
+"Oulun kaupunki - Luontokohteet ja retkeily" aren't places at all --
+they're references to an organization's own informational webpage.
+Maps has no "place" to find for a page title like that and returned
+nothing useful.
+
+`googleSearchFallback` now checks for a literal " - " in the name --
+real place and business names essentially never contain that
+separator, while an "Organization - Topic" style reference always
+does. That one signal is enough to route the two cases correctly:
+a plain web search for the organizational/informational case (which
+can actually find that org's real page), Maps only for a genuine
+place-like name. The chip icon now reflects which one actually
+happened -- 📍 for a real Maps fallback, 🔍 for a plain search
+fallback -- instead of always showing the same icon regardless.

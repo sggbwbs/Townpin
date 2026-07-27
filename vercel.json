@@ -8,6 +8,7 @@
     { "source": "/helsinki", "destination": "/" },
     { "source": "/api/board", "destination": "/api/data?endpoint=board" },
     { "source": "/api/feed", "destination": "/api/data?endpoint=feed" },
+    { "source": "/api/feedback", "destination": "/api/data?endpoint=feedback" },
     { "source": "/api/user/:action", "destination": "/api/data?endpoint=user&action=:action" }
   ],
   "crons": [

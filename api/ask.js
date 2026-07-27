@@ -466,13 +466,27 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     }
 
     function googleSearchFallback(name, townName) {
-      // Maps, not a generic web search -- almost everything this falls
-      // back for is a physical place (a beach, a trail, a theater, a
-      // restaurant) that someone wants to actually go to, not read
-      // about. A Maps search shows the real location, opening hours,
-      // photos, and reviews directly, which is a much more useful
-      // fallback than a generic results page for exactly this case.
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${townName}`.trim())}`;
+      // Two different kinds of thing end up here, and they need
+      // different fallbacks. Most of the time it's a genuine physical
+      // place (a beach, a trail, a theater, a restaurant) someone wants
+      // to actually go to -- Maps shows the real location, hours,
+      // photos, and reviews directly, a much better fallback than a
+      // generic results page for that case.
+      //
+      // But a real failure this caused: an "Organization - Topic" style
+      // reference (e.g. "Visit Oulu - Luontoreitit", "Oulun kaupunki -
+      // Luontokohteet ja retkeily") is a reference to that organization's
+      // own informational webpage, not a physical destination -- Maps
+      // has no "place" to find for a page title like that and shows
+      // nothing useful. Real place/business names essentially never
+      // contain a literal " - " separator, so that's a reliable enough
+      // signal to fall back to a plain web search instead for this case,
+      // which actually can find that organization's real page.
+      const looksLikeWebReference = / - /.test(name);
+      if (looksLikeWebReference) {
+        return { url: `https://www.google.com/search?q=${encodeURIComponent(`${name} ${townName}`.trim())}`, isMapFallback: false };
+      }
+      return { url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${townName}`.trim())}`, isMapFallback: true };
     }
 
 
@@ -516,11 +530,16 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
               } catch (e) { /* falls through to search fallback */ }
             }
             const isSearchFallback = !url;
-            if (!url) url = googleSearchFallback(item.name, town.name);
+            let isMapFallback = false;
+            if (!url) {
+              const fallback = googleSearchFallback(item.name, town.name);
+              url = fallback.url;
+              isMapFallback = fallback.isMapFallback;
+            }
             const rawAddress = typeof item.address === 'string' ? item.address.trim() : '';
             const geocoded = rawAddress ? await geocodeAddress(rawAddress) : null;
             return {
-              name: item.name.slice(0, 120), url, isSearchFallback, tier: 'local',
+              name: item.name.slice(0, 120), url, isSearchFallback, isMapFallback, tier: 'local',
               lat: geocoded ? geocoded.lat : null, lng: geocoded ? geocoded.lng : null
             };
           }));
@@ -623,10 +642,15 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
           } catch (e) { /* invalid URL -- falls through to the search fallback below */ }
         }
         const isSearchFallback = !url;
-        if (!url) url = googleSearchFallback(r.name, town.name);
+        let isMapFallback = false;
+        if (!url) {
+          const fallback = googleSearchFallback(r.name, town.name);
+          url = fallback.url;
+          isMapFallback = fallback.isMapFallback;
+        }
         const tier = r.tier === 'other' ? 'other' : 'local'; // default to local -- matches "lead with local" guidance
         const rawAddress = typeof r.address === 'string' ? r.address.trim() : '';
-        return { name: r.name.slice(0, 120), url, isSearchFallback, tier, _rawAddress: rawAddress || null };
+        return { name: r.name.slice(0, 120), url, isSearchFallback, isMapFallback, tier, _rawAddress: rawAddress || null };
       })
       .sort((a, b) => (a.tier === 'local' ? 0 : 1) - (b.tier === 'local' ? 0 : 1))
       .slice(0, 8); // frontend shows 4 at a time with show more/less -- this leaves room for a second page

@@ -469,3 +469,25 @@ update towns set lat = 66.5039, lng = 25.7294 where slug = 'rovaniemi-fi' and la
 update towns set lat = 62.2426, lng = 25.7473 where slug = 'jyvaskyla-fi' and lat is null;
 update towns set lat = 60.4518, lng = 22.2666 where slug = 'turku-fi' and lat is null;
 
+-- ==== AI chat answer feedback (thumbs up/down) ====
+-- Doesn't retrain or fine-tune the model itself -- there's no such
+-- pipeline here, and Claude isn't fine-tuned this way through the API.
+-- What this actually does: gives the admin a real, structured way to
+-- see which real answers visitors found unhelpful (with the actual
+-- question and answer text right there to read), instead of only ever
+-- learning about a bad answer from a screenshot someone happened to
+-- send. The real "teaching" still happens the same way it has all
+-- along -- reading real failures and adjusting the prompt -- this just
+-- makes that systematic instead of ad hoc.
+create table if not exists ai_feedback (
+  id bigserial primary key,
+  town_id bigint references towns(id) on delete cascade,
+  question text not null,
+  answer text not null,
+  rating text not null check (rating in ('up', 'down')),
+  comment text,
+  created_at timestamptz not null default now()
+);
+create index if not exists ai_feedback_created_idx on ai_feedback (created_at desc);
+create index if not exists ai_feedback_rating_idx on ai_feedback (rating, created_at desc);
+

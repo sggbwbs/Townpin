@@ -19,6 +19,13 @@
     font-size:14px;margin-bottom:14px;font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;}
   button{border:none;border-radius:8px;padding:12px 20px;font-family:'Space Grotesk',sans-serif;
     font-weight:700;font-size:14px;cursor:pointer;background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;}
+  .feedbackFilterBtn{background:none;border:1px solid #d8cfb4;color:#5c5440;padding:7px 14px;font-size:12.5px;font-weight:600;}
+  .feedbackFilterBtn.active{background:#2a2110;color:#f2a65a;border-color:#2a2110;}
+  .feedbackItem{border:1px solid #e4dcc4;border-radius:8px;padding:12px 14px;margin-bottom:10px;}
+  .feedbackItem .feedbackQ{font-weight:700;margin-bottom:6px;}
+  .feedbackItem .feedbackA{color:#5c5440;font-size:13px;margin-bottom:6px;white-space:pre-wrap;}
+  .feedbackItem .feedbackComment{background:#f7f2e2;border-radius:6px;padding:8px 10px;font-size:13px;font-style:italic;margin-bottom:6px;}
+  .feedbackItem .feedbackMeta{font-size:11.5px;color:#8a8168;}
   .err{color:#b8452f;font-size:13px;margin:-4px 0 14px;display:none;}
   .field{margin-bottom:20px;}
   .field label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
@@ -210,6 +217,17 @@
   <hr style="margin:22px 0;border:none;border-top:1px solid #e4dcc4;">
   <h1 style="font-size:15px;">Current instructions</h1>
   <div id="aiHintsList"><p class="sub">Loading…</p></div>
+</div>
+
+<div class="card" id="aiFeedbackCard" style="display:none;">
+  <h1>AI chat feedback</h1>
+  <p class="sub">Real 👍/👎 feedback from visitors on actual answers -- this doesn't retrain the AI itself (there's no such pipeline), but it's the most direct way to see which real questions got a bad answer, with the actual question and answer text right here to read.</p>
+  <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <button id="feedbackFilterAll" class="feedbackFilterBtn active">All</button>
+    <button id="feedbackFilterDown" class="feedbackFilterBtn">👎 Down only</button>
+    <button id="feedbackFilterUp" class="feedbackFilterBtn">👍 Up only</button>
+  </div>
+  <div id="aiFeedbackList"><p class="sub">Loading…</p></div>
 </div>
 
 <div class="card" id="eventsCard" style="display:none;">
@@ -500,6 +518,7 @@ async function showEditor(){
   document.getElementById('loginCard').style.display = 'none';
   document.getElementById('dashHeaderCard').style.display = 'block';
   document.getElementById('aiHintsCard').style.display = 'block';
+  document.getElementById('aiFeedbackCard').style.display = 'block';
   document.getElementById('userCreditsCard').style.display = 'block';
   document.getElementById('eventsCard').style.display = 'block';
   document.getElementById('grantCard').style.display = 'block';
@@ -514,6 +533,7 @@ async function showEditor(){
   await loadContentEditor();
   loadCompedList();
   loadAiHints();
+  loadAiFeedback();
   loadEventsPicker();
   loadTownsList();
   loadMaintenanceStatus();
@@ -738,6 +758,7 @@ document.getElementById('globalTownSelect').addEventListener('change', (e) => {
   localStorage.setItem('adminTownId', currentAdminTownId);
   loadContentEditor();
   loadAiHints();
+  loadAiFeedback();
   loadEventsPicker();
 });
 
@@ -873,6 +894,47 @@ async function loadAiHints(){
     box.innerHTML = '<p class="sub">Network error.</p>';
   }
 }
+
+let feedbackFilter = null; // null = all, 'up', or 'down'
+
+async function loadAiFeedback(){
+  const box = document.getElementById('aiFeedbackList');
+  if (!currentAdminTownId) { box.innerHTML = '<p class="sub">No towns yet.</p>'; return; }
+  box.innerHTML = '<p class="sub">Loading…</p>';
+  try {
+    let url = `${API}/list-ai-feedback?townId=${currentAdminTownId}`;
+    if (feedbackFilter) url += `&rating=${feedbackFilter}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!res.ok) { box.innerHTML = `<p class="sub">${data.error || 'Could not load feedback.'}</p>`; return; }
+    if (!data.feedback || data.feedback.length === 0) { box.innerHTML = '<p class="sub">No feedback yet for this filter.</p>'; return; }
+    box.innerHTML = '';
+    data.feedback.forEach(f => {
+      const item = document.createElement('div');
+      item.className = 'feedbackItem';
+      const when = new Date(f.created_at).toLocaleString('fi-FI', { dateStyle: 'short', timeStyle: 'short' });
+      item.innerHTML = `
+        <div class="feedbackQ">${f.rating === 'up' ? '👍' : '👎'} ${f.question.replace(/</g, '&lt;')}</div>
+        <div class="feedbackA">${f.answer.replace(/</g, '&lt;')}</div>
+        ${f.comment ? `<div class="feedbackComment">"${f.comment.replace(/</g, '&lt;')}"</div>` : ''}
+        <div class="feedbackMeta">${when}</div>
+      `;
+      box.appendChild(item);
+    });
+  } catch (e) {
+    box.innerHTML = '<p class="sub">Network error.</p>';
+  }
+}
+
+function setFeedbackFilter(filter, btnId){
+  feedbackFilter = filter;
+  document.querySelectorAll('.feedbackFilterBtn').forEach(b => b.classList.remove('active'));
+  document.getElementById(btnId).classList.add('active');
+  loadAiFeedback();
+}
+document.getElementById('feedbackFilterAll').addEventListener('click', () => setFeedbackFilter(null, 'feedbackFilterAll'));
+document.getElementById('feedbackFilterDown').addEventListener('click', () => setFeedbackFilter('down', 'feedbackFilterDown'));
+document.getElementById('feedbackFilterUp').addEventListener('click', () => setFeedbackFilter('up', 'feedbackFilterUp'));
 
 document.getElementById('addAiHintBtn').addEventListener('click', async () => {
   const errBox = document.getElementById('aiHintErr');
