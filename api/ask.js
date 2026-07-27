@@ -301,7 +301,7 @@ TODAYS_EVENTS: ${JSON.stringify(eventContext)}
 
 BOARD_BUSINESSES: ${JSON.stringify(businessContext)}
 
-Respond with ONLY a JSON object, no other text, no markdown fences:
+Respond with ONLY a JSON object, no other text, no markdown fences -- this is a hard requirement regardless of how long your answer text is: if you're ever running low on room, trim your descriptions shorter rather than skip or truncate the JSON structure itself. A shorter valid answer is always better than a longer one that never actually reaches valid JSON.
 {"answer": "<your reply, written in the visitor's own language>", "mentioned": ["<exact name from BOARD_BUSINESSES, for each one you recommended -- omit entirely if none>"], "webResults": [{"name": "<place name>", "url": "<real URL of that specific place's own site, if you're confident of one -- omit or leave empty otherwise>", "tier": "local or other -- see below", "address": "<the place's real street address if you found one via search, for showing it on a map -- omit entirely if you don't genuinely know it, never guess or approximate one>"}]}`;
 
     const trimmedHistory = Array.isArray(history)
@@ -349,14 +349,20 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       },
       body: JSON.stringify({
         model: MODEL,
-        // Raised from 700 after a real observed failure: a legitimate
-        // multi-stop day-plan answer (several named places, each now also
-        // carrying an address for the map) ran past 700 tokens mid-JSON,
-        // truncating into invalid output that failed to parse entirely --
-        // the visitor got an answer with zero working links. 700 was
-        // sized for short single-recommendation answers; a genuine
-        // itinerary response needs more room, not a forced-short answer.
-        max_tokens: 1300,
+        // Raised twice now. First 700 -> 1300 after a genuine itinerary
+        // answer (several named places, each with an address) ran past
+        // 700 tokens mid-JSON. Then a LATER change made "at least 4
+        // recommendations" the normal expectation for every question, not
+        // just itineraries -- which meant 1300 went from "enough for the
+        // occasional long answer" to "too small for the typical answer",
+        // and every single response started getting cut off before ever
+        // reaching the JSON wrapper (100% of requests, not an occasional
+        // edge case -- that consistency is what pointed at a token-budget
+        // problem rather than the model simply ignoring the JSON
+        // instruction). Sized up generously this time specifically
+        // because the recommendation-count requirement is now a
+        // per-request floor, not a rare case.
+        max_tokens: 2200,
         // Low, not zero -- some variability in phrasing is fine and even
         // desirable, but the default (1.0) was letting the SAME question
         // sometimes mention a genuinely matching board business and
