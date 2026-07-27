@@ -275,7 +275,7 @@ Bold just the specific place or business name itself with **asterisks** the firs
 
 When the visitor asks in Finnish, use the real Finnish name for a place -- "Nallikarin ranta", not "Nallikari Beach". This applies to the "name" field in webResults too.
 
-Finnish naturally inflects a name mid-sentence ("Motonetia", "Motonetiin") -- that's correct there. But the "name" field in "mentioned"/"webResults", and anything you bold, must be the real uninflected base name -- "Motonet", never "Motonetia" -- since that's what actually gets searched and linked. If bolding mid-sentence would force the case ending inside the markup, bold only the base name and let the ending trail after: "suosittelen **Motonet**ia", not "suosittelen **Motonetia**". Doesn't apply to a place name whose genitive is part of its actual name (e.g. "Nallikarin ranta").
+Finnish naturally inflects any name mid-sentence -- a business ("Motonetia", "Motonetiin"), or a place whose own citation name already contains a genitive ("Nallikarin rannalla", from "Nallikarin ranta") -- that's correct and expected in the flowing prose. But the "name" field in "mentioned"/"webResults", and anything you bold, must always be that place or business's real citation form -- the form you'd see on a sign or its own website -- never a further-inflected version of it: "Motonet" not "Motonetia", "Nallikarin ranta" not "Nallikarin rannalla", "Hupisaarten kesäteatteri" not "Hupisaarten kesäteatterissa". This matters even when the citation form itself already has a built-in genitive, like "Nallikarin ranta" -- that fixed part ("Nallikarin") stays, but any case ending your sentence adds on top of the citation form must still be stripped back off for these fields. A concrete failure this has actually caused: the same real place ended up linked twice, once as "Nallikarin ranta" and once as "Nallikarin rannalla", as if they were two different places. If bolding mid-sentence would force a case ending inside the markup, bold only the citation form and let the ending trail after: "suosittelen **Motonet**ia", "käy **Nallikarin ranta**lla" -- never "suosittelen **Motonetia**" or "käy **Nallikarin rannalla**".
 
 Write your answer as plain, natural prose only -- no citation markup, footnotes, or tags like <cite>...</cite>, even when search results informed what you wrote.
 
@@ -466,7 +466,13 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     }
 
     function googleSearchFallback(name, townName) {
-      return `https://www.google.com/search?q=${encodeURIComponent(`${name} ${townName}`.trim())}`;
+      // Maps, not a generic web search -- almost everything this falls
+      // back for is a physical place (a beach, a trail, a theater, a
+      // restaurant) that someone wants to actually go to, not read
+      // about. A Maps search shows the real location, opening hours,
+      // photos, and reviews directly, which is a much more useful
+      // fallback than a generic results page for exactly this case.
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${townName}`.trim())}`;
     }
 
 
