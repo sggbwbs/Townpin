@@ -308,6 +308,22 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
       : [];
     const messages = [...trimmedHistory, { role: 'user', content: question.trim() }];
 
+    // Rough size (characters, not exact tokens, but proportional enough
+    // to see which section actually dominates) of each context section
+    // sent every request -- added specifically to answer "why is
+    // input_tokens so high" with real numbers instead of guessing which
+    // of the business count, events/news, or the fixed instructions is
+    // the actual driver. businessContext in particular will keep growing
+    // structurally as more businesses join the board, unlike the other,
+    // roughly-fixed-size sections.
+    console.log('[ask context sizes] businesses:', businesses.length,
+      '| businessContext chars:', JSON.stringify(businessContext).length,
+      '| eventContext chars:', JSON.stringify(eventContext).length,
+      '| newsContext chars:', JSON.stringify(newsContext).length,
+      '| hints chars:', JSON.stringify(aiHints || []).length,
+      '| fixed instructions chars:', systemPrompt.length - JSON.stringify(businessContext).length - JSON.stringify(eventContext).length - JSON.stringify(newsContext).length - JSON.stringify(aiHints || []).length,
+      '| history messages:', trimmedHistory.length);
+
     // Recorded here (before the AI call resolves), matching the original
     // behavior -- a question that's about to be sent counts against the
     // relevant allowance regardless of whether the AI call itself later
