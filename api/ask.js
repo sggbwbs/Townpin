@@ -564,12 +564,24 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     // Don't just trust the model remembered to list every board business
     // it named in the prose -- actually check the answer text itself for
     // any board business name that appears there but wasn't added to
-    // "mentioned", and add it. Simple case-insensitive substring match;
-    // skips names under 4 characters to avoid false positives on very
-    // short/generic business names matching incidentally.
+    // "mentioned", and add it. Skips names under 4 characters to avoid
+    // false positives on very short/generic business names matching
+    // incidentally.
+    //
+    // Word-boundary aware, not a plain substring check -- a real failure
+    // this caused: a business named "Hella" matched inside the
+    // completely unrelated word "Hellahuoneella" ("Hella" + "huoneella",
+    // an exhibition space, nothing to do with the business), linking the
+    // wrong real-world place. \p{L}/\p{N} (with the u flag) rather than
+    // plain \b since \b only recognizes ASCII word characters and
+    // wouldn't reliably bound against Finnish letters like ä/ö.
+    function escapeRegExp(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
     for (const b of businesses) {
       if (b.company_name && b.company_name.length >= 4 && !mentionedNames.has(b.company_name)) {
-        if (rawAnswer.toLowerCase().includes(b.company_name.toLowerCase())) {
+        const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(b.company_name)}(?![\\p{L}\\p{N}])`, 'iu');
+        if (pattern.test(rawAnswer)) {
           mentionedNames.add(b.company_name);
         }
       }
