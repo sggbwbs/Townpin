@@ -356,23 +356,22 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
         // just itineraries -- which meant 1300 went from "enough for the
         // occasional long answer" to "too small for the typical answer",
         // and every single response started getting cut off before ever
-        // reaching the JSON wrapper (100% of requests, not an occasional
-        // edge case -- that consistency is what pointed at a token-budget
-        // problem rather than the model simply ignoring the JSON
-        // instruction). Sized up generously this time specifically
-        // because the recommendation-count requirement is now a
-        // per-request floor, not a rare case.
+        // reaching the JSON wrapper. Turned out NOT to be the actual
+        // cause of the "every request fails" bug (see the temperature
+        // note below for that) -- but still a real, independent
+        // improvement worth keeping now that 4+ recommendations is the
+        // normal expectation per request, not a rare itinerary case.
         max_tokens: 2200,
-        // Low, not zero -- some variability in phrasing is fine and even
-        // desirable, but the default (1.0) was letting the SAME question
-        // sometimes mention a genuinely matching board business and
-        // sometimes not, which is a real consistency problem, not just
-        // stylistic variety. This won't make it perfectly deterministic
-        // (web search itself can return different results call to call,
-        // which is a separate source of variance this can't fix), but it
-        // meaningfully reduces answer-to-answer inconsistency for the
-        // same input.
-        temperature: 0.2,
+        // REMOVED: temperature was rejected outright by the current
+        // models -- confirmed via a real captured API error ("'temperature'
+        // is deprecated for this model"), which returned an HTTP 400
+        // with no content at all, before the model ever generated a
+        // single token. That's what was actually causing every single
+        // request to fail identically, on both Haiku and Sonnet, not a
+        // token-budget or prompt-length problem. Losing the slight
+        // answer-to-answer consistency benefit this used to provide
+        // (see the removed comment's original reasoning) is an accepted
+        // tradeoff for the API accepting the request at all.
         system: systemPrompt,
         messages,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }]
@@ -452,7 +451,8 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
           body: JSON.stringify({
             model: MODEL_STANDARD, // always the cheap model here, even for a premium-answered question -- see comment above the function
             max_tokens: 400,
-            temperature: 0,
+            // temperature removed -- deprecated for the current models,
+            // see the identical note on the main call above.
             system: 'Extract every specific named business, restaurant, cafe, museum, park, or venue mentioned by name in the text below. Respond with ONLY a JSON array, no other text, no markdown fences: [{"name": "<exact name as written in the text>", "url": "<its own website if you are confident of one, otherwise an empty string>", "address": "<its real street address if you genuinely know it, otherwise an empty string -- never guess or approximate one>"}]. If nothing specific is named, respond with [].',
             messages: [{ role: 'user', content: rawText }]
           })
