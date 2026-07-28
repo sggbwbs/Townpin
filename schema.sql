@@ -491,3 +491,17 @@ create table if not exists ai_feedback (
 create index if not exists ai_feedback_created_idx on ai_feedback (created_at desc);
 create index if not exists ai_feedback_rating_idx on ai_feedback (rating, created_at desc);
 
+-- ==== General site feedback ====
+-- Distinct from ai_feedback above, which is specifically about one AI
+-- chat answer -- this is "what do you think of the service overall",
+-- matching Uusyrityskeskus's advice to start collecting real user
+-- feedback as early as possible in the pilot, not just usage numbers.
+create table if not exists site_feedback (
+  id bigserial primary key,
+  town_id bigint references towns(id) on delete cascade,
+  message text not null,
+  email text,
+  created_at timestamptz not null default now()
+);
+create index if not exists site_feedback_created_idx on site_feedback (created_at desc);
+

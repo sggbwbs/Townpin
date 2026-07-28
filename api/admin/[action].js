@@ -351,6 +351,20 @@ async function handleListAiFeedback(req, res) {
   res.status(200).json({ feedback: data || [] });
 }
 
+// General site feedback -- shown across all towns by default (not
+// scoped to whichever town is currently selected), since this is
+// feedback about the whole service, not necessarily tied to one city.
+async function handleListSiteFeedback(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { data, error } = await supabase
+    .from('site_feedback')
+    .select('id, town_id, message, email, created_at')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not load feedback.' }); }
+  res.status(200).json({ feedback: data || [] });
+}
+
 // Fixes a hint's town scope after the fact -- mainly for hints created
 // before per-town scoping existed at all (they all defaulted to town_id
 // null, i.e. "applies everywhere", when several were actually written
@@ -755,10 +769,13 @@ async function handleTrackVisit(req, res) {
   res.status(204).end();
 }
 
-// Simple kävijälaskuri for the admin dashboard -- total, today, and last
-// 7 days. Deliberately basic (no unique-visitor dedup, no per-page
-// breakdown) since that's not what was asked for; just "how much
-// traffic are we getting" at a glance.
+// Real analytics for the admin dashboard -- page views (existing),
+// AI question volume, and feedback tally, each broken down the same
+// way (today/7 days/total). Directly answers a specific piece of
+// advice from Uusyrityskeskus's feedback email: track visitor counts
+// and search volume from day one, not after the fact. Deliberately
+// simple (no unique-visitor dedup, no per-page breakdown) -- this is
+// "how much is happening" at a glance, not a full analytics platform.
 async function handleVisitorStats(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
 
@@ -766,22 +783,41 @@ async function handleVisitorStats(req, res) {
   const todayStart = new Date(now); todayStart.setUTCHours(0, 0, 0, 0);
   const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  try {
-    const { count: total, error: totalErr } = await supabase
-      .from('page_views').select('id', { count: 'exact', head: true });
-    if (totalErr) throw totalErr;
-
-    const { count: today, error: todayErr } = await supabase
-      .from('page_views').select('id', { count: 'exact', head: true })
+  // One table, three time windows -- avoids repeating the same
+  // three-query pattern by hand for every metric below.
+  async function countsFor(table) {
+    const { count: total } = await supabase.from(table).select('id', { count: 'exact', head: true });
+    const { count: today } = await supabase.from(table).select('id', { count: 'exact', head: true })
       .gt('created_at', todayStart.toISOString());
-    if (todayErr) throw todayErr;
-
-    const { count: last7Days, error: weekErr } = await supabase
-      .from('page_views').select('id', { count: 'exact', head: true })
+    const { count: last7Days } = await supabase.from(table).select('id', { count: 'exact', head: true })
       .gt('created_at', weekStart.toISOString());
-    if (weekErr) throw weekErr;
+    return { total: total || 0, today: today || 0, last7Days: last7Days || 0 };
+  }
 
-    res.status(200).json({ total: total || 0, today: today || 0, last7Days: last7Days || 0 });
+  try {
+    const [pageViews, anonQuestions, userQuestions, feedbackUp, feedbackDown] = await Promise.all([
+      countsFor('page_views'),
+      countsFor('ask_agent_log'),
+      countsFor('user_ai_usage'),
+      supabase.from('ai_feedback').select('id', { count: 'exact', head: true }).eq('rating', 'up'),
+      supabase.from('ai_feedback').select('id', { count: 'exact', head: true }).eq('rating', 'down')
+    ]);
+
+    // ask_agent_log (anonymous) and user_ai_usage (logged-in) are the
+    // same two tables already used to enforce the daily free-question
+    // quota -- summing them gives real total AI question volume without
+    // needing a separate tracking table just for this dashboard.
+    const questions = {
+      total: anonQuestions.total + userQuestions.total,
+      today: anonQuestions.today + userQuestions.today,
+      last7Days: anonQuestions.last7Days + userQuestions.last7Days
+    };
+
+    res.status(200).json({
+      ...pageViews, // keeps total/today/last7Days at the top level for backward compatibility with the existing frontend display
+      questions,
+      feedback: { up: feedbackUp.count || 0, down: feedbackDown.count || 0 }
+    });
   } catch (err) {
     console.error('Visitor stats lookup failed:', err);
     res.status(500).json({ error: 'Could not load visitor stats.' });
@@ -941,6 +977,7 @@ module.exports = async (req, res) => {
     case 'adjust-user-credits': return handleAdjustUserCredits(req, res);
     case 'set-unlimited-searches': return handleSetUnlimitedSearches(req, res);
     case 'list-ai-feedback': return handleListAiFeedback(req, res);
+    case 'list-site-feedback': return handleListSiteFeedback(req, res);
     case 'delete-ai-hint': return handleDeleteAiHint(req, res);
     case 'reassign-ai-hint': return handleReassignAiHint(req, res);
     case 'company-details': return handleCompanyDetails(req, res);

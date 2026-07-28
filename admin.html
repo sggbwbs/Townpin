@@ -100,12 +100,25 @@
 </div>
 
 <div class="card" id="visitorsCard" style="display:none;">
-  <h1>Kävijälaskuri</h1>
-  <p class="sub" style="margin-bottom:12px;">Simple page-load counter — not unique visitors, just total loads.</p>
-  <div id="visitorStatsRow" style="display:flex;gap:24px;">
+  <h1>Analytiikka</h1>
+  <p class="sub" style="margin-bottom:6px;">Sivun lataukset — ei uniikkeja kävijöitä, vain kokonaismäärä.</p>
+  <div id="visitorStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
     <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="visitorsToday">–</b><span class="sub" style="margin:0;">Tänään</span></div>
     <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="visitorsWeek">–</b><span class="sub" style="margin:0;">7 päivää</span></div>
     <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="visitorsTotal">–</b><span class="sub" style="margin:0;">Yhteensä</span></div>
+  </div>
+
+  <p class="sub" style="margin-bottom:6px;">Tekoälykysymykset (ilmaiset + ostetut, kaikki käyttäjät yhteensä).</p>
+  <div id="questionStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="questionsToday">–</b><span class="sub" style="margin:0;">Tänään</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="questionsWeek">–</b><span class="sub" style="margin:0;">7 päivää</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="questionsTotal">–</b><span class="sub" style="margin:0;">Yhteensä</span></div>
+  </div>
+
+  <p class="sub" style="margin-bottom:6px;">Tekoälyvastausten palaute (👍/👎-napit).</p>
+  <div id="feedbackStatsRow" style="display:flex;gap:24px;">
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#4a7a5c;" id="feedbackUpCount">–</b><span class="sub" style="margin:0;">👍 Hyvä</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#b8452f;" id="feedbackDownCount">–</b><span class="sub" style="margin:0;">👎 Huono</span></div>
   </div>
 </div>
 
@@ -228,6 +241,12 @@
     <button id="feedbackFilterUp" class="feedbackFilterBtn">👍 Up only</button>
   </div>
   <div id="aiFeedbackList"><p class="sub">Loading…</p></div>
+</div>
+
+<div class="card" id="siteFeedbackCard" style="display:none;">
+  <h1>Site feedback</h1>
+  <p class="sub">General "what do you think of the service" feedback from the main site -- distinct from the AI chat feedback above. Shown across all towns, not scoped to whichever one is currently selected, since this is about the whole service.</p>
+  <div id="siteFeedbackList"><p class="sub">Loading…</p></div>
 </div>
 
 <div class="card" id="eventsCard" style="display:none;">
@@ -519,6 +538,7 @@ async function showEditor(){
   document.getElementById('dashHeaderCard').style.display = 'block';
   document.getElementById('aiHintsCard').style.display = 'block';
   document.getElementById('aiFeedbackCard').style.display = 'block';
+  document.getElementById('siteFeedbackCard').style.display = 'block';
   document.getElementById('userCreditsCard').style.display = 'block';
   document.getElementById('eventsCard').style.display = 'block';
   document.getElementById('grantCard').style.display = 'block';
@@ -534,6 +554,7 @@ async function showEditor(){
   loadCompedList();
   loadAiHints();
   loadAiFeedback();
+  loadSiteFeedback();
   loadEventsPicker();
   loadTownsList();
   loadMaintenanceStatus();
@@ -917,6 +938,31 @@ async function loadAiFeedback(){
         <div class="feedbackQ">${f.rating === 'up' ? '👍' : '👎'} ${f.question.replace(/</g, '&lt;')}</div>
         <div class="feedbackA">${f.answer.replace(/</g, '&lt;')}</div>
         ${f.comment ? `<div class="feedbackComment">"${f.comment.replace(/</g, '&lt;')}"</div>` : ''}
+        <div class="feedbackMeta">${when}</div>
+      `;
+      box.appendChild(item);
+    });
+  } catch (e) {
+    box.innerHTML = '<p class="sub">Network error.</p>';
+  }
+}
+
+async function loadSiteFeedback(){
+  const box = document.getElementById('siteFeedbackList');
+  box.innerHTML = '<p class="sub">Loading…</p>';
+  try {
+    const res = await fetch(`${API}/list-site-feedback`);
+    const data = await res.json();
+    if (!res.ok) { box.innerHTML = `<p class="sub">${data.error || 'Could not load feedback.'}</p>`; return; }
+    if (!data.feedback || data.feedback.length === 0) { box.innerHTML = '<p class="sub">No feedback yet.</p>'; return; }
+    box.innerHTML = '';
+    data.feedback.forEach(f => {
+      const item = document.createElement('div');
+      item.className = 'feedbackItem';
+      const when = new Date(f.created_at).toLocaleString('fi-FI', { dateStyle: 'short', timeStyle: 'short' });
+      item.innerHTML = `
+        <div class="feedbackQ">${f.message.replace(/</g, '&lt;')}</div>
+        ${f.email ? `<div class="feedbackComment">📧 ${f.email.replace(/</g, '&lt;')}</div>` : ''}
         <div class="feedbackMeta">${when}</div>
       `;
       box.appendChild(item);
@@ -1387,6 +1433,15 @@ async function loadVisitorStats(){
     document.getElementById('visitorsToday').textContent = data.today.toLocaleString('fi-FI');
     document.getElementById('visitorsWeek').textContent = data.last7Days.toLocaleString('fi-FI');
     document.getElementById('visitorsTotal').textContent = data.total.toLocaleString('fi-FI');
+    if (data.questions) {
+      document.getElementById('questionsToday').textContent = data.questions.today.toLocaleString('fi-FI');
+      document.getElementById('questionsWeek').textContent = data.questions.last7Days.toLocaleString('fi-FI');
+      document.getElementById('questionsTotal').textContent = data.questions.total.toLocaleString('fi-FI');
+    }
+    if (data.feedback) {
+      document.getElementById('feedbackUpCount').textContent = data.feedback.up.toLocaleString('fi-FI');
+      document.getElementById('feedbackDownCount').textContent = data.feedback.down.toLocaleString('fi-FI');
+    }
   } catch (e) {
     document.getElementById('visitorStatsRow').innerHTML = '<p class="sub">Could not load visitor stats.</p>';
   }

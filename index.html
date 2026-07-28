@@ -13,6 +13,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PaikallisCanvas — paikallinen tekoälyopas</title>
 <meta name="description" content="PaikallisCanvas on paikallinen tekoälyopas — kysy mitä tehdä, syödä tai kokea Oulussa juuri nyt, vastaukset perustuvat oikeisiin paikallisiin yrityksiin ja tämän päivän tapahtumiin. Yrityksille: mainospaikka jo 5€/kk." />
+<link rel="canonical" id="canonicalLink" href="https://www.paikalliscanvas.fi/oulu" />
 <link rel="manifest" href="/manifest.json" />
 <meta name="theme-color" content="#e08e3e" />
 <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
@@ -355,6 +356,23 @@
   #authModal .authSwitch a{color:#b9773a;cursor:pointer;text-decoration:underline;}
   #authModal .authErr{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
     font-size:12px;margin-bottom:10px;}
+  #feedbackOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
+    align-items:center;justify-content:center;padding:20px;}
+  #feedbackModal{position:relative;background:var(--paper);color:#26210f;width:100%;max-width:380px;
+    border-radius:14px;padding:32px;box-shadow:var(--shadow-lg);font-family:'IBM Plex Sans',sans-serif;}
+  #feedbackModal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 6px;font-size:19px;}
+  #feedbackModal p.authSub{font-size:12.5px;color:#8a8168;margin:0 0 18px;line-height:1.5;}
+  #feedbackModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:#8a8168;
+    background:none;border:none;width:28px;height:28px;border-radius:50%;}
+  #feedbackModal .close:hover{background:rgba(0,0,0,0.06);}
+  #feedbackModal textarea{width:100%;box-sizing:border-box;min-height:100px;padding:10px 12px;margin-bottom:10px;
+    border:1px solid #d8cfb8;border-radius:8px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;resize:vertical;}
+  #feedbackModal input[type=email]{width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:10px;
+    border:1px solid #d8cfb8;border-radius:8px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;}
+  #feedbackModal button.authSubmit{width:100%;background:var(--amber);color:#2a1c0d;border:none;
+    border-radius:8px;padding:11px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;}
+  #feedbackModal .err{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
+    font-size:12px;margin-bottom:10px;}
   #accountBtn{border:none;background:var(--panelT7);border:1px solid var(--line);border-radius:999px;
     padding:0 14px;height:34px;cursor:pointer;font-size:12.5px;color:var(--ink);font-family:'IBM Plex Mono',monospace;
     display:flex;align-items:center;gap:6px;white-space:nowrap;}
@@ -583,6 +601,24 @@
       <button class="authSubmit" id="authBuyCreditsBtn" onclick="buyCredits()" data-i18n="authBuyCredits">Osta 5 lisää -- 0,99 €</button>
       <div class="authSwitch"><a onclick="logoutUser()" data-i18n="authLogout">Kirjaudu ulos</a></div>
       <div class="authSwitch"><a onclick="deleteAccountPrompt()" data-i18n="authDeleteAccount">Poista tilini</a></div>
+    </div>
+  </div>
+</div>
+
+<div id="feedbackOverlay">
+  <div id="feedbackModal">
+    <button class="close" onclick="closeFeedbackModal()">✕</button>
+    <div id="feedbackFormView">
+      <h2 data-i18n="siteFeedbackTitle">Anna palautetta palvelusta</h2>
+      <p class="authSub" data-i18n="siteFeedbackSub">Mikä toimii, mikä ei, mitä toivoisit lisää -- kaikki kelpaa.</p>
+      <textarea id="siteFeedbackMessage" data-i18n-placeholder="siteFeedbackPlaceholder" placeholder="Kerro mielipiteesi..."></textarea>
+      <input type="email" id="siteFeedbackEmail" autocomplete="email" data-i18n-placeholder="siteFeedbackEmailPlaceholder" placeholder="Sähköposti (valinnainen, jos toivot vastausta)">
+      <div class="err" id="siteFeedbackErr"></div>
+      <button class="authSubmit" onclick="submitSiteFeedback()" data-i18n="siteFeedbackSend">Lähetä palaute</button>
+    </div>
+    <div id="feedbackThanksView" style="display:none;">
+      <h2 data-i18n="siteFeedbackThanksTitle">Kiitos palautteesta!</h2>
+      <p class="authSub" data-i18n="siteFeedbackThanksSub">Luemme jokaisen viestin -- tämä auttaa meitä kehittämään palvelua.</p>
     </div>
   </div>
 </div>
@@ -891,6 +927,9 @@
   </div>
 </div>
 
+<p style="text-align:center;margin:0 0 8px;">
+  <a onclick="openFeedbackModal()" style="font-size:13px;color:var(--ink-dim);text-decoration:underline;cursor:pointer;" data-i18n="siteFeedbackLink">Anna palautetta palvelusta</a>
+</p>
 <footer data-i18n="footerText">PaikallisCanvas · paikallinen tekoälyopas</footer>
 
 <script>
@@ -1279,6 +1318,15 @@ const STRINGS = {
     askFeedbackCommentPlaceholder: 'Mikä meni pieleen? (valinnainen)',
     askFeedbackSend: 'Lähetä palaute',
     askFeedbackThanks: 'Kiitos palautteesta!',
+    siteFeedbackLink: 'Anna palautetta palvelusta',
+    siteFeedbackTitle: 'Anna palautetta palvelusta',
+    siteFeedbackSub: 'Mikä toimii, mikä ei, mitä toivoisit lisää -- kaikki kelpaa.',
+    siteFeedbackPlaceholder: 'Kerro mielipiteesi...',
+    siteFeedbackEmailPlaceholder: 'Sähköposti (valinnainen, jos toivot vastausta)',
+    siteFeedbackSend: 'Lähetä palaute',
+    siteFeedbackEmptyErr: 'Kirjoita viesti ensin.',
+    siteFeedbackThanksTitle: 'Kiitos palautteesta!',
+    siteFeedbackThanksSub: 'Luemme jokaisen viestin -- tämä auttaa meitä kehittämään palvelua.',
     askMentionsNote: 'löytyy tämän taulun yrityksistä',
     askFollowupPlaceholder: 'Kysy jotain muuta…',
     installBannerTextChrome: 'Asenna PaikallisCanvas puhelimeesi nopeampaa käyttöä varten.',
@@ -1454,6 +1502,15 @@ const STRINGS = {
     askFeedbackCommentPlaceholder: "What went wrong? (optional)",
     askFeedbackSend: 'Send feedback',
     askFeedbackThanks: 'Thanks for the feedback!',
+    siteFeedbackLink: 'Give feedback about the service',
+    siteFeedbackTitle: 'Give feedback about the service',
+    siteFeedbackSub: "What's working, what isn't, what you'd like to see -- anything goes.",
+    siteFeedbackPlaceholder: 'Tell us what you think...',
+    siteFeedbackEmailPlaceholder: 'Email (optional, if you want a reply)',
+    siteFeedbackSend: 'Send feedback',
+    siteFeedbackEmptyErr: 'Write a message first.',
+    siteFeedbackThanksTitle: 'Thanks for the feedback!',
+    siteFeedbackThanksSub: 'We read every message -- it genuinely helps us improve the service.',
     askMentionsNote: 'is one of the businesses on this board',
     askFollowupPlaceholder: 'Ask something else…',
     installBannerTextChrome: 'Install PaikallisCanvas on your phone for faster access.',
@@ -1797,6 +1854,14 @@ async function openBoard(name, country, population){
     // risk shadowing /admin, /manage, and /generate-hash.
     const cleanSlug = currentTown.slug.replace(/-[a-z]{2}$/i, '');
     history.pushState({}, '', previewMode ? `/${cleanSlug}?preview=1` : `/${cleanSlug}`);
+    // Keeps the canonical tag correct for whichever town this actually
+    // is, not just the static Oulu default in the raw HTML -- matters
+    // once more than one town is public, so each gets treated as its
+    // own real page rather than a duplicate of Oulu's.
+    if (!previewMode) {
+      const canonicalEl = document.getElementById('canonicalLink');
+      if (canonicalEl) canonicalEl.href = `https://www.paikalliscanvas.fi/${cleanSlug}`;
+    }
     document.getElementById('boardTitle').textContent = currentTown.name;
     await loadBoard();
   }catch(e){
@@ -2374,6 +2439,42 @@ document.getElementById('authOverlay').addEventListener('click', (e)=>{
   if (e.target.id === 'authOverlay') closeAuthModal();
 });
 
+function showErr(el, msg){ el.textContent = msg; el.style.display = 'block'; }
+function clearErr(el){ el.textContent = ''; el.style.display = 'none'; }
+
+function openFeedbackModal(){
+  document.getElementById('feedbackFormView').style.display = 'block';
+  document.getElementById('feedbackThanksView').style.display = 'none';
+  document.getElementById('siteFeedbackMessage').value = '';
+  document.getElementById('siteFeedbackEmail').value = '';
+  clearErr(document.getElementById('siteFeedbackErr'));
+  document.getElementById('feedbackOverlay').style.display = 'flex';
+}
+function closeFeedbackModal(){
+  document.getElementById('feedbackOverlay').style.display = 'none';
+}
+document.getElementById('feedbackOverlay').addEventListener('click', (e)=>{
+  if (e.target.id === 'feedbackOverlay') closeFeedbackModal();
+});
+
+async function submitSiteFeedback(){
+  const errBox = document.getElementById('siteFeedbackErr');
+  clearErr(errBox);
+  const message = document.getElementById('siteFeedbackMessage').value.trim();
+  const email = document.getElementById('siteFeedbackEmail').value.trim();
+  if (!message) { showErr(errBox, t('siteFeedbackEmptyErr')); return; }
+  try {
+    await fetch(`${API_BASE}/site-feedback`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ townId: currentTown ? currentTown.id : null, message, email: email || null })
+    });
+  } catch (e) {
+    // best-effort -- still show the thanks view either way, same as the AI-answer feedback buttons do
+  }
+  document.getElementById('feedbackFormView').style.display = 'none';
+  document.getElementById('feedbackThanksView').style.display = 'block';
+}
+
 function setAuthMode(mode){
   authMode = ['login', 'register', 'forgot', 'reset'].includes(mode) ? mode : 'login';
   document.getElementById('authErr').style.display = 'none';
@@ -2783,7 +2884,7 @@ async function askAsk(question, sendBtn){
     if (Array.isArray(data.webResults) && data.webResults.length > 0){
       const resultId = 'askWebResults' + (askResultBlockCounter++);
       html += `<div class="askWebResults" id="${resultId}">` + data.webResults.map((r, i) =>
-        `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? (r.isMapFallback ? '📍' : '🔍') : '↗'}</a>`
+        `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? '🔍' : '↗'}</a>`
       ).join('') + '</div>';
       if (data.webResults.length > 4){
         html += `<button class="askShowMoreBtn logoBtn" data-expanded="false" onclick="toggleAskWebResults('${resultId}', this)">${t('showMore')}</button>`;

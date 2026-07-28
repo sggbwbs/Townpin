@@ -404,9 +404,28 @@ async function handleFeedback(req, res) {
   res.status(200).json({ ok: true });
 }
 
+// General "what do you think of the service" feedback -- distinct from
+// the AI-answer-specific feedback above. Open to anyone, no login
+// required, same reasoning as the AI feedback: gating this behind an
+// account would mean far fewer people ever actually use it.
+async function handleSiteFeedback(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const { townId, message, email } = req.body || {};
+  if (!message || !String(message).trim()) return res.status(400).json({ error: 'Missing message.' });
+
+  const { error } = await supabase.from('site_feedback').insert({
+    town_id: townId || null,
+    message: String(message).trim().slice(0, 2000),
+    email: email ? String(email).trim().slice(0, 200) : null
+  });
+  if (error) { console.error('Site feedback insert failed:', error); return res.status(500).json({ error: 'Could not save feedback.' }); }
+  res.status(200).json({ ok: true });
+}
+
 module.exports = async (req, res) => {
   if (req.query.endpoint === 'user') return handleUser(req, res);
   if (req.query.endpoint === 'feedback') return handleFeedback(req, res);
+  if (req.query.endpoint === 'site-feedback') return handleSiteFeedback(req, res);
   if (req.method !== 'GET') return res.status(405).end();
   if (req.query.endpoint === 'feed') return handleFeed(req, res);
   return handleBoard(req, res);

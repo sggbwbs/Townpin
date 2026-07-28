@@ -578,27 +578,15 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     }
 
     function googleSearchFallback(name, townName) {
-      // Two different kinds of thing end up here, and they need
-      // different fallbacks. Most of the time it's a genuine physical
-      // place (a beach, a trail, a theater, a restaurant) someone wants
-      // to actually go to -- Maps shows the real location, hours,
-      // photos, and reviews directly, a much better fallback than a
-      // generic results page for that case.
-      //
-      // But a real failure this caused: an "Organization - Topic" style
-      // reference (e.g. "Visit Oulu - Luontoreitit", "Oulun kaupunki -
-      // Luontokohteet ja retkeily") is a reference to that organization's
-      // own informational webpage, not a physical destination -- Maps
-      // has no "place" to find for a page title like that and shows
-      // nothing useful. Real place/business names essentially never
-      // contain a literal " - " separator, so that's a reliable enough
-      // signal to fall back to a plain web search instead for this case,
-      // which actually can find that organization's real page.
-      const looksLikeWebReference = / - /.test(name);
-      if (looksLikeWebReference) {
-        return { url: `https://www.google.com/search?q=${encodeURIComponent(`${name} ${townName}`.trim())}`, isMapFallback: false };
-      }
-      return { url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${townName}`.trim())}`, isMapFallback: true };
+      // Plain web search only -- the Maps fallback was removed after
+      // repeated real failures (Google's own Maps search kept resolving
+      // an obscure venue's name to an unrelated, more prominent business
+      // with a similar name, e.g. "Hellahuone" resolving to "Ravintola
+      // Hella" -- not something fixable from this side, since it's
+      // Google's own search behavior, not our query). A plain web search
+      // is a safer, more universally reasonable fallback for both a
+      // physical place and an organizational/informational reference.
+      return { url: `https://www.google.com/search?q=${encodeURIComponent(`${name} ${townName}`.trim())}`, isMapFallback: false };
     }
 
 

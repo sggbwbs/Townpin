@@ -2297,3 +2297,41 @@ can actually find that org's real page), Maps only for a genuine
 place-like name. The chip icon now reflects which one actually
 happened -- 📍 for a real Maps fallback, 🔍 for a plain search
 fallback -- instead of always showing the same icon regardless.
+
+## Maps fallback removed entirely
+
+Even with the smarter routing above, Google's own Maps search kept
+resolving obscure venue names to unrelated, more prominent businesses
+(the recurring Hellahuone/Ravintola Hella case) -- not something
+fixable from this side, since it's Google's own search behavior, not
+our query. Reverted to a plain web search for every fallback case.
+
+## Admin analytics dashboard
+
+Directly answers a specific piece of advice from Uusyrityskeskus's
+feedback email: track visitor counts and search volume from day one.
+Extended the existing visitor-stats card into three sections: page
+views (existing), AI question volume (new -- summed from the same
+tables that already enforce the daily free-question quota, no new
+tracking table needed), and AI feedback tally (new -- up/down counts
+from `ai_feedback`).
+
+## General site feedback form
+
+Distinct from the AI-answer-specific 👍/👎 feedback -- this is "what do
+you think of the service overall," reachable from a link near the
+footer on the main site. New `site_feedback` table, new public
+`/api/site-feedback` endpoint (no login required, same reasoning as
+the AI feedback), new admin card to actually read submissions.
+
+## Fixed a real SEO issue found via Search Console
+
+No canonical tag existed anywhere in the page at all. Since `/`,
+`/oulu`, and `/board/oulu-fi` are all Vercel rewrites to the exact
+same `index.html`, Google was seeing several different URLs serving
+byte-identical content with no signal for which one to treat as the
+real page -- exactly "Duplicate without user-selected canonical" in
+Search Console's own report. Added a canonical tag, defaulting to
+`/oulu` (the current homepage default) and updating dynamically once
+a specific town resolves, so a second city's page correctly
+canonicalizes to itself instead of incorrectly pointing at Oulu.
