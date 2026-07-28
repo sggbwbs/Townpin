@@ -512,6 +512,9 @@
   .askMentionChip{font-size:14px;padding:9px 18px;border-radius:999px;border:1px solid var(--amber);
     background:var(--amber);color:#2a1c0d;font-weight:700;text-decoration:none;}
   .askMentionChip:hover{background:var(--amber-deep);border-color:var(--amber-deep);}
+  .askAdvertiserTag{display:inline-block;background:rgba(0,0,0,0.16);color:#2a1c0d;font-weight:700;
+    font-size:10px;text-transform:uppercase;letter-spacing:0.03em;padding:2px 7px;border-radius:999px;
+    margin:0 2px;vertical-align:middle;}
   .askWebResults{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
   .askMap{height:220px;border-radius:10px;margin-top:12px;overflow:hidden;border:1px solid var(--line);}
   .askWebResultChip{font-size:14px;padding:9px 18px;border-radius:999px;border:1px solid var(--line);
@@ -1327,7 +1330,8 @@ const STRINGS = {
     siteFeedbackEmptyErr: 'Kirjoita viesti ensin.',
     siteFeedbackThanksTitle: 'Kiitos palautteesta!',
     siteFeedbackThanksSub: 'Luemme jokaisen viestin -- tämä auttaa meitä kehittämään palvelua.',
-    askMentionsNote: 'löytyy tämän taulun yrityksistä',
+    askMentionsNote: 'maksanut mainostaja tällä alustalla -- ei tavallinen hakutulos',
+    askAdvertiserTag: 'Mainostaja',
     askFollowupPlaceholder: 'Kysy jotain muuta…',
     installBannerTextChrome: 'Asenna PaikallisCanvas puhelimeesi nopeampaa käyttöä varten.',
     installBannerButton: 'Asenna',
@@ -1511,7 +1515,8 @@ const STRINGS = {
     siteFeedbackEmptyErr: 'Write a message first.',
     siteFeedbackThanksTitle: 'Thanks for the feedback!',
     siteFeedbackThanksSub: 'We read every message -- it genuinely helps us improve the service.',
-    askMentionsNote: 'is one of the businesses on this board',
+    askMentionsNote: 'a paying advertiser on this platform -- not an ordinary search result',
+    askAdvertiserTag: 'Advertiser',
     askFollowupPlaceholder: 'Ask something else…',
     installBannerTextChrome: 'Install PaikallisCanvas on your phone for faster access.',
     installBannerButton: 'Install',
@@ -2854,7 +2859,7 @@ async function askAsk(question, sendBtn){
     if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
       html += '<p class="askMentionsNote">📍 = ' + t('askMentionsNote') + '</p>';
       html += '<div class="askMentions">' + data.mentioned.map(m =>
-        `<a class="askMentionChip" href="/pin/${m.squareId}?lang=${lang}" target="_blank" rel="noopener">📍 ${escapeAskText(m.name)} ↗</a>`
+        `<a class="askMentionChip" href="/pin/${m.squareId}?lang=${lang}" target="_blank" rel="noopener">📍 ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`
       ).join('') + '</div>';
       // The banner now paginates (see renderLogoBanner) -- if a business
       // just recommended here isn't on whatever page happens to be
