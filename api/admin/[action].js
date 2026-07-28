@@ -806,11 +806,16 @@ async function handleVisitorStats(req, res) {
     // ask_agent_log (anonymous) and user_ai_usage (logged-in) are the
     // same two tables already used to enforce the daily free-question
     // quota -- summing them gives real total AI question volume without
-    // needing a separate tracking table just for this dashboard.
+    // needing a separate tracking table just for this dashboard. Kept
+    // separately too (anonymous/loggedIn), not just the sum, since
+    // knowing the split matters for understanding who's actually using
+    // the AI chat.
     const questions = {
       total: anonQuestions.total + userQuestions.total,
       today: anonQuestions.today + userQuestions.today,
-      last7Days: anonQuestions.last7Days + userQuestions.last7Days
+      last7Days: anonQuestions.last7Days + userQuestions.last7Days,
+      anonymous: anonQuestions,
+      loggedIn: userQuestions
     };
 
     res.status(200).json({
@@ -821,6 +826,59 @@ async function handleVisitorStats(req, res) {
   } catch (err) {
     console.error('Visitor stats lookup failed:', err);
     res.status(500).json({ error: 'Could not load visitor stats.' });
+  }
+}
+
+// Aggregates business_clicks and business_mentions by company name
+// (not raw square_id, since a business owner cares about "my business's
+// total numbers", not an internal id) -- scoped to whichever town is
+// currently selected in the admin panel. Small-scale aggregation done
+// here rather than a database RPC, which is fine at this pilot's size;
+// worth moving to real SQL aggregation if the squares/click volume
+// grows enough for this to matter.
+async function handleBusinessEngagement(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { townId } = req.query;
+  try {
+    let squaresQuery = supabase.from('squares').select('id, company_name').eq('status', 'active');
+    if (townId) squaresQuery = squaresQuery.eq('town_id', townId);
+    const { data: squares, error: squaresErr } = await squaresQuery;
+    if (squaresErr) throw squaresErr;
+
+    const squareToCompany = new Map(squares.map(s => [s.id, s.company_name]));
+    const squareIds = squares.map(s => s.id);
+    if (squareIds.length === 0) return res.status(200).json({ businesses: [] });
+
+    const [{ data: clicks, error: clicksErr }, { data: mentions, error: mentionsErr }] = await Promise.all([
+      supabase.from('business_clicks').select('square_id').in('square_id', squareIds),
+      supabase.from('business_mentions').select('square_id').in('square_id', squareIds)
+    ]);
+    if (clicksErr) throw clicksErr;
+    if (mentionsErr) throw mentionsErr;
+
+    const counts = new Map(); // company_name -> { clicks, mentions }
+    for (const c of (clicks || [])) {
+      const name = squareToCompany.get(c.square_id);
+      if (!name) continue;
+      if (!counts.has(name)) counts.set(name, { clicks: 0, mentions: 0 });
+      counts.get(name).clicks++;
+    }
+    for (const m of (mentions || [])) {
+      const name = squareToCompany.get(m.square_id);
+      if (!name) continue;
+      if (!counts.has(name)) counts.set(name, { clicks: 0, mentions: 0 });
+      counts.get(name).mentions++;
+    }
+
+    const businesses = [...counts.entries()]
+      .map(([name, c]) => ({ name, clicks: c.clicks, mentions: c.mentions }))
+      .sort((a, b) => (b.clicks + b.mentions) - (a.clicks + a.mentions))
+      .slice(0, 50);
+
+    res.status(200).json({ businesses });
+  } catch (err) {
+    console.error('Business engagement lookup failed:', err);
+    res.status(500).json({ error: 'Could not load business engagement.' });
   }
 }
 
@@ -990,6 +1048,7 @@ module.exports = async (req, res) => {
     case 'maintenance-status': return handleMaintenanceStatus(req, res);
     case 'track-visit': return handleTrackVisit(req, res);
     case 'visitor-stats': return handleVisitorStats(req, res);
+    case 'business-engagement': return handleBusinessEngagement(req, res);
     case 'cost-estimate': return handleCostEstimate(req, res);
     case 'set-budget': return handleSetBudget(req, res);
     case 'set-maintenance': return handleSetMaintenance(req, res);

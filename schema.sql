@@ -505,3 +505,25 @@ create table if not exists site_feedback (
 );
 create index if not exists site_feedback_created_idx on site_feedback (created_at desc);
 
+-- ==== Per-business engagement tracking ====
+-- Two separate events, both keyed by square_id (the same representative
+-- square id used everywhere else -- pin pages, mentioned/webResults
+-- linking): a click (logo banner, a mentioned chip in the AI chat) and
+-- an AI mention (this business appeared in mentioned for a real
+-- answer, whether or not anyone clicked it). Kept as raw event rows,
+-- not just a running counter column -- lets the admin see a real trend
+-- over time later, not just a lifetime total.
+create table if not exists business_clicks (
+  id bigserial primary key,
+  square_id bigint not null references squares(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+create index if not exists business_clicks_square_idx on business_clicks (square_id, created_at desc);
+
+create table if not exists business_mentions (
+  id bigserial primary key,
+  square_id bigint not null references squares(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+create index if not exists business_mentions_square_idx on business_mentions (square_id, created_at desc);
+

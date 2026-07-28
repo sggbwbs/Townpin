@@ -2335,3 +2335,36 @@ Search Console's own report. Added a canonical tag, defaulting to
 `/oulu` (the current homepage default) and updating dynamically once
 a specific town resolves, so a second city's page correctly
 canonicalizes to itself instead of incorrectly pointing at Oulu.
+
+## Map point cap, and why a business's pin can be missing
+
+Added a cap (10 points) to the AI chat's map so a long answer with
+many results doesn't clutter it -- paid/board businesses were already
+structurally first in the point list (spread first in the array), so
+they're never pushed out by this cap.
+
+Separately, worth knowing generally: a board business's map pin comes
+from its own stored `lat`/`lng` -- if a business's address never
+successfully geocoded at signup (or geocoding silently failed), those
+fields are simply null and no pin shows, regardless of how prominently
+the business is mentioned. Not a cost issue (geocoding via Nominatim
+is free regardless of volume) -- the fix is re-saving that business's
+address in the admin panel to trigger a fresh geocode attempt.
+
+## New: per-business engagement tracking, and a fuller analytics picture
+
+Two new tables, `business_clicks` and `business_mentions`, both keyed
+by the same representative square id used everywhere else (pin pages,
+AI-chat linking). Clicks are tracked from the logo banner and from a
+mentioned chip in the AI chat (fire-and-forget, never blocks the real
+link). Mentions are tracked server-side in `ask.js` itself, automatic
+whenever a business is genuinely recommended -- no client action
+needed, and it captures being recommended even if nobody clicks it.
+
+New admin card, "Yritysten näkyvyys" -- a leaderboard of clicks and
+mentions per business, scoped to whichever town is currently selected.
+
+Also split out the existing question-volume stat into anonymous vs.
+logged-in, not just a combined total -- both numbers were already
+being computed to calculate the sum, just not surfaced separately
+before.

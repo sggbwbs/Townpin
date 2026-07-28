@@ -1906,10 +1906,23 @@ let logoBannerPageIndex = 0;
 let logoBannerInterval = null;
 const LOGO_BANNER_ADVANCE_MS = 5000;
 
+// Fire-and-forget, same pattern as the page-view tracker -- never
+// blocks or interferes with the actual link navigation (both call
+// sites use a plain <a> tag with a real href, this just fires
+// alongside it). squareId is always the same representative id already
+// used for pin pages and AI-chat linking, so business_clicks lines up
+// directly with business_mentions for the admin dashboard.
+function trackBusinessClick(squareId){
+  fetch(`${API_BASE}/track-click`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ squareId })
+  }).catch(() => {});
+}
+
 function logoTileHtml(b){
   const tierClass = b.isLegendary ? ' logoBannerLegendary' : (b.isPremium ? ' logoBannerPremium' : '');
   return `<a class="logoBannerItem${tierClass}" href="/pin/${b.rep.id}?lang=${lang}" target="_blank" rel="noopener"
-     data-company="${escapeAskText(b.rep.company_name || '')}"
+     data-company="${escapeAskText(b.rep.company_name || '')}" onclick="trackBusinessClick(${b.rep.id})"
      style="width:${b.size}px;height:${b.size}px;" title="${escapeAskText(b.rep.company_name || '')}">
     ${b.isLegendary ? '<span class="logoBannerCrown">👑</span>' : ''}
     <img src="${b.rep.logo_url}" alt="${escapeAskText(b.rep.company_name || '')}" loading="lazy" />
@@ -2859,7 +2872,7 @@ async function askAsk(question, sendBtn){
     if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
       html += '<p class="askMentionsNote">📍 = ' + t('askMentionsNote') + '</p>';
       html += '<div class="askMentions">' + data.mentioned.map(m =>
-        `<a class="askMentionChip" href="/pin/${m.squareId}?lang=${lang}" target="_blank" rel="noopener">📍 ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`
+        `<a class="askMentionChip" href="/pin/${m.squareId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${m.squareId})">📍 ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`
       ).join('') + '</div>';
       // The banner now paginates (see renderLogoBanner) -- if a business
       // just recommended here isn't on whatever page happens to be
@@ -2873,12 +2886,13 @@ async function askAsk(question, sendBtn){
     // always have real, stored ones (never AI-supplied); general places
     // only get a pin when the model found (and we successfully geocoded)
     // a genuine address, never a guessed one. No pin for something is
-    // normal and expected, not an error. Sits between the promoted
-    // (mentioned) chips above and the unpromoted (webResults) ones below.
+    // normal and expected, not an error. Paid/board businesses are
+    // listed first below, so they're always included ahead of the cap
+    // if there are more real points than the map can reasonably show.
     const mapPoints = [
       ...(Array.isArray(data.mentioned) ? data.mentioned : []),
       ...(Array.isArray(data.webResults) ? data.webResults : [])
-    ].filter(p => typeof p.lat === 'number' && typeof p.lng === 'number');
+    ].filter(p => typeof p.lat === 'number' && typeof p.lng === 'number').slice(0, 10);
 
     let mapId = null;
     if (mapPoints.length > 0){

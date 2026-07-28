@@ -109,17 +109,24 @@
   </div>
 
   <p class="sub" style="margin-bottom:6px;">Tekoälykysymykset (ilmaiset + ostetut, kaikki käyttäjät yhteensä).</p>
-  <div id="questionStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
+  <div id="questionStatsRow" style="display:flex;gap:24px;margin-bottom:6px;">
     <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="questionsToday">–</b><span class="sub" style="margin:0;">Tänään</span></div>
     <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="questionsWeek">–</b><span class="sub" style="margin:0;">7 päivää</span></div>
     <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="questionsTotal">–</b><span class="sub" style="margin:0;">Yhteensä</span></div>
   </div>
+  <p class="sub" id="questionsBreakdown" style="margin-bottom:18px;">–</p>
 
   <p class="sub" style="margin-bottom:6px;">Tekoälyvastausten palaute (👍/👎-napit).</p>
   <div id="feedbackStatsRow" style="display:flex;gap:24px;">
     <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#4a7a5c;" id="feedbackUpCount">–</b><span class="sub" style="margin:0;">👍 Hyvä</span></div>
     <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#b8452f;" id="feedbackDownCount">–</b><span class="sub" style="margin:0;">👎 Huono</span></div>
   </div>
+</div>
+
+<div class="card" id="businessEngagementCard" style="display:none;">
+  <h1>Yritysten näkyvyys</h1>
+  <p class="sub" style="margin-bottom:14px;">Kuinka moni klikkasi kunkin yrityksen logoa/mainintaa, ja kuinka monta kertaa tekoäly suositteli heitä vastauksissa -- valitun kaupungin yritykset.</p>
+  <div id="businessEngagementList"><p class="sub">Loading…</p></div>
 </div>
 
 <div class="card" id="costCard" style="display:none;">
@@ -540,6 +547,7 @@ async function showEditor(){
   document.getElementById('aiFeedbackCard').style.display = 'block';
   document.getElementById('siteFeedbackCard').style.display = 'block';
   document.getElementById('userCreditsCard').style.display = 'block';
+  document.getElementById('businessEngagementCard').style.display = 'block';
   document.getElementById('eventsCard').style.display = 'block';
   document.getElementById('grantCard').style.display = 'block';
   document.getElementById('moveCard').style.display = 'block';
@@ -556,6 +564,7 @@ async function showEditor(){
   loadAiFeedback();
   loadSiteFeedback();
   loadEventsPicker();
+  loadBusinessEngagement();
   loadTownsList();
   loadMaintenanceStatus();
   loadVisitorStats();
@@ -781,6 +790,7 @@ document.getElementById('globalTownSelect').addEventListener('change', (e) => {
   loadAiHints();
   loadAiFeedback();
   loadEventsPicker();
+  loadBusinessEngagement();
 });
 
 function currentAdminTownName(){
@@ -966,6 +976,31 @@ async function loadSiteFeedback(){
         <div class="feedbackMeta">${when}</div>
       `;
       box.appendChild(item);
+    });
+  } catch (e) {
+    box.innerHTML = '<p class="sub">Network error.</p>';
+  }
+}
+
+async function loadBusinessEngagement(){
+  const box = document.getElementById('businessEngagementList');
+  if (!currentAdminTownId) { box.innerHTML = '<p class="sub">No towns yet.</p>'; return; }
+  box.innerHTML = '<p class="sub">Loading…</p>';
+  try {
+    const res = await fetch(`${API}/business-engagement?townId=${currentAdminTownId}`);
+    const data = await res.json();
+    if (!res.ok) { box.innerHTML = `<p class="sub">${data.error || 'Could not load business engagement.'}</p>`; return; }
+    if (!data.businesses || data.businesses.length === 0) { box.innerHTML = '<p class="sub">No clicks or mentions recorded yet for this town.</p>'; return; }
+    box.innerHTML = '';
+    data.businesses.forEach(b => {
+      const row = document.createElement('div');
+      row.className = 'feedbackItem';
+      row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+      row.innerHTML = `
+        <span class="feedbackQ" style="margin:0;">${b.name.replace(/</g, '&lt;')}</span>
+        <span class="feedbackMeta" style="white-space:nowrap;">👆 ${b.clicks} klikkausta &nbsp; · &nbsp; 💬 ${b.mentions} mainintaa</span>
+      `;
+      box.appendChild(row);
     });
   } catch (e) {
     box.innerHTML = '<p class="sub">Network error.</p>';
@@ -1437,6 +1472,10 @@ async function loadVisitorStats(){
       document.getElementById('questionsToday').textContent = data.questions.today.toLocaleString('fi-FI');
       document.getElementById('questionsWeek').textContent = data.questions.last7Days.toLocaleString('fi-FI');
       document.getElementById('questionsTotal').textContent = data.questions.total.toLocaleString('fi-FI');
+      if (data.questions.anonymous && data.questions.loggedIn) {
+        document.getElementById('questionsBreakdown').textContent =
+          `Anonyymit: ${data.questions.anonymous.total.toLocaleString('fi-FI')} · Kirjautuneet: ${data.questions.loggedIn.total.toLocaleString('fi-FI')}`;
+      }
     }
     if (data.feedback) {
       document.getElementById('feedbackUpCount').textContent = data.feedback.up.toLocaleString('fi-FI');

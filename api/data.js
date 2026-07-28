@@ -422,10 +422,25 @@ async function handleSiteFeedback(req, res) {
   res.status(200).json({ ok: true });
 }
 
+// Fire-and-forget click tracking for a business -- the logo banner, a
+// mentioned chip in the AI chat -- same openness as page-view tracking
+// (no login, no rate limit beyond normal abuse protection at the
+// platform level). Never blocks or fails visibly on the frontend side;
+// this is purely for the admin analytics dashboard.
+async function handleTrackBusinessClick(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const { squareId } = req.body || {};
+  if (!squareId) return res.status(400).json({ error: 'Missing squareId.' });
+  const { error } = await supabase.from('business_clicks').insert({ square_id: squareId });
+  if (error) { console.error('Business click tracking failed:', error); return res.status(500).json({ error: 'Could not record click.' }); }
+  res.status(204).end();
+}
+
 module.exports = async (req, res) => {
   if (req.query.endpoint === 'user') return handleUser(req, res);
   if (req.query.endpoint === 'feedback') return handleFeedback(req, res);
   if (req.query.endpoint === 'site-feedback') return handleSiteFeedback(req, res);
+  if (req.query.endpoint === 'track-click') return handleTrackBusinessClick(req, res);
   if (req.method !== 'GET') return res.status(405).end();
   if (req.query.endpoint === 'feed') return handleFeed(req, res);
   return handleBoard(req, res);

@@ -717,6 +717,17 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
         lng: typeof b.lng === 'number' ? b.lng : null
       }));
 
+    // Fire-and-forget -- never awaited, never allowed to affect the
+    // actual response either way. Tracks that the AI genuinely
+    // recommended this business, regardless of whether the visitor goes
+    // on to click it -- a different, complementary number to click
+    // tracking for the admin analytics dashboard.
+    if (mentioned.length > 0) {
+      supabase.from('business_mentions')
+        .insert(mentioned.map(m => ({ square_id: m.squareId })))
+        .then(() => {}, (err) => console.error('Business mention tracking failed (non-fatal):', err));
+    }
+
     // A place can end up in webResults two ways: the model found a
     // confident direct URL (validated above), or it named a place but
     // wasn't confident about a specific link (or didn't include one at

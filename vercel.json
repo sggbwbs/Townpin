@@ -10,6 +10,7 @@
     { "source": "/api/feed", "destination": "/api/data?endpoint=feed" },
     { "source": "/api/feedback", "destination": "/api/data?endpoint=feedback" },
     { "source": "/api/site-feedback", "destination": "/api/data?endpoint=site-feedback" },
+    { "source": "/api/track-click", "destination": "/api/data?endpoint=track-click" },
     { "source": "/api/user/:action", "destination": "/api/data?endpoint=user&action=:action" }
   ],
   "crons": [
