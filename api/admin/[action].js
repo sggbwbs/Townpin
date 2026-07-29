@@ -9,6 +9,8 @@ const { isAuthenticated, getAdminSession, setSessionCookie, clearSessionCookie, 
 const { pickRandomEmptySquares, insertSquaresWithRetry } = require('../_squares');
 const { geocodeAddress } = require('../_geocode');
 
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
 const MAX_ATTEMPTS = 5;
 const WINDOW_MINUTES = 15;
 
@@ -331,6 +333,37 @@ async function handleSetUnlimitedSearches(req, res) {
   res.status(200).json({ ok: true, user: updated });
 }
 
+// Sets (or clears) the current sponsor of the daily shareable "today
+// card" for a town. Deliberately admin-managed, not a self-serve
+// purchase -- always deactivates any existing sponsor for the town
+// first, so there's only ever one active at a time, matching the
+// "one sponsor slot" design.
+async function handleSetTodayCardSponsor(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { townId, companyName, logoUrl, customText, clear } = req.body || {};
+  if (!townId) return res.status(400).json({ error: 'Missing townId.' });
+
+  const { error: deactivateErr } = await supabase
+    .from('today_card_sponsor').update({ active: false }).eq('town_id', townId).eq('active', true);
+  if (deactivateErr) { console.error(deactivateErr); return res.status(500).json({ error: 'Could not update sponsor.' }); }
+
+  if (clear) return res.status(200).json({ ok: true });
+
+  if (!companyName || !logoUrl || !customText) {
+    return res.status(400).json({ error: 'Missing companyName, logoUrl, or customText.' });
+  }
+  const { error } = await supabase.from('today_card_sponsor').insert({
+    town_id: townId,
+    company_name: String(companyName).trim().slice(0, 200),
+    logo_url: String(logoUrl).trim(),
+    custom_text: String(customText).trim().slice(0, 200),
+    active: true
+  });
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not save sponsor.' }); }
+  res.status(200).json({ ok: true });
+}
+
 // Lets the admin actually read real feedback -- the real question, the
 // real (possibly bad) answer, and any comment -- rather than only ever
 // finding out about a bad answer from a screenshot someone happened to
@@ -349,6 +382,62 @@ async function handleListAiFeedback(req, res) {
   const { data, error } = await query;
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not load feedback.' }); }
   res.status(200).json({ feedback: data || [] });
+}
+
+// This is the real, safe version of "automatically develop the chat from
+// feedback" -- it does NOT change the live prompt itself. Reading every
+// piece of feedback individually doesn't scale; this summarizes the
+// recurring THEMES across recent down-votes (with comments, since those
+// carry the most actionable detail) so a person can decide what's
+// actually worth fixing and test the change properly -- the same
+// judgment call this whole project's prompt history has depended on
+// every time, not something safe to skip by automating it away.
+// On-demand only (a button in the admin panel), never run on a
+// schedule -- keeps the cost small and deliberate rather than an
+// ongoing background job nobody's watching.
+async function handleSummarizeFeedback(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'AI summarization is not configured.' });
+  const { townId } = req.query;
+
+  let query = supabase.from('ai_feedback')
+    .select('question, answer, rating, comment, created_at')
+    .eq('rating', 'down')
+    .order('created_at', { ascending: false })
+    .limit(60); // recent-first, capped so this stays a quick, cheap on-demand call
+  if (townId) query = query.eq('town_id', townId);
+  const { data: feedback, error } = await query;
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not load feedback.' }); }
+  if (!feedback || feedback.length === 0) {
+    return res.status(200).json({ summary: 'Ei riittävästi negatiivista palautetta yhteenvedon tekemiseen vielä.' });
+  }
+
+  const feedbackText = feedback.map((f, i) =>
+    `${i + 1}. Kysymys: "${f.question}"\nVastaus: "${f.answer.slice(0, 500)}"${f.comment ? `\nKommentti: "${f.comment}"` : ''}`
+  ).join('\n\n');
+
+  const prompt = `Alla on ${feedback.length} tuoretta 👎-palautetta PaikallisCanvas-nimisen paikallisen tekoälyoppaan vastauksista (kysymys, vastaus, ja mahdollinen käyttäjän kommentti). Tunnista 3-5 todella toistuvaa ongelmaa tai teemaa -- ei jokaista yksittäistä tapausta erikseen, vaan oikeasti useammin kuin kerran esiintyviä kaavoja. Jokaisesta teemasta: lyhyt kuvaus (1-2 lausetta) ja konkreettinen esimerkki jostain yllä olevasta tapauksesta. Jos palautteesta ei löydy mitään selkeää toistuvaa kaavaa, sano se suoraan sen sijaan että keksit teemoja joita ei oikeasti ole. Vastaa suomeksi, selkeällä listalla, ei JSON-muodossa.
+
+${feedbackText}`;
+
+  try {
+    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1200,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const aiData = await aiRes.json();
+    const summary = (aiData.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+    if (!summary) return res.status(500).json({ error: 'Yhteenvedon luonti epäonnistui.' });
+    res.status(200).json({ summary, analyzedCount: feedback.length });
+  } catch (err) {
+    console.error('Feedback summarization failed:', err);
+    res.status(500).json({ error: 'Yhteenvedon luonti epäonnistui.' });
+  }
 }
 
 // General site feedback -- shown across all towns by default (not
@@ -1034,7 +1123,9 @@ module.exports = async (req, res) => {
     case 'find-user-credits': return handleFindUserCredits(req, res);
     case 'adjust-user-credits': return handleAdjustUserCredits(req, res);
     case 'set-unlimited-searches': return handleSetUnlimitedSearches(req, res);
+    case 'set-today-card-sponsor': return handleSetTodayCardSponsor(req, res);
     case 'list-ai-feedback': return handleListAiFeedback(req, res);
+    case 'summarize-feedback': return handleSummarizeFeedback(req, res);
     case 'list-site-feedback': return handleListSiteFeedback(req, res);
     case 'delete-ai-hint': return handleDeleteAiHint(req, res);
     case 'reassign-ai-hint': return handleReassignAiHint(req, res);
