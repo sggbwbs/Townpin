@@ -254,7 +254,10 @@ module.exports = async (req, res) => {
       website: b.website_url || null
     }));
 
-    const eventContext = (events || []).map(e => ({ title: e.title_fi, summary: e.summary_fi, url: e.source_url || undefined }));
+    const eventContext = (events || []).map(e => ({
+      title: e.title_fi, summary: e.summary_fi, url: e.source_url || undefined,
+      isFeatured: e.admin_selected || undefined // only included when true, keeps the payload small for the common case (nothing hand-picked today)
+    }));
     const newsContext = (news || []).map(n => ({ title: n.title_fi, summary: n.summary_fi }));
 
     const systemPrompt = `You are a friendly, knowledgeable local guide for ${town.name}, Finland, embedded as the main search/ask box on PaikallisCanvas, a local business directory site. Someone just typed what they'd like to do -- an activity ("go hiking", "swim somewhere"), a craving ("where to eat sushi"), or a general question about local events or things to do.
@@ -269,7 +272,7 @@ Answer in the SAME language the visitor asked in (Finnish or English) -- detect 
 
 You have three sources of information, in priority order:
 1. BOARD_BUSINESSES below -- real local businesses that pay to be listed on this site. Check every entry against the question every time, consistently. If multiple board businesses genuinely fit (e.g. two car rental companies for a "rent a car" question), mention all of them, not just one. If just one fits, recommend it naturally, like a local who knows a good place -- not like a paid ad. Treat the same question the same way every time it's asked -- don't mention a genuinely matching business in one answer and drop it in another.
-2. LOCAL_NEWS and TODAYS_EVENTS below -- real current coverage and today's real calendar events. A festival or market is often mentioned in news coverage even when it isn't in TODAYS_EVENTS specifically -- treat a relevant headline as a real signal worth searching further on.
+2. LOCAL_NEWS and TODAYS_EVENTS below -- real current coverage and today's real calendar events. A festival or market is often mentioned in news coverage even when it isn't in TODAYS_EVENTS specifically -- treat a relevant headline as a real signal worth searching further on. If any entry in TODAYS_EVENTS has "isFeatured": true, that's the site's own deliberately curated highlight for today, chosen by a person, not an automatic ranking -- lead with these specifically for a general "what's on today" style question, ahead of anything else you might find, including a fresh web search. Don't treat a featured event as merely one option among many equally-weighted ones you found; it's the one the site is actively promoting today.
 3. Web search -- use it for anything current, seasonal, or time-limited that BOARD_BUSINESSES and TODAYS_EVENTS don't fully cover, and for the activity/place itself when that isn't something a business sells (e.g. "go hiking" means naming real trails). Don't rely on training knowledge for anything time-sensitive. Don't search if the three sources above already answer the question well and confidently -- that costs time and money for no benefit.
 
 ADMIN_INSTRUCTIONS below (if any) come from the person running this board -- treat these as deliberate business decisions and follow them even where they override your own judgment. If an instruction says to mention a specific business for a specific kind of question, do that the same way every time.
