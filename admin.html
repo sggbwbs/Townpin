@@ -129,6 +129,28 @@
   <div id="businessEngagementList"><p class="sub">Loading…</p></div>
 </div>
 
+<div class="card" id="todayCardSponsorCard" style="display:none;">
+  <h1>Tänään-kortin sponsori</h1>
+  <p class="sub" style="margin-bottom:14px;">Yksi yritys kerrallaan, näkyy oikeassa alakulmassa jaettavassa "Tänään" -kuvassa. Ei itsepalveluostoa -- tämä on tarkoituksella admin-hallittu, kunnes hinta ja kesto on päätetty.</p>
+  <p class="sub" id="todayCardSponsorCurrent" style="font-weight:700;margin-bottom:14px;">Ladataan…</p>
+  <div class="field">
+    <label>Yrityksen nimi</label>
+    <input type="text" id="sponsorCompanyName" placeholder="esim. Kotigalleria LKV" />
+  </div>
+  <div class="field">
+    <label>Logon osoite (URL)</label>
+    <input type="text" id="sponsorLogoUrl" placeholder="https://..." />
+  </div>
+  <div class="field">
+    <label>Teksti kortille</label>
+    <input type="text" id="sponsorCustomText" placeholder="esim. Kysy meiltä ilmainen arvio kodillesi!" />
+  </div>
+  <button id="saveSponsorBtn">Tallenna sponsori</button>
+  <button id="clearSponsorBtn" style="background:none;border:1px solid #d8cfb4;color:#5c5440;margin-left:8px;">Poista sponsori</button>
+  <span class="saved" id="sponsorSavedMsg">✓ Tallennettu</span>
+  <div class="err" id="sponsorErr"></div>
+</div>
+
 <div class="card" id="costCard" style="display:none;">
   <h1>AI-kustannukset</h1>
   <p class="sub" style="margin-bottom:14px;">
@@ -242,7 +264,12 @@
 <div class="card" id="aiFeedbackCard" style="display:none;">
   <h1>AI chat feedback</h1>
   <p class="sub">Real 👍/👎 feedback from visitors on actual answers -- this doesn't retrain the AI itself (there's no such pipeline), but it's the most direct way to see which real questions got a bad answer, with the actual question and answer text right here to read.</p>
-  <div style="display:flex;gap:8px;margin-bottom:14px;">
+  <button id="summarizeFeedbackBtn">✨ Analysoi 👎-palaute tekoälyllä</button>
+  <p class="sub" style="margin-top:6px;">Tunnistaa toistuvat teemat viimeisimmästä 👎-palautteesta -- ei muuta mitään automaattisesti, vain auttaa näkemään mikä on oikeasti toistuva ongelma sen sijaan, että lukisi jokaisen erikseen.</p>
+  <div id="feedbackSummaryResult" style="display:none;background:#f7f2e2;border-radius:8px;padding:14px 16px;margin:12px 0;white-space:pre-wrap;font-size:13.5px;line-height:1.5;"></div>
+  <div class="err" id="summarizeFeedbackErr"></div>
+
+  <div style="display:flex;gap:8px;margin:18px 0 14px;">
     <button id="feedbackFilterAll" class="feedbackFilterBtn active">All</button>
     <button id="feedbackFilterDown" class="feedbackFilterBtn">👎 Down only</button>
     <button id="feedbackFilterUp" class="feedbackFilterBtn">👍 Up only</button>
@@ -548,6 +575,7 @@ async function showEditor(){
   document.getElementById('siteFeedbackCard').style.display = 'block';
   document.getElementById('userCreditsCard').style.display = 'block';
   document.getElementById('businessEngagementCard').style.display = 'block';
+  document.getElementById('todayCardSponsorCard').style.display = 'block';
   document.getElementById('eventsCard').style.display = 'block';
   document.getElementById('grantCard').style.display = 'block';
   document.getElementById('moveCard').style.display = 'block';
@@ -565,6 +593,7 @@ async function showEditor(){
   loadSiteFeedback();
   loadEventsPicker();
   loadBusinessEngagement();
+  loadTodayCardSponsor();
   loadTownsList();
   loadMaintenanceStatus();
   loadVisitorStats();
@@ -791,6 +820,7 @@ document.getElementById('globalTownSelect').addEventListener('change', (e) => {
   loadAiFeedback();
   loadEventsPicker();
   loadBusinessEngagement();
+  loadTodayCardSponsor();
 });
 
 function currentAdminTownName(){
@@ -1007,6 +1037,69 @@ async function loadBusinessEngagement(){
   }
 }
 
+async function loadTodayCardSponsor(){
+  const label = document.getElementById('todayCardSponsorCurrent');
+  if (!currentAdminTownId) { label.textContent = 'No towns yet.'; return; }
+  label.textContent = 'Ladataan…';
+  try {
+    // Reuses the same public, read-only endpoint the today-card page
+    // itself calls -- no separate admin-only read needed for this.
+    const res = await fetch(`/api/today-card-sponsor?townId=${currentAdminTownId}`);
+    const data = await res.json();
+    if (data.sponsor) {
+      label.textContent = `Nykyinen sponsori: ${data.sponsor.companyName}`;
+      document.getElementById('sponsorCompanyName').value = data.sponsor.companyName;
+      document.getElementById('sponsorLogoUrl').value = data.sponsor.logoUrl;
+      document.getElementById('sponsorCustomText').value = data.sponsor.customText;
+    } else {
+      label.textContent = 'Ei sponsoria juuri nyt.';
+      document.getElementById('sponsorCompanyName').value = '';
+      document.getElementById('sponsorLogoUrl').value = '';
+      document.getElementById('sponsorCustomText').value = '';
+    }
+  } catch (e) {
+    label.textContent = 'Network error.';
+  }
+}
+
+document.getElementById('saveSponsorBtn').addEventListener('click', async () => {
+  const errBox = document.getElementById('sponsorErr');
+  clearErr(errBox);
+  const companyName = document.getElementById('sponsorCompanyName').value.trim();
+  const logoUrl = document.getElementById('sponsorLogoUrl').value.trim();
+  const customText = document.getElementById('sponsorCustomText').value.trim();
+  if (!companyName || !logoUrl || !customText) { showErr(errBox, 'Täytä kaikki kentät.'); return; }
+  try {
+    const res = await fetch(`${API}/set-today-card-sponsor`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ townId: currentAdminTownId, companyName, logoUrl, customText })
+    });
+    const data = await res.json();
+    if (!res.ok) { showErr(errBox, data.error || 'Could not save.'); return; }
+    const msg = document.getElementById('sponsorSavedMsg');
+    msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
+    loadTodayCardSponsor();
+  } catch (e) {
+    showErr(errBox, 'Network error.');
+  }
+});
+
+document.getElementById('clearSponsorBtn').addEventListener('click', async () => {
+  const errBox = document.getElementById('sponsorErr');
+  clearErr(errBox);
+  try {
+    const res = await fetch(`${API}/set-today-card-sponsor`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ townId: currentAdminTownId, clear: true })
+    });
+    const data = await res.json();
+    if (!res.ok) { showErr(errBox, data.error || 'Could not clear.'); return; }
+    loadTodayCardSponsor();
+  } catch (e) {
+    showErr(errBox, 'Network error.');
+  }
+});
+
 function setFeedbackFilter(filter, btnId){
   feedbackFilter = filter;
   document.querySelectorAll('.feedbackFilterBtn').forEach(b => b.classList.remove('active'));
@@ -1016,6 +1109,28 @@ function setFeedbackFilter(filter, btnId){
 document.getElementById('feedbackFilterAll').addEventListener('click', () => setFeedbackFilter(null, 'feedbackFilterAll'));
 document.getElementById('feedbackFilterDown').addEventListener('click', () => setFeedbackFilter('down', 'feedbackFilterDown'));
 document.getElementById('feedbackFilterUp').addEventListener('click', () => setFeedbackFilter('up', 'feedbackFilterUp'));
+
+document.getElementById('summarizeFeedbackBtn').addEventListener('click', async () => {
+  const errBox = document.getElementById('summarizeFeedbackErr');
+  const resultBox = document.getElementById('feedbackSummaryResult');
+  const btn = document.getElementById('summarizeFeedbackBtn');
+  clearErr(errBox);
+  resultBox.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Analysoidaan… (voi kestää hetken)';
+  try {
+    const res = await fetch(`${API}/summarize-feedback?townId=${currentAdminTownId}`);
+    const data = await res.json();
+    if (!res.ok) { showErr(errBox, data.error || 'Analyysi epäonnistui.'); return; }
+    resultBox.textContent = data.summary + (data.analyzedCount ? `\n\n(Perustuu ${data.analyzedCount} viimeisimpään 👎-palautteeseen.)` : '');
+    resultBox.style.display = 'block';
+  } catch (e) {
+    showErr(errBox, 'Network error.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Analysoi 👎-palaute tekoälyllä';
+  }
+});
 
 document.getElementById('addAiHintBtn').addEventListener('click', async () => {
   const errBox = document.getElementById('aiHintErr');
