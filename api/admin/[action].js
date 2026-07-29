@@ -454,6 +454,57 @@ async function handleListSiteFeedback(req, res) {
   res.status(200).json({ feedback: data || [] });
 }
 
+// Delete-one and clear-all for both feedback types -- keeps the admin
+// panel from just accumulating every piece of feedback forever with no
+// way to tidy it up. Clear-all respects the currently-applied
+// town/rating filter for AI feedback (so "clear" means "clear what I'm
+// looking at", not silently wiping every town's feedback from one
+// click) -- site feedback isn't town-scoped in the UI, so its clear-all
+// is a genuine full clear.
+async function handleDeleteAiFeedback(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { id } = req.body || {};
+  if (!id) return res.status(400).json({ error: 'Missing id.' });
+  const { error } = await supabase.from('ai_feedback').delete().eq('id', id);
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not delete.' }); }
+  res.status(200).json({ ok: true });
+}
+
+async function handleClearAiFeedback(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { townId, rating } = req.body || {};
+  let query = supabase.from('ai_feedback').delete();
+  if (townId) query = query.eq('town_id', townId);
+  if (rating === 'up' || rating === 'down') query = query.eq('rating', rating);
+  // Supabase's delete() needs at least one filter to run -- without
+  // townId this still needs something, so fall back to a condition
+  // that's always true rather than leaving an unfiltered delete call.
+  if (!townId && rating !== 'up' && rating !== 'down') query = query.gte('id', 0);
+  const { error } = await query;
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not clear feedback.' }); }
+  res.status(200).json({ ok: true });
+}
+
+async function handleDeleteSiteFeedback(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { id } = req.body || {};
+  if (!id) return res.status(400).json({ error: 'Missing id.' });
+  const { error } = await supabase.from('site_feedback').delete().eq('id', id);
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not delete.' }); }
+  res.status(200).json({ ok: true });
+}
+
+async function handleClearSiteFeedback(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { error } = await supabase.from('site_feedback').delete().gte('id', 0);
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not clear feedback.' }); }
+  res.status(200).json({ ok: true });
+}
+
 // Fixes a hint's town scope after the fact -- mainly for hints created
 // before per-town scoping existed at all (they all defaulted to town_id
 // null, i.e. "applies everywhere", when several were actually written
@@ -843,6 +894,12 @@ async function handleMaintenanceStatus(req, res) {
   res.status(200).json({ maintenanceMode: data ? data.value === 'true' : false });
 }
 
+async function handleGetColorTheme(req, res) {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { data } = await supabase.from('site_settings').select('value').eq('key', 'color_theme').maybeSingle();
+  res.status(200).json({ theme: (data && data.value === 'light') ? 'light' : 'dark' });
+}
+
 // Deliberately public, no auth check -- fired as a fire-and-forget ping
 // from every real page load (see index.html). Best-effort only: a
 // visitor should never notice or be blocked by anything going wrong
@@ -1107,6 +1164,22 @@ async function handleSetMaintenance(req, res) {
   res.status(200).json({ ok: true });
 }
 
+// Site-wide light/dark color theme -- one choice for every visitor, not
+// per-user or OS-preference-based. 'light' = Lilac and ink, anything
+// else (including unset) = Gradient-forward, dusk, matching what the
+// site already looked like before this setting existed.
+async function handleSetColorTheme(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { theme } = req.body || {};
+  if (theme !== 'light' && theme !== 'dark') return res.status(400).json({ error: 'Theme must be "light" or "dark".' });
+  const { error } = await supabase
+    .from('site_settings')
+    .upsert({ key: 'color_theme', value: theme, updated_at: new Date().toISOString() });
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not update.' }); }
+  res.status(200).json({ ok: true });
+}
+
 module.exports = async (req, res) => {
   const { action } = req.query;
   switch (action) {
@@ -1126,6 +1199,10 @@ module.exports = async (req, res) => {
     case 'set-today-card-sponsor': return handleSetTodayCardSponsor(req, res);
     case 'list-ai-feedback': return handleListAiFeedback(req, res);
     case 'summarize-feedback': return handleSummarizeFeedback(req, res);
+    case 'delete-ai-feedback': return handleDeleteAiFeedback(req, res);
+    case 'clear-ai-feedback': return handleClearAiFeedback(req, res);
+    case 'delete-site-feedback': return handleDeleteSiteFeedback(req, res);
+    case 'clear-site-feedback': return handleClearSiteFeedback(req, res);
     case 'list-site-feedback': return handleListSiteFeedback(req, res);
     case 'delete-ai-hint': return handleDeleteAiHint(req, res);
     case 'reassign-ai-hint': return handleReassignAiHint(req, res);
@@ -1143,6 +1220,8 @@ module.exports = async (req, res) => {
     case 'cost-estimate': return handleCostEstimate(req, res);
     case 'set-budget': return handleSetBudget(req, res);
     case 'set-maintenance': return handleSetMaintenance(req, res);
+    case 'set-color-theme': return handleSetColorTheme(req, res);
+    case 'get-color-theme': return handleGetColorTheme(req, res);
     case 'list-events': return handleListEventsForAdmin(req, res);
     case 'select-events': return handleSelectEvents(req, res);
     default: return res.status(404).json({ error: 'Unknown admin action.' });

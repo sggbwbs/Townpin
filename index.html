@@ -38,20 +38,20 @@
 
 <style>
   :root{
-    --bg-0:#050b14; --bg-1:#0a1626; --panel:#0f2038; --line:rgba(120,160,210,0.16);
-    --paper:#f4efe4; --amber:#f2a65a; --amber-bright:#ffc07e; --amber-deep:#b9773a;
-    --ink:#f5f7fb; --ink-dim:#8fa3bd; --danger:#e0715a;
+    --bg-0:#141a4c; --bg-1:#341f60; --panel:#2c1f52; --line:rgba(255,255,255,0.16);
+    --paper:#2c1f52; --amber:#ff5fa8; --amber-bright:#ff8ec4; --amber-deep:#e0348c;
+    --ink:#f2eefa; --ink-dim:#b8a8d0; --danger:#e0715a;
     --shadow-lg:0 24px 60px rgba(0,0,0,0.45); --shadow-md:0 10px 28px rgba(0,0,0,0.3);
-    --glow:rgba(38,84,140,0.35); --panelT7:rgba(15,32,56,0.7); --panelT4:rgba(15,32,56,0.4);
+    --glow:rgba(255,95,168,0.22); --panelT7:rgba(44,31,82,0.7); --panelT4:rgba(44,31,82,0.4);
     --sq-empty-bg:rgba(255,255,255,0.04); --sq-empty-border:rgba(255,255,255,0.06); --sq-plus:rgba(255,255,255,0.25);
   }
   [data-theme="light"]{
-    --bg-0:#faf6ec; --bg-1:#f2ecdb; --panel:#ffffff; --line:rgba(120,100,60,0.16);
-    --paper:#ffffff; --amber:#e08e3e; --amber-bright:#f2a65a; --amber-deep:#b9773a;
-    --ink:#241f14; --ink-dim:#6b6249; --danger:#c1503a;
-    --shadow-lg:0 20px 50px rgba(120,100,60,0.15); --shadow-md:0 8px 22px rgba(120,100,60,0.12);
-    --glow:rgba(242,166,90,0.22); --panelT7:rgba(255,255,255,0.8); --panelT4:rgba(255,255,255,0.55);
-    --sq-empty-bg:rgba(36,31,20,0.035); --sq-empty-border:rgba(36,31,20,0.10); --sq-plus:rgba(36,31,20,0.28);
+    --bg-0:#f3f2fa; --bg-1:#ece9f7; --panel:#ffffff; --line:#ddd8ef;
+    --paper:#ffffff; --amber:#5847c9; --amber-bright:#7266d6; --amber-deep:#463699;
+    --ink:#211c38; --ink-dim:#6b6488; --danger:#c1503a;
+    --shadow-lg:0 20px 50px rgba(88,71,201,0.12); --shadow-md:0 8px 22px rgba(88,71,201,0.10);
+    --glow:rgba(88,71,201,0.14); --panelT7:rgba(255,255,255,0.8); --panelT4:rgba(255,255,255,0.55);
+    --sq-empty-bg:rgba(33,28,56,0.035); --sq-empty-border:rgba(33,28,56,0.10); --sq-plus:rgba(33,28,56,0.28);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;min-height:100%;max-width:100%;overflow-x:hidden;
@@ -1885,6 +1885,18 @@ async function loadBoard(){
   updateClaimedMeta();
   updateSelectionBar();
   renderLogoBanner();
+
+  // Admin-configured site-wide default theme -- only applied when the
+  // visitor hasn't already made their own explicit choice (no 'theme'
+  // key in localStorage yet). A returning visitor's personal light/dark
+  // pick always wins over whatever the admin sets as the default; this
+  // only affects what a first-time visitor sees before they've ever
+  // touched the toggle themselves.
+  try {
+    if (!localStorage.getItem('theme') && data.colorTheme) {
+      applyTheme(data.colorTheme);
+    }
+  } catch (e) {} // localStorage can throw in some locked-down browser contexts -- the hardcoded CSS default still applies fine either way
 
   // Loaded separately, after the grid is already visible -- this can
   // take a few seconds on a cache miss, but it should never make someone

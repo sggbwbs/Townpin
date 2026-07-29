@@ -527,3 +527,22 @@ create table if not exists business_mentions (
 );
 create index if not exists business_mentions_square_idx on business_mentions (square_id, created_at desc);
 
+-- ==== Today-card sponsor slot ====
+-- One sponsor at a time per town, shown bottom-right on the daily
+-- shareable "today card" image. Deliberately admin-managed, not a
+-- self-serve purchase flow -- price and duration (per day? per week?
+-- recurring?) weren't specified, and those are real business decisions
+-- worth making deliberately. A self-serve Stripe checkout can be layered
+-- on top of this same table later once that's decided; the rendering
+-- and admin management work the same either way.
+create table if not exists today_card_sponsor (
+  id bigserial primary key,
+  town_id bigint not null references towns(id) on delete cascade,
+  company_name text not null,
+  logo_url text not null,
+  custom_text text not null,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index if not exists today_card_sponsor_town_idx on today_card_sponsor (town_id, active, created_at desc);
+

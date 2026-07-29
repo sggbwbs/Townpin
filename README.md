@@ -2368,3 +2368,33 @@ Also split out the existing question-volume stat into anonymous vs.
 logged-in, not just a combined total -- both numbers were already
 being computed to calculate the sum, just not surfaced separately
 before.
+
+## New: today-card sponsor slot
+
+A bottom-right sponsor slot (logo + business-chosen text, labeled
+"MAINOS" for the same disclosure reasons as the AI chat's advertiser
+tag) on the daily shareable "today card" image. Deliberately
+admin-managed for now, not a self-serve purchase -- price and duration
+weren't specified, and those are real business decisions worth making
+deliberately rather than guessed at. A self-serve Stripe checkout can
+be layered on top of the same `today_card_sponsor` table later; the
+rendering and admin management work identically either way. New admin
+card ("Tänään-kortin sponsori") to set or clear the current sponsor,
+one at a time per town.
+
+## New site colors, and an admin-controlled default
+
+Replaced the color values on the site's existing (but previously
+unused beyond a manual visitor toggle) light/dark theme system: dark
+default is now "Gradient-forward, dusk" (deep indigo-to-violet, pink
+accent), light is "Lilac and ink" (soft lilac background, deep violet
+accent). Only the color *values* changed -- every CSS variable name
+stayed the same, so no other styling rule needed touching.
+
+New admin card ("Sivuston väriteema") sets which of the two is the
+site-wide default for new visitors, stored in the existing
+`site_settings` table (no schema change needed). A visitor's own
+explicit choice (the existing 🌙/☀️ toggle, saved to their own
+localStorage) always wins over this default -- the admin setting only
+affects what a first-time visitor sees before they've ever touched
+the toggle themselves.

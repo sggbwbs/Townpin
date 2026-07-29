@@ -203,6 +203,7 @@ const DEFAULT_SELECTED_COUNT = 5;
 // Cached once after the initial fetch, reused every time the picker
 // selection changes so redrawing never needs a fresh network round-trip.
 let cachedWeather = { temp: null, weatherCode: 0, tempMax: null, tempMin: null };
+let cachedSponsor = null; // { companyName, logoUrl, customText } or null if nobody's currently sponsoring
 let allEvents = [];
 let selectedIds = new Set();
 let nextEventId = 0;
@@ -234,8 +235,26 @@ async function fetchCardData(){
       // Fetch more than we'll necessarily use -- these become the picker's
       // candidate list, already ranked by popularity/today-first from the backend.
       if (fData.events && fData.events.length > 0) allEvents = tagWithIds(fData.events.slice(0, 30)); // matches the backend's own max -- see getEventsSection
+
+      const sRes = await fetch(`/api/today-card-sponsor?townId=${tData.town.id}`);
+      const sData = await sRes.json();
+      if (sData.sponsor){
+        // Pre-load the actual image element here, not just the URL --
+        // keeps drawCard itself synchronous, same pattern as every other
+        // piece of card content already being fetched before drawCard runs.
+        try {
+          const img = await new Promise((resolve, reject) => {
+            const el = new Image();
+            el.crossOrigin = 'anonymous';
+            el.onload = () => resolve(el);
+            el.onerror = reject;
+            el.src = sData.sponsor.logoUrl;
+          });
+          cachedSponsor = { ...sData.sponsor, logoImg: img };
+        } catch (e) { /* logo failed to load -- skip the sponsor slot entirely rather than draw a broken image */ }
+      }
     }
-  } catch (e) { /* fail quietly -- card still works without events */ }
+  } catch (e) { /* fail quietly -- card still works without events or a sponsor */ }
 
   selectedIds = new Set(allEvents.slice(0, DEFAULT_SELECTED_COUNT).map(ev => ev._id));
 
@@ -481,6 +500,39 @@ function drawCard(selectedEvents){
   ctx.fillStyle = '#6b6248';
   ctx.font = "400 22px 'IBM Plex Sans'";
   ctx.fillText('Oulun oma näyteikkuna verkossa', 72, H - 38);
+
+  // Sponsor slot, bottom-right -- one business at a time, admin-managed.
+  // Background pill first so a logo with a transparent background (or a
+  // long custom text) still reads clearly against the card's own
+  // background. "MAINOS" label included for the same reason the AI
+  // chat's advertiser tag exists -- a paid placement should always be
+  // honestly labeled as one, not blended in as if it were the card's own content.
+  if (cachedSponsor && cachedSponsor.logoImg){
+    const slotW = 300, slotH = 108, slotX = W - slotW - 40, slotY = H - slotH - 32;
+    ctx.fillStyle = 'rgba(255,253,248,0.92)';
+    roundRect(ctx, slotX, slotY, slotW, slotH, 14);
+    ctx.fill();
+    ctx.strokeStyle = '#e4dcc4';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, slotX, slotY, slotW, slotH, 14);
+    ctx.stroke();
+
+    ctx.fillStyle = '#8a8168';
+    ctx.font = "700 14px 'IBM Plex Sans'";
+    ctx.fillText('MAINOS', slotX + 16, slotY + 20);
+
+    // Logo, square, left side of the slot -- fit within its box without
+    // distorting aspect ratio, matching how logos render everywhere else on the site.
+    const logoBox = 56, logoX = slotX + 16, logoY = slotY + 32;
+    const scale = Math.min(logoBox / cachedSponsor.logoImg.width, logoBox / cachedSponsor.logoImg.height);
+    const lw = cachedSponsor.logoImg.width * scale, lh = cachedSponsor.logoImg.height * scale;
+    ctx.drawImage(cachedSponsor.logoImg, logoX + (logoBox - lw) / 2, logoY + (logoBox - lh) / 2, lw, lh);
+
+    // Business-chosen text, right of the logo -- wraps up to 3 short lines
+    ctx.fillStyle = '#2a2110';
+    ctx.font = "600 18px 'IBM Plex Sans'";
+    wrapText(ctx, cachedSponsor.customText, logoX + logoBox + 14, slotY + 46, slotW - logoBox - 44, 21, 3);
+  }
 
   document.getElementById('downloadBtn').disabled = false;
 }

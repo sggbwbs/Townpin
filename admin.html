@@ -99,6 +99,16 @@
   <p class="sub" style="margin-top:12px;font-size:11.5px;">Only hides the main homepage — existing customer pages, /manage, and this admin panel keep working normally the whole time.</p>
 </div>
 
+<div class="card" id="colorThemeCard" style="display:none;">
+  <h1>Sivuston väriteema</h1>
+  <p class="sub" style="margin-bottom:14px;">Oletusteema uusille kävijöille. Jos kävijä on jo itse vaihtanut oman teemansa (vaalea/tumma-nappi), heidän oma valintansa säilyy tästä riippumatta.</p>
+  <div style="display:flex;gap:10px;margin-bottom:8px;">
+    <button id="themeSetLight" class="feedbackFilterBtn">Vaalea — Lilac ja muste</button>
+    <button id="themeSetDark" class="feedbackFilterBtn">Tumma — Gradient-dusk</button>
+  </div>
+  <p class="sub" id="colorThemeCurrentLabel" style="font-size:12px;">Ladataan…</p>
+</div>
+
 <div class="card" id="visitorsCard" style="display:none;">
   <h1>Analytiikka</h1>
   <p class="sub" style="margin-bottom:6px;">Sivun lataukset — ei uniikkeja kävijöitä, vain kokonaismäärä.</p>
@@ -269,10 +279,11 @@
   <div id="feedbackSummaryResult" style="display:none;background:#f7f2e2;border-radius:8px;padding:14px 16px;margin:12px 0;white-space:pre-wrap;font-size:13.5px;line-height:1.5;"></div>
   <div class="err" id="summarizeFeedbackErr"></div>
 
-  <div style="display:flex;gap:8px;margin:18px 0 14px;">
+  <div style="display:flex;gap:8px;margin:18px 0 14px;align-items:center;">
     <button id="feedbackFilterAll" class="feedbackFilterBtn active">All</button>
     <button id="feedbackFilterDown" class="feedbackFilterBtn">👎 Down only</button>
     <button id="feedbackFilterUp" class="feedbackFilterBtn">👍 Up only</button>
+    <button id="clearAiFeedbackBtn" style="background:none;border:1px solid #d8cfb4;color:#8a2c2c;font-size:12.5px;padding:8px 14px;margin-left:auto;">Tyhjennä näkyvät</button>
   </div>
   <div id="aiFeedbackList"><p class="sub">Loading…</p></div>
 </div>
@@ -280,6 +291,7 @@
 <div class="card" id="siteFeedbackCard" style="display:none;">
   <h1>Site feedback</h1>
   <p class="sub">General "what do you think of the service" feedback from the main site -- distinct from the AI chat feedback above. Shown across all towns, not scoped to whichever one is currently selected, since this is about the whole service.</p>
+  <button id="clearSiteFeedbackBtn" style="background:none;border:1px solid #d8cfb4;color:#8a2c2c;font-size:12.5px;padding:8px 14px;margin-bottom:12px;">Tyhjennä kaikki</button>
   <div id="siteFeedbackList"><p class="sub">Loading…</p></div>
 </div>
 
@@ -581,6 +593,7 @@ async function showEditor(){
   document.getElementById('moveCard').style.display = 'block';
   document.getElementById('townsCard').style.display = 'block';
   document.getElementById('maintenanceCard').style.display = 'block';
+  document.getElementById('colorThemeCard').style.display = 'block';
   document.getElementById('visitorsCard').style.display = 'block';
   document.getElementById('costCard').style.display = 'block';
   document.getElementById('shareCardCard').style.display = 'block';
@@ -596,6 +609,7 @@ async function showEditor(){
   loadTodayCardSponsor();
   loadTownsList();
   loadMaintenanceStatus();
+  loadColorTheme();
   loadVisitorStats();
   loadCostEstimate();
 }
@@ -978,7 +992,10 @@ async function loadAiFeedback(){
         <div class="feedbackQ">${f.rating === 'up' ? '👍' : '👎'} ${f.question.replace(/</g, '&lt;')}</div>
         <div class="feedbackA">${f.answer.replace(/</g, '&lt;')}</div>
         ${f.comment ? `<div class="feedbackComment">"${f.comment.replace(/</g, '&lt;')}"</div>` : ''}
-        <div class="feedbackMeta">${when}</div>
+        <div class="feedbackMeta" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>${when}</span>
+          <a onclick="deleteAiFeedback(${f.id})" style="cursor:pointer;color:#8a2c2c;font-weight:600;">Poista</a>
+        </div>
       `;
       box.appendChild(item);
     });
@@ -986,6 +1003,29 @@ async function loadAiFeedback(){
     box.innerHTML = '<p class="sub">Network error.</p>';
   }
 }
+
+async function deleteAiFeedback(id){
+  if (!confirm('Poistetaanko tämä palaute pysyvästi?')) return;
+  try {
+    await fetch(`${API}/delete-ai-feedback`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    loadAiFeedback();
+  } catch (e) { /* the list simply won't update -- visible enough without a separate error message for this */ }
+}
+
+document.getElementById('clearAiFeedbackBtn').addEventListener('click', async () => {
+  const label = feedbackFilter ? (feedbackFilter === 'up' ? '👍-palaute' : '👎-palaute') : 'kaikki palaute (tämän kaupungin)';
+  if (!confirm(`Tyhjennetäänkö ${label} pysyvästi? Tätä ei voi peruuttaa.`)) return;
+  try {
+    await fetch(`${API}/clear-ai-feedback`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ townId: currentAdminTownId, rating: feedbackFilter || undefined })
+    });
+    loadAiFeedback();
+  } catch (e) { /* list reload attempt below still runs regardless */ }
+});
 
 async function loadSiteFeedback(){
   const box = document.getElementById('siteFeedbackList');
@@ -1003,7 +1043,10 @@ async function loadSiteFeedback(){
       item.innerHTML = `
         <div class="feedbackQ">${f.message.replace(/</g, '&lt;')}</div>
         ${f.email ? `<div class="feedbackComment">📧 ${f.email.replace(/</g, '&lt;')}</div>` : ''}
-        <div class="feedbackMeta">${when}</div>
+        <div class="feedbackMeta" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>${when}</span>
+          <a onclick="deleteSiteFeedback(${f.id})" style="cursor:pointer;color:#8a2c2c;font-weight:600;">Poista</a>
+        </div>
       `;
       box.appendChild(item);
     });
@@ -1011,6 +1054,25 @@ async function loadSiteFeedback(){
     box.innerHTML = '<p class="sub">Network error.</p>';
   }
 }
+
+async function deleteSiteFeedback(id){
+  if (!confirm('Poistetaanko tämä palaute pysyvästi?')) return;
+  try {
+    await fetch(`${API}/delete-site-feedback`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    loadSiteFeedback();
+  } catch (e) { /* the list simply won't update -- visible enough without a separate error message for this */ }
+}
+
+document.getElementById('clearSiteFeedbackBtn').addEventListener('click', async () => {
+  if (!confirm('Tyhjennetäänkö KAIKKI sivuston palaute pysyvästi, kaikista kaupungeista? Tätä ei voi peruuttaa.')) return;
+  try {
+    await fetch(`${API}/clear-site-feedback`, { method: 'POST' });
+    loadSiteFeedback();
+  } catch (e) { /* list reload attempt below still runs regardless */ }
+});
 
 async function loadBusinessEngagement(){
   const box = document.getElementById('businessEngagementList');
@@ -1702,6 +1764,38 @@ document.getElementById('maintenanceToggleBtn').addEventListener('click', async 
     alert('Could not update — try again.');
   }
 });
+
+async function loadColorTheme(){
+  const label = document.getElementById('colorThemeCurrentLabel');
+  try {
+    const res = await fetch(`${API}/get-color-theme`);
+    const data = await res.json();
+    updateColorThemeUI(data.theme);
+  } catch (e) {
+    label.textContent = 'Could not check current theme.';
+  }
+}
+
+function updateColorThemeUI(theme){
+  document.getElementById('colorThemeCurrentLabel').textContent =
+    `Nykyinen oletus: ${theme === 'light' ? 'Vaalea (Lilac ja muste)' : 'Tumma (Gradient-dusk)'}`;
+  document.getElementById('themeSetLight').classList.toggle('active', theme === 'light');
+  document.getElementById('themeSetDark').classList.toggle('active', theme !== 'light');
+}
+
+async function setColorTheme(theme){
+  try {
+    await fetch(`${API}/set-color-theme`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ theme })
+    });
+    updateColorThemeUI(theme);
+  } catch (e) {
+    alert('Could not update — try again.');
+  }
+}
+document.getElementById('themeSetLight').addEventListener('click', () => setColorTheme('light'));
+document.getElementById('themeSetDark').addEventListener('click', () => setColorTheme('dark'));
 
 checkAuth();
 </script>

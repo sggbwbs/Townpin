@@ -48,8 +48,13 @@ async function handleBoard(req, res) {
 
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not load board.' }); }
 
+  // Site-wide light/dark choice, admin-controlled -- 'dark' if unset,
+  // matching the site's original look before this setting existed.
+  const { data: themeRow } = await supabase.from('site_settings').select('value').eq('key', 'color_theme').maybeSingle();
+  const colorTheme = (themeRow && themeRow.value === 'light') ? 'light' : 'dark';
+
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
-  res.status(200).json({ squares: data });
+  res.status(200).json({ squares: data, colorTheme });
 }
 
 // News + events only -- offers deliberately removed. Offers were the
@@ -95,6 +100,32 @@ async function handleFeed(req, res) {
   }
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
   res.status(200).json({ news, events });
+}
+
+// Public, read-only -- the shareable "today card" fetches this the same
+// way it fetches weather and events, no auth needed. Returns the single
+// most recent active sponsor for the town, or null if nobody's
+// currently sponsoring (the normal case, not an error).
+async function handleTodayCardSponsor(req, res) {
+  const { townId } = req.query;
+  if (!townId) return res.status(400).json({ error: 'Missing townId.' });
+  try {
+    const { data, error } = await supabase
+      .from('today_card_sponsor')
+      .select('company_name, logo_url, custom_text')
+      .eq('town_id', townId)
+      .eq('active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    res.status(200).json({
+      sponsor: data ? { companyName: data.company_name, logoUrl: data.logo_url, customText: data.custom_text } : null
+    });
+  } catch (err) {
+    console.error('Today-card sponsor lookup failed:', err);
+    res.status(200).json({ sponsor: null }); // fail quietly -- a missing sponsor should never break the card itself
+  }
 }
 
 // ==== User accounts (email + password) ====
@@ -443,5 +474,6 @@ module.exports = async (req, res) => {
   if (req.query.endpoint === 'track-click') return handleTrackBusinessClick(req, res);
   if (req.method !== 'GET') return res.status(405).end();
   if (req.query.endpoint === 'feed') return handleFeed(req, res);
+  if (req.query.endpoint === 'today-card-sponsor') return handleTodayCardSponsor(req, res);
   return handleBoard(req, res);
 };
