@@ -272,20 +272,26 @@
 </div>
 
 <div class="card" id="aiFeedbackCard" style="display:none;">
-  <h1>AI chat feedback</h1>
-  <p class="sub">Real 👍/👎 feedback from visitors on actual answers -- this doesn't retrain the AI itself (there's no such pipeline), but it's the most direct way to see which real questions got a bad answer, with the actual question and answer text right here to read.</p>
-  <button id="summarizeFeedbackBtn">✨ Analysoi 👎-palaute tekoälyllä</button>
-  <p class="sub" style="margin-top:6px;">Tunnistaa toistuvat teemat viimeisimmästä 👎-palautteesta -- ei muuta mitään automaattisesti, vain auttaa näkemään mikä on oikeasti toistuva ongelma sen sijaan, että lukisi jokaisen erikseen.</p>
-  <div id="feedbackSummaryResult" style="display:none;background:#f7f2e2;border-radius:8px;padding:14px 16px;margin:12px 0;white-space:pre-wrap;font-size:13.5px;line-height:1.5;"></div>
-  <div class="err" id="summarizeFeedbackErr"></div>
+  <h1 style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleAiFeedbackCard()">
+    <span>AI chat feedback</span>
+    <span id="aiFeedbackCollapseArrow" style="font-size:13px;color:#8a8168;">▼ Piilota</span>
+  </h1>
+  <div id="aiFeedbackBody">
+    <p class="sub">Real 👍/👎 feedback from visitors on actual answers -- this doesn't retrain the AI itself (there's no such pipeline), but it's the most direct way to see which real questions got a bad answer, with the actual question and answer text right here to read.</p>
+    <button id="summarizeFeedbackBtn">✨ Analysoi 👎-palaute tekoälyllä</button>
+    <p class="sub" style="margin-top:6px;">Tunnistaa toistuvat teemat viimeisimmästä 👎-palautteesta -- ei muuta mitään automaattisesti, vain auttaa näkemään mikä on oikeasti toistuva ongelma sen sijaan, että lukisi jokaisen erikseen.</p>
+    <div id="feedbackSummaryResult" style="display:none;background:#f7f2e2;border-radius:8px;padding:14px 16px;margin:12px 0;white-space:pre-wrap;font-size:13.5px;line-height:1.5;"></div>
+    <div class="err" id="summarizeFeedbackErr"></div>
 
-  <div style="display:flex;gap:8px;margin:18px 0 14px;align-items:center;">
-    <button id="feedbackFilterAll" class="feedbackFilterBtn active">All</button>
-    <button id="feedbackFilterDown" class="feedbackFilterBtn">👎 Down only</button>
-    <button id="feedbackFilterUp" class="feedbackFilterBtn">👍 Up only</button>
-    <button id="clearAiFeedbackBtn" style="background:none;border:1px solid #d8cfb4;color:#8a2c2c;font-size:12.5px;padding:8px 14px;margin-left:auto;">Tyhjennä näkyvät</button>
+    <div style="display:flex;gap:8px;margin:18px 0 14px;align-items:center;">
+      <button id="feedbackFilterAll" class="feedbackFilterBtn active">All</button>
+      <button id="feedbackFilterDown" class="feedbackFilterBtn">👎 Down only</button>
+      <button id="feedbackFilterUp" class="feedbackFilterBtn">👍 Up only</button>
+      <button id="clearAiFeedbackBtn" style="background:none;border:1px solid #d8cfb4;color:#8a2c2c;font-size:12.5px;padding:8px 14px;margin-left:auto;">Tyhjennä näkyvät</button>
+    </div>
+    <div id="aiFeedbackList"><p class="sub">Loading…</p></div>
+    <button id="aiFeedbackShowMoreBtn" style="display:none;margin-top:12px;background:none;border:1px solid #d8cfb4;color:#5c5440;font-size:13px;">Näytä lisää</button>
   </div>
-  <div id="aiFeedbackList"><p class="sub">Loading…</p></div>
 </div>
 
 <div class="card" id="siteFeedbackCard" style="display:none;">
@@ -972,8 +978,56 @@ async function loadAiHints(){
 
 let feedbackFilter = null; // null = all, 'up', or 'down'
 
+let aiFeedbackFullList = [];
+let aiFeedbackShownCount = 0;
+const AI_FEEDBACK_PAGE_SIZE = 10;
+
+function renderAiFeedbackItem(f){
+  const item = document.createElement('div');
+  item.className = 'feedbackItem';
+  const when = new Date(f.created_at).toLocaleString('fi-FI', { dateStyle: 'short', timeStyle: 'short' });
+  item.innerHTML = `
+    <div class="feedbackQ">${f.rating === 'up' ? '👍' : '👎'} ${f.question.replace(/</g, '&lt;')}</div>
+    <div class="feedbackA">${f.answer.replace(/</g, '&lt;')}</div>
+    ${f.comment ? `<div class="feedbackComment">"${f.comment.replace(/</g, '&lt;')}"</div>` : ''}
+    <div class="feedbackMeta" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>${when}</span>
+      <a onclick="deleteAiFeedback(${f.id})" style="cursor:pointer;color:#8a2c2c;font-weight:600;">Poista</a>
+    </div>
+  `;
+  return item;
+}
+
+function renderAiFeedbackPage(){
+  const box = document.getElementById('aiFeedbackList');
+  const showMoreBtn = document.getElementById('aiFeedbackShowMoreBtn');
+  box.innerHTML = '';
+  aiFeedbackFullList.slice(0, aiFeedbackShownCount).forEach(f => box.appendChild(renderAiFeedbackItem(f)));
+  const remaining = aiFeedbackFullList.length - aiFeedbackShownCount;
+  if (remaining > 0) {
+    showMoreBtn.textContent = `Näytä lisää (${remaining} jäljellä)`;
+    showMoreBtn.style.display = 'inline-block';
+  } else {
+    showMoreBtn.style.display = 'none';
+  }
+}
+
+document.getElementById('aiFeedbackShowMoreBtn').addEventListener('click', () => {
+  aiFeedbackShownCount += AI_FEEDBACK_PAGE_SIZE;
+  renderAiFeedbackPage();
+});
+
+function toggleAiFeedbackCard(){
+  const body = document.getElementById('aiFeedbackBody');
+  const arrow = document.getElementById('aiFeedbackCollapseArrow');
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? 'block' : 'none';
+  arrow.textContent = collapsed ? '▼ Piilota' : '▶ Näytä';
+}
+
 async function loadAiFeedback(){
   const box = document.getElementById('aiFeedbackList');
+  document.getElementById('aiFeedbackShowMoreBtn').style.display = 'none';
   if (!currentAdminTownId) { box.innerHTML = '<p class="sub">No towns yet.</p>'; return; }
   box.innerHTML = '<p class="sub">Loading…</p>';
   try {
@@ -983,22 +1037,9 @@ async function loadAiFeedback(){
     const data = await res.json();
     if (!res.ok) { box.innerHTML = `<p class="sub">${data.error || 'Could not load feedback.'}</p>`; return; }
     if (!data.feedback || data.feedback.length === 0) { box.innerHTML = '<p class="sub">No feedback yet for this filter.</p>'; return; }
-    box.innerHTML = '';
-    data.feedback.forEach(f => {
-      const item = document.createElement('div');
-      item.className = 'feedbackItem';
-      const when = new Date(f.created_at).toLocaleString('fi-FI', { dateStyle: 'short', timeStyle: 'short' });
-      item.innerHTML = `
-        <div class="feedbackQ">${f.rating === 'up' ? '👍' : '👎'} ${f.question.replace(/</g, '&lt;')}</div>
-        <div class="feedbackA">${f.answer.replace(/</g, '&lt;')}</div>
-        ${f.comment ? `<div class="feedbackComment">"${f.comment.replace(/</g, '&lt;')}"</div>` : ''}
-        <div class="feedbackMeta" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>${when}</span>
-          <a onclick="deleteAiFeedback(${f.id})" style="cursor:pointer;color:#8a2c2c;font-weight:600;">Poista</a>
-        </div>
-      `;
-      box.appendChild(item);
-    });
+    aiFeedbackFullList = data.feedback;
+    aiFeedbackShownCount = Math.min(AI_FEEDBACK_PAGE_SIZE, aiFeedbackFullList.length);
+    renderAiFeedbackPage();
   } catch (e) {
     box.innerHTML = '<p class="sub">Network error.</p>';
   }
