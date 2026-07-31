@@ -39,10 +39,10 @@
 <style>
   :root{
     --bg-0:#0a2440; --bg-1:#2c1a5c; --panel:#1e1f52; --line:rgba(255,255,255,0.16);
-    --paper:#1e1f52; --amber:#ff5fa8; --amber-bright:#ff8ec4; --amber-deep:#e0348c;
+    --paper:#1e1f52; --amber:#9b7fe8; --amber-bright:#b39cf0; --amber-deep:#7a5cd6;
     --ink:#f2eefa; --ink-dim:#a8b4d0; --danger:#e0715a; --hero-border:rgba(255,255,255,0.4);
     --shadow-lg:0 24px 60px rgba(0,0,0,0.45); --shadow-md:0 10px 28px rgba(0,0,0,0.3);
-    --glow:rgba(255,95,168,0.2); --panelT7:rgba(30,31,82,0.7); --panelT4:rgba(30,31,82,0.4);
+    --glow:rgba(155,127,232,0.22); --panelT7:rgba(30,31,82,0.7); --panelT4:rgba(30,31,82,0.4);
     --sq-empty-bg:rgba(255,255,255,0.04); --sq-empty-border:rgba(255,255,255,0.06); --sq-plus:rgba(255,255,255,0.25);
   }
   [data-theme="light"]{
@@ -69,7 +69,7 @@
 
   #langToggle{display:flex;gap:2px;background:var(--panelT7);border:1px solid var(--line);
     border-radius:999px;padding:3px;}
-  #langToggle button{border:none;background:none;color:var(--ink-dim);font-family:'IBM Plex Mono',monospace;
+  #langToggle button{border:none;background:none;color:var(--ink-dim);font-family:'Space Grotesk',sans-serif;
     font-size:12px;font-weight:500;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .12s ease;}
   #langToggle button.active{background:var(--amber);color:#fff;font-weight:700;}
 
@@ -130,10 +130,10 @@
 
   #companyInfoOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
     align-items:center;justify-content:center;padding:20px;}
-  #companyInfoModal{position:relative;background:var(--paper);color:#26210f;width:100%;max-width:780px;
+  #companyInfoModal{position:relative;background:var(--paper);color:var(--ink);width:100%;max-width:780px;
     border-radius:14px;padding:40px 32px 32px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-lg);
     font-family:'IBM Plex Sans',sans-serif;text-align:center;}
-  #companyInfoModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:#8a8168;
+  #companyInfoModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:var(--ink-dim);
     background:none;border:none;width:28px;height:28px;border-radius:50%;}
   #companyInfoModal .close:hover{background:rgba(0,0,0,0.06);}
 
@@ -142,18 +142,18 @@
      everything inside it needs fixed colors, not the theme variables
      (--ink, --ink-dim, --panelT4, --line) used when this content used
      to live inline on the page and shared the page's own background. */
-  #companyInfoModal h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,4vw,34px);margin:8px 0 16px;line-height:1.15;color:#26210f;}
+  #companyInfoModal h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,4vw,34px);margin:8px 0 16px;line-height:1.15;color:var(--ink);}
   #companyInfoModal h1 span{color:var(--amber-deep);}
-  #companyInfoModal p.sub{color:#5c5440;font-size:15px;max-width:640px;margin:0 auto 24px;line-height:1.6;}
-  #companyInfoModal h2{color:#26210f !important;}
-  #companyInfoModal .valueCard{color:#5c5440;}
-  #companyInfoModal .valueCard b{color:#26210f;}
-  #companyInfoModal .factCard, #companyInfoModal .hiwStep{background:rgba(0,0,0,0.035);border-color:#e4dcc4;}
-  #companyInfoModal .factCard span, #companyInfoModal .hiwStep span, #companyInfoModal .factsNote{color:#5c5440;}
-  #companyInfoModal .faqItem{border-bottom-color:#e4dcc4;}
-  #companyInfoModal .faqQ{color:#26210f;}
-  #companyInfoModal .faqA{color:#5c5440;}
-  #companyInfoModal #earlyBanner{color:#26210f;}
+  #companyInfoModal p.sub{color:var(--ink-dim);font-size:15px;max-width:640px;margin:0 auto 24px;line-height:1.6;}
+  #companyInfoModal h2{color:var(--ink) !important;}
+  #companyInfoModal .valueCard{color:var(--ink-dim);}
+  #companyInfoModal .valueCard b{color:var(--ink);}
+  #companyInfoModal .factCard, #companyInfoModal .hiwStep{background:rgba(0,0,0,0.035);border-color:var(--line);}
+  #companyInfoModal .factCard span, #companyInfoModal .hiwStep span, #companyInfoModal .factsNote{color:var(--ink-dim);}
+  #companyInfoModal .faqItem{border-bottom-color:var(--line);}
+  #companyInfoModal .faqQ{color:var(--ink);}
+  #companyInfoModal .faqA{color:var(--ink-dim);}
+  #companyInfoModal #earlyBanner{color:var(--ink);}
 
   .pitchEyebrow{display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb, var(--amber) 14%, transparent);
     border:1px solid color-mix(in srgb, var(--amber) 35%, transparent);color:var(--amber);font-family:'IBM Plex Mono',monospace;
@@ -197,29 +197,29 @@
   #homeErr{color:var(--danger);margin:-24px auto 20px;font-size:13.5px;display:none;text-align:center;max-width:460px;}
 
   /* ---- board (now lives inside #companyInfoModal, not the main page) ---- */
-  #boardCol{background:rgba(0,0,0,0.025);border:1px solid #e4dcc4;border-radius:16px;
+  #boardCol{background:rgba(0,0,0,0.025);border:1px solid var(--line);border-radius:16px;
     padding:20px 18px 24px;margin:24px 0;}
   #boardHeader{padding:2px 0 8px;text-align:center;}
-  #boardHeader h2{font-family:'Space Grotesk',sans-serif;font-size:24px;margin:0 0 4px;color:#26210f;}
+  #boardHeader h2{font-family:'Space Grotesk',sans-serif;font-size:24px;margin:0 0 4px;color:var(--ink);}
   #boardHeader .meta{color:#6b6248;font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
 
   #qtyPicker{text-align:center;margin-top:14px;}
-  .qtyLabel{font-family:'Space Grotesk',sans-serif;font-size:15px;color:#26210f;margin:0 0 14px;}
+  .qtyLabel{font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--ink);margin:0 0 14px;}
   #qtyRow{display:flex;align-items:center;justify-content:center;gap:20px;}
-  #qtyRow button{width:44px;height:44px;border-radius:50%;border:1px solid #e4dcc4;background:#fffdf8;
-    color:#26210f;font-size:20px;font-weight:700;cursor:pointer;}
+  #qtyRow button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--paper);
+    color:var(--ink);font-size:20px;font-weight:700;cursor:pointer;}
   #qtyRow button:hover{border-color:var(--amber);color:var(--amber-deep);}
   #qtyRow button:disabled{opacity:0.4;cursor:default;}
-  #qtyDisplay{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;color:#26210f;min-width:48px;}
+  #qtyDisplay{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;color:var(--ink);min-width:48px;}
   #qtySizePreviewWrap{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:16px;}
-  #qtySizePreviewBox{background:#eae3d3;border:1px solid #e4dcc4;border-radius:10px;
+  #qtySizePreviewBox{background:var(--panelT7);border:1px solid var(--line);border-radius:10px;
     display:flex;align-items:center;justify-content:center;transition:width .25s ease,height .25s ease;
     color:#a89a78;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;}
   #qtySizePreviewBox.qtySizePreviewPremium{border:3px solid #f2c14e;animation:logoBannerShine 2.2s ease-in-out infinite;}
   #qtySizePreviewBox.qtySizePreviewLegendary{border:3px solid #ffd700;animation:logoBannerLegendaryGlow 2.5s ease-in-out infinite;}
-  .qtySizePreviewNote{margin:0;font-size:11.5px;color:#8a8168;text-align:center;max-width:360px;}
+  .qtySizePreviewNote{margin:0;font-size:11.5px;color:var(--ink-dim);text-align:center;max-width:360px;}
   #qtyPriceNote{margin-top:12px;font-size:13.5px;color:#6b6248;}
-  #qtyPriceNote b{color:#26210f;font-family:'Space Grotesk',sans-serif;font-size:16px;}
+  #qtyPriceNote b{color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:16px;}
   #rectError{display:none;color:var(--danger);font-size:12.5px;font-weight:600;margin-top:10px;text-align:center;}
   #newsCategoryFilter{margin:6px 0 4px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
     background:var(--panelT7);color:var(--ink);font-size:12px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;
@@ -228,7 +228,7 @@
   /* ---- floating selection bar ---- */
   #selectionBar{
     position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:900;display:none;
-    background:var(--paper);color:#26210f;padding:14px 20px;border-radius:20px;
+    background:var(--paper);color:var(--ink);padding:14px 20px;border-radius:20px;
     box-shadow:var(--shadow-lg);align-items:center;gap:10px 16px;font-family:'Space Grotesk',sans-serif;
     max-width:min(92vw, 480px);flex-wrap:wrap;justify-content:center;
   }
@@ -244,58 +244,58 @@
   #selectionBar button{border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;
     font-weight:700;font-size:13.5px;cursor:pointer;white-space:nowrap;flex:0 0 auto;}
   #selectionBar .go{background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#fff;}
-  #selectionBar .cancel{background:none;color:#8a8168;text-decoration:underline;padding:9px 6px;}
+  #selectionBar .cancel{background:none;color:var(--ink-dim);text-decoration:underline;padding:9px 6px;}
 
   /* ---- modal ---- */
   #overlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:2000;display:none;
     align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);}
-  #modal{background:var(--paper);color:#26210f;width:100%;max-width:440px;border-radius:14px;
+  #modal{background:var(--paper);color:var(--ink);width:100%;max-width:440px;border-radius:14px;
     padding:30px 30px 24px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);position:relative;}
   #modal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 4px;font-size:21px;}
-  #modal .sub{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8a8168;margin-bottom:18px;}
-  #modal label{display:block;font-size:12.5px;font-weight:600;margin:14px 0 6px;color:#3a331d;}
+  #modal .sub{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-dim);margin-bottom:18px;}
+  #modal label{display:block;font-size:12.5px;font-weight:600;margin:14px 0 6px;color:var(--ink);}
   #modal input[type=text],#modal input[type=email],#modal input[type=url]{
-    width:100%;padding:11px 12px;border:1px solid #d8cfb4;border-radius:7px;
-    font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fffdf8;}
-  #modal textarea{width:100%;padding:11px 12px;border:1px solid #d8cfb4;border-radius:7px;
-    font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fffdf8;resize:vertical;min-height:44px;}
-  #modal select{width:100%;padding:11px 12px;border:1px solid #d8cfb4;border-radius:7px;
-    font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fffdf8;color:#26210f;cursor:pointer;}
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:7px;
+    font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:var(--paper);}
+  #modal textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:7px;
+    font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:var(--paper);resize:vertical;min-height:44px;}
+  #modal select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:7px;
+    font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:var(--paper);color:var(--ink);cursor:pointer;}
   #modal select:focus{outline:none;border-color:var(--amber-deep);box-shadow:0 0 0 3px color-mix(in srgb, var(--amber) 18%, transparent);}
   #modal input:focus{outline:none;border-color:var(--amber-deep);box-shadow:0 0 0 3px color-mix(in srgb, var(--amber) 18%, transparent);}
   #modal .colorRow{display:flex;gap:9px;margin-top:6px;flex-wrap:wrap;}
-  .logoBtn{padding:10px 16px;border:1px solid #d8cfb4;border-radius:7px;background:#fffdf8;
-    color:#3a331d;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;cursor:pointer;}
+  .logoBtn{padding:10px 16px;border:1px solid var(--line);border-radius:7px;background:var(--paper);
+    color:var(--ink);font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;cursor:pointer;}
   .logoBtn.primary{background:var(--amber);border-color:var(--amber-deep);color:#fff;font-weight:700;}
-  .logoBtn:hover{background:#f5f1e2;}
-  #modal .note{font-size:11.5px;color:#8a8168;margin:8px 0;}
+  .logoBtn:hover{background:var(--panelT7);}
+  #modal .note{font-size:11.5px;color:var(--ink-dim);margin:8px 0;}
   #modal .swatch{width:30px;height:30px;border-radius:7px;cursor:pointer;border:2px solid transparent;}
-  #modal .swatch.selected{border-color:#26210f;box-shadow:0 0 0 2px var(--paper),0 0 0 3px #26210f;}
-  .additionalTownsBox{margin-top:16px;padding:12px 14px;background:#f5f1e2;border:1px solid #e4dcc4;border-radius:9px;}
-  .additionalTownsBox input[type=text]{width:100%;padding:9px 11px;border:1px solid #d8cfb4;border-radius:7px;
-    font-size:13.5px;background:#fffdf8;font-family:'IBM Plex Sans',sans-serif;}
-  #additionalTownSuggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fffdf8;
-    border:1px solid #d8cfb4;border-radius:8px;z-index:20;display:none;max-height:180px;overflow-y:auto;}
+  #modal .swatch.selected{border-color:var(--ink);box-shadow:0 0 0 2px var(--paper),0 0 0 3px var(--ink);}
+  .additionalTownsBox{margin-top:16px;padding:12px 14px;background:var(--panelT7);border:1px solid var(--line);border-radius:9px;}
+  .additionalTownsBox input[type=text]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;
+    font-size:13.5px;background:var(--paper);font-family:'IBM Plex Sans',sans-serif;}
+  #additionalTownSuggestions{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--paper);
+    border:1px solid var(--line);border-radius:8px;z-index:20;display:none;max-height:180px;overflow-y:auto;}
   #additionalTownSuggestions.open{display:block;}
-  #additionalTownSuggestions div{padding:8px 12px;cursor:pointer;font-size:13px;color:#3a331d;}
+  #additionalTownSuggestions div{padding:8px 12px;cursor:pointer;font-size:13px;color:var(--ink);}
   #additionalTownSuggestions div:hover{background:#efe8d3;}
   #additionalTownsList{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
-  .townChip{display:flex;align-items:center;gap:6px;background:#e4dcc4;color:#3a331d;font-size:12.5px;
+  .townChip{display:flex;align-items:center;gap:6px;background:var(--panelT7);color:var(--ink);font-size:12.5px;
     font-weight:600;padding:5px 6px 5px 12px;border-radius:999px;}
   .townChip .qtyBtn{cursor:pointer;background:rgba(0,0,0,0.08);border:none;border-radius:50%;width:20px;height:20px;
-    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#3a331d;padding:0;}
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--ink);padding:0;}
   .townChip .qtyBtn:hover{background:rgba(0,0,0,0.16);}
   .townChip .qtyNum{min-width:14px;text-align:center;}
   .townChip span.rm{cursor:pointer;background:rgba(0,0,0,0.1);border-radius:50%;width:18px;height:18px;
     display:flex;align-items:center;justify-content:center;font-size:12px;}
   .planBox{margin-top:16px;}
   .planToggle{display:flex;gap:8px;margin-top:6px;}
-  .planOpt{flex:1;padding:10px;border:1px solid #d8cfb4;border-radius:8px;background:#fffdf8;
-    font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;color:#5c5440;cursor:pointer;}
+  .planOpt{flex:1;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);
+    font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;color:var(--ink-dim);cursor:pointer;}
   .planOpt.selected{background:var(--amber);border-color:var(--amber-deep);color:#fff;}
   #prepaidTermRow{display:flex;gap:8px;margin-top:8px;}
-  .termOpt{flex:1;padding:9px 6px;border:1px solid #d8cfb4;border-radius:8px;background:#fffdf8;
-    font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;font-weight:600;color:#5c5440;cursor:pointer;
+  .termOpt{flex:1;padding:9px 6px;border:1px solid var(--line);border-radius:8px;background:var(--paper);
+    font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;font-weight:600;color:var(--ink-dim);cursor:pointer;
     display:flex;flex-direction:column;align-items:center;gap:2px;}
   .termOpt .save{font-size:11px;font-weight:700;color:#4a7a5c;}
   .termOpt.selected{background:var(--amber);border-color:var(--amber-deep);color:#fff;}
@@ -303,15 +303,15 @@
   #modal .highlightBox{margin-top:16px;padding:12px 14px;background:#efe8d3;border:1px solid #ddd0a8;
     border-radius:9px;display:flex;gap:10px;align-items:flex-start;}
   #modal .highlightBox input{width:auto;margin-top:3px;}
-  #modal .highlightBox p{margin:0;font-size:12px;line-height:1.45;color:#5c5440;}
+  #modal .highlightBox p{margin:0;font-size:12px;line-height:1.45;color:var(--ink-dim);}
   #modal .price{font-size:24px;font-weight:700;margin:16px 0 4px;font-family:'Space Grotesk',sans-serif;}
-  #modal .priceNote{font-size:11.5px;color:#8a8168;margin-bottom:6px;}
+  #modal .priceNote{font-size:11.5px;color:var(--ink-dim);margin-bottom:6px;}
   #trialNote{display:inline-block;background:#e8f0dc;color:#3d6b2f;font-size:12.5px;font-weight:700;
     padding:5px 12px;border-radius:999px;margin-top:14px;}
   #modal .submitBtn{width:100%;margin-top:16px;padding:14px;border:none;border-radius:8px;
     background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#fff;
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;cursor:pointer;}
-  #modal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:#8a8168;
+  #modal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:var(--ink-dim);
     background:none;border:none;width:28px;height:28px;border-radius:50%;}
   #modal .err{color:#b8452f;font-size:12.5px;margin-top:8px;display:none;font-weight:500;}
 
@@ -325,23 +325,23 @@
 
   #legalOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
     align-items:center;justify-content:center;padding:20px;}
-  #legalModal{position:relative;background:var(--paper);color:#26210f;width:100%;max-width:560px;
+  #legalModal{position:relative;background:var(--paper);color:var(--ink);width:100%;max-width:560px;
     border-radius:14px;padding:32px;max-height:80vh;overflow-y:auto;box-shadow:var(--shadow-lg);
     font-family:'IBM Plex Sans',sans-serif;}
   #legalModal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 16px;font-size:19px;}
-  #legalModal .legalBody p{font-size:13.5px;line-height:1.6;margin:0 0 12px;color:#3a331d;}
+  #legalModal .legalBody p{font-size:13.5px;line-height:1.6;margin:0 0 12px;color:var(--ink);}
   #legalModal .legalBody a{color:var(--amber-deep);}
-  #legalModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:#8a8168;
+  #legalModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:var(--ink-dim);
     background:none;border:none;width:28px;height:28px;border-radius:50%;}
   #legalModal .close:hover{background:rgba(0,0,0,0.06);}
 
   #authOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
     align-items:center;justify-content:center;padding:20px;}
-  #authModal{position:relative;background:var(--paper);color:#26210f;width:100%;max-width:380px;
+  #authModal{position:relative;background:var(--paper);color:var(--ink);width:100%;max-width:380px;
     border-radius:14px;padding:32px;box-shadow:var(--shadow-lg);font-family:'IBM Plex Sans',sans-serif;}
   #authModal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 6px;font-size:19px;}
-  #authModal p.authSub{font-size:12.5px;color:#8a8168;margin:0 0 18px;line-height:1.5;}
-  #authModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:#8a8168;
+  #authModal p.authSub{font-size:12.5px;color:var(--ink-dim);margin:0 0 18px;line-height:1.5;}
+  #authModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:var(--ink-dim);
     background:none;border:none;width:28px;height:28px;border-radius:50%;}
   #authModal .close:hover{background:rgba(0,0,0,0.06);}
   #authModal input[type=email], #authModal input[type=password]{width:100%;box-sizing:border-box;
@@ -352,17 +352,17 @@
   #authModal label.authConsent input{margin-top:2px;}
   #authModal button.authSubmit{width:100%;background:var(--amber);color:#fff;border:none;
     border-radius:8px;padding:11px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;}
-  #authModal .authSwitch{text-align:center;font-size:12.5px;margin-top:14px;color:#8a8168;}
+  #authModal .authSwitch{text-align:center;font-size:12.5px;margin-top:14px;color:var(--ink-dim);}
   #authModal .authSwitch a{color:var(--amber-deep);cursor:pointer;text-decoration:underline;}
   #authModal .authErr{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
     font-size:12px;margin-bottom:10px;}
   #feedbackOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
     align-items:center;justify-content:center;padding:20px;}
-  #feedbackModal{position:relative;background:var(--paper);color:#26210f;width:100%;max-width:380px;
+  #feedbackModal{position:relative;background:var(--paper);color:var(--ink);width:100%;max-width:380px;
     border-radius:14px;padding:32px;box-shadow:var(--shadow-lg);font-family:'IBM Plex Sans',sans-serif;}
   #feedbackModal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 6px;font-size:19px;}
-  #feedbackModal p.authSub{font-size:12.5px;color:#8a8168;margin:0 0 18px;line-height:1.5;}
-  #feedbackModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:#8a8168;
+  #feedbackModal p.authSub{font-size:12.5px;color:var(--ink-dim);margin:0 0 18px;line-height:1.5;}
+  #feedbackModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:var(--ink-dim);
     background:none;border:none;width:28px;height:28px;border-radius:50%;}
   #feedbackModal .close:hover{background:rgba(0,0,0,0.06);}
   #feedbackModal textarea{width:100%;box-sizing:border-box;min-height:100px;padding:10px 12px;margin-bottom:10px;
@@ -374,7 +374,7 @@
   #feedbackModal .err{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
     font-size:12px;margin-bottom:10px;}
   #accountBtn{border:none;background:var(--panelT7);border:1px solid var(--line);border-radius:999px;
-    padding:0 14px;height:34px;cursor:pointer;font-size:12.5px;color:var(--ink);font-family:'IBM Plex Mono',monospace;
+    padding:0 14px;height:34px;cursor:pointer;font-size:12.5px;color:var(--ink);font-family:'Space Grotesk',sans-serif;
     font-weight:400;display:flex;align-items:center;gap:6px;white-space:nowrap;}
   #accountBtn.accountBtnAdmin{background:var(--amber);border-color:var(--amber-deep);color:#fff;font-weight:700;cursor:default;}
 
@@ -716,19 +716,19 @@
     <label data-i18n="lCompany">Yrityksen nimi</label>
     <input type="text" id="fCompany" placeholder="Oulun Kahvipaahtimo" required />
 
-    <label data-i18n="lWebsite">Verkkosivun osoite <span style="font-weight:400;color:#8a8168;">(valinnainen, jos ei vielä ole)</span></label>
+    <label data-i18n="lWebsite">Verkkosivun osoite <span style="font-weight:400;color:var(--ink-dim);">(valinnainen, jos ei vielä ole)</span></label>
     <input type="url" id="fWebsite" placeholder="https://yrityksesi.fi" />
-    <div id="autofillHint" style="font-size:11.5px;color:#8a8168;margin-top:5px;display:none;"></div>
+    <div id="autofillHint" style="font-size:11.5px;color:var(--ink-dim);margin-top:5px;display:none;"></div>
 
     <label data-i18n="lEmail">Sähköposti — kuittia ja tilauksen hallintaa varten</label>
     <input type="email" id="fEmail" placeholder="sina@yritys.fi" required />
 
-    <label data-i18n="lLogo">Logo <span style="font-weight:400;color:#8a8168;">(valinnainen)</span></label>
+    <label data-i18n="lLogo">Logo <span style="font-weight:400;color:var(--ink-dim);">(valinnainen)</span></label>
     <input type="file" id="fLogoFile" accept="image/png,image/jpeg,image/webp" style="display:none;" />
     <button type="button" class="logoBtn" id="logoUploadBtn" data-i18n="chooseFile">📁 Valitse kuva puhelimesta/koneelta</button>
 
     <div id="cropperWrap" style="display:none;margin-top:12px;">
-      <div style="max-height:280px;overflow:hidden;border-radius:8px;background:#e4dcc4;">
+      <div style="max-height:280px;overflow:hidden;border-radius:8px;background:var(--panelT7);">
         <img id="cropperImg" style="display:block;max-width:100%;" />
       </div>
       <p class="note" data-i18n="cropHint">Siirrä ja zoomaa kuvaa niin, että se sopii valitsemasi alueen muotoon.</p>
@@ -736,18 +736,18 @@
     </div>
 
     <div id="logoPreview" style="display:none;margin-top:10px;align-items:center;gap:10px;">
-      <img id="logoPreviewImg" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #d8cfb4;" />
-      <span style="font-size:12.5px;color:#3a331d;" data-i18n="logoSelected">Logo valittu ✓</span>
-      <span id="logoRemoveBtn" style="font-size:11.5px;color:#8a8168;text-decoration:underline;cursor:pointer;" data-i18n="removeLogo">Poista</span>
+      <img id="logoPreviewImg" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);" />
+      <span style="font-size:12.5px;color:var(--ink);" data-i18n="logoSelected">Logo valittu ✓</span>
+      <span id="logoRemoveBtn" style="font-size:11.5px;color:var(--ink-dim);text-decoration:underline;cursor:pointer;" data-i18n="removeLogo">Poista</span>
     </div>
 
-    <label style="margin-top:16px;" data-i18n="lLogoUrl">Tai liitä kuvan osoite <span style="font-weight:400;color:#8a8168;">(jos et lataa tiedostoa)</span></label>
+    <label style="margin-top:16px;" data-i18n="lLogoUrl">Tai liitä kuvan osoite <span style="font-weight:400;color:var(--ink-dim);">(jos et lataa tiedostoa)</span></label>
     <input type="url" id="fLogo" placeholder="https://yrityksesi.fi/logo.png" />
 
-    <label data-i18n="lTagline">Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span></label>
+    <label data-i18n="lTagline">Lyhyt iskulause <span style="font-weight:400;color:var(--ink-dim);">(valinnainen, näkyy sivullasi)</span></label>
     <textarea id="fTagline" placeholder="Oulun paras kahvi vuodesta 2015" rows="2"></textarea>
 
-    <label data-i18n="lAddress">Yrityksen osoite <span style="font-weight:400;color:#8a8168;">(pakollinen, näkyy kartalla)</span></label>
+    <label data-i18n="lAddress">Yrityksen osoite <span style="font-weight:400;color:var(--ink-dim);">(pakollinen, näkyy kartalla)</span></label>
     <input type="text" id="fAddress" data-i18n-placeholder="addressPlaceholder" placeholder="Katuosoite, kaupunki" />
 
     <label data-i18n="lIndustry">Toimiala</label>
@@ -776,7 +776,7 @@
     </select>
 
     <div class="additionalTownsBox" style="display:none;">
-      <label data-i18n="lAdditionalTowns">Julkaise myös muissa kaupungeissa <span style="font-weight:400;color:#8a8168;">(valinnainen)</span></label>
+      <label data-i18n="lAdditionalTowns">Julkaise myös muissa kaupungeissa <span style="font-weight:400;color:var(--ink-dim);">(valinnainen)</span></label>
       <p class="note" data-i18n="additionalTownsHint" style="margin:0 0 8px;">Sama ilmoitus, lisää kaupunkeja — valitse mainospaikkojen määrä per kaupunki, järjestelmä valitsee ne puolestasi.</p>
       <div style="position:relative;">
         <input type="text" id="additionalTownInput" autocomplete="off" data-i18n-placeholder="additionalTownPlaceholder" placeholder="Kaupungin nimi…" />
@@ -804,7 +804,7 @@
     </div>
 
     <div id="trialNote" data-i18n="trialNote">🎉 -50% ensimmäisestä kuukaudesta</div>
-    <div class="price" id="priceDisplay">5€<span style="font-size:14px;color:#8a8168;font-weight:400;" data-i18n="perMonth"> / kk</span></div>
+    <div class="price" id="priceDisplay">5€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;" data-i18n="perMonth"> / kk</span></div>
     <div class="priceNote" id="priceNote" data-i18n="renewNote">Uusiutuu automaattisesti. Peruuta milloin vain — banneripaikat vapautuvat takaisin.</div>
 
     <div class="err" id="formErr"></div>
@@ -1381,9 +1381,9 @@ const STRINGS = {
     viewBoard: 'Katso taulu →',
     claimedOf: '{n} / {t} mainospaikkaa varattu',
     modalTitle: 'Varaa banneripaikat',
-    lCompany: 'Yrityksen nimi', lWebsite: 'Verkkosivun osoite <span style="font-weight:400;color:#8a8168;">(valinnainen, jos ei vielä ole)</span>',
+    lCompany: 'Yrityksen nimi', lWebsite: 'Verkkosivun osoite <span style="font-weight:400;color:var(--ink-dim);">(valinnainen, jos ei vielä ole)</span>',
     lEmail: 'Sähköposti — kuittia ja tilauksen hallintaa varten',
-    lLogo: 'Logo <span style="font-weight:400;color:#8a8168;">(valinnainen)</span>',
+    lLogo: 'Logo <span style="font-weight:400;color:var(--ink-dim);">(valinnainen)</span>',
     chooseFile: '📁 Valitse kuva puhelimesta/koneelta',
     autofillLoading: 'Haetaan tietoja sivultasi…',
     autofillFound: 'Löysimme tietoja sivultasi ja täytimme ne puolestasi ✓',
@@ -1391,10 +1391,10 @@ const STRINGS = {
     useThisCrop: '✓ Käytä tätä rajausta',
     logoSelected: 'Logo valittu ✓',
     removeLogo: 'Poista',
-    lLogoUrl: 'Tai liitä kuvan osoite <span style="font-weight:400;color:#8a8168;">(jos et lataa tiedostoa)</span>',
+    lLogoUrl: 'Tai liitä kuvan osoite <span style="font-weight:400;color:var(--ink-dim);">(jos et lataa tiedostoa)</span>',
     uploading: 'Ladataan…',
-    lTagline: 'Lyhyt iskulause <span style="font-weight:400;color:#8a8168;">(valinnainen, näkyy sivullasi)</span>',
-    lAddress: 'Yrityksen osoite <span style="font-weight:400;color:#8a8168;">(pakollinen, näkyy kartalla)</span>',
+    lTagline: 'Lyhyt iskulause <span style="font-weight:400;color:var(--ink-dim);">(valinnainen, näkyy sivullasi)</span>',
+    lAddress: 'Yrityksen osoite <span style="font-weight:400;color:var(--ink-dim);">(pakollinen, näkyy kartalla)</span>',
     addressPlaceholder: 'Katuosoite, kaupunki',
     lPlanType: 'Maksutapa',
     planMonthly: 'Kuukausitilaus',
@@ -1566,9 +1566,9 @@ const STRINGS = {
     viewBoard: 'View board →',
     claimedOf: '{n} / {t} slots claimed',
     modalTitle: 'Claim your ad slots',
-    lCompany: 'Company name', lWebsite: 'Website URL <span style="font-weight:400;color:#8a8168;">(optional, if you don\'t have one yet)</span>',
+    lCompany: 'Company name', lWebsite: 'Website URL <span style="font-weight:400;color:var(--ink-dim);">(optional, if you don\'t have one yet)</span>',
     lEmail: 'Contact email — for your receipt & managing the subscription',
-    lLogo: 'Logo <span style="font-weight:400;color:#8a8168;">(optional)</span>',
+    lLogo: 'Logo <span style="font-weight:400;color:var(--ink-dim);">(optional)</span>',
     chooseFile: '📁 Choose an image from your phone/computer',
     autofillLoading: 'Fetching info from your site…',
     autofillFound: 'Found info on your site and filled it in for you ✓',
@@ -1576,10 +1576,10 @@ const STRINGS = {
     useThisCrop: '✓ Use this crop',
     logoSelected: 'Logo selected ✓',
     removeLogo: 'Remove',
-    lLogoUrl: 'Or paste an image URL <span style="font-weight:400;color:#8a8168;">(if you don\'t upload a file)</span>',
+    lLogoUrl: 'Or paste an image URL <span style="font-weight:400;color:var(--ink-dim);">(if you don\'t upload a file)</span>',
     uploading: 'Uploading…',
-    lTagline: 'Short tagline <span style="font-weight:400;color:#8a8168;">(optional, shown on your page)</span>',
-    lAddress: 'Business address <span style="font-weight:400;color:#8a8168;">(required, shown on the map)</span>',
+    lTagline: 'Short tagline <span style="font-weight:400;color:var(--ink-dim);">(optional, shown on your page)</span>',
+    lAddress: 'Business address <span style="font-weight:400;color:var(--ink-dim);">(required, shown on the map)</span>',
     addressPlaceholder: 'Street address, city',
     lPlanType: 'Payment plan',
     planMonthly: 'Monthly subscription',
@@ -3155,7 +3155,7 @@ function updateModalPricing(){
 
   if (selectedPlanType === 'prepaid'){
     const totalCharge = calculatePrepaidTotalClient(monthlyTotal, selectedPrepaidMonths);
-    document.getElementById('priceDisplay').innerHTML = `${totalCharge}€<span style="font-size:14px;color:#8a8168;font-weight:400;"> ${lang==='fi' ? `(${selectedPrepaidMonths} kk yhteensä)` : `(${selectedPrepaidMonths} months total)`}</span>`;
+    document.getElementById('priceDisplay').innerHTML = `${totalCharge}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;"> ${lang==='fi' ? `(${selectedPrepaidMonths} kk yhteensä)` : `(${selectedPrepaidMonths} months total)`}</span>`;
     document.getElementById('priceNote').textContent = t('prepaidRenewNote');
     if (discountNoteEl) discountNoteEl.style.display = 'none'; // founding discount doesn't stack with prepaid
     document.getElementById('confirmText').textContent = t('prepaidConfirmText')
@@ -3165,7 +3165,7 @@ function updateModalPricing(){
 
   const price = monthlyTotal;
   const rateNote = perSquare < 5
-    ? (lang === 'fi' ? ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(${perSquare}€/paikka, alennushinta)</span>` : ` <span style="font-size:13px;color:#8a8168;font-weight:400;">(€${perSquare}/slot, discounted)</span>`)
+    ? (lang === 'fi' ? ` <span style="font-size:13px;color:var(--ink-dim);font-weight:400;">(${perSquare}€/paikka, alennushinta)</span>` : ` <span style="font-size:13px;color:var(--ink-dim);font-weight:400;">(€${perSquare}/slot, discounted)</span>`)
     : '';
   const halfPrice = Math.round(price / 2 * 100) / 100;
 
@@ -3176,9 +3176,9 @@ function updateModalPricing(){
   // step later at Stripe's own checkout.
   if (FOUNDING_DISCOUNT_ACTIVE){
     document.getElementById('priceDisplay').innerHTML =
-      `${halfPrice}€<span style="font-size:14px;color:#8a8168;font-weight:400;"> (${t('thenPerMonth').replace('{price}', price)})</span>${rateNote}`;
+      `${halfPrice}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;"> (${t('thenPerMonth').replace('{price}', price)})</span>${rateNote}`;
   } else {
-    document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:#8a8168;font-weight:400;">${t('perMonth')}</span>${rateNote}`;
+    document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;">${t('perMonth')}</span>${rateNote}`;
   }
   document.getElementById('priceNote').textContent = t('renewNote');
   if (discountNoteEl) discountNoteEl.style.display = FOUNDING_DISCOUNT_ACTIVE ? 'inline-block' : 'none';
@@ -3723,7 +3723,7 @@ function renderWeatherForecast(){
   // existing news "Lähde: Kaleva" note, so it reads as fine print rather
   // than competing with the actual forecast for attention.
   const credit = document.createElement('p');
-  credit.style.cssText = 'font-size:11px;color:#8a8168;margin:2px 0 0;text-align:center;';
+  credit.style.cssText = 'font-size:11px;color:var(--ink-dim);margin:2px 0 0;text-align:center;';
   credit.innerHTML = `<a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:inherit;">${t('weatherSourceNote')}</a>`;
   panel.appendChild(credit);
 

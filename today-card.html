@@ -9,8 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg-0:#f7f2e7; --paper:#fffdf8; --ink:#2a2110; --ink-dim:#6b6248;
-    --amber:#e08a3c; --amber-deep:#c1712a; --line:#e4dcc4;
+    --bg-0:#f3f2fa; --paper:#ffffff; --ink:#211c38; --ink-dim:#6b6488;
+    --amber:#5847c9; --amber-deep:#463699; --line:#ddd8ef;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg-0);font-family:'IBM Plex Sans',sans-serif;color:var(--ink);
@@ -21,7 +21,7 @@
     box-shadow:0 12px 32px rgba(42,33,16,0.18);background:var(--paper);}
   #cardCanvas{width:100%;height:100%;display:block;}
   #status{margin-top:18px;font-size:13px;color:var(--ink-dim);text-align:center;min-height:18px;}
-  #downloadBtn{margin-top:16px;background:var(--amber);color:#2a1c0d;border:none;border-radius:999px;
+  #downloadBtn{margin-top:16px;background:var(--amber);color:#fff;border:none;border-radius:999px;
     padding:14px 32px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;
     cursor:pointer;box-shadow:0 4px 14px rgba(224,138,60,0.35);}
   #downloadBtn:disabled{opacity:0.5;cursor:default;}
@@ -42,7 +42,7 @@
   .customLabel{display:block;font-size:12.5px;font-weight:600;margin-bottom:8px;}
   #customEventForm input{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line);
     border-radius:8px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;margin-bottom:8px;}
-  #addCustomEventBtn{background:var(--amber);color:#2a1c0d;border:none;border-radius:999px;
+  #addCustomEventBtn{background:var(--amber);color:#fff;border:none;border-radius:999px;
     padding:9px 18px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;cursor:pointer;}
   #addCustomEventBtn:hover{background:var(--amber-deep);}
 </style>
@@ -174,7 +174,7 @@ function drawLogoIcon(ctx, x, y, size){
   ctx.translate(x, y);
   ctx.scale(scale, scale);
 
-  ctx.fillStyle = '#2a2110';
+  ctx.fillStyle = '#211c38';
   ctx.beginPath();
   ctx.moveTo(12, 2);
   ctx.bezierCurveTo(7.6, 2, 4, 5.4, 4, 9.6);
@@ -363,7 +363,7 @@ function drawCard(selectedEvents){
   const now = new Date();
 
   // background
-  ctx.fillStyle = '#f7f2e7';
+  ctx.fillStyle = '#f3f2fa';
   ctx.fillRect(0, 0, W, H);
 
   // real brand logo, top-right -- sized to roughly match the "XX°C"
@@ -373,12 +373,12 @@ function drawCard(selectedEvents){
   drawLogoIcon(ctx, W - 72 - logoSize, 40, logoSize);
 
   // wordmark
-  ctx.fillStyle = '#2a2110';
+  ctx.fillStyle = '#211c38';
   ctx.font = "700 40px 'Space Grotesk'";
   ctx.textBaseline = 'alphabetic';
   ctx.fillText('PAIKALLIS', 72, 110);
   const w1 = ctx.measureText('PAIKALLIS').width;
-  ctx.fillStyle = '#c1712a';
+  ctx.fillStyle = '#5847c9';
   ctx.fillText('CANVAS', 72 + w1, 110);
 
   // date -- a filled pill behind bigger, bolder text so it reads as the
@@ -390,37 +390,37 @@ function drawCard(selectedEvents){
   ctx.fillStyle = 'rgba(224,138,60,0.16)';
   roundRect(ctx, 72, datePillY, dateWidth + datePadX * 2, datePillH, datePillH / 2);
   ctx.fill();
-  ctx.fillStyle = '#c1712a';
+  ctx.fillStyle = '#5847c9';
   ctx.fillText(dateLabel, 72 + datePadX, datePillY + 40);
 
   // weather: icon + current temp + short description + today's high/low
   const weatherTop = 250;
   if (temp !== null){
-    ctx.fillStyle = '#2a2110';
+    ctx.fillStyle = '#211c38';
     ctx.font = "120px sans-serif";
     ctx.fillText(WEATHER_ICONS[weatherCode] || '🌡️', 72, weatherTop + 110);
 
-    ctx.fillStyle = '#2a2110';
+    ctx.fillStyle = '#211c38';
     ctx.font = "700 92px 'Space Grotesk'";
     ctx.fillText(`${temp}°C`, 260, weatherTop + 90);
 
-    ctx.fillStyle = '#6b6248';
+    ctx.fillStyle = '#6b6488';
     ctx.font = "600 26px 'IBM Plex Sans'";
     ctx.fillText('Oulussa nyt', 262, weatherTop + 128);
 
-    ctx.fillStyle = '#4a4330';
+    ctx.fillStyle = '#4c4468';
     ctx.font = "400 26px 'IBM Plex Sans'";
     ctx.fillText(WEATHER_DESC_FI[weatherCode] || '', 262, weatherTop + 162);
 
     if (tempMax !== null && tempMin !== null){
-      ctx.fillStyle = '#6b6248';
+      ctx.fillStyle = '#6b6488';
       ctx.font = "600 26px 'IBM Plex Sans'";
       ctx.fillText(`Ylin ${tempMax}° · Alin ${tempMin}°`, 262, weatherTop + 198);
     }
   }
 
   // divider
-  ctx.strokeStyle = '#e4dcc4';
+  ctx.strokeStyle = '#ddd8ef';
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(72, 500); ctx.lineTo(W - 72, 500); ctx.stroke();
 
@@ -429,7 +429,7 @@ function drawCard(selectedEvents){
   // the count grows, verified (worst case: every title wraps to 2
   // lines) to stay clear of the footer at each tier rather than
   // assuming a fixed count of 3 the way this used to.
-  ctx.fillStyle = '#c1712a';
+  ctx.fillStyle = '#5847c9';
   ctx.font = "700 26px 'Space Grotesk'";
   ctx.fillText('SUOSITUIMMAT TAPAHTUMAT TÄNÄÄN', 72, 550);
 
@@ -471,18 +471,18 @@ function drawCard(selectedEvents){
     let cursorY = 610;
     selectedEvents.forEach((ev, i) => {
       // small numbered marker so the list reads as a ranked list, not a wall of text
-      ctx.fillStyle = '#e08a3c';
+      ctx.fillStyle = '#7266d6';
       ctx.beginPath();
       ctx.arc(90, cursorY - 14, layout.markerR, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#fffdf8';
+      ctx.fillStyle = '#ffffff';
       ctx.font = `700 ${layout.markerFont}px 'Space Grotesk'`;
       ctx.textAlign = 'center';
       ctx.fillText(String(i + 1), 90, cursorY - 6);
       ctx.textAlign = 'left';
 
       if (ev.event_start_time){
-        ctx.fillStyle = '#c1712a';
+        ctx.fillStyle = '#5847c9';
         ctx.font = `600 ${layout.timeFont}px 'IBM Plex Sans', sans-serif`;
         const timeLabel = ev.isCustom
           ? ev.event_start_time // freeform text the admin typed -- show exactly as-is
@@ -491,22 +491,22 @@ function drawCard(selectedEvents){
         cursorY += layout.timeLineHeight;
       }
 
-      ctx.fillStyle = '#2a2110';
+      ctx.fillStyle = '#211c38';
       ctx.font = `700 ${layout.font}px 'Space Grotesk'`;
       const titleHeight = wrapText(ctx, ev.title_fi, 138, cursorY, W - 210, layout.lineHeight, 2);
       cursorY += titleHeight + layout.gap;
     });
   } else {
-    ctx.fillStyle = '#6b6248';
+    ctx.fillStyle = '#6b6488';
     ctx.font = "400 28px 'IBM Plex Sans'";
     ctx.fillText('Ei tiedossa erityisiä tapahtumia juuri nyt.', 72, 610);
   }
 
   // footer CTA
-  ctx.fillStyle = '#2a2110';
+  ctx.fillStyle = '#211c38';
   ctx.font = "700 32px 'Space Grotesk'";
   ctx.fillText('paikalliscanvas.fi/oulu', 72, H - 70);
-  ctx.fillStyle = '#6b6248';
+  ctx.fillStyle = '#6b6488';
   ctx.font = "400 22px 'IBM Plex Sans'";
   ctx.fillText('Oulun oma näyteikkuna verkossa', 72, H - 38);
 
@@ -518,15 +518,15 @@ function drawCard(selectedEvents){
   // honestly labeled as one, not blended in as if it were the card's own content.
   if (cachedSponsor && cachedSponsor.logoImg){
     const slotW = 300, slotH = 108, slotX = W - slotW - 40, slotY = H - slotH - 32;
-    ctx.fillStyle = 'rgba(255,253,248,0.92)';
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
     roundRect(ctx, slotX, slotY, slotW, slotH, 14);
     ctx.fill();
-    ctx.strokeStyle = '#e4dcc4';
+    ctx.strokeStyle = '#ddd8ef';
     ctx.lineWidth = 1.5;
     roundRect(ctx, slotX, slotY, slotW, slotH, 14);
     ctx.stroke();
 
-    ctx.fillStyle = '#8a8168';
+    ctx.fillStyle = '#6b6488';
     ctx.font = "700 14px 'IBM Plex Sans'";
     ctx.fillText('MAINOS', slotX + 16, slotY + 20);
 
@@ -538,7 +538,7 @@ function drawCard(selectedEvents){
     ctx.drawImage(cachedSponsor.logoImg, logoX + (logoBox - lw) / 2, logoY + (logoBox - lh) / 2, lw, lh);
 
     // Business-chosen text, right of the logo -- wraps up to 3 short lines
-    ctx.fillStyle = '#2a2110';
+    ctx.fillStyle = '#211c38';
     ctx.font = "600 18px 'IBM Plex Sans'";
     wrapText(ctx, cachedSponsor.customText, logoX + logoBox + 14, slotY + 46, slotW - logoBox - 44, 21, 3);
   }
