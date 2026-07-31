@@ -1,10 +1,9 @@
-// Volume pricing -- more squares in one purchase costs less per square.
-// Shared between the initial purchase flow and the self-service "add
-// more slots" flow so they can never quietly drift apart into two
-// different prices for the same tier.
+// Flat rate -- 10€ per slot regardless of quantity. Replaced the old
+// volume-discount model (5€, 4€ at 4+) entirely; size and prestige
+// (gold border at 4, legendary at 5) are now what scales with quantity,
+// not price per slot.
 function pricePerSquareEur(count) {
-  if (count >= 4) return 4;
-  return 5;
+  return 10;
 }
 
 module.exports = { pricePerSquareEur };

@@ -141,7 +141,8 @@
 
 <div class="card" id="todayCardSponsorCard" style="display:none;">
   <h1>Tänään-kortin sponsori</h1>
-  <p class="sub" style="margin-bottom:14px;">Yksi yritys kerrallaan, näkyy oikeassa alakulmassa jaettavassa "Tänään" -kuvassa. Ei itsepalveluostoa -- tämä on tarkoituksella admin-hallittu, kunnes hinta ja kesto on päätetty.</p>
+  <p class="sub" style="margin-bottom:14px;">Yksi yritys kerrallaan, näkyy oikeassa alakulmassa jaettavassa "Tänään" -kuvassa. Ei itsepalveluostoa -- tämä on tarkoituksella admin-hallittu, kunnes hinta ja kesto on päätetty muille kuin legendaarisille asiakkaille.</p>
+  <p class="sub" style="margin-bottom:14px;background:#f7f2e2;padding:10px 12px;border-radius:8px;"><b>Muista:</b> jokainen 5 mainospaikan (legendaarinen) asiakas on oikeutettu 4 ilmaiseen Tänään-kortin näkyvyyteen kuukaudessa. Tämä työkalu ei seuraa käyttöä automaattisesti -- pidä itse kirjaa, keitä legendaarisia asiakkaita on ja kuinka moneen kertaan kukin on jo saanut näkyvyyttä kuluvana kuukautena.</p>
   <p class="sub" id="todayCardSponsorCurrent" style="font-weight:700;margin-bottom:14px;">Ladataan…</p>
   <div class="field">
     <label>Yrityksen nimi</label>
@@ -740,7 +741,7 @@ document.getElementById('grantLoadBtn').addEventListener('click', async () => {
   }
 });
 
-const MAX_QTY_STEPPER = 20; // sanity cap -- holding/mis-clicking + shouldn't be able to run away to hundreds
+const MAX_QTY_STEPPER = 5; // matches the new tier ceiling -- 5 is legendary, the top tier, so granting more provides no additional size or prestige benefit
 
 function updateGrantQtyDisplay(){
   document.getElementById('grantQtyDisplay').textContent = grantQty;

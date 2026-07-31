@@ -2398,3 +2398,43 @@ explicit choice (the existing 🌙/☀️ toggle, saved to their own
 localStorage) always wins over this default -- the admin setting only
 affects what a first-time visitor sees before they've ever touched
 the toggle themselves.
+
+## Dark mode contrast -- a much bigger sweep than one modal
+
+What started as one unreadable pitch modal turned out to be a
+sitewide issue: roughly 70 hardcoded colors across the purchase
+modal, auth modal, feedback modal, legal modal, business registration
+form, and several JS-generated inline styles had never been swept up
+when the light/dark theme system was built. All replaced with the
+proper theme variables. Also fixed the dark mode accent from pink to
+a genuine purple (matching Oulu's brand), switched "Kirjaudu" and the
+language selector from monospace to Space Grotesk (matching "Kysy"),
+and remapped the entire today-card canvas palette (which draws its
+own separate image, not sharing the site's CSS) to match the new
+light-mode colors.
+
+## Pricing and sizing overhaul
+
+Replaced the old volume-discount model (5€, 4€ at 4+ slots, gold at
+11-19, legendary at 20) entirely:
+
+- Flat 10€/slot, no volume discount.
+- Logo size grows across 1, 2, and 3 slots, then plateaus -- 4 and 5
+  are the same physical size as 3, distinguished by border treatment
+  instead of continuing to grow.
+- Gold border at 4 slots, legendary at 5 slots (now also the hard
+  maximum per town -- buying more provides no further size or
+  prestige benefit under the new plateau design).
+- 5 slots (legendary) includes 4 free monthly today-card features.
+  This is **not automated** -- the today-card sponsor tool stays
+  admin-managed either way, so this is documented directly in that
+  admin card as something to track manually, not a system that
+  enforces or counts usage itself.
+- First month still 50% off; all other old discount messaging
+  removed and rewritten for the new flat-rate model, across every
+  place it appeared (meta description, hero copy, value cards, the
+  purchase modal's pitch text, size-preview note, confirm-purchase
+  text) in both Finnish and English.
+- Every quantity cap updated to match the new ceiling: the customer
+  purchase flow's per-town stepper, and the admin grant/edit tool's
+  stepper, both now cap at 5 instead of 20.
