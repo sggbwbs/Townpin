@@ -832,7 +832,7 @@
       <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
     </div>
 
-    <div id="volumeNote" data-i18n="volumeNote">10 €/kk per mainospaikka. Koko kasvaa 1–3 paikan välillä. 4 paikkaa: kultainen kimalteleva reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen -- ja saat lisäksi 4 ilmaista näkyvyyttä kuukauden Tänään-kuvissa.</div>
+    <div id="volumeNote" data-i18n="volumeNote">10 €/kk per mainospaikka. Koko kasvaa 1–3 paikan välillä. 4 paikkaa: kultainen kimalteleva reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen -- ja saat lisäksi 4 ilmaista mainosta Tänään-korttiin kuukaudessa.</div>
 
     <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
 
@@ -851,7 +851,17 @@
         </div>
         <div id="qtySizePreviewWrap">
           <div id="qtySizePreviewBox"><span>LOGO</span></div>
-          <p class="qtySizePreviewNote" data-i18n="qtySizePreviewNote">Näin suurena logosi näkyy taulussa (suuntaa antava). 11+ paikkaa: kimalteleva reunus ja etusija näkyvyydessä koon kasvun pysähdyttyä.</p>
+          <p class="qtySizePreviewNote" data-i18n="qtySizePreviewNote">Näin suurena logosi näkyy taulussa (suuntaa antava). Koko kasvaa 3 paikkaan asti. 4 paikkaa: kultainen reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen, sateenkaaren värinen kehys, ja 4 ilmaista mainosta Tänään-korttiin kuukaudessa.</p>
+          <div id="todayCardMockup" style="display:none;margin-top:16px;background:var(--panelT7);border:1px solid var(--line);border-radius:10px;padding:14px 16px;max-width:320px;">
+            <p style="font-size:11px;color:var(--ink-dim);margin:0 0 10px;text-align:center;" data-i18n="todayCardMockupLabel">Näin näyttäisit "Tänään"-kortilla, jonka moni jakaa somessa:</p>
+            <div style="background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;align-items:center;gap:10px;">
+              <div style="width:40px;height:40px;background:var(--amber);border-radius:8px;flex:none;"></div>
+              <div>
+                <div style="font-size:9px;font-weight:700;letter-spacing:0.03em;color:var(--ink-dim);text-transform:uppercase;" data-i18n="todayCardMockupTag">Mainos</div>
+                <div style="font-size:12.5px;font-weight:600;" data-i18n="todayCardMockupText">Yrityksesi oma teksti tähän</div>
+              </div>
+            </div>
+          </div>
         </div>
         <div id="qtyPriceNote"></div>
         <div id="rectError"></div>
@@ -955,13 +965,12 @@ const FOUNDING_DISCOUNT_ACTIVE = true;
 
 const PRICE_PER_SQUARE = 5; // EUR/month base rate — see pricePerSquareEur() for volume tiers
 
-// Mirrors the server-side tiering in create-checkout-session.js, used only
-// to display the right price before checkout — the server always
+// Mirrors the server-side pricing in api/_pricing.js, used only to
+// display the right price before checkout -- the server always
 // recalculates and charges the real amount itself, this is never trusted
-// as the actual charge.
+// as the actual charge. Flat 10€/slot, no volume discount.
 function pricePerSquareEur(count){
-  if (count >= 4) return 4;
-  return 5;
+  return 10;
 }
 
 // Approximate populations, used only for autocomplete ranking and picking a
@@ -1280,7 +1289,7 @@ const STRINGS = {
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
     value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
-    volumeNote: '10 €/kk per mainospaikka. Koko kasvaa 1–3 paikan välillä. 4 paikkaa: kultainen kimalteleva reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen -- ja saat lisäksi 4 ilmaista näkyvyyttä kuukauden Tänään-kuvissa.',
+    volumeNote: '10 €/kk per mainospaikka. Koko kasvaa 1–3 paikan välillä. 4 paikkaa: kultainen kimalteleva reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen -- ja saat lisäksi 4 ilmaista mainosta Tänään-korttiin kuukaudessa.',
     factsTitle: 'Miksi paikallinen näkyvyys kannattaa',
     fact1: 'kaikista Google-hauista koskee jotain paikallista',
     fact2: 'hakijoista, jotka etsivät jotain "lähellä", käy yrityksessä 24 tunnin sisällä',
@@ -1448,7 +1457,10 @@ const STRINGS = {
     squareTitle: '{n} paikkaa — {town}',
     squareTitleOne: '1 paikka — {town}',
     qtyLabel: 'Kuinka ison mainospaikan haluat?',
-    qtySizePreviewNote: 'Näin suurena logosi näkyy taulussa (suuntaa antava). Koko kasvaa 3 paikkaan asti. 4 paikkaa: kultainen reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen, sateenkaaren värinen kehys, ja 4 ilmaista Tänään-kortin näkyvyyttä kuukaudessa.',
+    qtySizePreviewNote: 'Näin suurena logosi näkyy taulussa (suuntaa antava). Koko kasvaa 3 paikkaan asti. 4 paikkaa: kultainen reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen, sateenkaaren värinen kehys, ja 4 ilmaista mainosta Tänään-korttiin kuukaudessa.',
+    todayCardMockupLabel: 'Näin näyttäisit "Tänään"-kortilla, jonka moni jakaa somessa:',
+    todayCardMockupTag: 'Mainos',
+    todayCardMockupText: 'Yrityksesi oma teksti tähän',
     claimTitle: 'Varaa mainospaikka — 10€/kk',
     cancelSelection: 'Peruuta',
     continueSelection: 'Jatka →',
@@ -1465,7 +1477,7 @@ const STRINGS = {
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: 'Findable on Google', value2: 'your business gets its own showcase page on our site that can appear in search results, even if nobody browses the board itself',
     value3b: 'Cancel anytime', value3: 'no contract period, no notice period',
-    volumeNote: '€10/mo per slot. Size grows across 1–3 slots. 4 slots: a golden shimmering border. 5 slots (the maximum): 👑 legendary -- plus 4 free spots on the monthly Today-card image.',
+    volumeNote: '€10/mo per slot. Size grows across 1–3 slots. 4 slots: a golden shimmering border. 5 slots (the maximum): 👑 legendary -- plus 4 free ads on the Today-card image each month.',
     factsTitle: 'Why local visibility matters',
     fact1: 'of all Google searches are for something local',
     fact2: 'of people who search for something "nearby" visit a business within 24 hours',
@@ -1633,7 +1645,10 @@ const STRINGS = {
     squareTitle: '{n} slots — {town}',
     squareTitleOne: '1 slot — {town}',
     qtyLabel: 'How big an ad slot would you like?',
-    qtySizePreviewNote: 'How big your logo will show on the board (approximate). Size grows up to 3 slots. 4 slots: a golden border. 5 slots (the maximum): 👑 legendary, color-shifting border, plus 4 free Today-card features per month.',
+    qtySizePreviewNote: 'How big your logo will show on the board (approximate). Size grows up to 3 slots. 4 slots: a golden border. 5 slots (the maximum): 👑 legendary, color-shifting border, plus 4 free ads on the Today-card image each month.',
+    todayCardMockupLabel: 'How you\'d look on the "Today" card, which a lot of people share on social media:',
+    todayCardMockupTag: 'Ad',
+    todayCardMockupText: 'Your own text goes here',
     claimTitle: 'Claim a ad slot — €10/month',
     cancelSelection: 'Cancel',
     continueSelection: 'Continue →',
@@ -3018,6 +3033,8 @@ function updateQtySizePreview(){
     box.classList.toggle('qtySizePreviewPremium', selectedCount >= PREMIUM_THRESHOLD && selectedCount < LEGENDARY_THRESHOLD);
     box.classList.toggle('qtySizePreviewLegendary', selectedCount >= LEGENDARY_THRESHOLD);
   }
+  const cardMockup = document.getElementById('todayCardMockup');
+  if (cardMockup) cardMockup.style.display = selectedCount >= LEGENDARY_THRESHOLD ? 'block' : 'none';
 }
 document.getElementById('qtyMinus').addEventListener('click', ()=>{
   if (selectedCount > 1){ selectedCount--; updateQtyControls(); }
