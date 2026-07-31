@@ -251,7 +251,16 @@ async function fetchCardData(){
             el.src = sData.sponsor.logoUrl;
           });
           cachedSponsor = { ...sData.sponsor, logoImg: img };
-        } catch (e) { /* logo failed to load -- skip the sponsor slot entirely rather than draw a broken image */ }
+        } catch (e) {
+          // Sponsor was found, but its logo image failed to load -- most
+          // likely the logoUrl points at a webpage (e.g. a homepage)
+          // instead of a direct image file, or the image host doesn't
+          // allow cross-origin loading. Logged clearly instead of
+          // silently skipped, since this was previously undebuggable --
+          // the sponsor slot just wouldn't appear with no visible reason why.
+          console.error('[today-card] Sponsor found but logo failed to load. logoUrl:', sData.sponsor.logoUrl,
+            '-- check this is a direct image file URL (ending in .png/.jpg/etc), not a webpage, and that the image host allows cross-origin loading.');
+        }
       }
     }
   } catch (e) { /* fail quietly -- card still works without events or a sponsor */ }
