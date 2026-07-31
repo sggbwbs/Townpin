@@ -71,10 +71,28 @@ async function fetchAndStoreOgImage(pageUrl, supabase) {
     let imageUrl = match[1];
     if (!imageUrl.startsWith('http')) imageUrl = new URL(imageUrl, pageUrl).toString();
 
-    const controller2 = new AbortController();
-    const timeout2 = setTimeout(() => controller2.abort(), 5000);
-    const imgRes = await fetch(imageUrl, { signal: controller2.signal });
-    clearTimeout(timeout2);
+    return await fetchAndUploadImage(imageUrl, supabase, 'feed');
+  } catch (err) {
+    return null; // fail quietly -- an item without a photo still displays fine
+  }
+}
+
+// Re-hosts a direct image URL through our own Supabase storage --
+// needed for anything (like a sponsor's logo) that gets drawn onto a
+// canvas, since a canvas can't be safely read back (e.g. to download
+// as an image) if it contains a cross-origin image the source server
+// didn't explicitly allow via CORS headers. A real failure this
+// caused: rese.fi's own logo image loaded fine as a normal picture,
+// but was blocked specifically for canvas use because their WordPress
+// hosting doesn't send the necessary CORS headers. Re-hosting through
+// our own Supabase storage (which does send them) sidesteps this
+// regardless of the original source's own CORS configuration.
+async function fetchAndUploadImage(imageUrl, supabase, prefix) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const imgRes = await fetch(imageUrl, { signal: controller.signal });
+    clearTimeout(timeout);
     if (!imgRes.ok) return null;
 
     const contentType = (imgRes.headers.get('content-type') || '').split(';')[0].trim();
@@ -85,14 +103,14 @@ async function fetchAndStoreOgImage(pageUrl, supabase) {
     const buffer = Buffer.from(await imgRes.arrayBuffer());
     if (buffer.length > 3 * 1024 * 1024) return null;
 
-    const filename = `feed-${require('crypto').randomUUID()}.${ext}`;
+    const filename = `${prefix}-${require('crypto').randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from('logos').upload(filename, buffer, { contentType, upsert: false });
     if (error) return null;
 
     const { data } = supabase.storage.from('logos').getPublicUrl(filename);
     return data.publicUrl;
   } catch (err) {
-    return null; // fail quietly -- an item without a photo still displays fine
+    return null;
   }
 }
 
@@ -888,4 +906,4 @@ async function getLocalFeed(supabase, townId, townName, newsCategory) {
   return { news, events, offers };
 }
 
-module.exports = { getLocalFeed, getNewsSection, getEventsSection, NEWS_RSS_FEEDS, DEFAULT_NEWS_CATEGORY, getHelsinkiDayBounds };
+module.exports = { getLocalFeed, getNewsSection, getEventsSection, NEWS_RSS_FEEDS, DEFAULT_NEWS_CATEGORY, getHelsinkiDayBounds, fetchAndUploadImage };
