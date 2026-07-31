@@ -353,10 +353,24 @@ async function handleSetTodayCardSponsor(req, res) {
   if (!companyName || !logoUrl || !customText) {
     return res.status(400).json({ error: 'Missing companyName, logoUrl, or customText.' });
   }
+
+  // Re-host through our own storage, not the original URL directly --
+  // fixes a real failure: a business's own logo loaded fine as a normal
+  // picture, but was blocked specifically for canvas use (needed so the
+  // today-card image can be downloaded) because their hosting doesn't
+  // send the CORS headers a cross-origin canvas image needs. Re-hosting
+  // through Supabase storage (which does send them) sidesteps this
+  // regardless of the original source.
+  const { fetchAndUploadImage } = require('../_localFeed');
+  const rehostedUrl = await fetchAndUploadImage(String(logoUrl).trim(), supabase, 'sponsor');
+  if (!rehostedUrl) {
+    return res.status(400).json({ error: 'Could not fetch that logo URL as an image -- make sure it points directly at an image file (.png/.jpg/.webp), not a webpage.' });
+  }
+
   const { error } = await supabase.from('today_card_sponsor').insert({
     town_id: townId,
     company_name: String(companyName).trim().slice(0, 200),
-    logo_url: String(logoUrl).trim(),
+    logo_url: rehostedUrl,
     custom_text: String(customText).trim().slice(0, 200),
     active: true
   });
