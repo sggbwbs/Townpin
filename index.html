@@ -441,7 +441,8 @@
   #bizFeedCard{background:var(--panel);border:1px solid var(--line);border-radius:16px;
     padding:0;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;}
   #bizFeedCardHead{padding:16px 18px;border-bottom:1px solid var(--line);
-    display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  #bizFeedCardHead > div{min-width:0;}
   #bizFeedCardHead h3{font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--ink);margin:0 0 3px;}
   #bizFeedCardHead p{font-size:11px;color:var(--ink-dim);margin:0;}
   /* Light mode (the default, matching the prototype) drops the border in favor
@@ -878,7 +879,7 @@
         </div>
         <div class="statCard">
           <span class="statIcon">📰</span>
-          <span class="statBody"><b id="statNewsCount">–</b><span>Tuorein uutinen</span></span>
+          <span class="statBody"><b id="statFreshness">–</b><span>Tuorein Tilannehuone-ilmoitus</span></span>
         </div>
         <div class="statCard">
           <span class="statIcon">🏷️</span>
@@ -2219,6 +2220,13 @@ function syncColumnHeightsActual(){
   // Reset first so a previous pass's height doesn't compound into this one.
   itemsBox.style.height = '';
 
+  // Below 1000px, #homeTwoColLayout stacks homeLeftCol and homeRightCol
+  // into a single column (see its media query) -- there's no side-by-side
+  // alignment to compute there at all, so forcing a height meant for the
+  // desktop layout onto a stacked mobile one was actively wrong, not just
+  // pointless. Let Tilannehuone just take its natural height on mobile.
+  if (window.innerWidth < 1000) return;
+
   // The goal is matching BOTTOM EDGE POSITIONS on the page. Tilannehuone
   // sits below bizFeedCard in its column, so it starts lower on the page
   // than feedRow does -- comparing against the whole left column (stats
@@ -2651,6 +2659,8 @@ async function loadTilannehuone(){
     const res = await fetch(`${API_BASE}/tilannehuone`);
     const data = await res.json();
     const items = data.items || [];
+    const statFreshnessEl = document.getElementById('statFreshness');
+    if (statFreshnessEl) statFreshnessEl.textContent = formatFreshness(items);
     box.innerHTML = '';
     if (items.length === 0){
       emptyNote.style.display = 'block';
@@ -2986,13 +2996,13 @@ function makeFeedItemEl(item){
   return el;
 }
 
-// news.length was just an artifact of how many items the merged Kaleva+Yle
-// fetch happened to return -- not a meaningful count of anything a reader
-// would care about. How recently the newest article was actually
-// published answers a real question ("is this up to date?") instead.
-function formatNewsFreshness(news){
-  if (!news || news.length === 0) return '–';
-  const newest = news.reduce((latest, item) =>
+// Generic freshness formatter -- how long ago the newest item in a list
+// was published/reported. Originally built for news specifically, now
+// reused for Tilannehuone too, since "how current is this" is a more
+// useful signal than a raw item count regardless of which feed it's for.
+function formatFreshness(items){
+  if (!items || items.length === 0) return '–';
+  const newest = items.reduce((latest, item) =>
     new Date(item.created_at) > new Date(latest.created_at) ? item : latest
   );
   const ageMs = Date.now() - new Date(newest.created_at).getTime();
@@ -3013,8 +3023,6 @@ function renderLocalFeed(feed){
 
   const statEventsEl = document.getElementById('statEventsCount');
   if (statEventsEl) statEventsEl.textContent = events.length;
-  const statNewsEl = document.getElementById('statNewsCount');
-  if (statNewsEl) statNewsEl.textContent = formatNewsFreshness(news);
 
   if (news.length === 0 && events.length === 0){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
