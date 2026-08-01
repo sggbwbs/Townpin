@@ -79,7 +79,7 @@ async function fetchAndStoreOgImage(pageUrl, supabase) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-    const pageRes = await fetch(pageUrl, { signal: controller.signal });
+    const pageRes = await fetch(pageUrl, { signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PaikallisCanvasBot/1.0)' } });
     clearTimeout(timeout);
     if (!pageRes.ok) return null;
 
@@ -110,7 +110,7 @@ async function fetchAndUploadImage(imageUrl, supabase, prefix) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-    const imgRes = await fetch(imageUrl, { signal: controller.signal });
+    const imgRes = await fetch(imageUrl, { signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PaikallisCanvasBot/1.0)' } });
     clearTimeout(timeout);
     if (!imgRes.ok) return null;
 

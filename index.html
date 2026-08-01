@@ -564,8 +564,6 @@
     from{opacity:0;transform:translateY(10px);}
     to{opacity:1;transform:translateY(0);}
   }
-  .collapseCardBtn{background:none;border:none;color:var(--amber);font-weight:700;font-size:13px;
-    cursor:pointer;padding:0 0 14px;font-family:'IBM Plex Sans',sans-serif;}
   #eventsDayGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;}
   .expandedDayItemsGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;}
   @media (min-width:700px){ .expandedDayItemsGrid{grid-template-columns:1fr 1fr;} }
@@ -929,7 +927,6 @@
                 </div>
               </div>
               <div id="eventsExpandedView" style="display:none;">
-                <button class="collapseCardBtn" onclick="collapseFeedCard();">← Takaisin</button>
                 <div id="eventsDayGrid"></div>
               </div>
             </div>
@@ -958,7 +955,6 @@
           </div>
         </div>
         <div id="newsExpandedView" style="display:none;">
-          <button class="collapseCardBtn" onclick="collapseFeedCard();">← Takaisin</button>
           <div id="newsSourceColumnsGrid"></div>
         </div>
       </div>
@@ -2987,21 +2983,24 @@ function makeFeedItemEl(item){
     el.appendChild(dateBadge);
   }
 
-  const isNewsItem = !item.event_date; // events keep their real photo; this only touches the news feed
+  const isNewsItem = !item.event_date; // used below only for the fallback badge color
 
-  if (isNewsItem && item.source_name && (item.source_name === 'Kaleva' || item.source_name === 'Yle')){
-    const logo = document.createElement('span');
-    logo.className = 'feedImg sourceLogoBadge';
-    logo.style.background = item.source_name === 'Kaleva' ? '#f7941d' : '#00b4d8';
-    logo.textContent = item.source_name === 'Kaleva' ? 'K' : 'Y';
-    el.appendChild(logo);
-  } else if (item.image_url){
+  if (item.image_url){
     const img = document.createElement('img');
     img.className = 'feedImg';
     img.src = item.image_url;
     img.alt = '';
     img.loading = 'lazy';
     el.appendChild(img);
+  } else if (isNewsItem && item.source_name && (item.source_name === 'Kaleva' || item.source_name === 'Yle')){
+    // Fallback for the (usually rare) case where this specific article
+    // didn't have a fetchable photo -- better than an empty gap where
+    // the thumbnail would normally be.
+    const logo = document.createElement('span');
+    logo.className = 'feedImg sourceLogoBadge';
+    logo.style.background = item.source_name === 'Kaleva' ? '#f7941d' : '#00b4d8';
+    logo.textContent = item.source_name === 'Kaleva' ? 'K' : 'Y';
+    el.appendChild(logo);
   }
 
   const body = document.createElement('div');
