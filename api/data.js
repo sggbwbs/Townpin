@@ -69,10 +69,12 @@ async function handleBoard(req, res) {
 // -- so however long this takes, it never blocks the board itself from
 // being visible and usable.
 //
-// `newsCategory` is optional -- selects which of Kaleva's RSS feeds to
-// show (see NEWS_RSS_FEEDS in _localFeed.js). getNewsSection itself
-// falls back to the Oulu-region default if this is missing or isn't a
-// recognized category, so there's no need to validate it here too.
+// `newsCategory` is optional -- selects which news source/feed to show
+// (Kaleva, Yle, or one of the Oulun kaupunki sources -- see NEWS_RSS_FEEDS,
+// YLE_NEWS_RSS_FEEDS, and OULU_CITY_NEWS_RSS_FEEDS in _localFeed.js).
+// getNewsSection itself falls back to the Oulu-region Kaleva default if
+// this is missing or isn't a recognized category, so there's no need to
+// validate it here too.
 async function handleFeed(req, res) {
   const { townId, newsCategory, admin } = req.query;
   if (!townId) return res.status(400).json({ error: 'Missing townId.' });

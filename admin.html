@@ -7,40 +7,54 @@
 <meta name="robots" content="noindex, nofollow" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{ --bg-0:#050b14; --panel:#0f2038; --line:rgba(120,160,210,0.16);
-    --paper:#f4efe4; --amber:#f2a65a; --amber-bright:#ffc07e; --ink:#f5f7fb; --ink-dim:#8fa3bd; --danger:#e0715a; }
+  :root{ --bg-0:#f3f2fa; --panel:#ffffff; --line:#ddd8ef;
+    --paper:#ffffff; --amber:#5847c9; --amber-bright:#7a5cd6; --ink:#211c38; --ink-dim:#6b6488; --danger:#c0392b; }
   *{box-sizing:border-box;}
   body{margin:0;min-height:100vh;background:var(--bg-0);color:var(--ink);
     font-family:'IBM Plex Sans',sans-serif;display:flex;flex-direction:column;align-items:center;padding:60px 20px;}
   h1{font-family:'Space Grotesk',sans-serif;font-size:20px;margin:0 0 6px;}
   .sub{color:var(--ink-dim);font-size:13px;margin:0 0 28px;}
-  .card{background:var(--paper);color:#26210f;max-width:520px;width:100%;border-radius:14px;padding:32px;}
-  #loginCard input{width:100%;padding:12px 14px;border:1px solid #d8cfb4;border-radius:7px;
-    font-size:14px;margin-bottom:14px;font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;}
+  .card{background:var(--paper);color:#211c38;max-width:520px;width:100%;border-radius:14px;padding:32px;
+    box-shadow:0 4px 16px rgba(88,71,201,0.07);}
+  #adminColumnsWrap{display:flex;flex-direction:row;flex-wrap:wrap;gap:20px;align-items:flex-start;
+    width:100%;max-width:1400px;}
+  .adminColumn{flex:1 1 340px;min-width:340px;display:flex;flex-direction:column;gap:20px;}
+  .adminColumn .card{max-width:none;width:100%;}
+  .adminColumnLabel{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:var(--ink);
+    margin:0;padding-left:4px;text-transform:uppercase;letter-spacing:0.04em;}
+  #quickNavCard{box-shadow:0 8px 24px rgba(88,71,201,0.14);max-width:700px;}
+  #quickNavRow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+  .quickNavBtn{background:var(--bg-0);border:1px solid var(--line);color:var(--ink-dim);
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;padding:10px 16px;
+    border-radius:999px;cursor:pointer;}
+  .quickNavBtn.quickNavPrimary{background:var(--amber);border-color:var(--amber);color:#ffffff;}
+  .quickNavBtn:hover{filter:brightness(1.08);}
+  #loginCard input{width:100%;padding:12px 14px;border:1px solid #ddd8ef;border-radius:7px;
+    font-size:14px;margin-bottom:14px;font-family:'IBM Plex Sans',sans-serif;background:#ffffff;}
   button{border:none;border-radius:8px;padding:12px 20px;font-family:'Space Grotesk',sans-serif;
-    font-weight:700;font-size:14px;cursor:pointer;background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;}
-  .feedbackFilterBtn{background:none;border:1px solid #d8cfb4;color:#5c5440;padding:7px 14px;font-size:12.5px;font-weight:600;}
-  .feedbackFilterBtn.active{background:#2a2110;color:#f2a65a;border-color:#2a2110;}
-  .feedbackItem{border:1px solid #e4dcc4;border-radius:8px;padding:12px 14px;margin-bottom:10px;}
+    font-weight:700;font-size:14px;cursor:pointer;background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#ffffff;}
+  .feedbackFilterBtn{background:none;border:1px solid #ddd8ef;color:#6b6488;padding:7px 14px;font-size:12.5px;font-weight:600;}
+  .feedbackFilterBtn.active{background:#211c38;color:#5847c9;border-color:#211c38;}
+  .feedbackItem{border:1px solid #ddd8ef;border-radius:8px;padding:12px 14px;margin-bottom:10px;}
   .feedbackItem .feedbackQ{font-weight:700;margin-bottom:6px;}
-  .feedbackItem .feedbackA{color:#5c5440;font-size:13px;margin-bottom:6px;white-space:pre-wrap;}
-  .feedbackItem .feedbackComment{background:#f7f2e2;border-radius:6px;padding:8px 10px;font-size:13px;font-style:italic;margin-bottom:6px;}
-  .feedbackItem .feedbackMeta{font-size:11.5px;color:#8a8168;}
+  .feedbackItem .feedbackA{color:#6b6488;font-size:13px;margin-bottom:6px;white-space:pre-wrap;}
+  .feedbackItem .feedbackComment{background:#f3f2fa;border-radius:6px;padding:8px 10px;font-size:13px;font-style:italic;margin-bottom:6px;}
+  .feedbackItem .feedbackMeta{font-size:11.5px;color:#6b6488;}
   .err{color:#b8452f;font-size:13px;margin:-4px 0 14px;display:none;}
   .field{margin-bottom:20px;}
   .field label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
-    color:#5c5440;margin-bottom:5px;}
-  .field .langLabel{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8a8168;margin:8px 0 3px;}
-  .field textarea{width:100%;padding:9px 11px;border:1px solid #d8cfb4;border-radius:6px;font-size:13.5px;
-    font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;resize:vertical;min-height:44px;}
+    color:#6b6488;margin-bottom:5px;}
+  .field .langLabel{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#6b6488;margin:8px 0 3px;}
+  .field textarea{width:100%;padding:9px 11px;border:1px solid #ddd8ef;border-radius:6px;font-size:13.5px;
+    font-family:'IBM Plex Sans',sans-serif;background:#ffffff;resize:vertical;min-height:44px;}
   .saveBar{position:sticky;bottom:-32px;background:var(--paper);padding:16px 0 0;margin-top:8px;
     display:flex;align-items:center;gap:14px;}
   .saved{color:#4a7a5c;font-size:13px;display:none;}
-  #logoutLink{display:block;margin-top:18px;font-size:12px;color:#8a8168;text-decoration:underline;cursor:pointer;}
-  #previewBox{background:#050b14;border-radius:10px;padding:32px 20px;text-align:center;margin-bottom:24px;
+  #logoutLink{display:block;margin-top:18px;font-size:12px;color:#6b6488;text-decoration:underline;cursor:pointer;}
+  #previewBox{background:#1a1730;border-radius:10px;padding:32px 20px;text-align:center;margin-bottom:24px;
     font-family:'IBM Plex Sans',sans-serif;}
   #previewBox h2{font-family:'Space Grotesk',sans-serif;color:#f5f7fb;font-size:22px;margin:0 0 10px;line-height:1.2;}
-  #previewBox h2 span{color:#f2a65a;}
+  #previewBox h2 span{color:#5847c9;}
   #previewBox p{color:#8fa3bd;font-size:13px;max-width:400px;margin:0 auto 20px;line-height:1.5;}
   #previewValueRow{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;}
   #previewValueRow div{max-width:150px;font-size:11px;color:#8fa3bd;text-align:left;}
@@ -49,22 +63,22 @@
   #previewLangToggle{display:flex;gap:2px;justify-content:center;margin-bottom:16px;}
   #previewLangToggle button{background:none;border:1px solid #8fa3bd;color:#8fa3bd;font-size:11px;
     padding:4px 10px;border-radius:999px;cursor:pointer;}
-  #previewLangToggle button.active{background:#f2a65a;border-color:#f2a65a;color:#2a1c0d;font-weight:700;}
+  #previewLangToggle button.active{background:#5847c9;border-color:#5847c9;color:#ffffff;font-weight:700;}
   .qtyRow{display:flex;align-items:center;gap:16px;margin-top:6px;}
-  .qtyRow button{width:36px;height:36px;border-radius:50%;border:1px solid #d8cfb4;background:#fffdf8;
-    color:#26210f;font-size:18px;font-weight:700;cursor:pointer;}
+  .qtyRow button{width:36px;height:36px;border-radius:50%;border:1px solid #ddd8ef;background:#ffffff;
+    color:#211c38;font-size:18px;font-weight:700;cursor:pointer;}
   .qtyRow button:hover{border-color:var(--amber);}
   .qtyRow button:disabled{opacity:0.4;cursor:default;}
   .qtyRow span{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;min-width:32px;text-align:center;}
   .compedRow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;
-    border-bottom:1px solid #e4dcc4;font-size:13px;}
+    border-bottom:1px solid #ddd8ef;font-size:13px;}
   .compedRow:last-child{border-bottom:none;}
   .revokeBtn{background:none;color:#b8452f;text-decoration:underline;padding:4px 8px;font-size:12px;}
-  .field input[type=text],.field input[type=url],.field input[type=date],.field input[type=number]{width:100%;padding:9px 11px;border:1px solid #d8cfb4;
-    border-radius:6px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;}
+  .field input[type=text],.field input[type=url],.field input[type=date],.field input[type=number]{width:100%;padding:9px 11px;border:1px solid #ddd8ef;
+    border-radius:6px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;background:#ffffff;}
   .grantColorRow{display:flex;gap:8px;margin-top:6px;}
   .grantColorRow .swatch{width:26px;height:26px;border-radius:6px;cursor:pointer;border:2px solid transparent;}
-  .grantColorRow .swatch.sel{border-color:#26210f;}
+  .grantColorRow .swatch.sel{border-color:#211c38;}
 </style>
 </head>
 <body>
@@ -77,231 +91,24 @@
   <button id="loginBtn">Log in</button>
 </div>
 
-<div class="card" id="dashHeaderCard" style="display:none;padding:16px 32px;">
+<div class="card" id="dashHeaderCard" style="display:none;padding:16px 32px;max-width:1400px;">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
     <div style="display:flex;align-items:center;gap:8px;">
-      <label for="globalTownSelect" style="font-size:12px;color:#8a8168;font-weight:700;">Managing:</label>
+      <label for="globalTownSelect" style="font-size:12px;color:#6b6488;font-weight:700;">Managing:</label>
       <select id="globalTownSelect" style="font-size:13px;padding:5px 8px;"><option>Loading…</option></select>
     </div>
-    <button id="toggleEditCardBtn" type="button" style="background:none;color:#8a8168;text-decoration:underline;
+    <button id="toggleEditCardBtn" type="button" style="background:none;color:#6b6488;text-decoration:underline;
       padding:4px 0;font-size:12.5px;font-weight:400;">⚙ Edit site copy (advanced)</button>
-    <span style="font-size:12px;color:#8a8168;display:flex;align-items:center;gap:10px;">
+    <span style="font-size:12px;color:#6b6488;display:flex;align-items:center;gap:10px;">
       <span id="adminWhoAmI"></span>
       <span id="logoutLink" style="text-decoration:underline;cursor:pointer;">Log out</span>
     </span>
   </div>
 </div>
 
-<div class="card" id="maintenanceCard" style="display:none;">
-  <h1>Site status</h1>
-  <p class="sub" id="maintenanceStatusText" style="margin-bottom:12px;">Checking…</p>
-  <button id="maintenanceToggleBtn">Loading…</button>
-  <p class="sub" style="margin-top:12px;font-size:11.5px;">Only hides the main homepage — existing customer pages, /manage, and this admin panel keep working normally the whole time.</p>
-</div>
-
-<div class="card" id="colorThemeCard" style="display:none;">
-  <h1>Sivuston väriteema</h1>
-  <p class="sub" style="margin-bottom:14px;">Oletusteema uusille kävijöille. Jos kävijä on jo itse vaihtanut oman teemansa (vaalea/tumma-nappi), heidän oma valintansa säilyy tästä riippumatta.</p>
-  <div style="display:flex;gap:10px;margin-bottom:8px;">
-    <button id="themeSetLight" class="feedbackFilterBtn">Vaalea — Lilac ja muste</button>
-    <button id="themeSetDark" class="feedbackFilterBtn">Tumma — Gradient-dusk</button>
-  </div>
-  <p class="sub" id="colorThemeCurrentLabel" style="font-size:12px;">Ladataan…</p>
-</div>
-
-<div class="card" id="visitorsCard" style="display:none;">
-  <h1>Analytiikka</h1>
-  <p class="sub" style="margin-bottom:6px;">Sivun lataukset — ei uniikkeja kävijöitä, vain kokonaismäärä.</p>
-  <div id="visitorStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="visitorsToday">–</b><span class="sub" style="margin:0;">Tänään</span></div>
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="visitorsWeek">–</b><span class="sub" style="margin:0;">7 päivää</span></div>
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="visitorsTotal">–</b><span class="sub" style="margin:0;">Yhteensä</span></div>
-  </div>
-
-  <p class="sub" style="margin-bottom:6px;">Tekoälykysymykset (ilmaiset + ostetut, kaikki käyttäjät yhteensä).</p>
-  <div id="questionStatsRow" style="display:flex;gap:24px;margin-bottom:6px;">
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="questionsToday">–</b><span class="sub" style="margin:0;">Tänään</span></div>
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="questionsWeek">–</b><span class="sub" style="margin:0;">7 päivää</span></div>
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#26210f;" id="questionsTotal">–</b><span class="sub" style="margin:0;">Yhteensä</span></div>
-  </div>
-  <p class="sub" id="questionsBreakdown" style="margin-bottom:18px;">–</p>
-
-  <p class="sub" style="margin-bottom:6px;">Tekoälyvastausten palaute (👍/👎-napit).</p>
-  <div id="feedbackStatsRow" style="display:flex;gap:24px;">
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#4a7a5c;" id="feedbackUpCount">–</b><span class="sub" style="margin:0;">👍 Hyvä</span></div>
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#b8452f;" id="feedbackDownCount">–</b><span class="sub" style="margin:0;">👎 Huono</span></div>
-  </div>
-</div>
-
-<div class="card" id="businessEngagementCard" style="display:none;">
-  <h1>Yritysten näkyvyys</h1>
-  <p class="sub" style="margin-bottom:14px;">Kuinka moni klikkasi kunkin yrityksen logoa/mainintaa, ja kuinka monta kertaa tekoäly suositteli heitä vastauksissa -- valitun kaupungin yritykset.</p>
-  <div id="businessEngagementList"><p class="sub">Loading…</p></div>
-</div>
-
-<div class="card" id="todayCardSponsorCard" style="display:none;">
-  <h1>Tänään-kortin sponsori</h1>
-  <p class="sub" style="margin-bottom:14px;">Yksi yritys kerrallaan, näkyy oikeassa alakulmassa jaettavassa "Tänään" -kuvassa. Ei itsepalveluostoa -- tämä on tarkoituksella admin-hallittu, kunnes hinta ja kesto on päätetty muille kuin legendaarisille asiakkaille.</p>
-  <p class="sub" style="margin-bottom:14px;background:#f7f2e2;padding:10px 12px;border-radius:8px;"><b>Muista:</b> jokainen 5 mainospaikan (legendaarinen) asiakas on oikeutettu 4 ilmaiseen Tänään-kortin näkyvyyteen kuukaudessa. Tämä työkalu ei seuraa käyttöä automaattisesti -- pidä itse kirjaa, keitä legendaarisia asiakkaita on ja kuinka moneen kertaan kukin on jo saanut näkyvyyttä kuluvana kuukautena.</p>
-  <p class="sub" id="todayCardSponsorCurrent" style="font-weight:700;margin-bottom:14px;">Ladataan…</p>
-  <div class="field">
-    <label>Yrityksen nimi</label>
-    <input type="text" id="sponsorCompanyName" placeholder="esim. Kotigalleria LKV" />
-  </div>
-  <div class="field">
-    <label>Logon osoite (URL)</label>
-    <input type="text" id="sponsorLogoUrl" placeholder="https://..." />
-  </div>
-  <div class="field">
-    <label>Teksti kortille</label>
-    <input type="text" id="sponsorCustomText" placeholder="esim. Kysy meiltä ilmainen arvio kodillesi!" />
-  </div>
-  <button id="saveSponsorBtn">Tallenna sponsori</button>
-  <button id="clearSponsorBtn" style="background:none;border:1px solid #d8cfb4;color:#5c5440;margin-left:8px;">Poista sponsori</button>
-  <span class="saved" id="sponsorSavedMsg">✓ Tallennettu</span>
-  <div class="err" id="sponsorErr"></div>
-</div>
-
-<div class="card" id="costCard" style="display:none;">
-  <h1>AI-kustannukset</h1>
-  <p class="sub" style="margin-bottom:14px;">
-    <p class="sub" id="costDisclaimer" style="margin-bottom:14px;">Ladataan…</p>
-  <div id="costStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
-    <div id="costQuestionsWrap"><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:#26210f;" id="costQuestions">–</b><span class="sub" style="margin:0;">Kysymyksiä tässä kuussa</span></div>
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:#26210f;" id="costEstimate">–</b><span class="sub" style="margin:0;" id="costEstimateLabel">Kulutus tässä kuussa</span></div>
-    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;" id="costRemaining">–</b><span class="sub" style="margin:0;">Budjettia jäljellä</span></div>
-  </div>
-  <div class="field" style="margin-bottom:8px;">
-    <label>Kuukausibudjetti (€)</label>
-    <input type="text" id="budgetInput" placeholder="esim. 25" />
-  </div>
-  <button id="saveBudgetBtn">Tallenna budjetti</button>
-  <span class="saved" id="budgetSaved">Tallennettu ✓</span>
-</div>
-
-<div class="card" id="shareCardCard" style="display:none;">
-  <h1>Daily share card</h1>
-  <p class="sub" style="margin-bottom:12px;">A downloadable image with today's weather and top event — built for posting in local Facebook groups or social media to bring in real visitors.</p>
-  <a href="/today-card.html" target="_blank" style="text-decoration:none;">
-    <button type="button">Open today's card →</button>
-  </a>
-</div>
-
-<div class="card" id="editCard" style="display:none;">
-  <h1>Edit site copy</h1>
-  <p class="sub">Changes go live within a few seconds — no redeploy needed. Only the main marketing copy is editable here.</p>
-  <div id="editCardTownNote" class="sub" style="font-weight:700;margin-bottom:14px;"></div>
-
-  <div id="previewLangToggle">
-    <button id="previewLangFi" class="active">FI</button>
-    <button id="previewLangEn">EN</button>
-  </div>
-  <div id="previewBox">
-    <h2 id="previewTitle"></h2>
-    <p id="previewSub"></p>
-    <div id="previewValueRow">
-      <div><b id="previewV1b">5€/kk</b> <span id="previewV1"></span></div>
-      <div><b id="previewV2b"></b> <span id="previewV2"></span></div>
-      <div><b id="previewV3b"></b> <span id="previewV3"></span></div>
-    </div>
-    <div id="previewFooter"></div>
-  </div>
-
-  <div id="fields"></div>
-  <div class="saveBar">
-    <button id="saveBtn">Save changes</button>
-    <span class="saved" id="savedMsg">✓ Saved</span>
-  </div>
-</div>
-
-<div class="card" id="userCreditsCard" style="display:none;">
-  <h1>Manage a user's AI-chat access</h1>
-  <p class="sub">Look an account up by email, then fix a credit balance (e.g. a purchase that was charged but never credited -- usually a Stripe webhook that didn't arrive or failed) or grant/revoke unlimited access for a specific trusted person.</p>
-  <div class="field">
-    <label>Account email</label>
-    <input type="text" id="creditsLookupEmail" placeholder="person@example.com" />
-  </div>
-  <button id="creditsLookupBtn">Find account</button>
-  <div class="err" id="creditsLookupErr"></div>
-
-  <div id="creditsAdjustWrap" style="display:none;margin-top:18px;">
-    <p class="sub" id="creditsCurrentBalances" style="font-weight:700;"></p>
-
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#5c5440;margin:14px 0;cursor:pointer;">
-      <input type="checkbox" id="unlimitedSearchesCb" />
-      ✨ Unlimited AI-chat searches for this account (no daily cap, no credits spent)
-    </label>
-    <button id="unlimitedSearchesSaveBtn">Save access</button>
-    <span class="saved" id="unlimitedSearchesSavedMsg">✓ Updated</span>
-    <div class="err" id="unlimitedSearchesErr"></div>
-
-    <hr style="margin:20px 0;border:none;border-top:1px solid #e4dcc4;">
-    <div class="field">
-      <label>Standard credits adjustment</label>
-      <input type="number" id="creditsStandardDelta" placeholder="e.g. 5, or -5 to remove" value="0" />
-    </div>
-    <div class="field">
-      <label>Premium credits adjustment (legacy -- the premium tier was discontinued, this only matters for an existing leftover balance)</label>
-      <input type="number" id="creditsPremiumDelta" placeholder="e.g. 5, or -5 to remove" value="0" />
-    </div>
-    <button id="creditsAdjustBtn">Apply credit adjustment</button>
-    <span class="saved" id="creditsAdjustSavedMsg">✓ Updated</span>
-    <div class="err" id="creditsAdjustErr"></div>
-  </div>
-</div>
-
-<div class="card" id="aiHintsCard" style="display:none;">
-  <h1>Teach the AI agent</h1>
-  <p class="sub">Give the chat agent standing instructions — e.g. "When someone asks about car rentals (autovuokraamo), always mention Rese Autovuokraamo and Casahouse Rent by name." Plain language, short and direct works best. Applies to every question from now on.</p>
-
-  <div id="aiHintsTownNote" class="sub" style="margin:0 0 10px;font-weight:700;"></div>
-  <div class="field">
-    <label>New instruction</label>
-    <textarea id="aiHintInput" placeholder='e.g. When asked about car rentals, mention Rese Autovuokraamo and Casahouse Rent.' style="min-height:70px;"></textarea>
-  </div>
-  <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5c5440;margin-bottom:12px;cursor:pointer;">
-    <input type="checkbox" id="aiHintGlobalCb" />
-    Apply to every town's chat, not just the one selected above
-  </label>
-  <button id="addAiHintBtn">Add instruction</button>
-  <span class="saved" id="aiHintSavedMsg">✓ Added</span>
-  <div class="err" id="aiHintErr"></div>
-
-  <hr style="margin:22px 0;border:none;border-top:1px solid #e4dcc4;">
-  <h1 style="font-size:15px;">Current instructions</h1>
-  <div id="aiHintsList"><p class="sub">Loading…</p></div>
-</div>
-
-<div class="card" id="aiFeedbackCard" style="display:none;">
-  <h1 style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleAiFeedbackCard()">
-    <span>AI chat feedback</span>
-    <span id="aiFeedbackCollapseArrow" style="font-size:13px;color:#8a8168;">▼ Piilota</span>
-  </h1>
-  <div id="aiFeedbackBody">
-    <p class="sub">Real 👍/👎 feedback from visitors on actual answers -- this doesn't retrain the AI itself (there's no such pipeline), but it's the most direct way to see which real questions got a bad answer, with the actual question and answer text right here to read.</p>
-    <button id="summarizeFeedbackBtn">✨ Analysoi 👎-palaute tekoälyllä</button>
-    <p class="sub" style="margin-top:6px;">Tunnistaa toistuvat teemat viimeisimmästä 👎-palautteesta -- ei muuta mitään automaattisesti, vain auttaa näkemään mikä on oikeasti toistuva ongelma sen sijaan, että lukisi jokaisen erikseen.</p>
-    <div id="feedbackSummaryResult" style="display:none;background:#f7f2e2;border-radius:8px;padding:14px 16px;margin:12px 0;white-space:pre-wrap;font-size:13.5px;line-height:1.5;"></div>
-    <div class="err" id="summarizeFeedbackErr"></div>
-
-    <div style="display:flex;gap:8px;margin:18px 0 14px;align-items:center;">
-      <button id="feedbackFilterAll" class="feedbackFilterBtn active">All</button>
-      <button id="feedbackFilterDown" class="feedbackFilterBtn">👎 Down only</button>
-      <button id="feedbackFilterUp" class="feedbackFilterBtn">👍 Up only</button>
-      <button id="clearAiFeedbackBtn" style="background:none;border:1px solid #d8cfb4;color:#8a2c2c;font-size:12.5px;padding:8px 14px;margin-left:auto;">Tyhjennä näkyvät</button>
-    </div>
-    <div id="aiFeedbackList"><p class="sub">Loading…</p></div>
-    <button id="aiFeedbackShowMoreBtn" style="display:none;margin-top:12px;background:none;border:1px solid #d8cfb4;color:#5c5440;font-size:13px;">Näytä lisää</button>
-  </div>
-</div>
-
-<div class="card" id="siteFeedbackCard" style="display:none;">
-  <h1>Site feedback</h1>
-  <p class="sub">General "what do you think of the service" feedback from the main site -- distinct from the AI chat feedback above. Shown across all towns, not scoped to whichever one is currently selected, since this is about the whole service.</p>
-  <button id="clearSiteFeedbackBtn" style="background:none;border:1px solid #d8cfb4;color:#8a2c2c;font-size:12.5px;padding:8px 14px;margin-bottom:12px;">Tyhjennä kaikki</button>
-  <div id="siteFeedbackList"><p class="sub">Loading…</p></div>
-</div>
-
+<div id="adminColumnsWrap">
+  <div class="adminColumn">
+    <h2 class="adminColumnLabel">Tapahtumat</h2>
 <div class="card" id="eventsCard" style="display:none;">
   <h1>Choose today's featured events</h1>
   <p class="sub">Pick up to 4 events to show on the public board instead of the automatic ranking — useful when you want specific events front and center (say, during a big festival). Optionally highlight a few of your picks to make them stand out. Uncheck everything and save to go back to automatic selection.</p>
@@ -311,7 +118,100 @@
   <span class="saved" id="eventsSavedMsg">✓ Saved</span>
   <div class="err" id="eventsErr"></div>
 </div>
+  </div>
 
+  <div class="adminColumn">
+    <h2 class="adminColumnLabel">Yritykset</h2>
+<div class="card" id="moveCard" style="display:none;">
+  <h1>Manage a company</h1>
+  <p class="sub">Edit a business's details, or move them to another town if they claimed slots in the wrong city. Works the same whether their slots were bought or granted free. Search by company name or email to find them.</p>
+
+  <div class="field">
+    <label>Search company name or email</label>
+    <input type="text" id="moveSearchInput" placeholder="e.g. Kahvila Oy or owner@company.fi" />
+    <button id="moveSearchBtn" style="margin-top:8px;">Find</button>
+  </div>
+  <div id="moveResults"></div>
+
+  <div id="editWrap" style="display:none;">
+    <hr style="margin:18px 0;border:none;border-top:1px solid #ddd8ef;">
+    <p class="sub" id="editSummary"></p>
+    <div class="field">
+      <label>Company name</label>
+      <input type="text" id="editCompany" placeholder="Company name" />
+    </div>
+    <div class="field">
+      <label>Website URL (optional)</label>
+      <input type="url" id="editWebsite" placeholder="https://company.fi" />
+    </div>
+    <div class="field">
+      <label>Logo URL (optional)</label>
+      <input type="url" id="editLogo" placeholder="https://company.fi/logo.png" />
+    </div>
+    <div class="field">
+      <label>Tagline (optional)</label>
+      <input type="text" id="editTagline" placeholder="A short line" />
+    </div>
+    <div class="field">
+      <label>Address (required, for the map)</label>
+      <input type="text" id="editAddress" placeholder="Street address, city" />
+    </div>
+    <div class="field">
+      <label>Industry (optional)</label>
+      <select id="editIndustry">
+        <option value="">— No industry set —</option>
+        <option value="ajoneuvot">Ajoneuvot ja korjaamo</option>
+        <option value="elainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
+        <option value="it">IT ja digitaaliset palvelut</option>
+        <option value="kauneus">Kauneus ja hyvinvointi</option>
+        <option value="kiinteisto">Kiinteistö ja asuminen</option>
+        <option value="koulutus">Koulutus</option>
+        <option value="kuljetus">Kuljetus ja logistiikka</option>
+        <option value="kasityo">Käsityö ja taide</option>
+        <option value="talous">Lakipalvelut ja talous</option>
+        <option value="maatalous">Maatalous ja puutarha</option>
+        <option value="matkailu">Matkailu ja majoitus</option>
+        <option value="muu">Muu</option>
+        <option value="rakentaminen">Rakentaminen ja remontointi</option>
+        <option value="ravintola">Ravintola ja kahvila</option>
+        <option value="siivous">Siivous ja kotipalvelut</option>
+        <option value="tapahtumat">Tapahtumat ja viihde</option>
+        <option value="terveys">Terveys ja lääkäripalvelut</option>
+        <option value="urheilu">Urheilu ja liikunta</option>
+        <option value="valokuvaus">Valokuvaus ja media</option>
+        <option value="kauppa">Vähittäiskauppa</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Number of ad slots</label>
+      <div class="qtyRow">
+        <button id="editQtyMinus" type="button" aria-label="Fewer">−</button>
+        <span id="editQtyDisplay">1</span>
+        <button id="editQtyPlus" type="button" aria-label="More">+</button>
+      </div>
+      <p class="sub" style="margin:6px 0 0;font-size:11.5px;">Changing this adds or removes slots for this business — added slots are auto-assigned from whatever's free in their town.</p>
+    </div>
+    <button id="editSaveBtn">Save changes</button>
+    <span class="saved" id="editSavedMsg">✓ Saved</span>
+    <div class="err" id="editErr"></div>
+  </div>
+
+  <div id="moveDestWrap" style="display:none;">
+    <hr style="margin:18px 0;border:none;border-top:1px solid #ddd8ef;">
+    <p class="sub" id="moveSummary"></p>
+    <div class="field">
+      <label>Destination town</label>
+      <input type="text" id="moveDestTownInput" placeholder="e.g. Tampere" />
+      <button id="moveDestLoadBtn" style="margin-top:8px;">Load town</button>
+    </div>
+    <div id="moveGridWrap" style="display:none;">
+      <p class="sub" id="movePickCount"></p>
+      <button id="moveConfirmBtn">Confirm move</button>
+      <span class="saved" id="moveSavedMsg">✓ Moved</span>
+    </div>
+    <div class="err" id="moveErr"></div>
+  </div>
+</div>
 <div class="card" id="grantCard" style="display:none;">
   <h1>Grant free ad slots</h1>
   <p class="sub">Reserve one or more ad slots for a company of your choice — no payment, no subscription.</p>
@@ -385,102 +285,10 @@
     <div class="err" id="grantErr"></div>
   </div>
 
-  <hr style="margin:24px 0;border:none;border-top:1px solid #e4dcc4;">
+  <hr style="margin:24px 0;border:none;border-top:1px solid #ddd8ef;">
   <h1 style="font-size:15px;">Currently comped ad slots</h1>
   <div id="compedList"><p class="sub">Loading…</p></div>
 </div>
-
-<div class="card" id="moveCard" style="display:none;">
-  <h1>Manage a company</h1>
-  <p class="sub">Edit a business's details, or move them to another town if they claimed slots in the wrong city. Works the same whether their slots were bought or granted free. Search by company name or email to find them.</p>
-
-  <div class="field">
-    <label>Search company name or email</label>
-    <input type="text" id="moveSearchInput" placeholder="e.g. Kahvila Oy or owner@company.fi" />
-    <button id="moveSearchBtn" style="margin-top:8px;">Find</button>
-  </div>
-  <div id="moveResults"></div>
-
-  <div id="editWrap" style="display:none;">
-    <hr style="margin:18px 0;border:none;border-top:1px solid #e4dcc4;">
-    <p class="sub" id="editSummary"></p>
-    <div class="field">
-      <label>Company name</label>
-      <input type="text" id="editCompany" placeholder="Company name" />
-    </div>
-    <div class="field">
-      <label>Website URL (optional)</label>
-      <input type="url" id="editWebsite" placeholder="https://company.fi" />
-    </div>
-    <div class="field">
-      <label>Logo URL (optional)</label>
-      <input type="url" id="editLogo" placeholder="https://company.fi/logo.png" />
-    </div>
-    <div class="field">
-      <label>Tagline (optional)</label>
-      <input type="text" id="editTagline" placeholder="A short line" />
-    </div>
-    <div class="field">
-      <label>Address (required, for the map)</label>
-      <input type="text" id="editAddress" placeholder="Street address, city" />
-    </div>
-    <div class="field">
-      <label>Industry (optional)</label>
-      <select id="editIndustry">
-        <option value="">— No industry set —</option>
-        <option value="ajoneuvot">Ajoneuvot ja korjaamo</option>
-        <option value="elainlaakari">Eläinlääkäri ja lemmikkipalvelut</option>
-        <option value="it">IT ja digitaaliset palvelut</option>
-        <option value="kauneus">Kauneus ja hyvinvointi</option>
-        <option value="kiinteisto">Kiinteistö ja asuminen</option>
-        <option value="koulutus">Koulutus</option>
-        <option value="kuljetus">Kuljetus ja logistiikka</option>
-        <option value="kasityo">Käsityö ja taide</option>
-        <option value="talous">Lakipalvelut ja talous</option>
-        <option value="maatalous">Maatalous ja puutarha</option>
-        <option value="matkailu">Matkailu ja majoitus</option>
-        <option value="muu">Muu</option>
-        <option value="rakentaminen">Rakentaminen ja remontointi</option>
-        <option value="ravintola">Ravintola ja kahvila</option>
-        <option value="siivous">Siivous ja kotipalvelut</option>
-        <option value="tapahtumat">Tapahtumat ja viihde</option>
-        <option value="terveys">Terveys ja lääkäripalvelut</option>
-        <option value="urheilu">Urheilu ja liikunta</option>
-        <option value="valokuvaus">Valokuvaus ja media</option>
-        <option value="kauppa">Vähittäiskauppa</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Number of ad slots</label>
-      <div class="qtyRow">
-        <button id="editQtyMinus" type="button" aria-label="Fewer">−</button>
-        <span id="editQtyDisplay">1</span>
-        <button id="editQtyPlus" type="button" aria-label="More">+</button>
-      </div>
-      <p class="sub" style="margin:6px 0 0;font-size:11.5px;">Changing this adds or removes slots for this business — added slots are auto-assigned from whatever's free in their town.</p>
-    </div>
-    <button id="editSaveBtn">Save changes</button>
-    <span class="saved" id="editSavedMsg">✓ Saved</span>
-    <div class="err" id="editErr"></div>
-  </div>
-
-  <div id="moveDestWrap" style="display:none;">
-    <hr style="margin:18px 0;border:none;border-top:1px solid #e4dcc4;">
-    <p class="sub" id="moveSummary"></p>
-    <div class="field">
-      <label>Destination town</label>
-      <input type="text" id="moveDestTownInput" placeholder="e.g. Tampere" />
-      <button id="moveDestLoadBtn" style="margin-top:8px;">Load town</button>
-    </div>
-    <div id="moveGridWrap" style="display:none;">
-      <p class="sub" id="movePickCount"></p>
-      <button id="moveConfirmBtn">Confirm move</button>
-      <span class="saved" id="moveSavedMsg">✓ Moved</span>
-    </div>
-    <div class="err" id="moveErr"></div>
-  </div>
-</div>
-
 <div class="card" id="townsCard" style="display:none;">
   <h1>Towns open to the public</h1>
   <p class="sub">Only towns listed here as "Open" can be found or claimed by visitors — this is the "pilot one town first" restriction. Enable a new town when you're ready to expand there.</p>
@@ -493,9 +301,224 @@
     <div class="err" id="townsErr"></div>
   </div>
 
-  <hr style="margin:18px 0;border:none;border-top:1px solid #e4dcc4;">
+  <hr style="margin:18px 0;border:none;border-top:1px solid #ddd8ef;">
   <div id="townsList"><p class="sub">Loading…</p></div>
 </div>
+  </div>
+
+  <div class="adminColumn">
+    <h2 class="adminColumnLabel">Tilastot</h2>
+<div class="card" id="visitorsCard" style="display:none;">
+  <h1>Analytiikka</h1>
+  <p class="sub" style="margin-bottom:6px;">Sivun lataukset — ei uniikkeja kävijöitä, vain kokonaismäärä.</p>
+  <div id="visitorStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#211c38;" id="visitorsToday">–</b><span class="sub" style="margin:0;">Tänään</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#211c38;" id="visitorsWeek">–</b><span class="sub" style="margin:0;">7 päivää</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#211c38;" id="visitorsTotal">–</b><span class="sub" style="margin:0;">Yhteensä</span></div>
+  </div>
+
+  <p class="sub" style="margin-bottom:6px;">Tekoälykysymykset (ilmaiset + ostetut, kaikki käyttäjät yhteensä).</p>
+  <div id="questionStatsRow" style="display:flex;gap:24px;margin-bottom:6px;">
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#211c38;" id="questionsToday">–</b><span class="sub" style="margin:0;">Tänään</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#211c38;" id="questionsWeek">–</b><span class="sub" style="margin:0;">7 päivää</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#211c38;" id="questionsTotal">–</b><span class="sub" style="margin:0;">Yhteensä</span></div>
+  </div>
+  <p class="sub" id="questionsBreakdown" style="margin-bottom:18px;">–</p>
+
+  <p class="sub" style="margin-bottom:6px;">Tekoälyvastausten palaute (👍/👎-napit).</p>
+  <div id="feedbackStatsRow" style="display:flex;gap:24px;">
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#4a7a5c;" id="feedbackUpCount">–</b><span class="sub" style="margin:0;">👍 Hyvä</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#b8452f;" id="feedbackDownCount">–</b><span class="sub" style="margin:0;">👎 Huono</span></div>
+  </div>
+</div>
+<div class="card" id="businessEngagementCard" style="display:none;">
+  <h1>Yritysten näkyvyys</h1>
+  <p class="sub" style="margin-bottom:14px;">Kuinka moni klikkasi kunkin yrityksen logoa/mainintaa, ja kuinka monta kertaa tekoäly suositteli heitä vastauksissa -- valitun kaupungin yritykset.</p>
+  <div id="businessEngagementList"><p class="sub">Loading…</p></div>
+</div>
+<div class="card" id="costCard" style="display:none;">
+  <h1>AI-kustannukset</h1>
+  <p class="sub" style="margin-bottom:14px;">
+    <p class="sub" id="costDisclaimer" style="margin-bottom:14px;">Ladataan…</p>
+  <div id="costStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
+    <div id="costQuestionsWrap"><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:#211c38;" id="costQuestions">–</b><span class="sub" style="margin:0;">Kysymyksiä tässä kuussa</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:#211c38;" id="costEstimate">–</b><span class="sub" style="margin:0;" id="costEstimateLabel">Kulutus tässä kuussa</span></div>
+    <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;" id="costRemaining">–</b><span class="sub" style="margin:0;">Budjettia jäljellä</span></div>
+  </div>
+  <div class="field" style="margin-bottom:8px;">
+    <label>Kuukausibudjetti (€)</label>
+    <input type="text" id="budgetInput" placeholder="esim. 25" />
+  </div>
+  <button id="saveBudgetBtn">Tallenna budjetti</button>
+  <span class="saved" id="budgetSaved">Tallennettu ✓</span>
+</div>
+  </div>
+
+  <div class="adminColumn">
+    <h2 class="adminColumnLabel">AI-palaute</h2>
+<div class="card" id="aiHintsCard" style="display:none;">
+  <h1>Teach the AI agent</h1>
+  <p class="sub">Give the chat agent standing instructions — e.g. "When someone asks about car rentals (autovuokraamo), always mention Rese Autovuokraamo and Casahouse Rent by name." Plain language, short and direct works best. Applies to every question from now on.</p>
+
+  <div id="aiHintsTownNote" class="sub" style="margin:0 0 10px;font-weight:700;"></div>
+  <div class="field">
+    <label>New instruction</label>
+    <textarea id="aiHintInput" placeholder='e.g. When asked about car rentals, mention Rese Autovuokraamo and Casahouse Rent.' style="min-height:70px;"></textarea>
+  </div>
+  <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#6b6488;margin-bottom:12px;cursor:pointer;">
+    <input type="checkbox" id="aiHintGlobalCb" />
+    Apply to every town's chat, not just the one selected above
+  </label>
+  <button id="addAiHintBtn">Add instruction</button>
+  <span class="saved" id="aiHintSavedMsg">✓ Added</span>
+  <div class="err" id="aiHintErr"></div>
+
+  <hr style="margin:22px 0;border:none;border-top:1px solid #ddd8ef;">
+  <h1 style="font-size:15px;">Current instructions</h1>
+  <div id="aiHintsList"><p class="sub">Loading…</p></div>
+</div>
+<div class="card" id="aiFeedbackCard" style="display:none;">
+  <h1 style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleAiFeedbackCard()">
+    <span>AI chat feedback</span>
+    <span id="aiFeedbackCollapseArrow" style="font-size:13px;color:#6b6488;">▼ Piilota</span>
+  </h1>
+  <div id="aiFeedbackBody">
+    <p class="sub">Real 👍/👎 feedback from visitors on actual answers -- this doesn't retrain the AI itself (there's no such pipeline), but it's the most direct way to see which real questions got a bad answer, with the actual question and answer text right here to read.</p>
+    <button id="summarizeFeedbackBtn">✨ Analysoi 👎-palaute tekoälyllä</button>
+    <p class="sub" style="margin-top:6px;">Tunnistaa toistuvat teemat viimeisimmästä 👎-palautteesta -- ei muuta mitään automaattisesti, vain auttaa näkemään mikä on oikeasti toistuva ongelma sen sijaan, että lukisi jokaisen erikseen.</p>
+    <div id="feedbackSummaryResult" style="display:none;background:#f3f2fa;border-radius:8px;padding:14px 16px;margin:12px 0;white-space:pre-wrap;font-size:13.5px;line-height:1.5;"></div>
+    <div class="err" id="summarizeFeedbackErr"></div>
+
+    <div style="display:flex;gap:8px;margin:18px 0 14px;align-items:center;">
+      <button id="feedbackFilterAll" class="feedbackFilterBtn active">All</button>
+      <button id="feedbackFilterDown" class="feedbackFilterBtn">👎 Down only</button>
+      <button id="feedbackFilterUp" class="feedbackFilterBtn">👍 Up only</button>
+      <button id="clearAiFeedbackBtn" style="background:none;border:1px solid #ddd8ef;color:#8a2c2c;font-size:12.5px;padding:8px 14px;margin-left:auto;">Tyhjennä näkyvät</button>
+    </div>
+    <div id="aiFeedbackList"><p class="sub">Loading…</p></div>
+    <button id="aiFeedbackShowMoreBtn" style="display:none;margin-top:12px;background:none;border:1px solid #ddd8ef;color:#6b6488;font-size:13px;">Näytä lisää</button>
+  </div>
+</div>
+<div class="card" id="siteFeedbackCard" style="display:none;">
+  <h1>Site feedback</h1>
+  <p class="sub">General "what do you think of the service" feedback from the main site -- distinct from the AI chat feedback above. Shown across all towns, not scoped to whichever one is currently selected, since this is about the whole service.</p>
+  <button id="clearSiteFeedbackBtn" style="background:none;border:1px solid #ddd8ef;color:#8a2c2c;font-size:12.5px;padding:8px 14px;margin-bottom:12px;">Tyhjennä kaikki</button>
+  <div id="siteFeedbackList"><p class="sub">Loading…</p></div>
+</div>
+  </div>
+
+  <div class="adminColumn">
+    <h2 class="adminColumnLabel">Muut työkalut</h2>
+<div class="card" id="maintenanceCard" style="display:none;">
+  <h1>Site status</h1>
+  <p class="sub" id="maintenanceStatusText" style="margin-bottom:12px;">Checking…</p>
+  <button id="maintenanceToggleBtn">Loading…</button>
+  <p class="sub" style="margin-top:12px;font-size:11.5px;">Only hides the main homepage — existing customer pages, /manage, and this admin panel keep working normally the whole time.</p>
+</div>
+<div class="card" id="colorThemeCard" style="display:none;">
+  <h1>Sivuston väriteema</h1>
+  <p class="sub" style="margin-bottom:14px;">Oletusteema uusille kävijöille. Jos kävijä on jo itse vaihtanut oman teemansa (vaalea/tumma-nappi), heidän oma valintansa säilyy tästä riippumatta.</p>
+  <div style="display:flex;gap:10px;margin-bottom:8px;">
+    <button id="themeSetLight" class="feedbackFilterBtn">Vaalea — Lilac ja muste</button>
+    <button id="themeSetDark" class="feedbackFilterBtn">Tumma — Gradient-dusk</button>
+  </div>
+  <p class="sub" id="colorThemeCurrentLabel" style="font-size:12px;">Ladataan…</p>
+</div>
+<div class="card" id="todayCardSponsorCard" style="display:none;">
+  <h1>Tänään-kortin sponsori</h1>
+  <p class="sub" style="margin-bottom:14px;">Yksi yritys kerrallaan, näkyy oikeassa alakulmassa jaettavassa "Tänään" -kuvassa. Ei itsepalveluostoa -- tämä on tarkoituksella admin-hallittu, kunnes hinta ja kesto on päätetty muille kuin legendaarisille asiakkaille.</p>
+  <p class="sub" style="margin-bottom:14px;background:#f3f2fa;padding:10px 12px;border-radius:8px;"><b>Muista:</b> jokainen 5 mainospaikan (legendaarinen) asiakas on oikeutettu 4 ilmaiseen Tänään-kortin näkyvyyteen kuukaudessa. Tämä työkalu ei seuraa käyttöä automaattisesti -- pidä itse kirjaa, keitä legendaarisia asiakkaita on ja kuinka moneen kertaan kukin on jo saanut näkyvyyttä kuluvana kuukautena.</p>
+  <p class="sub" id="todayCardSponsorCurrent" style="font-weight:700;margin-bottom:14px;">Ladataan…</p>
+  <div class="field">
+    <label>Yrityksen nimi</label>
+    <input type="text" id="sponsorCompanyName" placeholder="esim. Kotigalleria LKV" />
+  </div>
+  <div class="field">
+    <label>Logon osoite (URL)</label>
+    <input type="text" id="sponsorLogoUrl" placeholder="https://..." />
+  </div>
+  <div class="field">
+    <label>Teksti kortille</label>
+    <input type="text" id="sponsorCustomText" placeholder="esim. Kysy meiltä ilmainen arvio kodillesi!" />
+  </div>
+  <button id="saveSponsorBtn">Tallenna sponsori</button>
+  <button id="clearSponsorBtn" style="background:none;border:1px solid #ddd8ef;color:#6b6488;margin-left:8px;">Poista sponsori</button>
+  <span class="saved" id="sponsorSavedMsg">✓ Tallennettu</span>
+  <div class="err" id="sponsorErr"></div>
+</div>
+<div class="card" id="shareCardCard" style="display:none;">
+  <h1>Daily share card</h1>
+  <p class="sub" style="margin-bottom:12px;">A downloadable image with today's weather and top event — built for posting in local Facebook groups or social media to bring in real visitors.</p>
+  <a href="/today-card.html" target="_blank" style="text-decoration:none;">
+    <button type="button">Open today's card →</button>
+  </a>
+</div>
+<div class="card" id="editCard" style="display:none;">
+  <h1>Edit site copy</h1>
+  <p class="sub">Changes go live within a few seconds — no redeploy needed. Only the main marketing copy is editable here.</p>
+  <div id="editCardTownNote" class="sub" style="font-weight:700;margin-bottom:14px;"></div>
+
+  <div id="previewLangToggle">
+    <button id="previewLangFi" class="active">FI</button>
+    <button id="previewLangEn">EN</button>
+  </div>
+  <div id="previewBox">
+    <h2 id="previewTitle"></h2>
+    <p id="previewSub"></p>
+    <div id="previewValueRow">
+      <div><b id="previewV1b">5€/kk</b> <span id="previewV1"></span></div>
+      <div><b id="previewV2b"></b> <span id="previewV2"></span></div>
+      <div><b id="previewV3b"></b> <span id="previewV3"></span></div>
+    </div>
+    <div id="previewFooter"></div>
+  </div>
+
+  <div id="fields"></div>
+  <div class="saveBar">
+    <button id="saveBtn">Save changes</button>
+    <span class="saved" id="savedMsg">✓ Saved</span>
+  </div>
+</div>
+<div class="card" id="userCreditsCard" style="display:none;">
+  <h1>Manage a user's AI-chat access</h1>
+  <p class="sub">Look an account up by email, then fix a credit balance (e.g. a purchase that was charged but never credited -- usually a Stripe webhook that didn't arrive or failed) or grant/revoke unlimited access for a specific trusted person.</p>
+  <div class="field">
+    <label>Account email</label>
+    <input type="text" id="creditsLookupEmail" placeholder="person@example.com" />
+  </div>
+  <button id="creditsLookupBtn">Find account</button>
+  <div class="err" id="creditsLookupErr"></div>
+
+  <div id="creditsAdjustWrap" style="display:none;margin-top:18px;">
+    <p class="sub" id="creditsCurrentBalances" style="font-weight:700;"></p>
+
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#6b6488;margin:14px 0;cursor:pointer;">
+      <input type="checkbox" id="unlimitedSearchesCb" />
+      ✨ Unlimited AI-chat searches for this account (no daily cap, no credits spent)
+    </label>
+    <button id="unlimitedSearchesSaveBtn">Save access</button>
+    <span class="saved" id="unlimitedSearchesSavedMsg">✓ Updated</span>
+    <div class="err" id="unlimitedSearchesErr"></div>
+
+    <hr style="margin:20px 0;border:none;border-top:1px solid #ddd8ef;">
+    <div class="field">
+      <label>Standard credits adjustment</label>
+      <input type="number" id="creditsStandardDelta" placeholder="e.g. 5, or -5 to remove" value="0" />
+    </div>
+    <div class="field">
+      <label>Premium credits adjustment (legacy -- the premium tier was discontinued, this only matters for an existing leftover balance)</label>
+      <input type="number" id="creditsPremiumDelta" placeholder="e.g. 5, or -5 to remove" value="0" />
+    </div>
+    <button id="creditsAdjustBtn">Apply credit adjustment</button>
+    <span class="saved" id="creditsAdjustSavedMsg">✓ Updated</span>
+    <div class="err" id="creditsAdjustErr"></div>
+  </div>
+</div>
+  </div>
+
+</div>
+
+
 
 <script>
 const FIELD_DEFS = [
@@ -1644,7 +1667,7 @@ async function loadTownsList(){
         previewLink.target = '_blank';
         previewLink.rel = 'noopener';
         previewLink.textContent = 'Preview →';
-        previewLink.style.cssText = 'font-size:12px;margin-left:10px;color:#8a8168;text-decoration:underline;';
+        previewLink.style.cssText = 'font-size:12px;margin-left:10px;color:#6b6488;text-decoration:underline;';
         row.appendChild(previewLink);
       }
 
@@ -1655,7 +1678,7 @@ async function loadTownsList(){
       if (!town.enabled) {
         const delBtn = document.createElement('button');
         delBtn.textContent = 'Delete';
-        delBtn.style.cssText = 'padding:6px 12px;font-size:12px;margin-left:8px;background:none;color:#8a8168;border:1px solid #d8cfb4;';
+        delBtn.style.cssText = 'padding:6px 12px;font-size:12px;margin-left:8px;background:none;color:#6b6488;border:1px solid #ddd8ef;';
         delBtn.addEventListener('click', async () => {
           if (!confirm(`Delete ${town.name} entirely? Only works if it has no ad slots on it at all -- this can't be undone.`)) return;
           const delRes = await fetch(`${API}/delete-town`, {
@@ -1725,7 +1748,7 @@ async function loadCostEstimate(){
         '<b>Todellinen kulutus Anthropicin Admin API:sta</b> — muunnettu dollareista euroiksi ' +
         (data.eurRate ? `(kurssi ${data.eurRate.toFixed(4)}, EKB)` : '') +
         '. Kattaa vain AI-avustajan (<code>/api/ask</code>) ja muiden Anthropic-kutsujen kustannuksen — ei Supabasea, Vercelia tai muita palveluja. ' +
-        'Vertaa <a href="https://console.anthropic.com" target="_blank" style="color:#8a8168;">Anthropic Consoleen</a> tarvittaessa.';
+        'Vertaa <a href="https://console.anthropic.com" target="_blank" style="color:#6b6488;">Anthropic Consoleen</a> tarvittaessa.';
       document.getElementById('costQuestionsWrap').style.display = 'none';
       document.getElementById('costEstimateLabel').textContent = 'Kulutus tässä kuussa';
     }
@@ -1737,10 +1760,10 @@ async function loadCostEstimate(){
     const remainingEl = document.getElementById('costRemaining');
     if (data.remainingEur === null) {
       remainingEl.textContent = '–';
-      remainingEl.style.color = '#26210f';
+      remainingEl.style.color = '#211c38';
     } else {
       remainingEl.textContent = tilde + data.remainingEur.toFixed(2) + '€';
-      remainingEl.style.color = data.remainingEur < 0 ? '#b8452f' : '#26210f';
+      remainingEl.style.color = data.remainingEur < 0 ? '#b8452f' : '#211c38';
     }
   } catch (e) {
     document.getElementById('costStatsRow').innerHTML = '<p class="sub">Could not load cost data.</p>';

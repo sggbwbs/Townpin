@@ -5,14 +5,14 @@
 <script>
   // Runs before anything else so there's no flash of the wrong theme on load.
   try {
-    if (localStorage.getItem('theme') === 'light') {
+    if (localStorage.getItem('theme') !== 'dark') {
       document.documentElement.setAttribute('data-theme', 'light');
     }
-  } catch (e) {} // localStorage can throw in some locked-down browser contexts -- fail silently, default theme still works
+  } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); } // localStorage can throw in some locked-down browser contexts -- default to light either way
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PaikallisCanvas — paikallinen tekoälyopas</title>
-<meta name="description" content="PaikallisCanvas on paikallinen tekoälyopas — kysy mitä tehdä, syödä tai kokea Oulussa juuri nyt, vastaukset perustuvat oikeisiin paikallisiin yrityksiin ja tämän päivän tapahtumiin. Yrityksille: mainospaikka 10€/kk." />
+<meta name="description" content="PaikallisCanvas on paikallinen tekoälyopas — kysy mitä tehdä, syödä tai kokea Oulussa juuri nyt, vastaukset perustuvat oikeisiin paikallisiin yrityksiin ja tämän päivän tapahtumiin. Yrityksille: mainospaikka 29,90€/kk." />
 <link rel="canonical" id="canonicalLink" href="https://www.paikalliscanvas.fi/oulu" />
 <link rel="manifest" href="/manifest.json" />
 <meta name="theme-color" content="#5847c9" />
@@ -59,7 +59,31 @@
     font-family:'IBM Plex Sans',sans-serif;color:var(--ink); transition:background .2s ease, color .2s ease;}
   a{color:inherit;}
 
-  header{display:flex;align-items:center;justify-content:space-between;padding:22px 28px;flex-wrap:wrap;gap:12px;}
+  header{display:flex;align-items:center;justify-content:space-between;padding:22px 28px;flex-wrap:wrap;gap:12px;
+    max-width:1500px;margin:0 auto;}
+  #townPill{display:flex;align-items:center;gap:4px;font-size:13.5px;color:var(--ink-dim);white-space:nowrap;}
+  #mobileBellBtn{display:none;}
+  #brandTownMobile{display:none;}
+  @media (max-width:900px){
+    #townPill{display:none;}
+    #langToggle{display:none;}
+    #mobileBellBtn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;
+      border:1px solid var(--line);background:var(--panelT7);border-radius:999px;font-size:15px;cursor:pointer;}
+    #accountBtn{display:none;}
+    #brandTownMobile{display:block;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;
+      color:var(--ink-dim);white-space:nowrap;}
+    #brand .name{font-size:16px;line-height:1.3;}
+    #brandMark{width:36px;height:42px;}
+    #brandMark svg{width:36px;height:42px;}
+  }
+  /* Weather now lives in the header (matching the reference layout) instead
+     of floating above the events card -- the forecast panel becomes a
+     dropdown flyout anchored under the pill rather than a normal-flow
+     block, since there's no room for it to push header content around. */
+  #weatherWrap{position:relative;}
+  #weatherForecast{position:absolute;top:calc(100% + 10px);right:0;z-index:30;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    box-shadow:var(--shadow-md);padding:14px;margin:0 !important;max-width:none !important;}
   #brand{display:flex;align-items:center;gap:14px;cursor:pointer;}
   #brandMark{width:64px;height:76px;display:flex;align-items:center;justify-content:center;
     flex:none;filter:drop-shadow(0 3px 6px rgba(14,42,71,0.35));}
@@ -73,7 +97,14 @@
     font-size:12px;font-weight:500;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .12s ease;}
   #langToggle button.active{background:var(--amber);color:#fff;font-weight:700;}
 
-  main{max-width:1320px;margin:0 auto;padding:0 24px 100px;}
+  main{max-width:1500px;margin:0 auto;padding:0 24px 100px;}
+
+  /* Hidden: this strip predates the "Mainostetut yritykset" card in the new
+     3-col grid below the hero, which now shows the same business data.
+     Kept in the DOM (not deleted) since renderLogoBanner()/swipe/rotation
+     JS still references these elements -- hiding avoids touching that
+     logic while removing it from what visitors actually see. */
+  #logoBanner, #logoBannerDots, #companyInfoCta{display:none !important;}
 
   /* ---- vertically scrolling logo banner, between header and AI search ---- */
   #logoBanner{position:relative;height:210px;overflow:hidden;margin:20px 0 8px;
@@ -173,10 +204,12 @@
   #newsCol #weatherWidget{margin:0;width:fit-content;justify-content:flex-start;}
   #newsCol #weatherForecast{margin:12px 0 0;max-width:none;}
   #newsCol .feedSubhead{text-align:left;}
-  #newsSection{margin-top:32px;}
+  #newsSection{margin-top:0;}
   #newsSection .feedSubhead{text-align:left;}
   #newsSection #newsSourceNote{text-align:left;}
   #newsCol #newsSourceNote, #newsCol .note{text-align:left !important;}
+  #eventsCountNote, #eventsSourceNoteWrap{display:none;}
+  #newsCategoryFilter, #newsSourceNote{display:none !important;}
 
   #searchWrap{max-width:460px;margin:0 auto 40px;position:relative;}
   #searchRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
@@ -204,22 +237,6 @@
   #boardHeader .meta{color:#6b6248;font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
 
   #qtyPicker{text-align:center;margin-top:14px;}
-  .qtyLabel{font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--ink);margin:0 0 14px;}
-  #qtyRow{display:flex;align-items:center;justify-content:center;gap:20px;}
-  #qtyRow button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--paper);
-    color:var(--ink);font-size:20px;font-weight:700;cursor:pointer;}
-  #qtyRow button:hover{border-color:var(--amber);color:var(--amber-deep);}
-  #qtyRow button:disabled{opacity:0.4;cursor:default;}
-  #qtyDisplay{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;color:var(--ink);min-width:48px;}
-  #qtySizePreviewWrap{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:16px;}
-  #qtySizePreviewBox{background:var(--panelT7);border:1px solid var(--line);border-radius:10px;
-    display:flex;align-items:center;justify-content:center;transition:width .25s ease,height .25s ease;
-    color:#a89a78;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.05em;}
-  #qtySizePreviewBox.qtySizePreviewPremium{border:3px solid #f2c14e;animation:logoBannerShine 2.2s ease-in-out infinite;}
-  #qtySizePreviewBox.qtySizePreviewLegendary{border:3px solid #ffd700;animation:logoBannerLegendaryGlow 2.5s ease-in-out infinite;}
-  .qtySizePreviewNote{margin:0;font-size:11.5px;color:var(--ink-dim);text-align:center;max-width:360px;}
-  #qtyPriceNote{margin-top:12px;font-size:13.5px;color:#6b6248;}
-  #qtyPriceNote b{color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:16px;}
   #rectError{display:none;color:var(--danger);font-size:12.5px;font-weight:600;margin-top:10px;text-align:center;}
   #newsCategoryFilter{margin:6px 0 4px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
     background:var(--panelT7);color:var(--ink);font-size:12px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer;
@@ -387,7 +404,7 @@
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;text-align:center;line-height:26px;margin-bottom:10px;}
   .hiwStep span{font-size:13px;color:var(--ink-dim);line-height:1.5;}
 
-  #localFeed{margin:44px auto 0;max-width:1000px;}
+  #localFeed{margin:0 auto;max-width:1000px;}
   #localFeedHeaderRow{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:0 0 20px;}
   #localFeed h2{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0;}
   #weatherWidget{display:flex;align-items:center;justify-content:center;gap:8px;width:fit-content;margin:0;
@@ -408,25 +425,164 @@
   .forecastDay .dIcon img, .forecastHour .dIcon img{width:32px;height:32px;}
   .forecastDay .dTemps, .forecastHour .dTemps{font-size:12px;color:var(--ink-dim);}
   .forecastDay .dTemps b, .forecastHour .dTemps b{color:var(--ink);}
-  #feedColumns{display:grid;grid-template-columns:minmax(0,1fr);gap:36px;align-items:start;margin-top:24px;}
-  #eventsSection{order:1;}
-  #newsSection{order:2;margin-bottom:0;}
-  .feedSubhead{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--amber);
-    text-transform:uppercase;letter-spacing:0.04em;margin:0 0 4px;}
-  #newsItems, #eventItems, #offerItems{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:12px;}
-  /* Desktop: events and news both use a two-column card layout instead of
-     mobile's single stacked list. Order (events above news) applies at all
-     widths -- see #eventsSection/#newsSection above. */
-  @media (min-width:1000px){
-    #eventItems{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
-    #newsItems{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);}
+  #feedColumns{display:grid;grid-template-columns:minmax(0,1fr);gap:36px;align-items:start;}
+  /* #eventsSection's own order has no effect here -- #newsCol (its parent)
+     is the actual direct child of #feedRow's grid, so that's what needs
+     the explicit order. Without this, #newsSection's pre-existing order:2
+     (harmless before Stage 1, since it wasn't a real grid item then, but
+     very real now) would jump ahead of a default-ordered sibling like
+     #bizFeedCard -- which is exactly the bug that put the business card
+     in the middle and pushed news to the end. */
+  #newsCol{order:1;}
+  #eventsSection{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:20px;box-shadow:var(--shadow-md);}
+  #newsSection{order:2;margin-bottom:0;background:var(--panel);border:1px solid var(--line);
+    border-radius:16px;padding:20px;box-shadow:var(--shadow-md);}
+  #bizFeedCard{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:0;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;}
+  #bizFeedCardHead{padding:16px 18px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  #bizFeedCardHead h3{font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--ink);margin:0 0 3px;}
+  #bizFeedCardHead p{font-size:11px;color:var(--ink-dim);margin:0;}
+  /* Light mode (the default, matching the prototype) drops the border in favor
+     of a bigger, softer shadow -- the border was added specifically to fix a
+     dark-mode contrast issue, so it stays there but isn't needed here. */
+  [data-theme="light"] #eventsSection, [data-theme="light"] #newsSection,
+  [data-theme="light"] #bizFeedCard{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
+  #bizFeedScrollWindow{height:280px;overflow:hidden;position:relative;
+    mask-image:linear-gradient(180deg,transparent,#000 8%,#000 92%,transparent);}
+  #bizFeedScrollTrack{animation:bizFeedScroll 16s linear infinite;}
+  #bizFeedScrollWindow:hover #bizFeedScrollTrack{animation-play-state:paused;}
+  @keyframes bizFeedScroll{ 0%{transform:translateY(0);} 100%{transform:translateY(-50%);} }
+  .bizFeedRow{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);
+    text-decoration:none;color:inherit;transition:background 0.15s ease;}
+  .bizFeedRow:hover{background:var(--panelT4);}
+  .bizFeedLogo{width:46px;height:46px;border-radius:10px;object-fit:contain;flex:none;
+    background:#fff;padding:5px;box-sizing:border-box;border:1px solid var(--line);box-shadow:0 2px 6px rgba(0,0,0,0.06);}
+  .bizFeedRow b{font-size:12.5px;font-weight:700;color:var(--ink);display:block;line-height:1.2;}
+  .bizFeedRowText{min-width:0;flex:1;}
+  #bizFeedEmpty{padding:20px 18px;font-size:12.5px;color:var(--ink-dim);}
+  #bizFeedCta{flex:none;white-space:nowrap;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;
+    background:var(--amber);color:#fff;font-weight:700;font-size:12px;font-family:'Space Grotesk',sans-serif;}
+  /* Events and news sit side by side as two cards from 1000px up -- each
+     keeps a single-column internal item list at that width since they're
+     now half-width, rather than the old 2-3 internal columns which were
+     sized for each section spanning the full page width. */
+  /* Pulled up over the photo's bottom edge (like the reference layout) --
+     positive z-index + relative so the cards paint over the photo's
+     ::before rather than being clipped by it. Note: if askHeroResults is
+     open (a long AI answer pushes #heroPhotoWrap taller than the photo's
+     fixed 380px), this fixed overlap can start cutting into the
+     results text instead of just the photo -- worth an eye on that state
+     specifically, not just the empty/default view. */
+  #homeTwoColLayout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start;
+    position:relative;z-index:2;margin-top:-22px;}
+  @media (min-width:1000px){ #homeTwoColLayout{grid-template-columns:2.3fr 1fr;} }
+  /* Each column stacks its own children in normal flow, so its total height
+     is just the sum of its own content -- independent of the other column.
+     This is deliberate: putting statsGrid and bizFeedCard in the same grid
+     row (the previous approach) forced the row to match the taller of the
+     two, leaving a dead gap under the shorter column before the next
+     section could start. Two independent columns don't have that problem. */
+  #homeLeftCol, #homeRightCol{display:flex;flex-direction:column;gap:20px;min-width:0;}
+  #statsGrid{display:grid;grid-template-columns:1fr;gap:16px;}
+  @media (min-width:640px){ #statsGrid{grid-template-columns:1fr 1fr 1fr;} }
+  .statCard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;
+    box-shadow:var(--shadow-md);text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:10px;}
+  [data-theme="light"] .statCard{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
+  .statIcon{font-size:20px;}
+  .statBody b{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--ink);}
+  .statBody span{font-size:12.5px;color:var(--ink-dim);}
+  #offersSection{order:3;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:20px;box-shadow:var(--shadow-md);}
+  [data-theme="light"] #offersSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
+  #offersEmptyNote{text-align:center;padding:24px 12px;}
+  .tilannehuoneMeta{font-size:11.5px !important;color:var(--ink-dim);margin:2px 0 6px !important;}
+  /* 4 standard rows at 140px + 3×18px gaps = 614px total. 5 of these
+     compact rows + 4×18px gaps need to fit that same total, so
+     (614 - 72) / 5 = ~108px each -- scaled down from the standard row
+     since Tilannehuone items are just a title + meta line + link, no
+     description paragraph or photo, so they don't need the full 140px
+     to read cleanly. */
+  .feedItem.feedItemCompact{height:108px;padding:12px 16px;}
+  .feedItem.feedItemCompact b{font-size:13.5px;-webkit-line-clamp:2;}
+  #featureTiles{display:grid;grid-template-columns:1fr;gap:16px;margin-top:8px;}
+  @media (min-width:700px){ #featureTiles{grid-template-columns:1fr 1fr 1fr 1fr;} }
+  .featureTile{background:var(--panelT7);border:1px solid var(--line);border-radius:16px;padding:18px;
+    display:flex;flex-direction:column;gap:8px;text-align:left;font-family:'IBM Plex Sans',sans-serif;
+    cursor:pointer;position:relative;}
+  .featureTile.featureTileSoon{cursor:default;}
+  .featureTileIcon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-size:18px;flex:none;}
+  .featureTile b{font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);}
+  .featureTile>span:not(.featureTileIcon):not(.featureTileSoonBadge){font-size:12.5px;color:var(--ink-dim);line-height:1.4;}
+  .featureTileSoonBadge{position:absolute;top:14px;right:14px;font-size:10.5px;font-weight:700;color:var(--amber);
+    background:var(--panelT4);border:1px solid var(--line);border-radius:999px;padding:3px 9px;}
+
+  /* Events and news sit side by side as two cards from 1000px up -- each
+     keeps a single-column internal item list at that width since they're
+     now half-width, rather than the old 2-3 internal columns which were
+     sized for each section spanning the full page width. */
+  #feedRow{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start;}
+  @media (min-width:700px){
+    #feedRow{grid-template-columns:1fr 1fr;}
   }
+  /* "Näytä kaikki" expands one card to the full row width in place --
+     this used to navigate to /tapahtumat.html or /uutiset.html, both
+     since removed now that this covers the same ground. The sibling
+     card just hides for as long as this one's expanded. */
+  #feedRow.eventsExpanded #newsSection{display:none !important;}
+  #feedRow.eventsExpanded #newsCol{grid-column:1/-1;}
+  #feedRow.newsExpanded #newsCol{display:none !important;}
+  #feedRow.newsExpanded #newsSection{grid-column:1/-1;}
+  /* The actual display:none/grid-column change is applied slightly after
+     the opacity fade starts (see expandFeedCard/collapseFeedCard below),
+     since display:none can't itself be transitioned -- doing both at the
+     same instant would make the sibling disappear immediately regardless
+     of this transition, undermining the "smooth" part entirely. */
+  #newsCol, #newsSection{transition:opacity 0.2s ease;}
+  #feedRow.eventsExpanded #newsSection{display:none !important;}
+  #feedRow.newsExpanded #newsCol{display:none !important;}
+  #eventsExpandedView, #newsExpandedView{animation:expandedViewIn 0.35s ease;transition:opacity 0.18s ease, transform 0.18s ease;}
+  @keyframes expandedViewIn{
+    from{opacity:0;transform:translateY(10px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  .collapseCardBtn{background:none;border:none;color:var(--amber);font-weight:700;font-size:13px;
+    cursor:pointer;padding:0 0 14px;font-family:'IBM Plex Sans',sans-serif;}
+  #eventsDayGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;}
+  .expandedDayItemsGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;}
+  @media (min-width:700px){ .expandedDayItemsGrid{grid-template-columns:1fr 1fr;} }
+  @media (min-width:1300px){ .expandedDayItemsGrid{grid-template-columns:1fr 1fr 1fr;} }
+  .expandedDayCard{background:var(--panelT4);border:1px solid var(--line);border-radius:14px;padding:18px;}
+  .expandedDayCard h4{font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin:0 0 12px;}
+  .expandedDayCard .feedItem{margin-bottom:10px;}
+  #newsSourceColumnsGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;}
+  @media (min-width:1000px){ #newsSourceColumnsGrid{grid-template-columns:1fr 1fr 1fr;} }
+  .expandedNewsCol{background:var(--panelT4);border:1px solid var(--line);border-radius:14px;padding:18px;}
+  .expandedNewsColHead{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;
+    font-weight:700;font-size:14.5px;color:var(--ink);margin:0 0 12px;}
+  .expandedNewsColLogo{width:22px;height:22px;border-radius:50%;flex:none;color:#fff;font-size:11px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;}
+  .expandedNewsColSelect{display:block;width:100%;margin:0 0 14px;padding:9px 12px;border-radius:9px;
+    border:1px solid var(--line);background:var(--panelT7);color:var(--ink);font-size:13px;
+    font-family:'IBM Plex Sans',sans-serif;cursor:pointer;}
+  .feedSubhead{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--ink);
+    margin:0 0 4px;}
+  .cardHeadRow{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:4px;}
+  .cardHeadRow .feedSubhead{margin:0;text-align:left;}
+  .cardHeadLink{font-size:11px;color:var(--amber);text-decoration:none;font-weight:700;white-space:nowrap;
+    text-transform:none;letter-spacing:normal;flex:none;}
+  #newsItems, #eventItems, #offerItems, #tilannehuoneItems{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;margin-top:12px;}
   .feedItem.highlighted{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset;position:relative;}
   .feedItem.highlighted .highlightBadge{position:absolute;top:-9px;right:10px;background:var(--amber);color:#fff;
     font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;}
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
-    display:flex;gap:12px;align-items:flex-start;}
-  .feedItem .feedImg{flex:none;width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--panel);}
+    display:flex;gap:12px;align-items:flex-start;transition:box-shadow 0.15s ease;height:140px;}
+  .feedItem:hover{box-shadow:0 4px 14px rgba(88,71,201,0.10);}
+  .feedItem .feedImg{flex:none;width:88px;height:72px;border-radius:10px;object-fit:cover;background:var(--panel);}
+  .feedItem .sourceLogoBadge{display:flex;align-items:center;justify-content:center;color:#fff;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:26px;}
   .feedItem .eventDate{flex:none;background:var(--amber);color:#fff;font-family:'Space Grotesk',sans-serif;
     font-weight:700;font-size:12px;border-radius:6px;padding:6px 8px;text-align:center;line-height:1.15;min-width:48px;}
   .feedItem .eventDate .day{display:block;font-size:22px;}
@@ -434,8 +590,10 @@
   .feedItem .eventTime{font-size:12px;font-weight:700;color:var(--amber-deep);margin-bottom:3px;
     font-family:'IBM Plex Mono',monospace;}
   .feedItem .feedBody{flex:1;min-width:0;}
-  .feedItem b{display:block;font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin-bottom:4px;overflow-wrap:break-word;}
-  .feedItem p{margin:0 0 6px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
+  .feedItem b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin-bottom:4px;overflow-wrap:break-word;}
+  .feedItem p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    margin:0 0 6px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
   .feedItem a{font-size:11.5px;color:var(--amber);text-decoration:underline;}
   #noEventsThisWeek{padding:20px 0;}
   #factsSection{margin:40px auto 8px;max-width:760px;text-align:center;}
@@ -461,11 +619,6 @@
   .faqA{margin:0;font-size:13px;color:var(--ink-dim);line-height:1.55;
     max-height:0;overflow:hidden;transition:max-height .2s ease, padding .2s ease;}
   .faqItem.open .faqA{max-height:400px;padding-bottom:16px;}
-  @media (min-width:1000px){
-    #newsSection{grid-column:1 / -1;order:3;margin-top:0;}
-    #boardCol{order:2;}
-    #newsCol{padding-top:24px;}
-  }
 
   /* ---- PWA install banner ---- */
   #installBanner{display:none;align-items:center;gap:12px;justify-content:center;
@@ -478,16 +631,29 @@
     padding:2px 6px;flex:none;}
 
   /* ---- AI local guide: hero search (top of page, not a hidden corner bubble) ---- */
-  #askHero{background:var(--panelT4);border:1px solid var(--hero-border);border-radius:16px;
-    padding:32px 28px;margin-bottom:32px;text-align:center;}
-  #askHero h2{font-family:'Space Grotesk',sans-serif;font-size:clamp(22px,4vw,32px);margin:0 0 8px;color:var(--ink);}
-  #askHero .askHeroSub{color:var(--ink-dim);font-size:14px;margin:0 0 20px;}
-  #askHeroRow{display:flex;gap:10px;max-width:560px;margin:0 auto;}
-  #askHeroInput{flex:1;padding:14px 20px;border-radius:999px;border:1px solid var(--line);
-    background:var(--panelT7);color:var(--ink);font-size:15px;font-family:'IBM Plex Sans',sans-serif;}
+  /* Photo is a fixed-height layer behind the top of this wrapper (::before), not
+     the wrapper's own background -- so long AI answers in #askHeroResults can
+     grow the wrapper taller without stretching the photo along with them. */
+  #heroPhotoWrap{position:relative;width:100vw;left:50%;margin-left:-50vw;
+    padding:40px 20px 32px;margin-bottom:0;display:flex;flex-direction:column;align-items:center;}
+  #heroPhotoWrap::before{content:'';position:absolute;top:0;left:0;right:0;height:380px;z-index:0;
+    background:linear-gradient(180deg,rgba(10,8,20,0.55) 0%,rgba(10,8,20,0.32) 40%,rgba(10,8,20,0.55) 100%),
+      url('/hero-oulu.jpg') center/cover;}
+  #askHero{max-width:600px;width:100%;text-align:center;position:relative;z-index:1;
+    padding-top:30px;}
+  #askHero h2{font-family:'Space Grotesk',sans-serif;font-size:clamp(26px,4.5vw,38px);margin:0 0 8px;color:#fff;}
+  #askHero .askHeroSub{color:#e8e4f7;font-size:14px;margin:0 0 20px;}
+  #askHeroRow{display:flex;gap:10px;max-width:560px;margin:0 auto;background:rgba(255,255,255,0.97);
+    border-radius:999px;padding:6px 6px 6px 6px;box-shadow:0 12px 30px rgba(10,8,20,0.35);}
+  #askHeroInput{flex:1;padding:12px 18px;border-radius:999px;border:none;
+    background:none;color:var(--ink);font-size:15px;font-family:'IBM Plex Sans',sans-serif;}
   #askHeroSendBtn{flex:none;padding:0 26px;border-radius:999px;border:none;cursor:pointer;
     background:var(--amber);color:#fff;font-weight:700;font-size:14.5px;font-family:'Space Grotesk',sans-serif;}
   #askHeroSendBtn:disabled{opacity:0.5;cursor:default;}
+  /* AskHeroResults can now safely extend past the photo's fixed 380px height --
+     each result already has its own opaque background (.askResultBlock below),
+     but the echoed question line had none, so give it one for legibility here. */
+
   #askMicBtn, #askFollowupMicBtn{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);
     background:var(--panelT7);color:var(--ink-dim);font-size:17px;cursor:pointer;padding:0;
     display:flex;align-items:center;justify-content:center;}
@@ -501,12 +667,30 @@
   }
 
   #askHeroResults{max-width:640px;margin:0 auto;text-align:left;display:none;}
+  #mobileTabBar{display:none;}
+  @media (max-width:900px){
+    body{padding-bottom:64px;}
+    #mobileTabBar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:150;
+      background:var(--panel);border-top:1px solid var(--line);padding:8px 4px calc(8px + env(safe-area-inset-bottom));}
+    #mobileTabBar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+      color:var(--ink-dim);text-decoration:none;font-size:10.5px;font-family:'IBM Plex Sans',sans-serif;}
+    #mobileTabBar a span{font-size:18px;}
+    #mobileTabBar a.active{color:var(--amber);}
+  }
+  #askSuggestRow{display:flex;flex-wrap:nowrap;justify-content:center;gap:8px;max-width:960px;margin:16px auto 0;}
+  @media (max-width:900px){ #askSuggestRow{flex-wrap:wrap;max-width:560px;} }
+  .askSuggestChip{background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.25);color:#fff;
+    font-size:12px;font-family:'IBM Plex Sans',sans-serif;padding:8px 13px;border-radius:999px;cursor:pointer;
+    backdrop-filter:blur(4px);white-space:nowrap;flex:none;}
+  .askSuggestChip:hover{background:rgba(255,255,255,0.24);}
   #askHeroResults.open{display:block;margin-top:24px;}
-  .askResultBlock{background:var(--panelT4);border:1px solid var(--line);border-radius:12px;
+  .askResultBlock{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-md);
     padding:16px 18px;margin-bottom:12px;font-size:14px;line-height:1.6;color:var(--ink);}
+  [data-theme="light"] .askResultBlock{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
   .askResultBlock.pending{color:var(--ink-dim);font-style:italic;}
-  .askResultBlock.askQuestionEcho{background:none;border:none;padding:4px 4px 4px 18px;margin-bottom:6px;
+  .askResultBlock.askQuestionEcho{background:var(--panel);border-radius:8px;border:1px solid var(--line);box-shadow:var(--shadow-md);padding:6px 4px 6px 18px;margin-bottom:6px;
     font-weight:700;font-family:'Space Grotesk',sans-serif;color:var(--ink-dim);font-size:13.5px;}
+  [data-theme="light"] .askResultBlock.askQuestionEcho{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
   .askMentions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
   .askMentionsNote{font-size:12px;color:var(--ink-dim);margin:12px 0 0;}
   .askMentionChip{font-size:14px;padding:9px 18px;border-radius:999px;border:1px solid var(--amber);
@@ -561,10 +745,20 @@
       <rect x="7.5" y="9.5" width="4" height="4" rx="0.8" fill="var(--amber)" fill-opacity="0.55"/>
       <rect x="12.5" y="9.5" width="4" height="4" rx="0.8" fill="var(--amber)"/>
     </svg></div>
-    <div class="name">PAIKALLIS<span>CANVAS</span></div>
+    <div class="name">PAIKALLIS<span>CANVAS</span><small id="brandTownMobile">Oulu</small></div>
   </div>
+  <span id="townPill">📍 <span id="townPillName">Oulu</span> ⌄</span>
   <div style="display:flex;align-items:center;gap:10px;">
+    <div id="weatherWrap">
+      <div id="weatherWidget" style="display:none;">
+        <span id="weatherIcon"></span>
+        <span id="weatherTemp"></span>
+        <span class="weatherChevron">▼</span>
+      </div>
+      <div id="weatherForecast" style="display:none;"></div>
+    </div>
     <button id="accountBtn" onclick="openAuthModal()">👤 <span id="accountBtnLabel" data-i18n="loginBtnLabel">Kirjaudu</span></button>
+    <button id="mobileBellBtn" aria-label="Ilmoitukset" onclick="alert('Ilmoitukset ovat tulossa pian.')">🔔</button>
     <button id="themeToggle" title="Vaihda vaalea/tumma teema" style="border:none;background:var(--panelT7);
       border:1px solid var(--line);border-radius:999px;width:34px;height:34px;cursor:pointer;
       font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--ink);">🌙</button>
@@ -574,6 +768,7 @@
     </div>
   </div>
 </header>
+
 
 <div id="authOverlay">
   <div id="authModal">
@@ -641,15 +836,22 @@
   <div id="logoBannerDots"></div>
   <button id="companyInfoCta" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</button>
 
+  <div id="heroPhotoWrap">
   <div id="askHero">
-    <h2 data-i18n="askHeroTitle">Mitä haluaisit tehdä tänään?</h2>
-    <p class="askHeroSub" data-i18n="askHeroSub">Kysy retkistä, ruokapaikoista tai tekemisestä — vastaan oikeiden oululaisten yritysten ja tämän päivän tapahtumien pohjalta.</p>
+    <h2 data-i18n="askHeroTitle">Kaikki Oulussa<br>yhdestä paikasta</h2>
+    <p class="askHeroSub" data-i18n="askHeroSub">Löydä tapahtumat, yritykset, uutiset, tarjoukset ja paikalliset palvelut helposti.</p>
     <div id="askHeroRow">
-      <input type="text" id="askHeroInput" autocomplete="off" data-i18n-placeholder="askHeroPlaceholder" placeholder="Esim. &quot;lähde vaeltamaan&quot; tai &quot;missä syödä sushia&quot;" />
+      <input type="text" id="askHeroInput" autocomplete="off" data-i18n-placeholder="askHeroPlaceholder" placeholder="Mitä haluaisit tehdä tänään?" />
       <button id="askMicBtn" type="button" aria-label="Puhu" style="display:none;">🎤</button>
-      <button id="askHeroSendBtn" data-i18n="askHeroButton">Kysy →</button>
+      <button id="askHeroSendBtn" data-i18n="askHeroButton">✨ Kysy</button>
     </div>
-    <p style="font-size:11px;color:var(--ink);margin:8px 0 0;text-align:center;" data-i18n="askAiDisclaimer">Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.</p>
+    <p style="font-size:11px;color:#e8e4f7;margin:8px 0 0;text-align:center;" data-i18n="askAiDisclaimer">Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.</p>
+    <div id="askSuggestRow">
+      <button type="button" class="askSuggestChip" onclick="askAsk('Mitä Oulussa tapahtuu tänään?', document.getElementById('askHeroSendBtn'))">Mitä Oulussa tapahtuu tänään?</button>
+      <button type="button" class="askSuggestChip" onclick="askAsk('Missä syödä hyvää lounasta?', document.getElementById('askHeroSendBtn'))">Missä syödä hyvää lounasta?</button>
+      <button type="button" class="askSuggestChip" onclick="askAsk('Lasten tapahtumia viikonloppuna', document.getElementById('askHeroSendBtn'))">Lasten tapahtumia viikonloppuna</button>
+      <button type="button" class="askSuggestChip" onclick="askAsk('Etsi putkimies Oulusta', document.getElementById('askHeroSendBtn'))">Etsi putkimies Oulusta</button>
+    </div>
     <div id="askHeroResults">
       <div id="askResultsList"></div>
       <div id="askFollowupRow" style="display:none;">
@@ -659,53 +861,145 @@
       </div>
     </div>
   </div>
+  </div>
 
-  <div id="newsCol">
-    <div id="localFeed">
-      <div id="localFeedHeaderRow">
-        <h2 id="localFeedTitle"></h2>
-        <div id="weatherWidget" style="display:none;">
-          <span id="weatherIcon"></span>
-          <span id="weatherTemp"></span>
-          <span class="weatherChevron">▼</span>
+  <div id="homeTwoColLayout">
+    <div id="homeLeftCol">
+      <div id="statsGrid">
+        <div class="statCard">
+          <span class="statIcon">📅</span>
+          <span class="statBody"><b id="statEventsCount">–</b><span>Tapahtumaa tänään</span></span>
+        </div>
+        <div class="statCard">
+          <span class="statIcon">📰</span>
+          <span class="statBody"><b id="statNewsCount">–</b><span>Tuorein uutinen</span></span>
+        </div>
+        <div class="statCard">
+          <span class="statIcon">🏷️</span>
+          <span class="statBody"><b id="statOffersCount">Tulossa pian</b><span>Tarjouksia tulossa myöhemmin</span></span>
         </div>
       </div>
-      <div id="weatherForecast" style="display:none;"></div>
 
-      <div id="feedColumns">
-        <div id="eventsSection">
-          <h3 class="feedSubhead" data-i18n="eventsSectionTitle">Tapahtumat tänään</h3>
-          <p class="note" id="eventsCountNote"></p>
-          <p class="note" id="eventsSourceNoteWrap">
-            <span id="eventsSourceNoteText">Lähde: Kaleva</span>
-            <span id="viewAllEventsLinkWrap"> — <a id="viewAllEventsLinkEl" href="https://tapahtumat.kaleva.fi/fi-FI" target="_blank" rel="noopener">katso kaikki tapahtumat ↗</a></span>
-          </p>
-          <div id="eventItems"></div>
-          <p class="note" id="noEventsThisWeek" style="display:none;"></p>
-          <div style="margin-top:14px;">
-            <button id="showMoreEventsBtn" class="logoBtn" style="display:none;"></button>
+      <div id="feedRow">
+      <div id="newsCol">
+        <div id="localFeed">
+          <div id="feedColumns">
+            <div id="eventsSection">
+              <div class="cardHeadRow">
+                <h3 class="feedSubhead" data-i18n="eventsSectionTitle">📅 Tapahtumat tänään</h3>
+                <span id="viewAllEventsLinkWrap">
+                  <a id="viewAllEventsLinkEl" class="cardHeadLink" href="/?expand=events" onclick="return expandFeedCard('events');">Näytä kaikki →</a>
+                </span>
+              </div>
+              <div id="eventsCollapsedView">
+                <p class="note" id="eventsCountNote"></p>
+                <p class="note" id="eventsSourceNoteWrap">
+                  <span id="eventsSourceNoteText">Lähde: Kaleva</span>
+                </p>
+                <div id="eventItems"></div>
+                <p class="note" id="noEventsThisWeek" style="display:none;"></p>
+                <div style="margin-top:14px;display:flex;gap:8px;">
+                  <button id="showMoreEventsBtn" class="logoBtn" style="display:none;"></button>
+                  <button id="showLessEventsBtn" class="logoBtn" style="display:none;">Näytä vähemmän</button>
+                </div>
+              </div>
+              <div id="eventsExpandedView" style="display:none;">
+                <button class="collapseCardBtn" onclick="collapseFeedCard();">← Takaisin</button>
+                <div id="eventsDayGrid"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      <div id="newsSection" style="display:none;">
+        <div class="cardHeadRow">
+          <h3 class="feedSubhead" data-i18n="newsSectionTitle">📰 Tuoreimmat uutiset</h3>
+          <span><a class="cardHeadLink" href="/?expand=news" onclick="return expandFeedCard('news');">Näytä kaikki →</a></span>
+        </div>
+        <div id="newsCollapsedView">
+          <select id="newsCategoryFilter">
+            <option value="oulun-seutu" data-i18n="newsCatOulu">Oulun seutu</option>
+            <option value="rss-uusimmat" data-i18n="newsCatUusimmat">Uusimmat</option>
+            <option value="pohjois-suomi" data-i18n="newsCatPohjoisSuomi">Pohjois-Suomi</option>
+            <option value="kotimaa" data-i18n="newsCatKotimaa">Kotimaa</option>
+            <option value="ulkomaat" data-i18n="newsCatUlkomaat">Ulkomaat</option>
+          </select>
+          <p class="note" id="newsSourceNote"></p>
+          <div id="newsItems"></div>
+          <div style="margin-top:14px;display:flex;gap:8px;">
+            <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
+            <button id="showLessNewsBtn" class="logoBtn" style="display:none;">Näytä vähemmän</button>
+          </div>
+        </div>
+        <div id="newsExpandedView" style="display:none;">
+          <button class="collapseCardBtn" onclick="collapseFeedCard();">← Takaisin</button>
+          <div id="newsSourceColumnsGrid"></div>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <div id="homeRightCol">
+      <div id="bizFeedCard">
+        <div id="bizFeedCardHead">
+          <div>
+            <h3>Mainostetut yritykset</h3>
+            <p>Paikallisia yrityksiä Oulusta</p>
+          </div>
+          <button id="bizFeedCta">Yrityksesi tähän? →</button>
+        </div>
+        <div id="bizFeedScrollWindow">
+          <div id="bizFeedScrollTrack"></div>
+        </div>
+        <p id="bizFeedEmpty" style="display:none;">Ei vielä yrityksiä taulussa.</p>
+      </div>
+
+      <div id="offersSection">
+        <div class="cardHeadRow">
+          <h3 class="feedSubhead">🚨 Tilannehuone</h3>
+          <span><a class="cardHeadLink" href="https://www.tilannehuone.fi/" target="_blank" rel="noopener">Näytä kaikki →</a></span>
+        </div>
+        <div id="tilannehuoneItems"></div>
+        <p class="note" id="offersEmptyNote" style="display:none;">Ei tilannehuoneen ilmoituksia juuri nyt.</p>
+        <p class="note" id="offersLoadErr" style="display:none;">Ilmoituksia ei juuri nyt saatu ladattua. Yritä hetken kuluttua uudelleen.</p>
+      </div>
     </div>
   </div>
 
-  <div id="newsSection" style="display:none;">
-    <h3 class="feedSubhead" data-i18n="newsSectionTitle">Uutiset</h3>
-    <select id="newsCategoryFilter">
-      <option value="oulun-seutu" data-i18n="newsCatOulu">Oulun seutu</option>
-      <option value="rss-uusimmat" data-i18n="newsCatUusimmat">Uusimmat</option>
-      <option value="pohjois-suomi" data-i18n="newsCatPohjoisSuomi">Pohjois-Suomi</option>
-      <option value="kotimaa" data-i18n="newsCatKotimaa">Kotimaa</option>
-      <option value="ulkomaat" data-i18n="newsCatUlkomaat">Ulkomaat</option>
-    </select>
-    <p class="note" id="newsSourceNote"></p>
-    <div id="newsItems"></div>
-    <div style="margin-top:14px;">
-      <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
+  <div id="featureTiles">
+    <button type="button" class="featureTile" onclick="document.getElementById('askHeroInput').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('askHeroInput').focus();">
+      <span class="featureTileIcon" style="background:#5847c9;">✨</span>
+      <b>Kysy tekoälyoppaalta</b>
+      <span>Saat vastauksen mihin tahansa Ouluun liittyvään kysymykseen.</span>
+    </button>
+    <div class="featureTile featureTileSoon">
+      <span class="featureTileIcon" style="background:#d6336c;">❤️</span>
+      <b>Henkilökohtaiset suositukset</b>
+      <span>Tallenna suosikit ja saat vinkkejä sinulle tärkeistä asioista.</span>
+      <span class="featureTileSoonBadge">Tulossa</span>
+    </div>
+    <div class="featureTile featureTileSoon">
+      <span class="featureTileIcon" style="background:#2f9e44;">🔔</span>
+      <b>Älä missaa mitään</b>
+      <span>Tilaa ilmoitukset tapahtumista, tarjouksista ja uutisista.</span>
+      <span class="featureTileSoonBadge">Tulossa</span>
+    </div>
+    <div class="featureTile featureTileSoon">
+      <span class="featureTileIcon" style="background:#1c7ed6;">📍</span>
+      <b>Lähelläsi</b>
+      <span>Näe palvelut ja tapahtumat sijaintisi perusteella.</span>
+      <span class="featureTileSoonBadge">Tulossa</span>
     </div>
   </div>
 </main>
+
+<nav id="mobileTabBar">
+  <a href="/" class="active"><span>🏠</span>Etusivu</a>
+  <a href="#" id="mobileTabSearch" onclick="document.getElementById('askHeroInput').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('askHeroInput').focus();return false;"><span>🔍</span>Haku</a>
+  <a href="/?expand=events"><span>📅</span>Tapahtumat</a>
+  <a href="#" id="mobileTabProfile" onclick="openAuthModal();return false;"><span>👤</span>Profiili</a>
+</nav>
 
 <div id="overlay">
   <div id="modal">
@@ -800,11 +1094,11 @@
 
     <div class="highlightBox">
       <input type="checkbox" id="fBusinessConfirm" required />
-      <p id="confirmText">Vahvistan, että tämä on rekisteröity yritys. Ensimmäinen kuukausi -50% (5€), sen jälkeen 10€/kk kunnes peruutan.</p>
+      <p id="confirmText">Vahvistan, että tämä on rekisteröity yritys. Ensimmäinen kuukausi -50% (14,95€), sen jälkeen 29,90€/kk kunnes peruutan.</p>
     </div>
 
     <div id="trialNote" data-i18n="trialNote">🎉 -50% ensimmäisestä kuukaudesta</div>
-    <div class="price" id="priceDisplay">10€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;" data-i18n="perMonth"> / kk</span></div>
+    <div class="price" id="priceDisplay">14,95€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;" data-i18n="perMonth"> / kk</span></div>
     <div class="priceNote" id="priceNote" data-i18n="renewNote">Uusiutuu automaattisesti. Peruuta milloin vain — banneripaikat vapautuvat takaisin.</div>
 
     <div class="err" id="formErr"></div>
@@ -824,63 +1118,24 @@
 
     <span class="pitchEyebrow" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</span>
     <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h1>
-    <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen mainospaikka taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Mainospaikka maksaa silti vain 10€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.</p>
+    <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen mainospaikka taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Mainospaikka maksaa 29,90€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.</p>
 
     <div class="valueRow">
-      <div class="valueCard"><b data-i18n="value1b">10€/kk</b> <span data-i18n="value1">murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa</span></div>
+      <div class="valueCard"><b data-i18n="value1b">29,90€/kk</b> <span data-i18n="value1">murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa</span></div>
       <div class="valueCard"><b data-i18n="value2b">Löydettävissä Googlesta</b> <span data-i18n="value2">yrityksesi saa oman sivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua</span></div>
       <div class="valueCard"><b data-i18n="value3b">Peruutettavissa milloin vain</b> <span data-i18n="value3">ei sopimusaikaa eikä irtisanomisaikaa</span></div>
     </div>
 
-    <div id="volumeNote" data-i18n="volumeNote">10 €/kk per mainospaikka. Koko kasvaa 1–3 paikan välillä. 4 paikkaa: kultainen kimalteleva reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen -- ja saat lisäksi 4 ilmaista mainosta Tänään-korttiin kuukaudessa.</div>
+    <div id="volumeNote" data-i18n="volumeNote">29,90 €/kk per mainospaikka. Jokainen mainospaikka on samankokoinen.</div>
 
     <div id="earlyBanner" data-i18n="earlyBanner">🚀 -50% ensimmäisestä kuukaudesta! Palvelu on juuri julkaistu — liity ensimmäisten joukossa mukaan ja näy heti kärjessä, ennen kuin taulu täyttyy.</div>
 
     <div id="boardCol">
       <div id="boardHeader">
         <h2 id="boardTitle">Oulu</h2>
-        <div class="meta"><span id="claimedMeta"></span></div>
       </div>
 
       <div id="qtyPicker">
-        <p class="qtyLabel" data-i18n="qtyLabel">Kuinka ison mainospaikan haluat?</p>
-        <div id="qtyRow">
-          <button id="qtyMinus" aria-label="Vähemmän" type="button">−</button>
-          <span id="qtyDisplay">1</span>
-          <button id="qtyPlus" aria-label="Enemmän" type="button">+</button>
-        </div>
-        <div id="qtySizePreviewWrap">
-          <div id="qtySizePreviewBox"><span>LOGO</span></div>
-          <p class="qtySizePreviewNote" data-i18n="qtySizePreviewNote">Näin suurena logosi näkyy taulussa (suuntaa antava). Koko kasvaa 3 paikkaan asti. 4 paikkaa: kultainen reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen, sateenkaaren värinen kehys, ja 4 ilmaista mainosta Tänään-korttiin kuukaudessa.</p>
-          <div id="todayCardMockup" style="display:none;margin-top:16px;">
-            <p style="font-size:11px;color:var(--ink-dim);margin:0 0 10px;text-align:center;" data-i18n="todayCardMockupLabel">Näin näyttäisit koko "Tänään"-kortilla, jonka moni jakaa somessa:</p>
-            <div style="width:280px;height:280px;background:#f3f2fa;border-radius:14px;border:1px solid #ddd8ef;
-              padding:16px;position:relative;box-sizing:border-box;font-family:'IBM Plex Sans',sans-serif;
-              box-shadow:0 10px 28px rgba(0,0,0,0.18);margin:0 auto;">
-              <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:#211c38;">PAIKALLIS<span style="color:#5847c9;">CANVAS</span></div>
-              <div style="display:inline-block;background:#5847c9;color:#fff;font-size:9px;font-weight:700;padding:3px 9px;border-radius:999px;margin-top:9px;" data-i18n="todayCardMockupDate">Perjantai 31. heinäkuuta</div>
-              <div style="display:flex;align-items:center;gap:6px;margin-top:11px;">
-                <span style="font-size:17px;">☀️</span>
-                <span style="font-size:17px;font-weight:700;color:#211c38;font-family:'Space Grotesk',sans-serif;">20°C</span>
-              </div>
-              <div style="margin-top:11px;font-size:8px;color:#211c38;line-height:1.7;">
-                <div style="color:#5847c9;font-weight:700;font-size:7px;letter-spacing:0.03em;text-transform:uppercase;margin-bottom:2px;" data-i18n="todayCardMockupEventsLabel">Suosituimmat tapahtumat</div>
-                <div data-i18n="todayCardMockupEvent1">① klo 18.00 · Kesäteatteri</div>
-                <div data-i18n="todayCardMockupEvent2">② klo 19.00 · Kesäkonsertti</div>
-                <div data-i18n="todayCardMockupEvent3">③ klo 16.00 · Perhepiknik</div>
-              </div>
-              <div style="position:absolute;bottom:16px;left:16px;font-size:8px;font-weight:700;color:#211c38;font-family:'Space Grotesk',sans-serif;">paikalliscanvas.fi/oulu</div>
-              <div style="position:absolute;bottom:14px;right:14px;background:rgba(255,255,255,0.92);border:1px solid #ddd8ef;border-radius:8px;padding:6px 8px;display:flex;align-items:center;gap:6px;max-width:130px;">
-                <div style="width:22px;height:22px;background:#5847c9;border-radius:5px;flex:none;"></div>
-                <div>
-                  <div style="font-size:6px;font-weight:700;color:#6b6488;text-transform:uppercase;letter-spacing:0.02em;" data-i18n="todayCardMockupTag">Mainos</div>
-                  <div style="font-size:8px;font-weight:600;color:#211c38;line-height:1.25;" data-i18n="todayCardMockupText">Yrityksesi oma teksti tähän</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="qtyPriceNote"></div>
         <div id="rectError"></div>
       </div>
 
@@ -980,14 +1235,12 @@ if ('serviceWorker' in navigator) {
 // longer applies.
 const FOUNDING_DISCOUNT_ACTIVE = true;
 
-const PRICE_PER_SQUARE = 5; // EUR/month base rate — see pricePerSquareEur() for volume tiers
-
 // Mirrors the server-side pricing in api/_pricing.js, used only to
 // display the right price before checkout -- the server always
 // recalculates and charges the real amount itself, this is never trusted
-// as the actual charge. Flat 10€/slot, no volume discount.
+// as the actual charge. Flat 29.90€/slot, no volume discount.
 function pricePerSquareEur(count){
-  return 10;
+  return 29.90;
 }
 
 // Approximate populations, used only for autocomplete ranking and picking a
@@ -1301,12 +1554,12 @@ const STRINGS = {
     pitchEyebrow: 'Oma yrityksesi tähän?',
     logoBannerEmpty: 'Ole ensimmäinen yritys taulussa!',
     heroTitle: 'Näytä yrityksesi <span>koko Oululle.</span>',
-    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen mainospaikka taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Mitä useamman mainospaikan varaat, sitä suurempana logosi näkyy sekä taulussa että omalla esittelysivullasi — ja kaikki mainospaikkasi yhdistyvät samaksi vahvaksi sivuksi sen sijaan, että ne kilpailisivat keskenään Google-haussa. Mainospaikka maksaa silti vain 10€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.',
-    value1b: '10€/kk',
+    heroSub: 'PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen mainospaikka taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Mainospaikka maksaa 29,90€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.',
+    value1b: '29,90€/kk',
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
     value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
-    volumeNote: '10 €/kk per mainospaikka. Koko kasvaa 1–3 paikan välillä. 4 paikkaa: kultainen kimalteleva reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen -- ja saat lisäksi 4 ilmaista mainosta Tänään-korttiin kuukaudessa.',
+    volumeNote: '29,90 €/kk per mainospaikka. Jokainen mainospaikka on samankokoinen.',
     factsTitle: 'Miksi paikallinen näkyvyys kannattaa',
     fact1: 'kaikista Google-hauista koskee jotain paikallista',
     fact2: 'hakijoista, jotka etsivät jotain "lähellä", käy yrityksessä 24 tunnin sisällä',
@@ -1339,10 +1592,10 @@ const STRINGS = {
     newsCatPohjoisSuomi: 'Pohjois-Suomi',
     newsCatKotimaa: 'Kotimaa',
     newsCatUlkomaat: 'Ulkomaat',
-    askHeroTitle: 'Mitä haluaisit tehdä tänään?',
-    askHeroSub: 'Kysy retkistä, ruokapaikoista tai tekemisestä — vastaan oikeiden oululaisten yritysten ja tämän päivän tapahtumien pohjalta.',
-    askHeroPlaceholder: 'Esim. "lähde vaeltamaan" tai "missä syödä sushia"',
-    askHeroButton: 'Kysy →',
+    askHeroTitle: 'Kaikki Oulussa<br>yhdestä paikasta',
+    askHeroSub: 'Löydä tapahtumat, yritykset, uutiset, tarjoukset ja paikalliset palvelut helposti.',
+    askHeroPlaceholder: 'Mitä haluaisit tehdä tänään?',
+    askHeroButton: '✨ Kysy',
     askAiDisclaimer: 'Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.',
     askFeedbackPrompt: 'Oliko tästä apua?',
     askFeedbackCommentPlaceholder: 'Mikä meni pieleen? (valinnainen)',
@@ -1395,7 +1648,7 @@ const STRINGS = {
     authDeleteAccount: 'Poista tilini',
     authDeleteConfirm: 'Tämä poistaa tilisi ja kaikki siihen liittyvät tiedot pysyvästi. Jatketaanko?',
     authGenericError: 'Jokin meni pieleen. Yritä uudelleen.',
-    newsSectionTitle: 'Uutiset',
+    newsSectionTitle: '📰 Tuoreimmat uutiset',
     eventsSectionTitle: 'Tapahtumat tänään',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
     featuredBadge: 'Suositeltu',
@@ -1474,7 +1727,7 @@ const STRINGS = {
     squareTitle: '{n} paikkaa — {town}',
     squareTitleOne: '1 paikka — {town}',
     qtyLabel: 'Kuinka ison mainospaikan haluat?',
-    qtySizePreviewNote: 'Näin suurena logosi näkyy taulussa (suuntaa antava). Koko kasvaa 3 paikkaan asti. 4 paikkaa: kultainen reunus. 5 paikkaa (suurin mahdollinen): 👑 legendaarinen, sateenkaaren värinen kehys, ja 4 ilmaista mainosta Tänään-korttiin kuukaudessa.',
+    qtySizePreviewNote: 'Näin logosi näkyy taulussa (suuntaa antava). Jokainen mainospaikka on samankokoinen.',
     todayCardMockupLabel: 'Näin näyttäisit koko "Tänään"-kortilla, jonka moni jakaa somessa:',
     todayCardMockupTag: 'Mainos',
     todayCardMockupText: 'Yrityksesi oma teksti tähän',
@@ -1483,7 +1736,7 @@ const STRINGS = {
     todayCardMockupEvent1: '① klo 18.00 · Kesäteatteri',
     todayCardMockupEvent2: '② klo 19.00 · Kesäkonsertti',
     todayCardMockupEvent3: '③ klo 16.00 · Perhepiknik',
-    claimTitle: 'Varaa mainospaikka — 10€/kk',
+    claimTitle: 'Varaa mainospaikka — 29,90€/kk',
     cancelSelection: 'Peruuta',
     continueSelection: 'Jatka →',
     squaresSelected: '{n} paikkaa · {price}€/kk',
@@ -1494,12 +1747,12 @@ const STRINGS = {
     pitchEyebrow: 'Room for your business here?',
     logoBannerEmpty: 'Be the first business on the board!',
     heroTitle: 'Put your business in front of <span>all of Oulu.</span>',
-    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every ad slot is a different company. Visibility comes from two places: real Oulu residents browsing the board for the day's news, events and weather, and your business getting its own showcase page that can turn up on Google entirely on its own — even if nobody ever opens the board itself. We can't guarantee either one: board traffic depends on site usage, and Google visibility on the search engine's own rules. The more slots you rent, the bigger your logo appears both on the board and on your own showcase page — and all your slots consolidate into that one strong page instead of competing against each other in Google search. Either way, a slot is just €10/month, you add your own logo and link, and there's no contract to lock you in.",
-    value1b: '€10/month',
+    heroSub: "PaikallisCanvas is a shared online board for Oulu's businesses — every ad slot is a different company. Visibility comes from two places: real Oulu residents browsing the board for the day's news, events and weather, and your business getting its own showcase page that can turn up on Google entirely on its own — even if nobody ever opens the board itself. We can't guarantee either one: board traffic depends on site usage, and Google visibility on the search engine's own rules. Either way, a slot is just €29.90/month, you add your own logo and link, and there's no contract to lock you in.",
+    value1b: '€29.90/month',
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: 'Findable on Google', value2: 'your business gets its own showcase page on our site that can appear in search results, even if nobody browses the board itself',
     value3b: 'Cancel anytime', value3: 'no contract period, no notice period',
-    volumeNote: '€10/mo per slot. Size grows across 1–3 slots. 4 slots: a golden shimmering border. 5 slots (the maximum): 👑 legendary -- plus 4 free ads on the Today-card image each month.',
+    volumeNote: '€29.90/mo per slot. Every slot is the same size.',
     factsTitle: 'Why local visibility matters',
     fact1: 'of all Google searches are for something local',
     fact2: 'of people who search for something "nearby" visit a business within 24 hours',
@@ -1532,10 +1785,10 @@ const STRINGS = {
     newsCatPohjoisSuomi: 'Northern Finland',
     newsCatKotimaa: 'Domestic',
     newsCatUlkomaat: 'World',
-    askHeroTitle: 'What would you like to do today?',
-    askHeroSub: "Ask about trips, places to eat, or things to do -- I'll answer using real Oulu businesses and today's actual events.",
-    askHeroPlaceholder: 'e.g. "go hiking" or "where to eat sushi"',
-    askHeroButton: 'Ask →',
+    askHeroTitle: 'Everything in Oulu<br>in one place',
+    askHeroSub: 'Find events, businesses, news, deals, and local services with ease.',
+    askHeroPlaceholder: 'What would you like to do today?',
+    askHeroButton: '✨ Ask',
     askAiDisclaimer: 'Answers are AI-generated and may contain errors.',
     askFeedbackPrompt: 'Was this helpful?',
     askFeedbackCommentPlaceholder: "What went wrong? (optional)",
@@ -1588,7 +1841,7 @@ const STRINGS = {
     authDeleteAccount: 'Delete my account',
     authDeleteConfirm: 'This permanently deletes your account and all associated data. Continue?',
     authGenericError: 'Something went wrong. Please try again.',
-    newsSectionTitle: 'News',
+    newsSectionTitle: '📰 Latest news',
     eventsSectionTitle: 'Events today',
     noEventsThisWeek: 'No known events for this week.',
     featuredBadge: 'Featured',
@@ -1667,7 +1920,7 @@ const STRINGS = {
     squareTitle: '{n} slots — {town}',
     squareTitleOne: '1 slot — {town}',
     qtyLabel: 'How big an ad slot would you like?',
-    qtySizePreviewNote: 'How big your logo will show on the board (approximate). Size grows up to 3 slots. 4 slots: a golden border. 5 slots (the maximum): 👑 legendary, color-shifting border, plus 4 free ads on the Today-card image each month.',
+    qtySizePreviewNote: 'How your logo will show on the board (approximate). Every slot is the same size.',
     todayCardMockupLabel: 'How you\'d look on the whole "Today" card, which a lot of people share on social media:',
     todayCardMockupTag: 'Ad',
     todayCardMockupText: 'Your own text goes here',
@@ -1676,7 +1929,7 @@ const STRINGS = {
     todayCardMockupEvent1: '① 6:00 PM · Summer theater',
     todayCardMockupEvent2: '② 7:00 PM · Summer concert',
     todayCardMockupEvent3: '③ 4:00 PM · Family picnic',
-    claimTitle: 'Claim a ad slot — €10/month',
+    claimTitle: 'Claim an ad slot — €29.90/month',
     cancelSelection: 'Cancel',
     continueSelection: 'Continue →',
     squaresSelected: '{n} slots · €{price}/mo',
@@ -1766,7 +2019,7 @@ document.getElementById('themeToggle').addEventListener('click', ()=>{
   applyTheme(current === 'light' ? 'dark' : 'light');
 });
 // sync the button's icon with whatever the early head-script already applied
-applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
 
 document.getElementById('legalLink').addEventListener('click', (e)=>{
   e.preventDefault();
@@ -1780,6 +2033,9 @@ document.getElementById('legalOverlay').addEventListener('click', (e)=>{
 });
 
 document.getElementById('companyInfoCta').addEventListener('click', ()=>{
+  document.getElementById('companyInfoOverlay').style.display = 'flex';
+});
+document.getElementById('bizFeedCta').addEventListener('click', ()=>{
   document.getElementById('companyInfoOverlay').style.display = 'flex';
 });
 document.getElementById('companyInfoClose').addEventListener('click', ()=>{
@@ -1823,11 +2079,13 @@ function sortSelectOptions(selectId, keepFirstValue){
   pinned.concat(rest).forEach(o => select.appendChild(o));
 }
 
+// The {n}/{t} display this used to update is gone -- capacity auto-grows
+// server-side (see api/_squares.js) rather than being a real cap, so
+// showing "X / 100 claimed" was misleading rather than informative.
+// Kept as a no-op function rather than removing the call sites entirely,
+// since capacity might become worth surfacing again later in an honest way.
 function updateClaimedMeta(){
-  if (!currentTown) return;
-  const total = currentTown.capacity;
-  document.getElementById('claimedMeta').textContent =
-    t('claimedOf').replace('{n}', currentSquares.length).replace('{t}', total);
+  // intentionally empty
 }
 
 /* ---- town search + autocomplete ---- */
@@ -1886,6 +2144,7 @@ async function openBoard(name, country, population){
       return;
     }
     currentTown = data.town;
+    document.getElementById('townPillName').textContent = currentTown.name;
     applyContentOverrides(currentTown.id); // layers this town's own overrides on top of the shared defaults already applied in init()
 
     // Fire-and-forget visit counter for the admin dashboard -- never
@@ -1919,7 +2178,86 @@ async function openBoard(name, country, population){
 }
 
 let currentFeedItems = { news: [], events: [] };
-let currentNewsCategory = 'oulun-seutu';
+let currentNewsCategory = 'rss-uusimmat';
+
+// The right column stacks bizFeedCard *above* Tilannehuone, unlike the
+// left column where events/news sit side by side with nothing above
+// them -- so matching item counts alone (what the CSS sizing does) only
+// makes Tilannehuone's own card match events/news's height in isolation.
+// It still doesn't make the combined right column (bizFeedCard +
+// Tilannehuone) match the left column's total, since bizFeedCard's real
+// height varies with however many businesses are actually live. This
+// measures the real rendered heights and caps Tilannehuone to whatever
+// space is actually left, rather than a static guess that only holds for
+// one specific business count. Called after each of the three async
+// loads that affect these heights (events/news, businesses,
+// Tilannehuone) since they resolve independently and in no fixed order.
+// The three things that affect these two columns' heights (events/news,
+// the business card, Tilannehuone) all load independently and finish in
+// whatever order the network happens to return them -- calling the
+// actual measurement directly from each one's completion callback meant
+// whichever happened to finish last "won", even if that happened to be
+// before another section had fully settled its own layout. That's the
+// real reason this kept flipping between too-small and too-large rather
+// than being consistently off by some fixed amount: it wasn't a formula
+// problem, it was a race condition. Gating on all three actually being
+// done, then waiting two animation frames for layout to genuinely
+// settle before measuring, removes the race entirely.
+function syncColumnHeightsActual(){
+  const feedRow = document.getElementById('feedRow');
+  const offers = document.getElementById('offersSection');
+  const itemsBox = document.getElementById('tilannehuoneItems');
+  if (!feedRow || !offers || !itemsBox) return;
+
+  // Reset first -- this runs every time feedRow's real rendered size
+  // changes, and a previous pass may have already hidden items. Always
+  // start from "show everything" so shrinking isn't compounded on top of
+  // an earlier, possibly-stale shrink.
+  Array.from(itemsBox.children).forEach(el => el.style.display = '');
+
+  // feedRow (events+news) is Tilannehuone's actual visual counterpart --
+  // bizFeedCard pairs with the stats row above it instead, which is a
+  // separate alignment.
+  const available = feedRow.offsetHeight;
+  if (available <= 100) return; // sanity floor -- never shrink to something unusably small
+
+  // How much of offersSection is header/padding/etc, separate from the
+  // items list itself -- measuring this rather than hardcoding it means
+  // it stays correct even if the header row's own content ever changes.
+  const chrome = offers.offsetHeight - itemsBox.offsetHeight;
+  const availableForItems = available - chrome;
+
+  const ITEM_HEIGHT = 108, ITEM_GAP = 18; // must match .feedItemCompact's height and #tilannehuoneItems's grid gap
+  const maxItemsFit = Math.max(1, Math.floor((availableForItems + ITEM_GAP) / (ITEM_HEIGHT + ITEM_GAP)));
+
+  // Hide any items beyond what actually fits as whole rows, rather than
+  // clipping the last one mid-way with overflow:hidden.
+  Array.from(itemsBox.children).forEach((el, i) => {
+    if (i >= maxItemsFit) el.style.display = 'none';
+  });
+}
+
+// A manual readiness-gate guessing when "everything has loaded" turned
+// out to be genuinely fragile -- three independent async sources racing,
+// web font loading shifting layout after the fact, and other timing
+// factors that are hard to fully account for by hand. ResizeObserver is
+// the browser's own built-in answer to "run this whenever an element's
+// real rendered size actually changes" -- it fires on the initial
+// layout, again whenever new events/news items are shown or hidden,
+// again if a web font swap shifts text height, whatever the cause,
+// without needing to enumerate or guess at every possible trigger by
+// hand. No risk of a feedback loop either: this only ever modifies
+// offersSection/tilannehuoneItems, never feedRow itself, so it can't
+// re-trigger its own observer.
+function syncColumnHeights(){
+  syncColumnHeightsActual();
+}
+if (window.ResizeObserver){
+  const feedRowEl = document.getElementById('feedRow');
+  if (feedRowEl){
+    new ResizeObserver(() => syncColumnHeightsActual()).observe(feedRowEl);
+  }
+}
 
 async function loadBoard(){
   const res = await fetch(`${API_BASE}/board?townId=${currentTown.id}${previewMode ? '&admin=1' : ''}`);
@@ -1928,6 +2266,8 @@ async function loadBoard(){
   updateClaimedMeta();
   updateSelectionBar();
   renderLogoBanner();
+  renderBizFeedCard();
+  syncColumnHeights();
 
   // Admin-configured site-wide default theme -- only applied when the
   // visitor hasn't already made their own explicit choice (no 'theme'
@@ -1944,11 +2284,26 @@ async function loadBoard(){
   // Loaded separately, after the grid is already visible -- this can
   // take a few seconds on a cache miss, but it should never make someone
   // wait to see and use the board itself.
-  newsExpanded = false;
-  eventsExpanded = false;
-  currentNewsCategory = 'oulun-seutu';
-  document.getElementById('newsCategoryFilter').value = 'oulun-seutu';
-  loadFeed();
+  newsVisibleCount = NEWS_PAGE_SIZE;
+  eventsVisibleCount = EVENTS_PAGE_SIZE;
+  currentNewsCategory = 'rss-uusimmat';
+  document.getElementById('newsCategoryFilter').value = 'rss-uusimmat';
+  loadFeed().then(checkExpandFromUrl);
+  loadTilannehuone();
+}
+
+// tapahtumat.html and uutiset.html were removed once their functionality
+// moved onto the homepage's expand-in-place cards -- anything that used
+// to link to them (nav, stat cards, mobile icons) now links here instead
+// with ?expand=events or ?expand=news, so arriving via one of those old
+// destinations still lands you on the same expanded view rather than
+// just the plain homepage.
+function checkExpandFromUrl(){
+  const type = new URLSearchParams(location.search).get('expand');
+  if (type === 'events' || type === 'news'){
+    expandFeedCard(type);
+    document.getElementById('feedRow').scrollIntoView({behavior:'smooth', block:'start'});
+  }
 }
 
 // Populates the vertically-scrolling logo banner (between the header and
@@ -1982,6 +2337,50 @@ function logoTileHtml(b){
     ${b.isLegendary ? '<span class="logoBannerCrown">👑</span>' : ''}
     <img src="${b.rep.logo_url}" alt="${escapeAskText(b.rep.company_name || '')}" loading="lazy" />
   </a>`;
+}
+
+// Real business data, same source as the logo banner above (currentSquares,
+// deduped by group_id so a business with several slots appears once, not
+// several times) -- just rendered as a vertical scrolling list instead of
+// a horizontal banner, for the "Mainostetut yritykset" card.
+function renderBizFeedCard(){
+  const track = document.getElementById('bizFeedScrollTrack');
+  const empty = document.getElementById('bizFeedEmpty');
+  const scrollWindow = document.getElementById('bizFeedScrollWindow');
+
+  const seen = new Set();
+  const businesses = [];
+  currentSquares.forEach(sq => {
+    if (!sq.logo_url || !sq.company_name) return;
+    const key = sq.group_id || `solo-${sq.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    businesses.push(sq);
+  });
+
+  if (businesses.length === 0){
+    track.innerHTML = '';
+    scrollWindow.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  scrollWindow.style.display = 'block';
+  empty.style.display = 'none';
+
+  const rowHtml = (sq) => `<a class="bizFeedRow" href="/pin/${sq.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${sq.id})">
+    <img class="bizFeedLogo" src="${sq.logo_url}" alt="" loading="lazy" />
+    <span class="bizFeedRowText">
+      <b>${escapeAskText(sq.company_name)}</b>
+    </span>
+  </a>`;
+
+  // Only loop the scroll animation (and duplicate the list for a seamless
+  // wrap) when there's enough content to actually need scrolling --
+  // otherwise a short list just sits still, which reads better than a
+  // near-empty list slowly cycling through itself.
+  const html = businesses.map(rowHtml).join('');
+  track.innerHTML = businesses.length > 4 ? html + html : html;
+  track.style.animationPlayState = businesses.length > 4 ? 'running' : 'paused';
 }
 
 function renderLogoBanner(){
@@ -2236,21 +2635,263 @@ window.addEventListener('resize', () => {
   }, 250);
 });
 
+async function loadTilannehuone(){
+  const box = document.getElementById('tilannehuoneItems');
+  const emptyNote = document.getElementById('offersEmptyNote');
+  const loadErr = document.getElementById('offersLoadErr');
+  loadErr.style.display = 'none';
+  emptyNote.style.display = 'none';
+  try {
+    const res = await fetch(`${API_BASE}/tilannehuone`);
+    const data = await res.json();
+    const items = data.items || [];
+    box.innerHTML = '';
+    if (items.length === 0){
+      emptyNote.style.display = 'block';
+      return;
+    }
+    items.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'feedItem feedItemCompact';
+      const body = document.createElement('div');
+      body.className = 'feedBody';
+      const titleEl = document.createElement('b');
+      titleEl.textContent = item.title_fi;
+      body.appendChild(titleEl);
+
+      const metaEl = document.createElement('p');
+      metaEl.className = 'tilannehuoneMeta';
+      metaEl.textContent = [item.location, item.display_date].filter(Boolean).join(' · ');
+      body.appendChild(metaEl);
+
+      if (item.source_url && /^https?:\/\//i.test(item.source_url)){
+        const link = document.createElement('a');
+        link.href = item.source_url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = 'Tilannehuone ↗';
+        body.appendChild(link);
+      }
+      el.appendChild(body);
+      box.appendChild(el);
+    });
+  } catch (err) {
+    console.error('Tilannehuone load failed:', err);
+    loadErr.style.display = 'block';
+  } finally {
+    syncColumnHeights();
+  }
+}
+
 async function loadFeed(){
   try {
-    const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${currentNewsCategory}${previewMode ? '&admin=1' : ''}`);
-    const data = await res.json();
-    currentFeedItems = { news: data.news || [], events: data.events || [] };
+    const isOulu = currentTown && currentTown.name === 'Oulu';
+    if (isOulu && !previewMode){
+      // The homepage news card blends Kaleva + Yle rather than a single
+      // source, so each item's real source_name ("Kaleva"/"Yle") is what
+      // makes the per-item link/logo meaningful -- see makeFeedItemEl.
+      const [kalevaRes, yleRes] = await Promise.all([
+        fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${currentNewsCategory}`),
+        fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=yle-tuoreimmat`)
+      ]);
+      const [kalevaData, yleData] = await Promise.all([kalevaRes.json(), yleRes.json()]);
+      // A pure chronological merge let Yle dominate the top of the list --
+      // its feed's timestamps skew newer than Kaleva's, so sorting purely
+      // by created_at pushed most/all Kaleva items below the fold. Each
+      // source's own list is sorted by recency first, then interleaved one
+      // from each in turn, so both sources are actually represented near
+      // the top regardless of how their raw timestamps compare.
+      const kalevaSorted = (kalevaData.news || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const yleSorted = (yleData.news || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const mergedNews = [];
+      const maxLen = Math.max(kalevaSorted.length, yleSorted.length);
+      for (let i = 0; i < maxLen; i++){
+        if (kalevaSorted[i]) mergedNews.push(kalevaSorted[i]);
+        if (yleSorted[i]) mergedNews.push(yleSorted[i]);
+      }
+      currentFeedItems = { news: mergedNews, events: kalevaData.events || [] };
+    } else {
+      const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${currentNewsCategory}${previewMode ? '&admin=1' : ''}`);
+      const data = await res.json();
+      currentFeedItems = { news: data.news || [], events: data.events || [] };
+    }
   } catch (e) {
     currentFeedItems = { news: [], events: [] };
   }
   renderLocalFeed(currentFeedItems);
+  syncColumnHeights();
 }
 
-let newsExpanded = false;
-const NEWS_COLLAPSED_COUNT = 6;
-let eventsExpanded = false;
-const EVENTS_COLLAPSED_COUNT = 4;
+let newsVisibleCount = 4;
+const NEWS_PAGE_SIZE = 4;
+let eventsVisibleCount = 4;
+const EVENTS_PAGE_SIZE = 4;
+
+// Which card (if any) is currently expanded to full row width in place
+// of navigating to /tapahtumat.html or /uutiset.html. Distinct from
+// eventsExpanded above, which is the small "show more" toggle inside the
+// normal collapsed events list -- this is the bigger "show me everything,
+// right here" mode triggered by the card's own "Näytä kaikki" link.
+let feedCardExpandedType = null; // null | 'events' | 'news'
+
+function expandFeedCard(type){
+  feedCardExpandedType = type;
+  const feedRow = document.getElementById('feedRow');
+  const sibling = document.getElementById(type === 'events' ? 'newsSection' : 'newsCol');
+
+  // Fade the sibling out first, then apply the actual display:none/grid
+  // reflow once that's visually finished -- doing both at once would
+  // make it vanish instantly, since display:none can't be transitioned.
+  sibling.style.opacity = '0';
+  setTimeout(() => {
+    feedRow.classList.remove('eventsExpanded', 'newsExpanded');
+    feedRow.classList.add(type === 'events' ? 'eventsExpanded' : 'newsExpanded');
+    sibling.style.opacity = ''; // hand back to the stylesheet now that it's hidden anyway
+
+    if (type === 'events'){
+      document.getElementById('eventsCollapsedView').style.display = 'none';
+      document.getElementById('eventsExpandedView').style.display = 'block';
+      loadEventsDayGrid();
+    } else {
+      document.getElementById('newsCollapsedView').style.display = 'none';
+      document.getElementById('newsExpandedView').style.display = 'block';
+      loadNewsSourceColumns();
+    }
+  }, 200);
+
+  // Deliberately no scrollIntoView here -- forcing a scroll while the
+  // card is also growing/shrinking in place is exactly what made the page
+  // feel like it was jumping around. The click already happened inside
+  // the visible card, so the viewport doesn't need to move at all.
+  return false; // cancels the link's real navigation -- those pages (tapahtumat.html/uutiset.html) no longer exist, superseded by this expand-in-place view
+}
+
+function collapseFeedCard(){
+  const feedRow = document.getElementById('feedRow');
+  const expandedView = feedCardExpandedType === 'events'
+    ? document.getElementById('eventsExpandedView')
+    : document.getElementById('newsExpandedView');
+
+  expandedView.style.opacity = '0';
+  expandedView.style.transform = 'translateY(6px)';
+  setTimeout(() => {
+    feedRow.classList.remove('eventsExpanded', 'newsExpanded');
+    document.getElementById('eventsCollapsedView').style.display = 'block';
+    document.getElementById('eventsExpandedView').style.display = 'none';
+    document.getElementById('newsCollapsedView').style.display = 'block';
+    document.getElementById('newsExpandedView').style.display = 'none';
+    expandedView.style.opacity = '';
+    expandedView.style.transform = '';
+    feedCardExpandedType = null;
+  }, 180);
+}
+
+// Reuses currentFeedItems.events (already loaded by loadFeed() -- no
+// separate fetch needed) and the same timezone-safe day-bucketing used on
+// /tapahtumat.html: UTC-anchored arithmetic from the Helsinki-correct
+// "today" string, so which events land in which day doesn't depend on
+// the visitor's own browser timezone.
+// Tomorrow/day-after columns were dropped -- the underlying events feed
+// rarely has meaningful coverage for those days (see the /tapahtumat.html
+// screenshots showing 1 and 0 events there vs. 31 for today), so showing
+// them just produced two mostly-empty columns rather than useful content.
+// This is now just today's full list, unpaginated (unlike the collapsed
+// view's capped list) -- that's the actual value-add of expanding.
+function loadEventsDayGrid(){
+  const grid = document.getElementById('eventsDayGrid');
+  const events = (currentFeedItems && currentFeedItems.events) || [];
+  const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
+  const [ty, tm, td] = helsinkiToday.split('-').map(Number);
+  const isoDay = new Date(Date.UTC(ty, tm - 1, td)).toISOString().slice(0,10);
+
+  const todayEvents = events.filter(e => {
+    const start = e.event_date;
+    const end = e.event_end_date || e.event_date;
+    return start <= isoDay && isoDay <= end;
+  });
+
+  grid.innerHTML = '';
+  const card = document.createElement('div');
+  card.className = 'expandedDayCard';
+  const heading = document.createElement('h4');
+  heading.textContent = `Tänään – ${td}.${tm}. · ${todayEvents.length} tapahtumaa`;
+  card.appendChild(heading);
+  if (todayEvents.length === 0){
+    const empty = document.createElement('p');
+    empty.className = 'note';
+    empty.textContent = 'Ei tiedossa tapahtumia tälle päivälle.';
+    card.appendChild(empty);
+  } else {
+    const itemsGrid = document.createElement('div');
+    itemsGrid.className = 'expandedDayItemsGrid';
+    todayEvents.forEach(ev => itemsGrid.appendChild(makeFeedItemEl(ev)));
+    card.appendChild(itemsGrid);
+  }
+  grid.appendChild(card);
+}
+
+// Same 3-source-per-column model as /uutiset.html: independent Kaleva /
+// Yle / Oulun kaupunki columns, each with its own dropdown, 5 newest.
+const EXPANDED_NEWS_SOURCES = [
+  { group: 'kaleva', label: 'Kaleva', color: '#f7941d',
+    options: [['rss-uusimmat','Uusimmat'], ['oulun-seutu','Oulun seutu'], ['kotimaa','Kotimaa']] },
+  { group: 'yle', label: 'Yle', color: '#00b4d8',
+    options: [['yle-tuoreimmat','Tuoreimmat'], ['yle-pohjois-pohjanmaa','Pohjois-Pohjanmaa'], ['yle-kotimaa','Kotimaa']] },
+  { group: 'kaupunki', label: 'Oulun kaupunki', color: 'var(--lilac, #5847c9)',
+    options: [['oulu-business','BusinessOulun uutiset'], ['oulu-mun-oulu','Mun Oulun uutiset'],
+              ['oulu-kaupunki','Oulun kaupungin uutiset'], ['oulu-museo','Oulun museo- ja tiedekeskuksen uutiset'],
+              ['oulu-liikenne','Oulun seudun liikenteen uutiset']] }
+];
+
+async function loadExpandedNewsColumn(columnBodyEl, category){
+  columnBodyEl.innerHTML = '<p class="note">Ladataan...</p>';
+  try {
+    const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${category}`);
+    const data = await res.json();
+    const news = (data.news || [])
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 5);
+    columnBodyEl.innerHTML = '';
+    if (news.length === 0){
+      const empty = document.createElement('p');
+      empty.className = 'note';
+      empty.textContent = 'Ei uutisia tällä hetkellä tässä kategoriassa.';
+      columnBodyEl.appendChild(empty);
+    } else {
+      news.forEach(item => columnBodyEl.appendChild(makeFeedItemEl(item)));
+    }
+  } catch (err) {
+    console.error(`Expanded news column load failed for "${category}":`, err);
+    columnBodyEl.innerHTML = '<p class="note">Uutisia ei juuri nyt saatu ladattua.</p>';
+  }
+}
+
+function loadNewsSourceColumns(){
+  const grid = document.getElementById('newsSourceColumnsGrid');
+  grid.innerHTML = '';
+  EXPANDED_NEWS_SOURCES.forEach(source => {
+    const col = document.createElement('div');
+    col.className = 'expandedNewsCol';
+    const head = document.createElement('div');
+    head.className = 'expandedNewsColHead';
+    head.innerHTML = `<span class="expandedNewsColLogo" style="background:${source.color};">${source.label[0]}</span> ${source.label}`;
+    const select = document.createElement('select');
+    select.className = 'expandedNewsColSelect';
+    source.options.forEach(([value, label]) => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+    const body = document.createElement('div');
+    select.addEventListener('change', (e) => loadExpandedNewsColumn(body, e.target.value));
+    col.appendChild(head);
+    col.appendChild(select);
+    col.appendChild(body);
+    grid.appendChild(col);
+    loadExpandedNewsColumn(body, select.value);
+  });
+}
 
 function makeFeedItemEl(item){
   const el = document.createElement('div');
@@ -2289,7 +2930,15 @@ function makeFeedItemEl(item){
     el.appendChild(dateBadge);
   }
 
-  if (item.image_url){
+  const isNewsItem = !item.event_date; // events keep their real photo; this only touches the news feed
+
+  if (isNewsItem && item.source_name && (item.source_name === 'Kaleva' || item.source_name === 'Yle')){
+    const logo = document.createElement('span');
+    logo.className = 'feedImg sourceLogoBadge';
+    logo.style.background = item.source_name === 'Kaleva' ? '#f7941d' : '#00b4d8';
+    logo.textContent = item.source_name === 'Kaleva' ? 'K' : 'Y';
+    el.appendChild(logo);
+  } else if (item.image_url){
     const img = document.createElement('img');
     img.className = 'feedImg';
     img.src = item.image_url;
@@ -2323,11 +2972,31 @@ function makeFeedItemEl(item){
     link.href = item.source_url;
     link.target = '_blank';
     link.rel = 'noopener';
-    link.textContent = (lang === 'fi' ? 'Lähde ↗' : 'Source ↗');
+    const genericLabel = (lang === 'fi' ? 'Lähde ↗' : 'Source ↗');
+    link.textContent = (isNewsItem && item.source_name) ? `${item.source_name} ↗` : genericLabel;
     body.appendChild(link);
   }
   el.appendChild(body);
   return el;
+}
+
+// news.length was just an artifact of how many items the merged Kaleva+Yle
+// fetch happened to return -- not a meaningful count of anything a reader
+// would care about. How recently the newest article was actually
+// published answers a real question ("is this up to date?") instead.
+function formatNewsFreshness(news){
+  if (!news || news.length === 0) return '–';
+  const newest = news.reduce((latest, item) =>
+    new Date(item.created_at) > new Date(latest.created_at) ? item : latest
+  );
+  const ageMs = Date.now() - new Date(newest.created_at).getTime();
+  const ageMin = Math.floor(ageMs / 60000);
+  if (ageMin < 1) return lang === 'fi' ? 'Juuri nyt' : 'Just now';
+  if (ageMin < 60) return lang === 'fi' ? `${ageMin} min sitten` : `${ageMin} min ago`;
+  const ageHours = Math.floor(ageMin / 60);
+  if (ageHours < 24) return lang === 'fi' ? `${ageHours} t sitten` : `${ageHours}h ago`;
+  const ageDays = Math.floor(ageHours / 24);
+  return lang === 'fi' ? `${ageDays} pv sitten` : `${ageDays}d ago`;
 }
 
 function renderLocalFeed(feed){
@@ -2336,10 +3005,13 @@ function renderLocalFeed(feed){
   const wrap = document.getElementById('localFeed');
   const isOulu = currentTown && currentTown.name === 'Oulu';
 
+  const statEventsEl = document.getElementById('statEventsCount');
+  if (statEventsEl) statEventsEl.textContent = events.length;
+  const statNewsEl = document.getElementById('statNewsCount');
+  if (statNewsEl) statNewsEl.textContent = formatNewsFreshness(news);
+
   if (news.length === 0 && events.length === 0){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
-  document.getElementById('localFeedTitle').textContent =
-    (lang === 'fi' ? `Ajankohtaista — ${currentTown.name}` : `Happening now — ${currentTown.name}`);
 
   // news
   const newsSection = document.getElementById('newsSection');
@@ -2358,16 +3030,14 @@ function renderLocalFeed(feed){
         : (lang === 'fi' ? 'Haettu verkosta tekoälyllä' : 'Found via AI web search');
     const newsBox = document.getElementById('newsItems');
     newsBox.innerHTML = '';
-    const visibleCount = newsExpanded ? news.length : Math.min(NEWS_COLLAPSED_COUNT, news.length);
+    const visibleCount = Math.min(newsVisibleCount, news.length);
     news.slice(0, visibleCount).forEach(item => newsBox.appendChild(makeFeedItemEl(item)));
 
     const moreBtn = document.getElementById('showMoreNewsBtn');
-    if (news.length > NEWS_COLLAPSED_COUNT){
-      moreBtn.style.display = 'inline-block';
-      moreBtn.textContent = newsExpanded ? t('showLess') : t('showMore');
-    } else {
-      moreBtn.style.display = 'none';
-    }
+    const lessBtn = document.getElementById('showLessNewsBtn');
+    moreBtn.style.display = news.length > newsVisibleCount ? 'inline-block' : 'none';
+    moreBtn.textContent = t('showMore');
+    lessBtn.style.display = newsVisibleCount > NEWS_PAGE_SIZE ? 'inline-block' : 'none';
   }
 
   // events, already sorted by popularity from the backend, scoped to today
@@ -2384,7 +3054,7 @@ function renderLocalFeed(feed){
       ? (lang === 'fi' ? 'Lähde: Kaleva' : 'Source: Kaleva')
       : (lang === 'fi' ? 'Haettu verkosta tekoälyllä' : 'Found via AI web search');
     document.getElementById('viewAllEventsLinkWrap').style.display = isOulu ? 'inline' : 'none';
-    document.getElementById('viewAllEventsLinkEl').textContent = lang === 'fi' ? 'katso kaikki tapahtumat ↗' : 'see all events ↗';
+    document.getElementById('viewAllEventsLinkEl').textContent = lang === 'fi' ? 'Näytä kaikki →' : 'View all →';
     renderEventsList(events);
   }
 
@@ -2394,6 +3064,7 @@ function renderEventsList(events){
   const eventsBox = document.getElementById('eventItems');
   const noneMsg = document.getElementById('noEventsThisWeek');
   const moreBtn = document.getElementById('showMoreEventsBtn');
+  const lessBtn = document.getElementById('showLessEventsBtn');
   const countNote = document.getElementById('eventsCountNote');
   eventsBox.innerHTML = '';
 
@@ -2404,30 +3075,42 @@ function renderEventsList(events){
     noneMsg.style.display = 'block';
     noneMsg.textContent = t('noEventsThisWeek');
     moreBtn.style.display = 'none';
+    lessBtn.style.display = 'none';
   } else {
     noneMsg.style.display = 'none';
-    const visibleCount = eventsExpanded ? events.length : Math.min(EVENTS_COLLAPSED_COUNT, events.length);
+    const visibleCount = Math.min(eventsVisibleCount, events.length);
     events.slice(0, visibleCount).forEach(item => eventsBox.appendChild(makeFeedItemEl(item)));
 
-    if (events.length > EVENTS_COLLAPSED_COUNT){
-      moreBtn.style.display = 'inline-block';
-      moreBtn.textContent = eventsExpanded ? t('showLess') : t('showMore');
-    } else {
-      moreBtn.style.display = 'none';
-    }
+    moreBtn.style.display = events.length > eventsVisibleCount ? 'inline-block' : 'none';
+    moreBtn.textContent = t('showMore');
+    lessBtn.style.display = eventsVisibleCount > EVENTS_PAGE_SIZE ? 'inline-block' : 'none';
   }
 }
 document.getElementById('showMoreEventsBtn').addEventListener('click', ()=>{
-  eventsExpanded = !eventsExpanded;
+  eventsVisibleCount += EVENTS_PAGE_SIZE;
   renderEventsList(currentFeedItems.events || []);
+  syncColumnHeights();
+});
+document.getElementById('showLessEventsBtn').addEventListener('click', ()=>{
+  eventsVisibleCount = EVENTS_PAGE_SIZE;
+  renderEventsList(currentFeedItems.events || []);
+  document.getElementById('eventsSection').scrollIntoView({behavior:'smooth',block:'start'});
+  syncColumnHeights();
 });
 document.getElementById('showMoreNewsBtn').addEventListener('click', ()=>{
-  newsExpanded = !newsExpanded;
+  newsVisibleCount += NEWS_PAGE_SIZE;
   renderLocalFeed(currentFeedItems);
+  syncColumnHeights();
+});
+document.getElementById('showLessNewsBtn').addEventListener('click', ()=>{
+  newsVisibleCount = NEWS_PAGE_SIZE;
+  renderLocalFeed(currentFeedItems);
+  document.getElementById('newsSection').scrollIntoView({behavior:'smooth',block:'start'});
+  syncColumnHeights();
 });
 document.getElementById('newsCategoryFilter').addEventListener('change', (e)=>{
   currentNewsCategory = e.target.value;
-  newsExpanded = false;
+  newsVisibleCount = NEWS_PAGE_SIZE;
   loadFeed();
 });
 
@@ -3030,45 +3713,27 @@ document.getElementById('askFollowupInput').addEventListener('keydown', (e)=>{
 // simple quantity picker (how many ad slots), with the exact same
 // pricing tiers as before (see pricePerSquareEur). The server still
 // tracks each purchase as discrete "squares" internally (unchanged
-// schema, unchanged capacity/availability logic) -- it just auto-assigns
-// which ones server-side now (see pickRandomEmptySquares in
-// create-checkout-session.js) instead of the visitor picking specific
-// grid positions.
+// Quantity picker removed from the UI (every listing is now the same
+// fixed size at the same flat price, no more "buy more slots for a
+// bigger logo"), but selectedCount stays as a variable since checkout
+// total calculation elsewhere still reads it -- it just never changes
+// from 1 now that there's no control to change it.
 let selectedCount = 1;
-const MAX_QTY_PER_PURCHASE = 5; // 5 is the top tier (legendary) -- buying more per town has no further size or prestige benefit under the new plateau-at-5 design
 
 function updateQtyControls(){
-  document.getElementById('qtyDisplay').textContent = selectedCount;
-  document.getElementById('qtyMinus').disabled = selectedCount <= 1;
-  document.getElementById('qtyPlus').disabled = selectedCount >= MAX_QTY_PER_PURCHASE;
   updateQtySizePreview();
   updateSelectionBar();
 }
 
-// Same formula as the real banner (renderLogoBanner) -- this needs to
-// stay an honest, accurate preview of what the customer will actually
-// get, not a separately-tuned scale that just looks more impressive.
+// Fixed size now -- no more scaling with quantity, and no premium/
+// legendary tiers (may come back later, but not part of the current
+// flat-price-flat-size model).
+// The size preview box this used to update was removed entirely -- with
+// only one fixed-size listing option now, there was nothing left to
+// preview. Kept as a no-op since updateQtyControls() still calls it.
 function updateQtySizePreview(){
-  const BASE_SIZE = 35, PER_SLOT = 35, MAX_SIZE = 140;
-  const PREMIUM_THRESHOLD = 4;
-  const LEGENDARY_THRESHOLD = 5;
-  const size = Math.round(Math.min(BASE_SIZE + selectedCount * PER_SLOT, MAX_SIZE));
-  const box = document.getElementById('qtySizePreviewBox');
-  if (box){
-    box.style.width = size + 'px';
-    box.style.height = size + 'px';
-    box.classList.toggle('qtySizePreviewPremium', selectedCount >= PREMIUM_THRESHOLD && selectedCount < LEGENDARY_THRESHOLD);
-    box.classList.toggle('qtySizePreviewLegendary', selectedCount >= LEGENDARY_THRESHOLD);
-  }
-  const cardMockup = document.getElementById('todayCardMockup');
-  if (cardMockup) cardMockup.style.display = selectedCount >= LEGENDARY_THRESHOLD ? 'block' : 'none';
+  // intentionally empty
 }
-document.getElementById('qtyMinus').addEventListener('click', ()=>{
-  if (selectedCount > 1){ selectedCount--; updateQtyControls(); }
-});
-document.getElementById('qtyPlus').addEventListener('click', ()=>{
-  if (selectedCount < MAX_QTY_PER_PURCHASE){ selectedCount++; updateQtyControls(); }
-});
 
 function resetQuantitySelection(){
   selectedCount = 1;
@@ -3090,17 +3755,7 @@ function updateSelectionBar(){
   const price = n * perSquare;
   const label = (n === 1 ? t('squareSelected') : t('squaresSelected'))
     .replace('{n}', n).replace('{price}', price);
-  const rateNote = perSquare < 5
-    ? (lang === 'fi' ? ` (${perSquare}€/kk per paikka)` : ` (€${perSquare}/mo per slot)`)
-    : '';
-  document.getElementById('selectionCount').textContent = label + rateNote;
-
-  const priceNoteEl = document.getElementById('qtyPriceNote');
-  if (priceNoteEl){
-    priceNoteEl.innerHTML = lang === 'fi'
-      ? `<b>${price}€/kk</b> yhteensä (${perSquare}€/kk per paikka)`
-      : `<b>€${price}/mo</b> total (€${perSquare}/mo per slot)`;
-  }
+  document.getElementById('selectionCount').textContent = label;
 }
 document.getElementById('selectionGo').addEventListener('click', openClaimModal);
 
@@ -3211,9 +3866,6 @@ function updateModalPricing(){
   }
 
   const price = monthlyTotal;
-  const rateNote = perSquare < 5
-    ? (lang === 'fi' ? ` <span style="font-size:13px;color:var(--ink-dim);font-weight:400;">(${perSquare}€/paikka, alennushinta)</span>` : ` <span style="font-size:13px;color:var(--ink-dim);font-weight:400;">(€${perSquare}/slot, discounted)</span>`)
-    : '';
   const halfPrice = Math.round(price / 2 * 100) / 100;
 
   // When the founding discount is live, the headline number is what's
@@ -3223,9 +3875,9 @@ function updateModalPricing(){
   // step later at Stripe's own checkout.
   if (FOUNDING_DISCOUNT_ACTIVE){
     document.getElementById('priceDisplay').innerHTML =
-      `${halfPrice}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;"> (${t('thenPerMonth').replace('{price}', price)})</span>${rateNote}`;
+      `${halfPrice}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;"> (${t('thenPerMonth').replace('{price}', price)})</span>`;
   } else {
-    document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;">${t('perMonth')}</span>${rateNote}`;
+    document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;">${t('perMonth')}</span>`;
   }
   document.getElementById('priceNote').textContent = t('renewNote');
   if (discountNoteEl) discountNoteEl.style.display = FOUNDING_DISCOUNT_ACTIVE ? 'inline-block' : 'none';

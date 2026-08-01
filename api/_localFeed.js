@@ -38,6 +38,25 @@ const NEWS_RSS_FEEDS = {
 };
 const DEFAULT_NEWS_CATEGORY = 'oulun-seutu';
 
+// Additional Oulu-specific news sources for the "Uutiset" page's per-source
+// columns (Kaleva / Yle / Oulun kaupunki), added alongside the Kaleva feeds
+// above -- these are all real, public RSS feeds, same free/no-AI approach
+// as Kaleva. Each Oulun kaupunki sub-source keeps its own real outlet name
+// rather than a shared "Oulun kaupunki" label, so readers can tell OSL's
+// traffic notices apart from the museum's exhibition news.
+const YLE_NEWS_RSS_FEEDS = {
+  'yle-tuoreimmat': 'https://yle.fi/rss/uutiset/tuoreimmat',
+  'yle-pohjois-pohjanmaa': 'https://yle.fi/rss/t/18-148154/fi',
+  'yle-kotimaa': 'https://yle.fi/rss/t/18-34837/fi'
+};
+const OULU_CITY_NEWS_RSS_FEEDS = {
+  'oulu-business': { url: 'https://www.businessoulu.com/ajankohtaista/feed/', sourceName: 'BusinessOulu' },
+  'oulu-mun-oulu': { url: 'https://www.munoulu.fi/feed/', sourceName: 'Mun Oulu' },
+  'oulu-kaupunki': { url: 'https://www.ouka.fi/news/feed?region=All&topic=All&audience=All', sourceName: 'Oulun kaupunki' },
+  'oulu-museo': { url: 'https://oulunmuseojatiedekeskus.fi/feed/', sourceName: 'Oulun museo- ja tiedekeskus' },
+  'oulu-liikenne': { url: 'https://www.osl.fi/feed/', sourceName: 'Oulun seudun liikenne' }
+};
+
 function stripCDATA(str) {
   return (str || '').replace(/<!\[CDATA\[/, '').replace(/\]\]>$/, '').trim();
 }
@@ -158,6 +177,220 @@ async function fetchNewsFromRSS(category) {
 }
 
 const OULU_EVENTS_API = 'https://tapahtumat.kaleva.fi/api/collection/61dd6ad72edb9364237309bf/content/63198844806f262926e72683?country=FI&lang=fi&mode=event&sort=startDate&limit=100';
+
+// Shared fetch+parse for the new Yle (Oulu-scoped topics) and Oulun
+// kaupunki sources -- same RSS 2.0 <item> structure as Kaleva's feeds, just
+// generalized to take an explicit source name instead of hardcoding
+// 'Kaleva'. Mirrors fetchNewsFromRSS's structure/error-handling on purpose.
+async function fetchGenericNewsRSS(feedUrl, sourceName) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(feedUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return [];
+
+    const xml = await res.text();
+    const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+    return itemBlocks.slice(0, 10).map(block => {
+      const title = extractTag(block, 'title');
+      const link = extractTag(block, 'link');
+      let description = extractTag(block, 'description') || '';
+      if (description.length > 180) description = description.slice(0, 177) + '...';
+      return {
+        title_fi: title, title_en: title, // this outlet's own headline, not translated -- their reporting, not ours to rewrite
+        summary_fi: description, summary_en: description,
+        source_url: link,
+        source_name: sourceName,
+        event_date: null
+      };
+    }).filter(i => i.title_fi && i.source_url);
+  } catch (err) {
+    console.error(`News RSS fetch failed for source "${sourceName}" (${feedUrl}):`, err);
+    return [];
+  }
+}
+
+// The URL this used to point at (kysely.php/rss.xml) doesn't actually
+// exist -- confirmed it returns a blocked/error response, which is why
+// this silently produced zero items. The real feed, linked from the RSS
+// icon at the bottom of tilannehuone.fi's own pages, lives here instead.
+// Kept only as a fallback now (see fetchTilannehuoneItems below) --
+// it's nationwide with just a rolling ~20-30 item window, so filtering
+// to two towns can return very few or zero results even when it's
+// working correctly.
+const TILANNEHUONE_RSS_URL = 'https://www.tilannehuone.fi/rss.xml';
+const TILANNEHUONE_LOCATIONS = ['oulu', 'kempele'];
+
+async function fetchTilannehuoneItemsFromRSS(limit) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(TILANNEHUONE_RSS_URL, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return [];
+
+    // This feed is served as ISO-8859-1 (confirmed by its own XML
+    // declaration), not UTF-8 -- res.text() assumes UTF-8 unless the
+    // server's Content-Type header explicitly says otherwise, which this
+    // server doesn't reliably send. Decoding the raw bytes explicitly as
+    // ISO-8859-1 here avoids every ä/ö in the feed turning into mangled
+    // replacement characters (e.g. "H\u00e4lytykset" arriving as "H?lytykset").
+    const buffer = await res.arrayBuffer();
+    const xml = new TextDecoder('iso-8859-1').decode(buffer);
+    const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+
+    const allItems = itemBlocks.map(block => {
+      const title = extractTag(block, 'title');
+      const link = extractTag(block, 'link');
+      const pubDate = extractTag(block, 'pubDate');
+      let description = extractTag(block, 'description') || '';
+      if (description.length > 200) description = description.slice(0, 197) + '...';
+      return { title, link, pubDate, description };
+    }).filter(i => i.title && i.link);
+
+    const filtered = allItems.filter(i => {
+      const haystack = `${i.title} ${i.description}`.toLowerCase();
+      return TILANNEHUONE_LOCATIONS.some(loc => haystack.includes(loc));
+    });
+    filtered.sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0));
+
+    return filtered.slice(0, limit).map(i => ({
+      title_fi: i.title, title_en: i.title,
+      summary_fi: i.description, summary_en: i.description,
+      source_url: i.link,
+      source_name: 'Tilannehuone',
+      created_at: i.pubDate ? new Date(i.pubDate).toISOString() : new Date().toISOString()
+    }));
+  } catch (err) {
+    console.error('Tilannehuone RSS fallback fetch failed:', err);
+    return [];
+  }
+}
+
+// Finnish month names for parsing "01.08.2026 13:52:07" into a real Date.
+function parseTilannehuoneDateTime(dateStr, timeStr) {
+  const [d, m, y] = dateStr.split('.').map(Number);
+  const [hh, mm, ss] = timeStr.split(':').map(Number);
+  // Constructed as Europe/Helsinki wall-clock time; new Date(y,m-1,d,...)
+  // uses the server's local timezone, which is wrong if this ever runs
+  // somewhere other than Helsinki -- but Vercel's default Node runtime
+  // has no timezone override configured, so this is a real but currently
+  // theoretical gap, not one actively causing wrong dates today.
+  return new Date(y, m - 1, d, hh, mm, ss || 0);
+}
+
+// This is the real, actually per-town-filtered source (confirmed by
+// fetching it directly: every single result really was the requested
+// town) -- richer and more reliable than the nationwide RSS above, which
+// is why it's tried first. It's an HTML page, not RSS, and its exact
+// underlying markup was never directly inspected (only its rendered
+// text), so this parses by stripping all tags and pattern-matching the
+// plain-text shape confirmed by that fetch: "Town DD.MM.YYYY H:MM:SS
+// description", using each entry's own date+time as the natural
+// delimiter for where its description ends. If tilannehuone.fi's actual
+// markup doesn't match this assumption closely enough, this quietly
+// returns zero items for that town and fetchTilannehuoneItems below
+// falls back to the RSS method instead of surfacing a broken card.
+async function fetchTilannehuoneItemsForTown(town, maxCount) {
+  const url = `https://www.tilannehuone.fi/kysely.php?paikkakunta=${encodeURIComponent(town.toLowerCase())}&hake=12&paivamaara=&paivamaara2=&maara=${maxCount}&tehtava=&tehtava2=&keskus=&etaisyys=&hidden=on#`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  const res = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PaikallisCanvasBot/1.0)' } });
+  clearTimeout(timeout);
+  if (!res.ok) return [];
+
+  const html = await res.text(); // this page rendered correctly as UTF-8 when fetched directly, unlike the ISO-8859-1 RSS feed above
+  // <script>/<style> block *content* isn't removed by a plain tag-strip --
+  // only the tags themselves are -- so without this, embedded jQuery like
+  // "$(document).ready(function(){...})" leaks straight into the parsed
+  // text as if it were part of an entry's description. Has to happen
+  // before the generic tag-strip below.
+  const withoutScripts = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ');
+  const text = withoutScripts.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+
+  // The per-town list is followed by sidebar sections ("Uusimmat", "Kuvat",
+  // "Poliisitehtäviä") listing OTHER towns' alerts -- none of those match
+  // this town's name, so without an explicit stop here the last real
+  // entry's lazy match just kept consuming text into that sidebar,
+  // blending unrelated towns' alerts into one garbled description (this
+  // is exactly what happened with the earlier "tulipalo muu: pieni
+  // Uusimmat Jyväskylä | ..." entry). The length cap on the capture group
+  // itself is a second, independent safety net even if a stop-marker
+  // ever fails to match.
+  const entryRe = new RegExp(
+    `${town}\\s+(\\d{2}\\.\\d{2}\\.\\d{4})\\s+(\\d{1,2}:\\d{2}:\\d{2})\\s+(.{1,150}?)(?=${town}\\s+\\d{2}\\.\\d{2}\\.\\d{4}\\s+\\d{1,2}:\\d{2}:\\d{2}|\\s(?:Uusimmat|Kuvat|Poliisitehtävi\\w*)\\s|\\s\\|\\s|$)`,
+    'g'
+  );
+  const items = [];
+  let match;
+  while ((match = entryRe.exec(text)) !== null && items.length < maxCount) {
+    const [, dateStr, timeStr, rawDesc] = match;
+    let desc = decodeEntities(rawDesc).trim();
+    if (desc.length > 150) desc = desc.slice(0, 147) + '...';
+    if (!desc) continue;
+    const when = parseTilannehuoneDateTime(dateStr, timeStr);
+    items.push({
+      title_fi: desc, title_en: desc,
+      summary_fi: '', summary_en: '', // the description IS the title here -- there's no separate headline+body like a real news item, so a second copy of the same text as a "summary" was just visual noise
+      location: town,
+      display_date: `${dateStr} klo ${timeStr}`,
+      source_url: url,
+      source_name: 'Tilannehuone',
+      created_at: when.toISOString()
+    });
+  }
+  return items;
+}
+
+// Tries the real per-town pages first (Oulu + Kempele, richer and
+// reliably filtered); falls back to the nationwide RSS feed only if that
+// returns nothing at all, so a markup mismatch on tilannehuone.fi's side
+// degrades to "fewer/older items" instead of "broken card".
+async function fetchTilannehuoneItems(limit = 6) {
+  try {
+    const [ouluItems, kempeleItems] = await Promise.all([
+      fetchTilannehuoneItemsForTown('Oulu', limit),
+      fetchTilannehuoneItemsForTown('Kempele', limit)
+    ]);
+    const combined = [...ouluItems, ...kempeleItems]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, limit);
+
+    if (combined.length > 0) return combined;
+
+    // Empty could mean "genuinely nothing recent" or "the scraper's text
+    // pattern didn't match this page's actual markup" -- either way,
+    // falling back to the (sparser but confirmed-working) nationwide RSS
+    // feed is safer than surfacing a card that always reads as broken.
+    console.warn('Tilannehuone town-page scrape returned nothing, falling back to RSS');
+    return await fetchTilannehuoneItemsFromRSS(limit);
+  } catch (err) {
+    console.error('Tilannehuone town-page fetch failed, falling back to RSS:', err);
+    try {
+      return await fetchTilannehuoneItemsFromRSS(limit);
+    } catch (fallbackErr) {
+      console.error('Tilannehuone RSS fallback also failed:', fallbackErr);
+      return [];
+    }
+  }
+}
+
+// Routes a category to the right one of the new (non-Kaleva) sources.
+// Returns null for anything it doesn't recognize so the caller can tell
+// "not one of mine" apart from "fetched but got zero items".
+async function fetchAdditionalOuluNewsFromRSS(category) {
+  if (YLE_NEWS_RSS_FEEDS[category]) {
+    return fetchGenericNewsRSS(YLE_NEWS_RSS_FEEDS[category], 'Yle');
+  }
+  if (OULU_CITY_NEWS_RSS_FEEDS[category]) {
+    const { url, sourceName } = OULU_CITY_NEWS_RSS_FEEDS[category];
+    return fetchGenericNewsRSS(url, sourceName);
+  }
+  return null;
+}
 
 // Yle (Finland's national public broadcaster -- license-fee funded, no
 // ads, not paywalled) publishes real regional news as standard RSS,
@@ -709,7 +942,8 @@ Otherwise respond with ONLY a JSON object, no other text, no markdown fences:
 // for real per-city news sources worth checking one at a time later).
 async function getNewsSection(supabase, townId, category, townName) {
   const isOulu = townName === 'Oulu';
-  const validCategory = NEWS_RSS_FEEDS[category] ? category : DEFAULT_NEWS_CATEGORY;
+  const isAdditionalOuluSource = !!(YLE_NEWS_RSS_FEEDS[category] || OULU_CITY_NEWS_RSS_FEEDS[category]);
+  const validCategory = (NEWS_RSS_FEEDS[category] || isAdditionalOuluSource) ? category : DEFAULT_NEWS_CATEGORY;
 
   // The default category deliberately keeps the original plain 'news'
   // item_type -- not 'news:oulun-seutu' -- so existing cached rows from
@@ -742,7 +976,9 @@ async function getNewsSection(supabase, townId, category, townName) {
       return existingNews;
     }
     const fresh = isOulu
-      ? await fetchNewsFromRSS(validCategory)
+      ? (isAdditionalOuluSource
+          ? await fetchAdditionalOuluNewsFromRSS(validCategory)
+          : await fetchNewsFromRSS(validCategory))
       : townName === 'Helsinki'
         ? await fetchHelsinkiNewsFromRSS()
         : await generateNewsItemsViaAISearch(townName);
@@ -906,4 +1142,4 @@ async function getLocalFeed(supabase, townId, townName, newsCategory) {
   return { news, events, offers };
 }
 
-module.exports = { getLocalFeed, getNewsSection, getEventsSection, NEWS_RSS_FEEDS, DEFAULT_NEWS_CATEGORY, getHelsinkiDayBounds, fetchAndUploadImage };
+module.exports = { getLocalFeed, getNewsSection, getEventsSection, NEWS_RSS_FEEDS, DEFAULT_NEWS_CATEGORY, getHelsinkiDayBounds, fetchAndUploadImage, fetchTilannehuoneItems };

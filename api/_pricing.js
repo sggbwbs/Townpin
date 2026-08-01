@@ -1,9 +1,9 @@
-// Flat rate -- 10€ per slot regardless of quantity. Replaced the old
-// volume-discount model (5€, 4€ at 4+) entirely; size and prestige
-// (gold border at 4, legendary at 5) are now what scales with quantity,
-// not price per slot.
+// Flat rate -- 29.90€ per slot regardless of quantity or tier. Size no
+// longer scales with how many slots someone buys either -- gold-border
+// and legendary tiers are removed for now (may come back later), so
+// every listing gets the same size ad at the same price.
 function pricePerSquareEur(count) {
-  return 10;
+  return 29.90;
 }
 
 module.exports = { pricePerSquareEur };
