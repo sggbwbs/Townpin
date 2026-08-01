@@ -487,12 +487,13 @@
      two, leaving a dead gap under the shorter column before the next
      section could start. Two independent columns don't have that problem. */
   #homeLeftCol, #homeRightCol{display:flex;flex-direction:column;gap:20px;min-width:0;}
-  #statsGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  @media (max-width:420px){
-    .statCard{padding:10px;gap:4px;}
-    .statIcon{font-size:15px;}
-    .statBody b{font-size:16px;}
-    .statBody span{font-size:10.5px;}
+  #statsGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  @media (max-width:480px){
+    .statCard{padding:8px 6px;gap:2px;flex-direction:row;align-items:center;flex-wrap:wrap;}
+    .statIcon{font-size:13px;flex:none;}
+    .statBody{display:flex;flex-direction:column;min-width:0;}
+    .statBody b{font-size:14px;line-height:1.1;}
+    .statBody span{font-size:8.5px;line-height:1.2;}
   }
   @media (min-width:640px){ #statsGrid{grid-template-columns:1fr 1fr 1fr;} }
   .statCard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;
@@ -939,7 +940,7 @@
       <div id="newsSection" style="display:none;">
         <div class="cardHeadRow">
           <h3 class="feedSubhead" data-i18n="newsSectionTitle">📰 Tuoreimmat uutiset</h3>
-          <span><a class="cardHeadLink" href="/?expand=news" onclick="return expandFeedCard('news');">Näytä kaikki →</a></span>
+          <span><a id="viewAllNewsLinkEl" class="cardHeadLink" href="/?expand=news" onclick="return expandFeedCard('news');">Näytä kaikki →</a></span>
         </div>
         <div id="newsCollapsedView">
           <select id="newsCategoryFilter">
@@ -2774,6 +2775,7 @@ function expandFeedCard(type){
   feedCardExpandedType = type;
   const feedRow = document.getElementById('feedRow');
   const sibling = document.getElementById(type === 'events' ? 'newsSection' : 'newsCol');
+  const linkEl = document.getElementById(type === 'events' ? 'viewAllEventsLinkEl' : 'viewAllNewsLinkEl');
 
   // Fade the sibling out first, then apply the actual display:none/grid
   // reflow once that's visually finished -- doing both at once would
@@ -2795,6 +2797,17 @@ function expandFeedCard(type){
     }
   }, 200);
 
+  // The link itself now flips to "collapse" mode -- previously this text
+  // never changed no matter what state the card was in, and the actual
+  // way back (a separate "← Takaisin" button buried inside the expanded
+  // content) wasn't an obvious, visible toggle from where the click
+  // happened. One button that clearly reflects current state is better
+  // than two separate ones in different places doing complementary things.
+  if (linkEl){
+    linkEl.textContent = lang === 'fi' ? '← Näytä vähemmän' : '← Show less';
+    linkEl.onclick = () => { collapseFeedCard(); return false; };
+  }
+
   // Deliberately no scrollIntoView here -- forcing a scroll while the
   // card is also growing/shrinking in place is exactly what made the page
   // feel like it was jumping around. The click already happened inside
@@ -2804,9 +2817,11 @@ function expandFeedCard(type){
 
 function collapseFeedCard(){
   const feedRow = document.getElementById('feedRow');
-  const expandedView = feedCardExpandedType === 'events'
+  const type = feedCardExpandedType;
+  const expandedView = type === 'events'
     ? document.getElementById('eventsExpandedView')
     : document.getElementById('newsExpandedView');
+  const linkEl = document.getElementById(type === 'events' ? 'viewAllEventsLinkEl' : 'viewAllNewsLinkEl');
 
   expandedView.style.opacity = '0';
   expandedView.style.transform = 'translateY(6px)';
@@ -2818,6 +2833,12 @@ function collapseFeedCard(){
     document.getElementById('newsExpandedView').style.display = 'none';
     expandedView.style.opacity = '';
     expandedView.style.transform = '';
+
+    // Revert the link back to its normal expand behavior.
+    if (linkEl && type){
+      linkEl.textContent = lang === 'fi' ? 'Näytä kaikki →' : 'View all →';
+      linkEl.onclick = () => expandFeedCard(type);
+    }
     feedCardExpandedType = null;
   }, 180);
 }
