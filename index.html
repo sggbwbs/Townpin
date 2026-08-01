@@ -2204,21 +2204,33 @@ let currentNewsCategory = 'rss-uusimmat';
 // done, then waiting two animation frames for layout to genuinely
 // settle before measuring, removes the race entirely.
 function syncColumnHeightsActual(){
-  const feedRow = document.getElementById('feedRow');
+  const leftCol = document.getElementById('homeLeftCol');
+  const bizCard = document.getElementById('bizFeedCard');
   const offers = document.getElementById('offersSection');
   const itemsBox = document.getElementById('tilannehuoneItems');
-  if (!feedRow || !offers || !itemsBox) return;
+  if (!leftCol || !bizCard || !offers || !itemsBox) return;
 
-  // Reset first -- this runs every time feedRow's real rendered size
-  // changes, and a previous pass may have already hidden items. Always
-  // start from "show everything" so shrinking isn't compounded on top of
-  // an earlier, possibly-stale shrink.
+  // Reset first -- this runs every time something relevant resizes, and a
+  // previous pass may have already hidden items. Always start from "show
+  // everything" so shrinking isn't compounded on top of an earlier,
+  // possibly-stale shrink.
   Array.from(itemsBox.children).forEach(el => el.style.display = '');
 
-  // feedRow (events+news) is Tilannehuone's actual visual counterpart --
-  // bizFeedCard pairs with the stats row above it instead, which is a
-  // separate alignment.
-  const available = feedRow.offsetHeight;
+  // The actual goal is matching BOTTOM EDGE POSITIONS on the page, not
+  // matching Tilannehuone's own card height to feedRow's. Those aren't
+  // the same thing: Tilannehuone sits below bizFeedCard in its column,
+  // so it starts lower on the page than feedRow does -- meaning even if
+  // its own height exactly equalled feedRow's, its bottom edge would
+  // still end up lower, offset by however tall bizFeedCard is above it.
+  // (Confirmed with real measured numbers: feedRow was 740px, and
+  // matching offers to that gave 684px -- self-consistent, but the
+  // wrong target entirely, which is why nothing visibly changed.)
+  // Comparing against the whole left column (stats row + feedRow, which
+  // is where the two columns' shared starting point and total height
+  // both live) and subtracting bizCard's own height is what actually
+  // aligns the two bottom edges.
+  const GAP = 20; // matches #homeLeftCol/#homeRightCol's own flex gap
+  const available = leftCol.offsetHeight - bizCard.offsetHeight - GAP;
   if (available <= 100) return; // sanity floor -- never shrink to something unusably small
 
   // How much of offersSection is header/padding/etc, separate from the
@@ -2247,16 +2259,17 @@ function syncColumnHeightsActual(){
 // again if a web font swap shifts text height, whatever the cause,
 // without needing to enumerate or guess at every possible trigger by
 // hand. No risk of a feedback loop either: this only ever modifies
-// offersSection/tilannehuoneItems, never feedRow itself, so it can't
-// re-trigger its own observer.
+// offersSection/tilannehuoneItems, never feedRow or bizFeedCard
+// themselves, so it can't re-trigger its own observers.
 function syncColumnHeights(){
   syncColumnHeightsActual();
 }
 if (window.ResizeObserver){
+  const observer = new ResizeObserver(() => syncColumnHeightsActual());
   const feedRowEl = document.getElementById('feedRow');
-  if (feedRowEl){
-    new ResizeObserver(() => syncColumnHeightsActual()).observe(feedRowEl);
-  }
+  const bizFeedCardEl = document.getElementById('bizFeedCard');
+  if (feedRowEl) observer.observe(feedRowEl);
+  if (bizFeedCardEl) observer.observe(bizFeedCardEl);
 }
 
 async function loadBoard(){
