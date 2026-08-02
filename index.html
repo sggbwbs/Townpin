@@ -550,7 +550,7 @@
      use -- :has() lets this happen automatically based on what's
      actually inside, rather than needing renderPagedList to know or
      care which visual style a given list uses. */
-  .itemsPage:has(.eventCard){flex-direction:row;}
+  .itemsPage:has(.eventCard){flex-direction:row;max-height:250px;}
   .pagerControls{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;}
   .pagerArrow{background:var(--panelT7);border:1px solid var(--line);color:var(--ink);width:32px;height:32px;
     border-radius:50%;cursor:pointer;font-size:16px;flex:none;display:flex;align-items:center;justify-content:center;}
@@ -560,13 +560,13 @@
   .pagerDot.active{background:var(--amber);width:16px;border-radius:3px;}
 
   /* ---- Photo-forward event cards ---- */
-  .eventCard{flex:1;min-width:0;display:flex;flex-direction:column;text-decoration:none;color:inherit;
+  .eventCard{flex:1;min-width:0;max-height:250px;display:flex;flex-direction:column;text-decoration:none;color:inherit;
     background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;
     box-shadow:var(--shadow-md);transition:box-shadow 0.15s ease;}
   .eventCard:hover{box-shadow:0 8px 20px rgba(88,71,201,0.14);}
   [data-theme="light"] .eventCard{border:none;box-shadow:0 12px 28px rgba(30,20,70,0.08);}
   .eventCard.highlighted{box-shadow:0 0 0 2px var(--amber);}
-  .eventCardPhoto{position:relative;width:100%;aspect-ratio:4/3;background:var(--panelT4);flex:none;}
+  .eventCardPhoto{position:relative;width:100%;aspect-ratio:4/3;max-height:130px;background:var(--panelT4);flex:none;}
   .eventCardPhoto img{width:100%;height:100%;object-fit:cover;display:block;}
   .eventCardPhotoFallback{display:flex;align-items:center;justify-content:center;font-size:32px;
     background:linear-gradient(135deg,var(--panelT7),var(--panelT4));}
