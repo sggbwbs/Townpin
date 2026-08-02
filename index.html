@@ -759,6 +759,19 @@
     #askSheetMinimizeBtn{display:flex;align-items:center;justify-content:center;
       width:100%;padding:2px 0 10px;margin:-4px 0 4px;border:none;background:none;cursor:pointer;
       color:var(--ink-dim);font-size:16px;line-height:1;}
+    /* #askHeroResults.open's own z-index:200 above only settles paint
+       order *within* #askHero's stacking context (#askHero itself is
+       position:relative;z-index:1) -- it says nothing about #askHero's
+       subtree versus siblings outside it, like #homeGrid, which has its
+       own z-index:2 (to pull the cards up over the hero photo's bottom
+       edge). Since 1 < 2, the entire #askHero subtree -- sheet included,
+       regardless of its internal z-index -- was painting *behind*
+       #homeGrid's cards, which is exactly the "hidden under everything"
+       bug. Bumping #askHero above #homeGrid only while the sheet is
+       actually open (and only on mobile) fixes that without touching
+       the deliberate small overlap at the hero/homeGrid boundary in any
+       other state. */
+    #askHero:has(#askHeroResults.open){ z-index:220; }
   }
   .askResultBlock{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-md);
     padding:16px 18px;margin-bottom:12px;font-size:14px;line-height:1.6;color:var(--ink);}
