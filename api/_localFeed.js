@@ -642,7 +642,25 @@ async function fetchOuluEventsFromAPI() {
         // the field blank. Trust those flags, not field presence.
         event_start_time: upcoming.startTimeMissing ? null : formatHelsinkiTime(upcoming.start),
         event_end_time: (upcoming.endTimeMissing || upcoming.end === upcoming.start) ? null : formatHelsinkiTime(upcoming.end),
-        source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`
+        source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`,
+        // Different situation than the enrichWithImages problem this file
+        // documents elsewhere (that one scraped each event's individual
+        // detail PAGE, which is a JS-rendered app with no real image in
+        // its static HTML). This instead checks whether the LISTING API
+        // response -- which is already structured JSON, not scraped HTML
+        // -- happens to include an image field directly. Unverified
+        // against a real response (this sandbox can't fetch Kaleva's API
+        // to confirm the actual field name), so this tries several
+        // plausible names defensively; if none exist, image_url just
+        // comes back undefined and the frontend falls back to its
+        // existing no-photo handling, same as before.
+        image_url: p.mainImage || p.image || p.coverImage || p.thumbnail ||
+          (Array.isArray(p.images) && p.images[0] && (p.images[0].url || p.images[0])) || null,
+        // Same honesty caveat as image_url above -- unverified field-name
+        // guess, not confirmed against a real API response. Only shown by
+        // the frontend if actually present, never invented.
+        category: p.category || p.eventType || p.type ||
+          (Array.isArray(p.tags) && p.tags[0] && (p.tags[0].name || p.tags[0])) || null
       }))
       .filter(e => e.title_fi && e.event_date && e.summary_fi);
   } catch (err) {
@@ -704,7 +722,14 @@ async function fetchHelsinkiEventsFromAPI() {
           event_end_date: (endDate && endDate !== startDate) ? endDate : null,
           event_start_time: e.is_all_day ? null : formatHelsinkiTime(e.start_time),
           event_end_time: (e.is_all_day || e.end_time === e.start_time) ? null : formatHelsinkiTime(e.end_time),
-          source_url: (e.info_url && (e.info_url.fi || e.info_url.en)) || `https://tapahtumat.hel.fi/fi/search?text=${encodeURIComponent(titleFi)}`
+          source_url: (e.info_url && (e.info_url.fi || e.info_url.en)) || `https://tapahtumat.hel.fi/fi/search?text=${encodeURIComponent(titleFi)}`,
+          // LinkedEvents' documented schema includes an `images` array,
+          // each entry with a `url` field -- higher confidence than the
+          // Kaleva field-name guess above since this is a stable, publicly
+          // documented API, but still unverified against a live response
+          // from this sandbox. Falls back to no image if the field isn't
+          // actually there.
+          image_url: (Array.isArray(e.images) && e.images[0] && e.images[0].url) || null
         };
       })
       .filter(ev => ev.title_fi && ev.event_date);

@@ -156,7 +156,6 @@
       padding:12px 28px;background:color-mix(in srgb, var(--amber) 22%, transparent);border-width:1.5px;}
   }
 
-  #newsCol{min-width:0;}
   #companyInfoCta:hover{background:color-mix(in srgb, var(--amber) 24%, transparent);}
 
   #companyInfoOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
@@ -196,18 +195,9 @@
   .valueCard{max-width:220px;font-size:13px;color:var(--ink-dim);line-height:1.5;text-align:left;}
   .valueCard b{display:block;color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:22px;margin-bottom:6px;}
 
-  /* ---- news column (top-left, what visitors actually come to see) ---- */
-  #newsCol{text-align:left;}
-  #newsCol #localFeed{margin:0;max-width:none;}
-  #newsCol #localFeedHeaderRow{justify-content:flex-start;margin:0 0 16px;}
-  #newsCol #localFeed h2{text-align:left;margin:0;}
-  #newsCol #weatherWidget{margin:0;width:fit-content;justify-content:flex-start;}
-  #newsCol #weatherForecast{margin:12px 0 0;max-width:none;}
-  #newsCol .feedSubhead{text-align:left;}
   #newsSection{margin-top:0;}
   #newsSection .feedSubhead{text-align:left;}
   #newsSection #newsSourceNote{text-align:left;}
-  #newsCol #newsSourceNote, #newsCol .note{text-align:left !important;}
   #eventsCountNote, #eventsSourceNoteWrap{display:none;}
   #newsCategoryFilter, #newsSourceNote{display:none !important;}
 
@@ -404,9 +394,6 @@
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;text-align:center;line-height:26px;margin-bottom:10px;}
   .hiwStep span{font-size:13px;color:var(--ink-dim);line-height:1.5;}
 
-  #localFeed{margin:0 auto;max-width:1000px;}
-  #localFeedHeaderRow{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:0 0 20px;}
-  #localFeed h2{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0;}
   #weatherWidget{display:flex;align-items:center;justify-content:center;gap:8px;width:fit-content;margin:0;
     background:var(--panelT4);border:1px solid var(--line);border-radius:999px;padding:7px 16px;
     cursor:pointer;transition:background-color 0.15s;}
@@ -425,18 +412,9 @@
   .forecastDay .dIcon img, .forecastHour .dIcon img{width:32px;height:32px;}
   .forecastDay .dTemps, .forecastHour .dTemps{font-size:12px;color:var(--ink-dim);}
   .forecastDay .dTemps b, .forecastHour .dTemps b{color:var(--ink);}
-  #feedColumns{display:grid;grid-template-columns:minmax(0,1fr);gap:36px;align-items:start;}
-  /* #eventsSection's own order has no effect here -- #newsCol (its parent)
-     is the actual direct child of #feedRow's grid, so that's what needs
-     the explicit order. Without this, #newsSection's pre-existing order:2
-     (harmless before Stage 1, since it wasn't a real grid item then, but
-     very real now) would jump ahead of a default-ordered sibling like
-     #bizFeedCard -- which is exactly the bug that put the business card
-     in the middle and pushed news to the end. */
-  #newsCol{order:1;}
   #eventsSection{background:var(--panel);border:1px solid var(--line);border-radius:16px;
     padding:20px;box-shadow:var(--shadow-md);}
-  #newsSection{order:2;margin-bottom:0;background:var(--panel);border:1px solid var(--line);
+  #newsSection{margin-bottom:0;background:var(--panel);border:1px solid var(--line);
     border-radius:16px;padding:20px;box-shadow:var(--shadow-md);}
   #bizFeedCard{background:var(--panel);border:1px solid var(--line);border-radius:16px;
     padding:0;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;}
@@ -450,18 +428,20 @@
      dark-mode contrast issue, so it stays there but isn't needed here. */
   [data-theme="light"] #eventsSection, [data-theme="light"] #newsSection,
   [data-theme="light"] #bizFeedCard{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
-  #bizFeedScrollWindow{height:280px;overflow:hidden;position:relative;
-    mask-image:linear-gradient(180deg,transparent,#000 8%,#000 92%,transparent);}
-  #bizFeedScrollTrack{animation:bizFeedScroll 16s linear infinite;}
+  #bizFeedScrollWindow{height:auto;overflow:hidden;position:relative;
+    mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);}
+  #bizFeedScrollTrack{display:flex;flex-direction:row;animation:bizFeedScroll 20s linear infinite;}
   #bizFeedScrollWindow:hover #bizFeedScrollTrack{animation-play-state:paused;}
-  @keyframes bizFeedScroll{ 0%{transform:translateY(0);} 100%{transform:translateY(-50%);} }
-  .bizFeedRow{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);
+  @keyframes bizFeedScroll{ 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
+  .bizFeedRow{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 22px;
+    border-right:1px solid var(--line);flex:none;white-space:nowrap;
     text-decoration:none;color:inherit;transition:background 0.15s ease;}
   .bizFeedRow:hover{background:var(--panelT4);}
-  .bizFeedLogo{width:46px;height:46px;border-radius:10px;object-fit:contain;flex:none;
-    background:#fff;padding:5px;box-sizing:border-box;border:1px solid var(--line);box-shadow:0 2px 6px rgba(0,0,0,0.06);}
-  .bizFeedRow b{font-size:12.5px;font-weight:700;color:var(--ink);display:block;line-height:1.2;}
-  .bizFeedRowText{min-width:0;flex:1;}
+  .bizFeedLogo{width:60px;height:60px;border-radius:12px;object-fit:contain;flex:none;
+    background:#fff;padding:7px;box-sizing:border-box;border:1px solid var(--line);box-shadow:0 2px 6px rgba(0,0,0,0.06);}
+  .bizFeedRow b{font-size:13px;font-weight:700;color:var(--ink);display:block;line-height:1.25;text-align:center;}
+  .bizFeedRowIndustry{display:block;font-size:11px;color:var(--ink-dim);text-align:center;margin-top:2px;}
+  .bizFeedRowText{min-width:0;max-width:110px;}
   #bizFeedEmpty{padding:20px 18px;font-size:12.5px;color:var(--ink-dim);}
   #bizFeedLoading{padding:20px 18px;font-size:12.5px;color:var(--ink-dim);text-align:center;}
   #bizFeedCta{flex:none;white-space:nowrap;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;
@@ -477,32 +457,10 @@
      fixed 380px), this fixed overlap can start cutting into the
      results text instead of just the photo -- worth an eye on that state
      specifically, not just the empty/default view. */
-  #homeTwoColLayout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start;
+  #homeGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;
     position:relative;z-index:2;margin-top:-22px;}
-  @media (min-width:1000px){ #homeTwoColLayout{grid-template-columns:2.3fr 1fr;} }
-  /* Each column stacks its own children in normal flow, so its total height
-     is just the sum of its own content -- independent of the other column.
-     This is deliberate: putting statsGrid and bizFeedCard in the same grid
-     row (the previous approach) forced the row to match the taller of the
-     two, leaving a dead gap under the shorter column before the next
-     section could start. Two independent columns don't have that problem. */
-  #homeLeftCol, #homeRightCol{display:flex;flex-direction:column;gap:20px;min-width:0;}
-  #statsGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
-  @media (max-width:480px){
-    .statCard{padding:8px 6px;gap:2px;flex-direction:row;align-items:center;flex-wrap:wrap;}
-    .statIcon{font-size:13px;flex:none;}
-    .statBody{display:flex;flex-direction:column;min-width:0;}
-    .statBody b{font-size:14px;line-height:1.1;}
-    .statBody span{font-size:8.5px;line-height:1.2;}
-  }
-  @media (min-width:640px){ #statsGrid{grid-template-columns:1fr 1fr 1fr;} }
-  .statCard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;
-    box-shadow:var(--shadow-md);text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:10px;}
-  [data-theme="light"] .statCard{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
-  .statIcon{font-size:20px;}
-  .statBody b{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;color:var(--ink);}
-  .statBody span{font-size:12.5px;color:var(--ink-dim);}
-  #offersSection{order:3;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  @media (min-width:1000px){ #homeGrid{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);} }
+  #offersSection{background:var(--panel);border:1px solid var(--line);border-radius:16px;
     padding:20px;box-shadow:var(--shadow-md);}
   [data-theme="light"] #offersSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
   #offersEmptyNote{text-align:center;padding:24px 12px;}
@@ -516,14 +474,14 @@
   .feedItem.feedItemCompact{flex:1;height:auto;padding:12px 16px;display:flex;flex-direction:column;
     justify-content:center;align-items:stretch;}
   .feedItem.feedItemCompact b{font-size:13.5px;-webkit-line-clamp:2;}
-  #featureTiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;}
+  #featureTiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:8px;}
   @media (max-width:480px){
     .featureTile{padding:12px;gap:5px;}
     .featureTileIcon{width:32px;height:32px;font-size:14px;}
     .featureTile b{font-size:12.5px;}
     .featureTile>span:not(.featureTileIcon):not(.featureTileSoonBadge){font-size:11px;}
   }
-  @media (min-width:700px){ #featureTiles{grid-template-columns:1fr 1fr 1fr 1fr;} }
+  @media (min-width:700px){ #featureTiles{grid-template-columns:repeat(4,minmax(0,1fr));} }
   .featureTile{background:var(--panelT7);border:1px solid var(--line);border-radius:16px;padding:18px;
     display:flex;flex-direction:column;gap:8px;text-align:left;font-family:'IBM Plex Sans',sans-serif;
     cursor:pointer;position:relative;}
@@ -539,26 +497,12 @@
      keeps a single-column internal item list at that width since they're
      now half-width, rather than the old 2-3 internal columns which were
      sized for each section spanning the full page width. */
-  #feedRow{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start;}
-  @media (min-width:700px){
-    #feedRow{grid-template-columns:1fr 1fr;}
-  }
-  /* "Näytä kaikki" expands one card to the full row width in place --
-     this used to navigate to /tapahtumat.html or /uutiset.html, both
-     since removed now that this covers the same ground. The sibling
-     card just hides for as long as this one's expanded. */
-  #feedRow.eventsExpanded #newsSection{display:none !important;}
-  #feedRow.eventsExpanded #newsCol{grid-column:1/-1;}
-  #feedRow.newsExpanded #newsCol{display:none !important;}
-  #feedRow.newsExpanded #newsSection{grid-column:1/-1;}
-  /* The actual display:none/grid-column change is applied slightly after
-     the opacity fade starts (see expandFeedCard/collapseFeedCard below),
-     since display:none can't itself be transitioned -- doing both at the
-     same instant would make the sibling disappear immediately regardless
-     of this transition, undermining the "smooth" part entirely. */
-  #newsCol, #newsSection{transition:opacity 0.2s ease;}
-  #feedRow.eventsExpanded #newsSection{display:none !important;}
-  #feedRow.newsExpanded #newsCol{display:none !important;}
+  /* "Näytä kaikki" swaps a card's own content between collapsed and
+     expanded views in place -- this used to navigate to
+     /tapahtumat.html or /uutiset.html, both since removed now that this
+     covers the same ground. Used to also need to hide/resize a sibling
+     card sharing the same grid row; now that events/news are standalone
+     full-width cards, there's no sibling to manage at all. */
   #eventsExpandedView, #newsExpandedView{animation:expandedViewIn 0.35s ease;transition:opacity 0.18s ease, transform 0.18s ease;}
   @keyframes expandedViewIn{
     from{opacity:0;transform:translateY(10px);}
@@ -566,13 +510,13 @@
   }
   #eventsDayGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;}
   .expandedDayItemsGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;}
-  @media (min-width:700px){ .expandedDayItemsGrid{grid-template-columns:1fr 1fr;} }
-  @media (min-width:1300px){ .expandedDayItemsGrid{grid-template-columns:1fr 1fr 1fr;} }
+  @media (min-width:700px){ .expandedDayItemsGrid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media (min-width:1300px){ .expandedDayItemsGrid{grid-template-columns:repeat(3,minmax(0,1fr));} }
   .expandedDayCard{background:var(--panelT4);border:1px solid var(--line);border-radius:14px;padding:18px;}
   .expandedDayCard h4{font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin:0 0 12px;}
   .expandedDayCard .feedItem{margin-bottom:10px;}
   #newsSourceColumnsGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;}
-  @media (min-width:1000px){ #newsSourceColumnsGrid{grid-template-columns:1fr 1fr 1fr;} }
+  @media (min-width:1000px){ #newsSourceColumnsGrid{grid-template-columns:repeat(3,minmax(0,1fr));} }
   .expandedNewsCol{background:var(--panelT4);border:1px solid var(--line);border-radius:14px;padding:18px;}
   .expandedNewsColHead{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;
     font-weight:700;font-size:14.5px;color:var(--ink);margin:0 0 12px;}
@@ -587,27 +531,70 @@
   .cardHeadRow .feedSubhead{margin:0;text-align:left;}
   .cardHeadLink{font-size:11px;color:var(--amber);text-decoration:none;font-weight:700;white-space:nowrap;
     text-transform:none;letter-spacing:normal;flex:none;}
-  #newsItems, #eventItems, #offerItems{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;margin-top:12px;}
+  #newsItems, #eventItems{margin-top:12px;}
   /* Flex column with each row set to flex:1 (see .feedItemCompact below)
      instead of a grid of fixed-size rows -- always exactly 3 items that
      stretch to fill whatever height JS sets on this container, rather
      than calculating how many fixed-size rows fit in a given space. */
   #tilannehuoneItems{display:flex;flex-direction:column;gap:18px;margin-top:12px;}
-  .feedItem.highlighted{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset;position:relative;}
-  .feedItem.highlighted .highlightBadge{position:absolute;top:-9px;right:10px;background:var(--amber);color:#fff;
-    font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;}
+  /* Horizontal-scroll pages instead of a growing vertical list --
+     overflow-x + scroll-snap gives real native swipe on mobile for free,
+     no touch-event JS needed; the arrow buttons just scroll by one page
+     width for desktop/non-touch use. */
+  .pagedItemsContainer{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+    scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;}
+  .pagedItemsContainer::-webkit-scrollbar{display:none;}
+  .itemsPage{flex:0 0 100%;scroll-snap-align:start;display:flex;flex-direction:column;gap:12px;min-width:0;}
+  /* Event pages lay their cards out in a horizontal row (matching the
+     reference design) instead of the vertical stack news/Tilannehuone
+     use -- :has() lets this happen automatically based on what's
+     actually inside, rather than needing renderPagedList to know or
+     care which visual style a given list uses. */
+  .itemsPage:has(.eventCard){flex-direction:row;}
+  .pagerControls{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;}
+  .pagerArrow{background:var(--panelT7);border:1px solid var(--line);color:var(--ink);width:32px;height:32px;
+    border-radius:50%;cursor:pointer;font-size:16px;flex:none;display:flex;align-items:center;justify-content:center;}
+  .pagerArrow:disabled{opacity:0.35;cursor:default;}
+  .pagerDots{display:flex;gap:6px;}
+  .pagerDot{width:6px;height:6px;border-radius:50%;background:var(--line);cursor:pointer;border:none;padding:0;}
+  .pagerDot.active{background:var(--amber);width:16px;border-radius:3px;}
+
+  /* ---- Photo-forward event cards ---- */
+  .eventCard{flex:1;min-width:0;display:flex;flex-direction:column;text-decoration:none;color:inherit;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    box-shadow:var(--shadow-md);transition:box-shadow 0.15s ease;}
+  .eventCard:hover{box-shadow:0 8px 20px rgba(88,71,201,0.14);}
+  [data-theme="light"] .eventCard{border:none;box-shadow:0 12px 28px rgba(30,20,70,0.08);}
+  .eventCard.highlighted{box-shadow:0 0 0 2px var(--amber);}
+  .eventCardPhoto{position:relative;width:100%;aspect-ratio:4/3;background:var(--panelT4);flex:none;}
+  .eventCardPhoto img{width:100%;height:100%;object-fit:cover;display:block;}
+  .eventCardPhotoFallback{display:flex;align-items:center;justify-content:center;font-size:32px;
+    background:linear-gradient(135deg,var(--panelT7),var(--panelT4));}
+  .eventCardBadge{position:absolute;top:10px;right:10px;background:var(--amber);color:#fff;
+    font-family:'Space Grotesk',sans-serif;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;}
+  .eventCardBody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px;}
+  .eventCardCategory{font-size:10.5px;font-weight:700;color:var(--amber);text-transform:uppercase;
+    letter-spacing:0.04em;}
+  .eventCard b{font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:var(--ink);line-height:1.3;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .eventCardMeta{font-size:12px;color:var(--ink-dim);}
+
+  /* ---- Compact news rows ---- */
+  .newsRow{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;
+    text-decoration:none;color:inherit;transition:background 0.15s ease;}
+  .newsRow:hover{background:var(--panelT4);}
+  .newsRowBadge{flex:none;width:32px;height:32px;border-radius:50%;color:#fff;
+    display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;
+    font-size:14px;font-weight:700;}
+  .newsRowBody{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .newsRow b{font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--ink);line-height:1.35;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
+  .newsRowMeta{font-size:11.5px;color:var(--ink-dim);}
+  .newsRowThumb{flex:none;width:52px;height:52px;border-radius:8px;object-fit:cover;}
+
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;transition:box-shadow 0.15s ease;height:140px;}
   .feedItem:hover{box-shadow:0 4px 14px rgba(88,71,201,0.10);}
-  .feedItem .feedImg{flex:none;width:88px;height:72px;border-radius:10px;object-fit:cover;background:var(--panel);}
-  .feedItem .sourceLogoBadge{display:flex;align-items:center;justify-content:center;color:#fff;
-    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:26px;}
-  .feedItem .eventDate{flex:none;background:var(--amber);color:#fff;font-family:'Space Grotesk',sans-serif;
-    font-weight:700;font-size:12px;border-radius:6px;padding:6px 8px;text-align:center;line-height:1.15;min-width:48px;}
-  .feedItem .eventDate .day{display:block;font-size:22px;}
-  .feedItem .eventDate.eventDateRange{font-size:13px;min-width:64px;white-space:nowrap;padding:10px 8px;}
-  .feedItem .eventTime{font-size:12px;font-weight:700;color:var(--amber-deep);margin-bottom:3px;
-    font-family:'IBM Plex Mono',monospace;}
   .feedItem .feedBody{flex:1;min-width:0;}
   .feedItem b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
     font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin-bottom:4px;overflow-wrap:break-word;}
@@ -886,106 +873,86 @@
   </div>
   </div>
 
-  <div id="homeTwoColLayout">
-    <div id="homeLeftCol">
-      <div id="statsGrid">
-        <div class="statCard">
-          <span class="statIcon">📅</span>
-          <span class="statBody"><b id="statEventsCount">–</b><span>Tapahtumaa tänään</span></span>
-        </div>
-        <div class="statCard">
-          <span class="statIcon">📰</span>
-          <span class="statBody"><b id="statFreshness">–</b><span>Tuorein Tilannehuone-ilmoitus</span></span>
-        </div>
-        <div class="statCard">
-          <span class="statIcon">🏷️</span>
-          <span class="statBody"><b id="statOffersCount">Tulossa pian</b><span>Tarjouksia tulossa myöhemmin</span></span>
+  <div id="homeGrid">
+    <div id="eventsSection">
+      <div class="cardHeadRow">
+        <h3 class="feedSubhead" data-i18n="eventsSectionTitle">📅 Tapahtumat tänään</h3>
+        <span id="viewAllEventsLinkWrap">
+          <a id="viewAllEventsLinkEl" class="cardHeadLink" href="/?expand=events" onclick="return expandFeedCard('events');">Näytä kaikki →</a>
+        </span>
+      </div>
+      <div id="eventsCollapsedView">
+        <p class="note" id="eventsCountNote"></p>
+        <p class="note" id="eventsSourceNoteWrap">
+          <span id="eventsSourceNoteText">Lähde: Kaleva</span>
+        </p>
+        <div id="eventItems"></div>
+        <p class="note" id="noEventsThisWeek" style="display:none;"></p>
+        <div class="pagerControls" id="eventsPagerControls" style="display:none;">
+          <button class="pagerArrow" id="eventsPagerPrev" type="button" aria-label="Edelliset">‹</button>
+          <div class="pagerDots" id="eventsPagerDots"></div>
+          <button class="pagerArrow" id="eventsPagerNext" type="button" aria-label="Seuraavat">›</button>
         </div>
       </div>
-
-      <div id="feedRow">
-      <div id="newsCol">
-        <div id="localFeed">
-          <div id="feedColumns">
-            <div id="eventsSection">
-              <div class="cardHeadRow">
-                <h3 class="feedSubhead" data-i18n="eventsSectionTitle">📅 Tapahtumat tänään</h3>
-                <span id="viewAllEventsLinkWrap">
-                  <a id="viewAllEventsLinkEl" class="cardHeadLink" href="/?expand=events" onclick="return expandFeedCard('events');">Näytä kaikki →</a>
-                </span>
-              </div>
-              <div id="eventsCollapsedView">
-                <p class="note" id="eventsCountNote"></p>
-                <p class="note" id="eventsSourceNoteWrap">
-                  <span id="eventsSourceNoteText">Lähde: Kaleva</span>
-                </p>
-                <div id="eventItems"></div>
-                <p class="note" id="noEventsThisWeek" style="display:none;"></p>
-                <div style="margin-top:14px;display:flex;gap:8px;">
-                  <button id="showMoreEventsBtn" class="logoBtn" style="display:none;"></button>
-                  <button id="showLessEventsBtn" class="logoBtn" style="display:none;">Näytä vähemmän</button>
-                </div>
-              </div>
-              <div id="eventsExpandedView" style="display:none;">
-                <div id="eventsDayGrid"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="newsSection" style="display:none;">
-        <div class="cardHeadRow">
-          <h3 class="feedSubhead" data-i18n="newsSectionTitle">📰 Tuoreimmat uutiset</h3>
-          <span><a id="viewAllNewsLinkEl" class="cardHeadLink" href="/?expand=news" onclick="return expandFeedCard('news');">Näytä kaikki →</a></span>
-        </div>
-        <div id="newsCollapsedView">
-          <select id="newsCategoryFilter">
-            <option value="oulun-seutu" data-i18n="newsCatOulu">Oulun seutu</option>
-            <option value="rss-uusimmat" data-i18n="newsCatUusimmat">Uusimmat</option>
-            <option value="pohjois-suomi" data-i18n="newsCatPohjoisSuomi">Pohjois-Suomi</option>
-            <option value="kotimaa" data-i18n="newsCatKotimaa">Kotimaa</option>
-            <option value="ulkomaat" data-i18n="newsCatUlkomaat">Ulkomaat</option>
-          </select>
-          <p class="note" id="newsSourceNote"></p>
-          <div id="newsItems"></div>
-          <div style="margin-top:14px;display:flex;gap:8px;">
-            <button id="showMoreNewsBtn" class="logoBtn" style="display:none;"></button>
-            <button id="showLessNewsBtn" class="logoBtn" style="display:none;">Näytä vähemmän</button>
-          </div>
-        </div>
-        <div id="newsExpandedView" style="display:none;">
-          <div id="newsSourceColumnsGrid"></div>
-        </div>
-      </div>
+      <div id="eventsExpandedView" style="display:none;">
+        <div id="eventsDayGrid"></div>
       </div>
     </div>
 
-    <div id="homeRightCol">
-      <div id="bizFeedCard">
-        <div id="bizFeedCardHead">
-          <div>
-            <h3>Mainostetut yritykset</h3>
-            <p>Paikallisia yrityksiä Oulusta</p>
-          </div>
-          <button id="bizFeedCta">Yrityksesi tähän? →</button>
-        </div>
-        <div id="bizFeedScrollWindow">
-          <p id="bizFeedLoading">Ladataan yrityksiä...</p>
-          <div id="bizFeedScrollTrack"></div>
-        </div>
-        <p id="bizFeedEmpty" style="display:none;">Ei vielä yrityksiä taulussa.</p>
+    <div id="offersSection">
+      <div class="cardHeadRow">
+        <h3 class="feedSubhead">🚨 Tilannehuone</h3>
+        <span><a class="cardHeadLink" href="https://www.tilannehuone.fi/" target="_blank" rel="noopener">Näytä kaikki →</a></span>
       </div>
+      <div id="tilannehuoneItems"></div>
+      <p class="note" id="offersEmptyNote" style="display:none;">Ei tilannehuoneen ilmoituksia juuri nyt.</p>
+      <p class="note" id="offersLoadErr" style="display:none;">Ilmoituksia ei juuri nyt saatu ladattua. Yritä hetken kuluttua uudelleen.</p>
+      <div class="pagerControls" id="tilannehuonePagerControls" style="display:none;">
+        <button class="pagerArrow" id="tilannehuonePagerPrev" type="button" aria-label="Edelliset">‹</button>
+        <div class="pagerDots" id="tilannehuonePagerDots"></div>
+        <button class="pagerArrow" id="tilannehuonePagerNext" type="button" aria-label="Seuraavat">›</button>
+      </div>
+    </div>
 
-      <div id="offersSection">
-        <div class="cardHeadRow">
-          <h3 class="feedSubhead">🚨 Tilannehuone</h3>
-          <span><a class="cardHeadLink" href="https://www.tilannehuone.fi/" target="_blank" rel="noopener">Näytä kaikki →</a></span>
-        </div>
-        <div id="tilannehuoneItems"></div>
-        <p class="note" id="offersEmptyNote" style="display:none;">Ei tilannehuoneen ilmoituksia juuri nyt.</p>
-        <p class="note" id="offersLoadErr" style="display:none;">Ilmoituksia ei juuri nyt saatu ladattua. Yritä hetken kuluttua uudelleen.</p>
+    <div id="newsSection" style="display:none;">
+      <div class="cardHeadRow">
+        <h3 class="feedSubhead" data-i18n="newsSectionTitle">📰 Tuoreimmat uutiset</h3>
+        <span><a id="viewAllNewsLinkEl" class="cardHeadLink" href="/?expand=news" onclick="return expandFeedCard('news');">Näytä kaikki →</a></span>
       </div>
+      <div id="newsCollapsedView">
+        <select id="newsCategoryFilter">
+          <option value="oulun-seutu" data-i18n="newsCatOulu">Oulun seutu</option>
+          <option value="rss-uusimmat" data-i18n="newsCatUusimmat">Uusimmat</option>
+          <option value="pohjois-suomi" data-i18n="newsCatPohjoisSuomi">Pohjois-Suomi</option>
+          <option value="kotimaa" data-i18n="newsCatKotimaa">Kotimaa</option>
+          <option value="ulkomaat" data-i18n="newsCatUlkomaat">Ulkomaat</option>
+        </select>
+        <p class="note" id="newsSourceNote"></p>
+        <div id="newsItems"></div>
+        <div class="pagerControls" id="newsPagerControls" style="display:none;">
+          <button class="pagerArrow" id="newsPagerPrev" type="button" aria-label="Edelliset">‹</button>
+          <div class="pagerDots" id="newsPagerDots"></div>
+          <button class="pagerArrow" id="newsPagerNext" type="button" aria-label="Seuraavat">›</button>
+        </div>
+      </div>
+      <div id="newsExpandedView" style="display:none;">
+        <div id="newsSourceColumnsGrid"></div>
+      </div>
+    </div>
+
+    <div id="bizFeedCard">
+      <div id="bizFeedCardHead">
+        <div>
+          <h3>Suositellut paikalliset yritykset</h3>
+          <p>Paikallisia yrityksiä Oulusta</p>
+        </div>
+        <button id="bizFeedCta">Yrityksesi tähän? →</button>
+      </div>
+      <div id="bizFeedScrollWindow">
+        <p id="bizFeedLoading">Ladataan yrityksiä...</p>
+        <div id="bizFeedScrollTrack"></div>
+      </div>
+      <p id="bizFeedEmpty" style="display:none;">Ei vielä yrityksiä taulussa.</p>
     </div>
   </div>
 
@@ -2225,67 +2192,15 @@ let currentNewsCategory = 'rss-uusimmat';
 // problem, it was a race condition. Gating on all three actually being
 // done, then waiting two animation frames for layout to genuinely
 // settle before measuring, removes the race entirely.
-function syncColumnHeightsActual(){
-  const leftCol = document.getElementById('homeLeftCol');
-  const bizCard = document.getElementById('bizFeedCard');
-  const offers = document.getElementById('offersSection');
-  const itemsBox = document.getElementById('tilannehuoneItems');
-  if (!leftCol || !bizCard || !offers || !itemsBox) return;
-
-  // Reset first so a previous pass's height doesn't compound into this one.
-  itemsBox.style.height = '';
-
-  // Below 1000px, #homeTwoColLayout stacks homeLeftCol and homeRightCol
-  // into a single column (see its media query) -- there's no side-by-side
-  // alignment to compute there at all, so forcing a height meant for the
-  // desktop layout onto a stacked mobile one was actively wrong, not just
-  // pointless. Let Tilannehuone just take its natural height on mobile.
-  if (window.innerWidth < 1000) return;
-
-  // The goal is matching BOTTOM EDGE POSITIONS on the page. Tilannehuone
-  // sits below bizFeedCard in its column, so it starts lower on the page
-  // than feedRow does -- comparing against the whole left column (stats
-  // row + feedRow) and subtracting bizCard's own height is what actually
-  // aligns the two bottom edges, not comparing Tilannehuone's height to
-  // feedRow's directly.
-  const GAP = 20; // matches #homeLeftCol/#homeRightCol's own flex gap
-  const available = leftCol.offsetHeight - bizCard.offsetHeight - GAP;
-  if (available <= 100) return; // sanity floor -- never shrink to something unusably small
-
-  // How much of offersSection is header/padding/etc, separate from the
-  // items list itself -- measuring this rather than hardcoding it means
-  // it stays correct even if the header row's own content ever changes.
-  const chrome = offers.offsetHeight - itemsBox.offsetHeight;
-  const availableForItems = available - chrome;
-
-  // Always exactly 3 items (see loadTilannehuone/api/tilannehuone.js) --
-  // instead of calculating how many fixed-size rows fit (which leaves an
-  // unavoidable leftover gap whenever the space doesn't divide evenly),
-  // each row is flex:1 and stretches to fill whatever height is set here.
-  itemsBox.style.height = availableForItems + 'px';
-}
-
-// A manual readiness-gate guessing when "everything has loaded" turned
-// out to be genuinely fragile -- three independent async sources racing,
-// web font loading shifting layout after the fact, and other timing
-// factors that are hard to fully account for by hand. ResizeObserver is
-// the browser's own built-in answer to "run this whenever an element's
-// real rendered size actually changes" -- it fires on the initial
-// layout, again whenever new events/news items are shown or hidden,
-// again if a web font swap shifts text height, whatever the cause,
-// without needing to enumerate or guess at every possible trigger by
-// hand. No risk of a feedback loop either: this only ever modifies
-// offersSection/tilannehuoneItems, never feedRow or bizFeedCard
-// themselves, so it can't re-trigger its own observers.
+// Height-matching between side-by-side columns (bizFeedCard/Tilannehuone
+// vs events/news) was removed entirely along with the 2-column layout
+// itself -- everything is a standalone full-width card in one vertical
+// stack now, so there's nothing left that needs its height matched to a
+// sibling's. Kept as a no-op rather than removing every call site
+// individually, since calling it is harmless and some of those call
+// sites still make sense as "something relevant just changed" hooks.
 function syncColumnHeights(){
-  syncColumnHeightsActual();
-}
-if (window.ResizeObserver){
-  const observer = new ResizeObserver(() => syncColumnHeightsActual());
-  const feedRowEl = document.getElementById('feedRow');
-  const bizFeedCardEl = document.getElementById('bizFeedCard');
-  if (feedRowEl) observer.observe(feedRowEl);
-  if (bizFeedCardEl) observer.observe(bizFeedCardEl);
+  // intentionally empty
 }
 
 async function loadBoard(){
@@ -2313,8 +2228,6 @@ async function loadBoard(){
   // Loaded separately, after the grid is already visible -- this can
   // take a few seconds on a cache miss, but it should never make someone
   // wait to see and use the board itself.
-  newsVisibleCount = NEWS_PAGE_SIZE;
-  eventsVisibleCount = EVENTS_PAGE_SIZE;
   currentNewsCategory = 'rss-uusimmat';
   document.getElementById('newsCategoryFilter').value = 'rss-uusimmat';
   loadFeed().then(checkExpandFromUrl);
@@ -2331,7 +2244,8 @@ function checkExpandFromUrl(){
   const type = new URLSearchParams(location.search).get('expand');
   if (type === 'events' || type === 'news'){
     expandFeedCard(type);
-    document.getElementById('feedRow').scrollIntoView({behavior:'smooth', block:'start'});
+    const targetId = type === 'events' ? 'eventsSection' : 'newsSection';
+    document.getElementById(targetId).scrollIntoView({behavior:'smooth', block:'start'});
   }
 }
 
@@ -2402,6 +2316,7 @@ function renderBizFeedCard(){
     <img class="bizFeedLogo" src="${sq.logo_url}" alt="" loading="lazy" />
     <span class="bizFeedRowText">
       <b>${escapeAskText(sq.company_name)}</b>
+      ${sq.industry ? `<span class="bizFeedRowIndustry">${escapeAskText(sq.industry)}</span>` : ''}
     </span>
   </a>`;
 
@@ -2666,6 +2581,34 @@ window.addEventListener('resize', () => {
   }, 250);
 });
 
+function makeTilannehuoneItemEl(item){
+  const el = document.createElement('div');
+  el.className = 'feedItem feedItemCompact';
+  const body = document.createElement('div');
+  body.className = 'feedBody';
+  const titleEl = document.createElement('b');
+  titleEl.textContent = item.title_fi;
+  body.appendChild(titleEl);
+
+  const metaEl = document.createElement('p');
+  metaEl.className = 'tilannehuoneMeta';
+  metaEl.textContent = [item.location, item.display_date].filter(Boolean).join(' · ');
+  body.appendChild(metaEl);
+
+  if (item.source_url && /^https?:\/\//i.test(item.source_url)){
+    const link = document.createElement('a');
+    link.href = item.source_url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = 'Tilannehuone ↗';
+    body.appendChild(link);
+  }
+  el.appendChild(body);
+  return el;
+}
+
+const TILANNEHUONE_PAGE_SIZE = 3;
+
 async function loadTilannehuone(){
   const box = document.getElementById('tilannehuoneItems');
   const emptyNote = document.getElementById('offersEmptyNote');
@@ -2678,41 +2621,16 @@ async function loadTilannehuone(){
     const items = data.items || [];
     const statFreshnessEl = document.getElementById('statFreshness');
     if (statFreshnessEl) statFreshnessEl.textContent = formatFreshness(items);
-    box.innerHTML = '';
     if (items.length === 0){
+      box.innerHTML = '';
+      document.getElementById('tilannehuonePagerControls').style.display = 'none';
       emptyNote.style.display = 'block';
       return;
     }
-    items.forEach(item => {
-      const el = document.createElement('div');
-      el.className = 'feedItem feedItemCompact';
-      const body = document.createElement('div');
-      body.className = 'feedBody';
-      const titleEl = document.createElement('b');
-      titleEl.textContent = item.title_fi;
-      body.appendChild(titleEl);
-
-      const metaEl = document.createElement('p');
-      metaEl.className = 'tilannehuoneMeta';
-      metaEl.textContent = [item.location, item.display_date].filter(Boolean).join(' · ');
-      body.appendChild(metaEl);
-
-      if (item.source_url && /^https?:\/\//i.test(item.source_url)){
-        const link = document.createElement('a');
-        link.href = item.source_url;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = 'Tilannehuone ↗';
-        body.appendChild(link);
-      }
-      el.appendChild(body);
-      box.appendChild(el);
-    });
+    renderPagedList(box, items, 'tilannehuone', TILANNEHUONE_PAGE_SIZE, makeTilannehuoneItemEl);
   } catch (err) {
     console.error('Tilannehuone load failed:', err);
     loadErr.style.display = 'block';
-  } finally {
-    syncColumnHeights();
   }
 }
 
@@ -2772,9 +2690,7 @@ async function loadFeed(){
   syncColumnHeights();
 }
 
-let newsVisibleCount = 4;
 const NEWS_PAGE_SIZE = 4;
-let eventsVisibleCount = 4;
 const EVENTS_PAGE_SIZE = 4;
 
 // Which card (if any) is currently expanded to full row width in place
@@ -2786,29 +2702,17 @@ let feedCardExpandedType = null; // null | 'events' | 'news'
 
 function expandFeedCard(type){
   feedCardExpandedType = type;
-  const feedRow = document.getElementById('feedRow');
-  const sibling = document.getElementById(type === 'events' ? 'newsSection' : 'newsCol');
   const linkEl = document.getElementById(type === 'events' ? 'viewAllEventsLinkEl' : 'viewAllNewsLinkEl');
 
-  // Fade the sibling out first, then apply the actual display:none/grid
-  // reflow once that's visually finished -- doing both at once would
-  // make it vanish instantly, since display:none can't be transitioned.
-  sibling.style.opacity = '0';
-  setTimeout(() => {
-    feedRow.classList.remove('eventsExpanded', 'newsExpanded');
-    feedRow.classList.add(type === 'events' ? 'eventsExpanded' : 'newsExpanded');
-    sibling.style.opacity = ''; // hand back to the stylesheet now that it's hidden anyway
-
-    if (type === 'events'){
-      document.getElementById('eventsCollapsedView').style.display = 'none';
-      document.getElementById('eventsExpandedView').style.display = 'block';
-      loadEventsDayGrid();
-    } else {
-      document.getElementById('newsCollapsedView').style.display = 'none';
-      document.getElementById('newsExpandedView').style.display = 'block';
-      loadNewsSourceColumns();
-    }
-  }, 200);
+  if (type === 'events'){
+    document.getElementById('eventsCollapsedView').style.display = 'none';
+    document.getElementById('eventsExpandedView').style.display = 'block';
+    loadEventsDayGrid();
+  } else {
+    document.getElementById('newsCollapsedView').style.display = 'none';
+    document.getElementById('newsExpandedView').style.display = 'block';
+    loadNewsSourceColumns();
+  }
 
   // The link itself now flips to "collapse" mode -- previously this text
   // never changed no matter what state the card was in, and the actual
@@ -2829,7 +2733,6 @@ function expandFeedCard(type){
 }
 
 function collapseFeedCard(){
-  const feedRow = document.getElementById('feedRow');
   const type = feedCardExpandedType;
   const expandedView = type === 'events'
     ? document.getElementById('eventsExpandedView')
@@ -2839,7 +2742,6 @@ function collapseFeedCard(){
   expandedView.style.opacity = '0';
   expandedView.style.transform = 'translateY(6px)';
   setTimeout(() => {
-    feedRow.classList.remove('eventsExpanded', 'newsExpanded');
     document.getElementById('eventsCollapsedView').style.display = 'block';
     document.getElementById('eventsExpandedView').style.display = 'none';
     document.getElementById('newsCollapsedView').style.display = 'block';
@@ -2894,7 +2796,7 @@ function loadEventsDayGrid(){
   } else {
     const itemsGrid = document.createElement('div');
     itemsGrid.className = 'expandedDayItemsGrid';
-    todayEvents.forEach(ev => itemsGrid.appendChild(makeFeedItemEl(ev)));
+    todayEvents.forEach(ev => itemsGrid.appendChild(makeEventCardEl(ev)));
     card.appendChild(itemsGrid);
   }
   grid.appendChild(card);
@@ -2963,93 +2865,119 @@ function loadNewsSourceColumns(){
   });
 }
 
-function makeFeedItemEl(item){
-  const el = document.createElement('div');
-  el.className = 'feedItem';
-  const title = lang === 'fi' ? item.title_fi : item.title_en;
-  const summary = lang === 'fi' ? item.summary_fi : item.summary_en;
+// Photo-forward event card, matching the reference design -- a real
+// departure from the compact list-row style news still uses, since
+// events benefit from being visually led by their photo. No favorite/
+// heart icon here deliberately: there's no real account-linked favorites
+// system behind it yet (see the "Tulossa" feature tiles), and a
+// heart icon that looks interactive but saves nothing would be exactly
+// the kind of fake affordance worth avoiding.
+function makeEventCardEl(item){
+  const hasLink = item.source_url && /^https?:\/\//i.test(item.source_url);
+  const el = document.createElement(hasLink ? 'a' : 'div');
+  el.className = 'eventCard';
+  if (hasLink){
+    el.href = item.source_url;
+    el.target = '_blank';
+    el.rel = 'noopener';
+  }
+  if (item.admin_highlighted) el.classList.add('highlighted');
 
+  const photoWrap = document.createElement('div');
+  photoWrap.className = 'eventCardPhoto';
+  if (item.image_url){
+    const img = document.createElement('img');
+    img.src = item.image_url;
+    img.alt = '';
+    img.loading = 'lazy';
+    photoWrap.appendChild(img);
+  } else {
+    photoWrap.classList.add('eventCardPhotoFallback');
+    photoWrap.textContent = '📅';
+  }
   if (item.admin_highlighted){
-    el.classList.add('highlighted');
     const badge = document.createElement('span');
-    badge.className = 'highlightBadge';
+    badge.className = 'eventCardBadge';
     badge.textContent = t('featuredBadge');
-    el.appendChild(badge);
+    photoWrap.appendChild(badge);
+  }
+  el.appendChild(photoWrap);
+
+  const body = document.createElement('div');
+  body.className = 'eventCardBody';
+
+  // Best-effort category label (see the image_url/category extraction in
+  // api/_localFeed.js) -- shown only if the source data actually has one,
+  // never invented to match the reference design's look.
+  if (item.category){
+    const cat = document.createElement('span');
+    cat.className = 'eventCardCategory';
+    cat.textContent = item.category;
+    body.appendChild(cat);
   }
 
-  if (item.event_date){
-    const startD = new Date(item.event_date + 'T00:00:00');
-    const dateBadge = document.createElement('div');
-    dateBadge.className = 'eventDate';
+  const titleEl = document.createElement('b');
+  titleEl.textContent = lang === 'fi' ? item.title_fi : item.title_en;
+  body.appendChild(titleEl);
 
-    const isMultiDay = item.event_end_date && item.event_end_date !== item.event_date;
-    if (isMultiDay){
-      const endD = new Date(item.event_end_date + 'T00:00:00');
-      dateBadge.classList.add('eventDateRange');
-      // "20.–22.7." when both dates fall in the same month, otherwise
-      // "28.7.–2.8." so the month is never ambiguous
-      dateBadge.textContent = startD.getMonth() === endD.getMonth()
-        ? `${startD.getDate()}.–${endD.getDate()}.${endD.getMonth() + 1}.`
-        : `${startD.getDate()}.${startD.getMonth() + 1}.–${endD.getDate()}.${endD.getMonth() + 1}.`;
-    } else {
-      const weekdays = lang === 'fi'
-        ? ['su','ma','ti','ke','to','pe','la']
-        : ['sun','mon','tue','wed','thu','fri','sat'];
-      dateBadge.innerHTML = `<span class="day">${startD.getDate()}</span>${weekdays[startD.getDay()]}`;
-    }
-    el.appendChild(dateBadge);
+  const metaEl = document.createElement('div');
+  metaEl.className = 'eventCardMeta';
+  const startD = new Date(item.event_date + 'T00:00:00');
+  const isMultiDay = item.event_end_date && item.event_end_date !== item.event_date;
+  let dateStr;
+  if (isMultiDay){
+    const endD = new Date(item.event_end_date + 'T00:00:00');
+    dateStr = startD.getMonth() === endD.getMonth()
+      ? `${startD.getDate()}.–${endD.getDate()}.${endD.getMonth() + 1}.`
+      : `${startD.getDate()}.${startD.getMonth() + 1}.–${endD.getDate()}.${endD.getMonth() + 1}.`;
+  } else {
+    dateStr = `${startD.getDate()}.${startD.getMonth() + 1}.`;
   }
+  const timeStr = item.event_start_time ? ` klo ${item.event_start_time}` : '';
+  metaEl.textContent = dateStr + timeStr;
+  body.appendChild(metaEl);
 
-  const isNewsItem = !item.event_date; // used below only for the fallback badge color
+  el.appendChild(body);
+  return el;
+}
+
+function makeFeedItemEl(item){
+  const hasLink = item.source_url && /^https?:\/\//i.test(item.source_url);
+  const el = document.createElement(hasLink ? 'a' : 'div');
+  el.className = 'newsRow';
+  if (hasLink){ el.href = item.source_url; el.target = '_blank'; el.rel = 'noopener'; }
+
+  // Small circular source badge -- always shown regardless of whether a
+  // real photo is also available, since it's the source-identity marker
+  // now, separate from the thumbnail (matching the reference design).
+  const badge = document.createElement('span');
+  badge.className = 'newsRowBadge';
+  const isKaleva = item.source_name === 'Kaleva';
+  const isYle = item.source_name === 'Yle';
+  badge.style.background = isKaleva ? '#f7941d' : isYle ? '#00b4d8' : 'var(--amber)';
+  badge.textContent = isKaleva ? 'K' : isYle ? 'Y' : (item.source_name ? item.source_name[0] : '•');
+  el.appendChild(badge);
+
+  const body = document.createElement('div');
+  body.className = 'newsRowBody';
+  const titleEl = document.createElement('b');
+  titleEl.textContent = lang === 'fi' ? item.title_fi : item.title_en;
+  body.appendChild(titleEl);
+  const metaEl = document.createElement('span');
+  metaEl.className = 'newsRowMeta';
+  metaEl.textContent = formatFreshness([item]); // reuses the existing "X min/h/pv sitten" formatter for a single item
+  body.appendChild(metaEl);
+  el.appendChild(body);
 
   if (item.image_url){
     const img = document.createElement('img');
-    img.className = 'feedImg';
+    img.className = 'newsRowThumb';
     img.src = item.image_url;
     img.alt = '';
     img.loading = 'lazy';
     el.appendChild(img);
-  } else if (isNewsItem && item.source_name && (item.source_name === 'Kaleva' || item.source_name === 'Yle')){
-    // Fallback for the (usually rare) case where this specific article
-    // didn't have a fetchable photo -- better than an empty gap where
-    // the thumbnail would normally be.
-    const logo = document.createElement('span');
-    logo.className = 'feedImg sourceLogoBadge';
-    logo.style.background = item.source_name === 'Kaleva' ? '#f7941d' : '#00b4d8';
-    logo.textContent = item.source_name === 'Kaleva' ? 'K' : 'Y';
-    el.appendChild(logo);
   }
 
-  const body = document.createElement('div');
-  body.className = 'feedBody';
-
-  if (item.event_start_time){
-    const timeEl = document.createElement('div');
-    timeEl.className = 'eventTime';
-    const prefix = lang === 'fi' ? 'klo ' : '';
-    timeEl.textContent = item.event_end_time
-      ? `${prefix}${item.event_start_time}–${item.event_end_time}`
-      : `${prefix}${item.event_start_time}`;
-    body.appendChild(timeEl);
-  }
-
-  const titleEl = document.createElement('b');
-  titleEl.textContent = title;
-  const summaryEl = document.createElement('p');
-  summaryEl.textContent = summary;
-  body.appendChild(titleEl);
-  body.appendChild(summaryEl);
-
-  if (item.source_url && /^https?:\/\//i.test(item.source_url)){
-    const link = document.createElement('a');
-    link.href = item.source_url;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    const genericLabel = (lang === 'fi' ? 'Lähde ↗' : 'Source ↗');
-    link.textContent = (isNewsItem && item.source_name) ? `${item.source_name} ↗` : genericLabel;
-    body.appendChild(link);
-  }
-  el.appendChild(body);
   return el;
 }
 
@@ -3075,14 +3003,7 @@ function formatFreshness(items){
 function renderLocalFeed(feed){
   const news = (feed && feed.news) || [];
   const events = (feed && feed.events) || [];
-  const wrap = document.getElementById('localFeed');
   const isOulu = currentTown && currentTown.name === 'Oulu';
-
-  const statEventsEl = document.getElementById('statEventsCount');
-  if (statEventsEl) statEventsEl.textContent = events.length;
-
-  if (news.length === 0 && events.length === 0){ wrap.style.display = 'none'; return; }
-  wrap.style.display = 'block';
 
   // news
   const newsSection = document.getElementById('newsSection');
@@ -3100,15 +3021,7 @@ function renderLocalFeed(feed){
         ? (lang === 'fi' ? 'Lähde: Yle' : 'Source: Yle')
         : (lang === 'fi' ? 'Haettu verkosta tekoälyllä' : 'Found via AI web search');
     const newsBox = document.getElementById('newsItems');
-    newsBox.innerHTML = '';
-    const visibleCount = Math.min(newsVisibleCount, news.length);
-    news.slice(0, visibleCount).forEach(item => newsBox.appendChild(makeFeedItemEl(item)));
-
-    const moreBtn = document.getElementById('showMoreNewsBtn');
-    const lessBtn = document.getElementById('showLessNewsBtn');
-    moreBtn.style.display = news.length > newsVisibleCount ? 'inline-block' : 'none';
-    moreBtn.textContent = t('showMore');
-    lessBtn.style.display = newsVisibleCount > NEWS_PAGE_SIZE ? 'inline-block' : 'none';
+    renderPagedList(newsBox, news, 'news', NEWS_PAGE_SIZE);
   }
 
   // events, already sorted by popularity from the backend, scoped to today
@@ -3131,13 +3044,80 @@ function renderLocalFeed(feed){
 
 }
 
+// Generic: splits items into fixed-size pages, renders each as a
+// horizontally-scrollable "slide" (native swipe via CSS scroll-snap, no
+// touch-event JS needed), and wires up the arrow/dot controls for it.
+// Shared between events and news rather than duplicating this per list.
+function renderPagedList(containerBox, items, pagerPrefix, pageSize, itemBuilderFn){
+  itemBuilderFn = itemBuilderFn || makeFeedItemEl;
+  containerBox.innerHTML = '';
+  containerBox.classList.add('pagedItemsContainer');
+
+  const controls = document.getElementById(pagerPrefix + 'PagerControls');
+  const dotsBox = document.getElementById(pagerPrefix + 'PagerDots');
+  const prevBtn = document.getElementById(pagerPrefix + 'PagerPrev');
+  const nextBtn = document.getElementById(pagerPrefix + 'PagerNext');
+
+  if (items.length === 0){
+    controls.style.display = 'none';
+    return;
+  }
+
+  const pageCount = Math.ceil(items.length / pageSize);
+  for (let p = 0; p < pageCount; p++){
+    const page = document.createElement('div');
+    page.className = 'itemsPage';
+    items.slice(p * pageSize, (p + 1) * pageSize).forEach(item => page.appendChild(itemBuilderFn(item)));
+    containerBox.appendChild(page);
+  }
+
+  if (pageCount <= 1){
+    controls.style.display = 'none';
+    return;
+  }
+  controls.style.display = 'flex';
+
+  dotsBox.innerHTML = '';
+  for (let p = 0; p < pageCount; p++){
+    const dot = document.createElement('button');
+    dot.className = 'pagerDot' + (p === 0 ? ' active' : '');
+    dot.type = 'button';
+    dot.setAttribute('aria-label', `Sivu ${p + 1}`);
+    dot.addEventListener('click', () => {
+      containerBox.scrollTo({ left: containerBox.offsetWidth * p, behavior: 'smooth' });
+    });
+    dotsBox.appendChild(dot);
+  }
+
+  const updateActiveDot = () => {
+    const page = Math.round(containerBox.scrollLeft / containerBox.offsetWidth);
+    Array.from(dotsBox.children).forEach((d, i) => d.classList.toggle('active', i === page));
+    prevBtn.disabled = page <= 0;
+    nextBtn.disabled = page >= pageCount - 1;
+  };
+  // Swiping natively scrolls the container -- this just keeps the dots/
+  // arrows in sync with wherever a swipe (or arrow click) actually lands,
+  // rather than tracking page state separately in JS.
+  containerBox.addEventListener('scroll', () => {
+    clearTimeout(containerBox._pagerScrollTimeout);
+    containerBox._pagerScrollTimeout = setTimeout(updateActiveDot, 80);
+  });
+
+  prevBtn.onclick = () => {
+    const page = Math.max(0, Math.round(containerBox.scrollLeft / containerBox.offsetWidth) - 1);
+    containerBox.scrollTo({ left: containerBox.offsetWidth * page, behavior: 'smooth' });
+  };
+  nextBtn.onclick = () => {
+    const page = Math.min(pageCount - 1, Math.round(containerBox.scrollLeft / containerBox.offsetWidth) + 1);
+    containerBox.scrollTo({ left: containerBox.offsetWidth * page, behavior: 'smooth' });
+  };
+  updateActiveDot();
+}
+
 function renderEventsList(events){
   const eventsBox = document.getElementById('eventItems');
   const noneMsg = document.getElementById('noEventsThisWeek');
-  const moreBtn = document.getElementById('showMoreEventsBtn');
-  const lessBtn = document.getElementById('showLessEventsBtn');
   const countNote = document.getElementById('eventsCountNote');
-  eventsBox.innerHTML = '';
 
   countNote.textContent = events.length === 0 ? '' :
     (events.length === 1 ? t('eventsCountOne') : t('eventsCountMany').replace('{count}', events.length));
@@ -3145,43 +3125,17 @@ function renderEventsList(events){
   if (events.length === 0){
     noneMsg.style.display = 'block';
     noneMsg.textContent = t('noEventsThisWeek');
-    moreBtn.style.display = 'none';
-    lessBtn.style.display = 'none';
+    eventsBox.innerHTML = '';
+    document.getElementById('eventsPagerControls').style.display = 'none';
   } else {
     noneMsg.style.display = 'none';
-    const visibleCount = Math.min(eventsVisibleCount, events.length);
-    events.slice(0, visibleCount).forEach(item => eventsBox.appendChild(makeFeedItemEl(item)));
-
-    moreBtn.style.display = events.length > eventsVisibleCount ? 'inline-block' : 'none';
-    moreBtn.textContent = t('showMore');
-    lessBtn.style.display = eventsVisibleCount > EVENTS_PAGE_SIZE ? 'inline-block' : 'none';
+    renderPagedList(eventsBox, events, 'events', EVENTS_PAGE_SIZE, makeEventCardEl);
   }
+  syncColumnHeights();
 }
-document.getElementById('showMoreEventsBtn').addEventListener('click', ()=>{
-  eventsVisibleCount += EVENTS_PAGE_SIZE;
-  renderEventsList(currentFeedItems.events || []);
-  syncColumnHeights();
-});
-document.getElementById('showLessEventsBtn').addEventListener('click', ()=>{
-  eventsVisibleCount = EVENTS_PAGE_SIZE;
-  renderEventsList(currentFeedItems.events || []);
-  document.getElementById('eventsSection').scrollIntoView({behavior:'smooth',block:'start'});
-  syncColumnHeights();
-});
-document.getElementById('showMoreNewsBtn').addEventListener('click', ()=>{
-  newsVisibleCount += NEWS_PAGE_SIZE;
-  renderLocalFeed(currentFeedItems);
-  syncColumnHeights();
-});
-document.getElementById('showLessNewsBtn').addEventListener('click', ()=>{
-  newsVisibleCount = NEWS_PAGE_SIZE;
-  renderLocalFeed(currentFeedItems);
-  document.getElementById('newsSection').scrollIntoView({behavior:'smooth',block:'start'});
-  syncColumnHeights();
-});
+
 document.getElementById('newsCategoryFilter').addEventListener('change', (e)=>{
   currentNewsCategory = e.target.value;
-  newsVisibleCount = NEWS_PAGE_SIZE;
   loadFeed();
 });
 
