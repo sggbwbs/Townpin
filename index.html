@@ -559,6 +559,9 @@
   .eventCard:hover{box-shadow:0 8px 20px rgba(88,71,201,0.14);}
   [data-theme="light"] .eventCard{border:none;box-shadow:0 12px 28px rgba(30,20,70,0.08);}
   .eventCard.highlighted{box-shadow:0 0 0 2px var(--amber);}
+  .eventCard.ended{opacity:0.55;}
+  .eventCard.ended .eventCardPhoto{filter:grayscale(0.6);}
+  .eventCard.ended .eventCardMeta{font-style:italic;}
   .eventCardPhoto{position:relative;width:100%;aspect-ratio:4/3;max-height:130px;background:var(--panelT4);flex:none;}
   .eventCardPhoto img{width:100%;height:100%;object-fit:cover;display:block;}
   .eventCardPhotoFallback{display:flex;align-items:center;justify-content:center;font-size:32px;
@@ -2310,8 +2313,8 @@ function renderBizFeedCard(){
   // otherwise a short list just sits still, which reads better than a
   // near-empty list slowly cycling through itself.
   const html = businesses.map(rowHtml).join('');
-  track.innerHTML = businesses.length > 4 ? html + html : html;
-  track.style.animationPlayState = businesses.length > 4 ? 'running' : 'paused';
+  track.innerHTML = businesses.length > 1 ? html + html : html;
+  track.style.animationPlayState = businesses.length > 1 ? 'running' : 'paused';
 }
 
 function renderLogoBanner(){
@@ -2645,18 +2648,20 @@ function getHelsinkiNowString(){
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 }
 
-// Events with no explicit end time aren't instantaneous -- treating them
-// as "ended" the moment their start time passes would drop things that
-// are very plausibly still happening. Falling back to end-of-day is a
-// reasonable default for "still ongoing" when the source data doesn't
-// specify an actual end.
-function filterEndedEvents(events){
+// Confirmed against Kaleva's own site: an event with no explicit end
+// time is treated as "mennyt tapahtuma" (past) once its START time
+// passes, not end-of-day as originally assumed here. That assumption
+// was wrong -- verified by checking an event Kaleva itself already
+// marked as ended while this filter still considered it current.
+// No longer used to remove events entirely -- filtering strictly by end
+// time left almost nothing to show once the day progresses, since
+// events are sparse to begin with. Used per-item now to visually mark
+// ended events (greyed out, "Päättynyt" label) instead of hiding them.
+function hasEventEnded(ev){
   const nowStr = getHelsinkiNowString();
-  return events.filter(ev => {
-    const endDateStr = ev.event_end_date || ev.event_date;
-    const endTimeStr = ev.event_end_time || '23:59';
-    return `${endDateStr}T${endTimeStr}` >= nowStr;
-  });
+  const endDateStr = ev.event_end_date || ev.event_date;
+  const endTimeStr = ev.event_end_time || ev.event_start_time || '23:59';
+  return `${endDateStr}T${endTimeStr}` < nowStr;
 }
 
 async function loadFeed(){
@@ -2685,11 +2690,11 @@ async function loadFeed(){
         if (kalevaSorted[i]) mergedNews.push(kalevaSorted[i]);
         if (yleSorted[i]) mergedNews.push(yleSorted[i]);
       }
-      currentFeedItems = { news: mergedNews.slice(0, 3), events: filterEndedEvents(dedupeEvents(kalevaData.events || [])) };
+      currentFeedItems = { news: mergedNews.slice(0, 3), events: dedupeEvents(kalevaData.events || []) };
     } else {
       const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${currentNewsCategory}${previewMode ? '&admin=1' : ''}`);
       const data = await res.json();
-      currentFeedItems = { news: (data.news || []).slice(0, 3), events: filterEndedEvents(dedupeEvents(data.events || [])) };
+      currentFeedItems = { news: (data.news || []).slice(0, 3), events: dedupeEvents(data.events || []) };
     }
   } catch (e) {
     currentFeedItems = { news: [], events: [] };
@@ -2848,6 +2853,8 @@ function makeEventCardEl(item){
     el.rel = 'noopener';
   }
   if (item.admin_highlighted) el.classList.add('highlighted');
+  const ended = hasEventEnded(item);
+  if (ended) el.classList.add('ended');
 
   const photoWrap = document.createElement('div');
   photoWrap.className = 'eventCardPhoto';
@@ -2890,7 +2897,7 @@ function makeEventCardEl(item){
     dateStr = `${startD.getDate()}.${startD.getMonth() + 1}.`;
   }
   const timeStr = item.event_start_time ? ` klo ${item.event_start_time}` : '';
-  metaEl.textContent = dateStr + timeStr;
+  metaEl.textContent = ended ? 'Päättynyt' : (dateStr + timeStr);
   body.appendChild(metaEl);
 
   if (item.address){
