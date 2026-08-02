@@ -413,9 +413,9 @@
   .forecastDay .dTemps, .forecastHour .dTemps{font-size:12px;color:var(--ink-dim);}
   .forecastDay .dTemps b, .forecastHour .dTemps b{color:var(--ink);}
   #eventsSection{background:var(--panel);border:1px solid var(--line);border-radius:16px;
-    padding:20px;box-shadow:var(--shadow-md);}
+    padding:18px 20px;box-shadow:var(--shadow-md);}
   #newsSection{margin-bottom:0;background:var(--panel);border:1px solid var(--line);
-    border-radius:16px;padding:20px;box-shadow:var(--shadow-md);}
+    border-radius:16px;padding:18px 20px;box-shadow:var(--shadow-md);}
   #bizFeedCard{background:var(--panel);border:1px solid var(--line);border-radius:16px;
     padding:0;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;}
   #bizFeedCardHead{padding:16px 18px;border-bottom:1px solid var(--line);
@@ -433,11 +433,11 @@
   #bizFeedScrollTrack{display:flex;flex-direction:row;animation:bizFeedScroll 20s linear infinite;}
   #bizFeedScrollWindow:hover #bizFeedScrollTrack{animation-play-state:paused;}
   @keyframes bizFeedScroll{ 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
-  .bizFeedRow{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 22px;
+  .bizFeedRow{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 20px;
     border-right:1px solid var(--line);flex:none;white-space:nowrap;
     text-decoration:none;color:inherit;transition:background 0.15s ease;}
   .bizFeedRow:hover{background:var(--panelT4);}
-  .bizFeedLogo{width:60px;height:60px;border-radius:12px;object-fit:contain;flex:none;
+  .bizFeedLogo{width:50px;height:50px;border-radius:12px;object-fit:contain;flex:none;
     background:#fff;padding:7px;box-sizing:border-box;border:1px solid var(--line);box-shadow:0 2px 6px rgba(0,0,0,0.06);}
   .bizFeedRow b{font-size:13px;font-weight:700;color:var(--ink);display:block;line-height:1.25;text-align:center;}
   .bizFeedRowIndustry{display:block;font-size:11px;color:var(--ink-dim);text-align:center;margin-top:2px;}
@@ -503,18 +503,11 @@
      covers the same ground. Used to also need to hide/resize a sibling
      card sharing the same grid row; now that events/news are standalone
      full-width cards, there's no sibling to manage at all. */
-  #eventsExpandedView, #newsExpandedView{animation:expandedViewIn 0.35s ease;transition:opacity 0.18s ease, transform 0.18s ease;}
+  #newsExpandedView{animation:expandedViewIn 0.35s ease;transition:opacity 0.18s ease, transform 0.18s ease;}
   @keyframes expandedViewIn{
     from{opacity:0;transform:translateY(10px);}
     to{opacity:1;transform:translateY(0);}
   }
-  #eventsDayGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;}
-  .expandedDayItemsGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;}
-  @media (min-width:700px){ .expandedDayItemsGrid{grid-template-columns:repeat(2,minmax(0,1fr));} }
-  @media (min-width:1300px){ .expandedDayItemsGrid{grid-template-columns:repeat(3,minmax(0,1fr));} }
-  .expandedDayCard{background:var(--panelT4);border:1px solid var(--line);border-radius:14px;padding:18px;}
-  .expandedDayCard h4{font-family:'Space Grotesk',sans-serif;font-size:14.5px;color:var(--ink);margin:0 0 12px;}
-  .expandedDayCard .feedItem{margin-bottom:10px;}
   #newsSourceColumnsGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;}
   @media (min-width:1000px){ #newsSourceColumnsGrid{grid-template-columns:repeat(3,minmax(0,1fr));} }
   .expandedNewsCol{background:var(--panelT4);border:1px solid var(--line);border-radius:14px;padding:18px;}
@@ -573,11 +566,10 @@
   .eventCardBadge{position:absolute;top:10px;right:10px;background:var(--amber);color:#fff;
     font-family:'Space Grotesk',sans-serif;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;}
   .eventCardBody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px;}
-  .eventCardCategory{font-size:10.5px;font-weight:700;color:var(--amber);text-transform:uppercase;
-    letter-spacing:0.04em;}
   .eventCard b{font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:var(--ink);line-height:1.3;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .eventCardMeta{font-size:12px;color:var(--ink-dim);}
+  .eventCardAddress{font-size:11px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
   /* ---- Compact news rows ---- */
   .newsRow{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;
@@ -586,7 +578,7 @@
   .newsRowBadge{flex:none;width:32px;height:32px;border-radius:50%;color:#fff;
     display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;
     font-size:14px;font-weight:700;}
-  .newsRowBody{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .newsRowBody{flex:0 1 auto;max-width:calc(100% - 96px);min-width:0;display:flex;flex-direction:column;gap:2px;}
   .newsRow b{font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--ink);line-height:1.35;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
   .newsRowMeta{font-size:11.5px;color:var(--ink-dim);}
@@ -877,9 +869,6 @@
     <div id="eventsSection">
       <div class="cardHeadRow">
         <h3 class="feedSubhead" data-i18n="eventsSectionTitle">📅 Tapahtumat tänään</h3>
-        <span id="viewAllEventsLinkWrap">
-          <a id="viewAllEventsLinkEl" class="cardHeadLink" href="/?expand=events" onclick="return expandFeedCard('events');">Näytä kaikki →</a>
-        </span>
       </div>
       <div id="eventsCollapsedView">
         <p class="note" id="eventsCountNote"></p>
@@ -893,9 +882,6 @@
           <div class="pagerDots" id="eventsPagerDots"></div>
           <button class="pagerArrow" id="eventsPagerNext" type="button" aria-label="Seuraavat">›</button>
         </div>
-      </div>
-      <div id="eventsExpandedView" style="display:none;">
-        <div id="eventsDayGrid"></div>
       </div>
     </div>
 
@@ -917,7 +903,7 @@
     <div id="newsSection" style="display:none;">
       <div class="cardHeadRow">
         <h3 class="feedSubhead" data-i18n="newsSectionTitle">📰 Tuoreimmat uutiset</h3>
-        <span><a id="viewAllNewsLinkEl" class="cardHeadLink" href="/?expand=news" onclick="return expandFeedCard('news');">Näytä kaikki →</a></span>
+        <span><a id="viewAllNewsLinkEl" class="cardHeadLink" href="#">Näytä kaikki →</a></span>
       </div>
       <div id="newsCollapsedView">
         <select id="newsCategoryFilter">
@@ -986,7 +972,7 @@
 <nav id="mobileTabBar">
   <a href="/" class="active"><span>🏠</span>Etusivu</a>
   <a href="#" id="mobileTabSearch" onclick="document.getElementById('askHeroInput').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('askHeroInput').focus();return false;"><span>🔍</span>Haku</a>
-  <a href="/?expand=events"><span>📅</span>Tapahtumat</a>
+  <a href="#eventsSection"><span>📅</span>Tapahtumat</a>
   <a href="#" id="mobileTabProfile" onclick="openAuthModal();return false;"><span>👤</span>Profiili</a>
 </nav>
 
@@ -2242,10 +2228,9 @@ async function loadBoard(){
 // just the plain homepage.
 function checkExpandFromUrl(){
   const type = new URLSearchParams(location.search).get('expand');
-  if (type === 'events' || type === 'news'){
-    expandFeedCard(type);
-    const targetId = type === 'events' ? 'eventsSection' : 'newsSection';
-    document.getElementById(targetId).scrollIntoView({behavior:'smooth', block:'start'});
+  if (type === 'news'){
+    expandFeedCard('news');
+    document.getElementById('newsSection').scrollIntoView({behavior:'smooth', block:'start'});
   }
 }
 
@@ -2607,7 +2592,7 @@ function makeTilannehuoneItemEl(item){
   return el;
 }
 
-const TILANNEHUONE_PAGE_SIZE = 3;
+const TILANNEHUONE_PAGE_SIZE = 2;
 
 async function loadTilannehuone(){
   const box = document.getElementById('tilannehuoneItems');
@@ -2651,6 +2636,29 @@ function dedupeEvents(events){
   });
 }
 
+function getHelsinkiNowString(){
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(new Date());
+  const get = type => parts.find(p => p.type === type).value;
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+}
+
+// Events with no explicit end time aren't instantaneous -- treating them
+// as "ended" the moment their start time passes would drop things that
+// are very plausibly still happening. Falling back to end-of-day is a
+// reasonable default for "still ongoing" when the source data doesn't
+// specify an actual end.
+function filterEndedEvents(events){
+  const nowStr = getHelsinkiNowString();
+  return events.filter(ev => {
+    const endDateStr = ev.event_end_date || ev.event_date;
+    const endTimeStr = ev.event_end_time || '23:59';
+    return `${endDateStr}T${endTimeStr}` >= nowStr;
+  });
+}
+
 async function loadFeed(){
   try {
     const isOulu = currentTown && currentTown.name === 'Oulu';
@@ -2677,11 +2685,11 @@ async function loadFeed(){
         if (kalevaSorted[i]) mergedNews.push(kalevaSorted[i]);
         if (yleSorted[i]) mergedNews.push(yleSorted[i]);
       }
-      currentFeedItems = { news: mergedNews, events: dedupeEvents(kalevaData.events || []) };
+      currentFeedItems = { news: mergedNews.slice(0, 3), events: filterEndedEvents(dedupeEvents(kalevaData.events || [])) };
     } else {
       const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${currentNewsCategory}${previewMode ? '&admin=1' : ''}`);
       const data = await res.json();
-      currentFeedItems = { news: data.news || [], events: dedupeEvents(data.events || []) };
+      currentFeedItems = { news: (data.news || []).slice(0, 3), events: filterEndedEvents(dedupeEvents(data.events || [])) };
     }
   } catch (e) {
     currentFeedItems = { news: [], events: [] };
@@ -2702,17 +2710,11 @@ let feedCardExpandedType = null; // null | 'events' | 'news'
 
 function expandFeedCard(type){
   feedCardExpandedType = type;
-  const linkEl = document.getElementById(type === 'events' ? 'viewAllEventsLinkEl' : 'viewAllNewsLinkEl');
+  const linkEl = document.getElementById('viewAllNewsLinkEl');
 
-  if (type === 'events'){
-    document.getElementById('eventsCollapsedView').style.display = 'none';
-    document.getElementById('eventsExpandedView').style.display = 'block';
-    loadEventsDayGrid();
-  } else {
-    document.getElementById('newsCollapsedView').style.display = 'none';
-    document.getElementById('newsExpandedView').style.display = 'block';
-    loadNewsSourceColumns();
-  }
+  document.getElementById('newsCollapsedView').style.display = 'none';
+  document.getElementById('newsExpandedView').style.display = 'block';
+  loadNewsSourceColumns();
 
   // The link itself now flips to "collapse" mode -- previously this text
   // never changed no matter what state the card was in, and the actual
@@ -2720,40 +2722,39 @@ function expandFeedCard(type){
   // content) wasn't an obvious, visible toggle from where the click
   // happened. One button that clearly reflects current state is better
   // than two separate ones in different places doing complementary things.
-  if (linkEl){
-    linkEl.textContent = lang === 'fi' ? '← Näytä vähemmän' : '← Show less';
-    linkEl.onclick = () => { collapseFeedCard(); return false; };
-  }
-
-  // Deliberately no scrollIntoView here -- forcing a scroll while the
-  // card is also growing/shrinking in place is exactly what made the page
-  // feel like it was jumping around. The click already happened inside
-  // the visible card, so the viewport doesn't need to move at all.
-  return false; // cancels the link's real navigation -- those pages (tapahtumat.html/uutiset.html) no longer exist, superseded by this expand-in-place view
+  if (linkEl) linkEl.textContent = lang === 'fi' ? '← Näytä vähemmän' : '← Show less';
 }
 
+document.getElementById('viewAllNewsLinkEl').addEventListener('click', (e) => {
+  // preventDefault() first, before anything that could throw -- the old
+  // onclick="return expandFeedCard(...)" pattern meant any error partway
+  // through the function skipped the return statement entirely, and the
+  // browser would then follow the link's real href as normal navigation.
+  // That's exactly what "clicking Näytä kaikki scrolls to the top of the
+  // site" was: a full page reload landing at the top, not an intentional
+  // scroll -- happening whenever something in the handler failed, not
+  // every time, which is why it looked inconsistent/mysterious.
+  e.preventDefault();
+  if (feedCardExpandedType === 'news'){
+    collapseFeedCard();
+  } else {
+    expandFeedCard('news');
+  }
+});
+
 function collapseFeedCard(){
-  const type = feedCardExpandedType;
-  const expandedView = type === 'events'
-    ? document.getElementById('eventsExpandedView')
-    : document.getElementById('newsExpandedView');
-  const linkEl = document.getElementById(type === 'events' ? 'viewAllEventsLinkEl' : 'viewAllNewsLinkEl');
+  const expandedView = document.getElementById('newsExpandedView');
+  const linkEl = document.getElementById('viewAllNewsLinkEl');
 
   expandedView.style.opacity = '0';
   expandedView.style.transform = 'translateY(6px)';
   setTimeout(() => {
-    document.getElementById('eventsCollapsedView').style.display = 'block';
-    document.getElementById('eventsExpandedView').style.display = 'none';
     document.getElementById('newsCollapsedView').style.display = 'block';
     document.getElementById('newsExpandedView').style.display = 'none';
     expandedView.style.opacity = '';
     expandedView.style.transform = '';
 
-    // Revert the link back to its normal expand behavior.
-    if (linkEl && type){
-      linkEl.textContent = lang === 'fi' ? 'Näytä kaikki →' : 'View all →';
-      linkEl.onclick = () => expandFeedCard(type);
-    }
+    if (linkEl) linkEl.textContent = lang === 'fi' ? 'Näytä kaikki →' : 'View all →';
     feedCardExpandedType = null;
   }, 180);
 }
@@ -2767,41 +2768,6 @@ function collapseFeedCard(){
 // rarely has meaningful coverage for those days (see the /tapahtumat.html
 // screenshots showing 1 and 0 events there vs. 31 for today), so showing
 // them just produced two mostly-empty columns rather than useful content.
-// This is now just today's full list, unpaginated (unlike the collapsed
-// view's capped list) -- that's the actual value-add of expanding.
-function loadEventsDayGrid(){
-  const grid = document.getElementById('eventsDayGrid');
-  const events = (currentFeedItems && currentFeedItems.events) || [];
-  const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
-  const [ty, tm, td] = helsinkiToday.split('-').map(Number);
-  const isoDay = new Date(Date.UTC(ty, tm - 1, td)).toISOString().slice(0,10);
-
-  const todayEvents = events.filter(e => {
-    const start = e.event_date;
-    const end = e.event_end_date || e.event_date;
-    return start <= isoDay && isoDay <= end;
-  });
-
-  grid.innerHTML = '';
-  const card = document.createElement('div');
-  card.className = 'expandedDayCard';
-  const heading = document.createElement('h4');
-  heading.textContent = `Tänään – ${td}.${tm}. · ${todayEvents.length} tapahtumaa`;
-  card.appendChild(heading);
-  if (todayEvents.length === 0){
-    const empty = document.createElement('p');
-    empty.className = 'note';
-    empty.textContent = 'Ei tiedossa tapahtumia tälle päivälle.';
-    card.appendChild(empty);
-  } else {
-    const itemsGrid = document.createElement('div');
-    itemsGrid.className = 'expandedDayItemsGrid';
-    todayEvents.forEach(ev => itemsGrid.appendChild(makeEventCardEl(ev)));
-    card.appendChild(itemsGrid);
-  }
-  grid.appendChild(card);
-}
-
 // Same 3-source-per-column model as /uutiset.html: independent Kaleva /
 // Yle / Oulun kaupunki columns, each with its own dropdown, 5 newest.
 const EXPANDED_NEWS_SOURCES = [
@@ -2906,16 +2872,6 @@ function makeEventCardEl(item){
   const body = document.createElement('div');
   body.className = 'eventCardBody';
 
-  // Best-effort category label (see the image_url/category extraction in
-  // api/_localFeed.js) -- shown only if the source data actually has one,
-  // never invented to match the reference design's look.
-  if (item.category){
-    const cat = document.createElement('span');
-    cat.className = 'eventCardCategory';
-    cat.textContent = item.category;
-    body.appendChild(cat);
-  }
-
   const titleEl = document.createElement('b');
   titleEl.textContent = lang === 'fi' ? item.title_fi : item.title_en;
   body.appendChild(titleEl);
@@ -2936,6 +2892,13 @@ function makeEventCardEl(item){
   const timeStr = item.event_start_time ? ` klo ${item.event_start_time}` : '';
   metaEl.textContent = dateStr + timeStr;
   body.appendChild(metaEl);
+
+  if (item.address){
+    const addrEl = document.createElement('div');
+    addrEl.className = 'eventCardAddress';
+    addrEl.textContent = item.address;
+    body.appendChild(addrEl);
+  }
 
   el.appendChild(body);
   return el;
@@ -3037,8 +3000,6 @@ function renderLocalFeed(feed){
     document.getElementById('eventsSourceNoteText').textContent = isOulu
       ? (lang === 'fi' ? 'Lähde: Kaleva' : 'Source: Kaleva')
       : (lang === 'fi' ? 'Haettu verkosta tekoälyllä' : 'Found via AI web search');
-    document.getElementById('viewAllEventsLinkWrap').style.display = isOulu ? 'inline' : 'none';
-    document.getElementById('viewAllEventsLinkEl').textContent = lang === 'fi' ? 'Näytä kaikki →' : 'View all →';
     renderEventsList(events);
   }
 

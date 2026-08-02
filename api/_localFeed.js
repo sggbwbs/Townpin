@@ -633,6 +633,7 @@ async function fetchOuluEventsFromAPI() {
       .map(({ page: p, upcoming }) => ({
         title_fi: p.name,
         summary_fi: getSummary(p),
+        address: (p.locations && p.locations[0] && p.locations[0].address) || null,
         event_date: upcoming.start.slice(0, 10),
         event_end_date: upcoming.end ? upcoming.end.slice(0, 10) : null,
         // Kaleva's own data always populates start/end, even when the
@@ -714,6 +715,7 @@ async function fetchHelsinkiEventsFromAPI() {
         return {
           title_fi: locationName ? `${titleFi} (${locationName})` : titleFi,
           title_en: locationName ? `${titleEn} (${locationName})` : titleEn,
+          address: (e.location && e.location.street_address) || locationName || null,
           // Trimmed, not truncated mid-word where reasonably avoidable --
           // matches how the rest of this file keeps summaries short.
           summary_fi: descSourceFi.slice(0, 400) || titleFi,
