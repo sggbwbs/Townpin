@@ -429,7 +429,8 @@
      dark-mode contrast issue, so it stays there but isn't needed here. */
   [data-theme="light"] #eventsSection, [data-theme="light"] #newsSection,
   [data-theme="light"] #bizFeedCard{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
-  #bizFeedScrollWindow{height:auto;overflow:hidden;position:relative;
+  #bizFeedScrollWindow{height:auto;overflow:hidden;position:relative;flex:1;
+    display:flex;align-items:center;
     mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);}
   #bizFeedScrollTrack{display:flex;flex-direction:row;width:max-content;animation:bizFeedScroll 20s linear infinite;}
   #bizFeedScrollWindow:hover #bizFeedScrollTrack{animation-play-state:paused;}
@@ -462,7 +463,18 @@
     position:relative;z-index:2;margin-top:-22px;}
   @media (min-width:1000px){ #homeGrid{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);} }
   #offersSection{background:var(--panel);border:1px solid var(--line);border-radius:20px;
-    padding:20px;box-shadow:var(--shadow-md);transition:box-shadow 0.2s ease;}
+    padding:20px;box-shadow:var(--shadow-md);transition:box-shadow 0.2s ease;
+    display:flex;flex-direction:column;}
+  /* flex:1 lets this grow to fill whatever height syncColumnHeights sets
+     on #offersSection (matched to eventsSection's real height) instead of
+     staying only as tall as its own 1-2 page content -- align-items:center
+     re-centers the (now possibly much shorter) itemsPage content vertically
+     in that extra space, rather than leaving it stranded at the top with
+     blank space below. Only overrides align-items (an ID rule beats the
+     .pagedItemsContainer class rule regardless of source order); the
+     class's own display:flex/row-direction/overflow-x, which is what
+     actually makes the horizontal swipe pagination work, is untouched. */
+  #tilannehuoneItems{flex:1;align-items:center;}
   [data-theme="light"] #offersSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
   #offersEmptyNote{text-align:center;padding:24px 12px;}
   .tilannehuoneMeta{font-size:11.5px !important;color:var(--ink-dim);margin:2px 0 6px !important;}
@@ -2161,39 +2173,64 @@ async function openBoard(name, country, population){
 let currentFeedItems = { news: [], events: [] };
 let currentNewsCategory = 'rss-uusimmat';
 
-// The right column stacks bizFeedCard *above* Tilannehuone, unlike the
-// left column where events/news sit side by side with nothing above
-// them -- so matching item counts alone (what the CSS sizing does) only
-// makes Tilannehuone's own card match events/news's height in isolation.
-// It still doesn't make the combined right column (bizFeedCard +
-// Tilannehuone) match the left column's total, since bizFeedCard's real
-// height varies with however many businesses are actually live. This
-// measures the real rendered heights and caps Tilannehuone to whatever
-// space is actually left, rather than a static guess that only holds for
-// one specific business count. Called after each of the three async
-// loads that affect these heights (events/news, businesses,
-// Tilannehuone) since they resolve independently and in no fixed order.
-// The three things that affect these two columns' heights (events/news,
-// the business card, Tilannehuone) all load independently and finish in
-// whatever order the network happens to return them -- calling the
-// actual measurement directly from each one's completion callback meant
-// whichever happened to finish last "won", even if that happened to be
-// before another section had fully settled its own layout. That's the
-// real reason this kept flipping between too-small and too-large rather
-// than being consistently off by some fixed amount: it wasn't a formula
-// problem, it was a race condition. Gating on all three actually being
-// done, then waiting two animation frames for layout to genuinely
-// settle before measuring, removes the race entirely.
-// Height-matching between side-by-side columns (bizFeedCard/Tilannehuone
-// vs events/news) was removed entirely along with the 2-column layout
-// itself -- everything is a standalone full-width card in one vertical
-// stack now, so there's nothing left that needs its height matched to a
-// sibling's. Kept as a no-op rather than removing every call site
-// individually, since calling it is harmless and some of those call
-// sites still make sense as "something relevant just changed" hooks.
+// The homepage grid is 2 columns x 2 rows from 1000px up: events sits
+// beside Tilannehuone (offersSection) in row 1, news sits beside the
+// business card (bizFeedCard) in row 2. Each pair is a plain grid row
+// with align-items:start, so a short Tilannehuone list or a short
+// business row doesn't stretch to match its taller row-sibling -- the
+// row itself is exactly as tall as the taller item, but the shorter
+// item's own box stops early, leaving bare page background in the gap.
+// This measures each row's tall side (events, news) and forces the
+// short side (offersSection, bizFeedCard) to that same pixel height, so
+// the card's own visible border/background actually reaches the row's
+// full height instead of the row just being empty space around it.
+// Only meaningful in the >=1000px side-by-side layout -- below that,
+// #homeGrid collapses to one column and every card is already
+// full-width and independently sized, so any height forced at a wider
+// viewport needs to be cleared rather than carried down to mobile.
+// Called after every load that can change eventsSection/newsSection's
+// real height (events+news load together, as one fetch) and on resize,
+// since crossing the 1000px breakpoint needs the forced heights cleared
+// or reapplied.
 function syncColumnHeights(){
-  // intentionally empty
+  const eventsEl = document.getElementById('eventsSection');
+  const offersEl = document.getElementById('offersSection');
+  const newsEl = document.getElementById('newsSection');
+  const bizEl = document.getElementById('bizFeedCard');
+  if (!eventsEl || !offersEl || !newsEl || !bizEl) return;
+
+  if (window.matchMedia('(max-width:999px)').matches){
+    offersEl.style.height = '';
+    bizEl.style.height = '';
+    return;
+  }
+
+  // Reset before measuring -- otherwise a height forced by an earlier
+  // call (e.g. from a since-shrunk events list) would get read back as
+  // eventsEl's "real" height forever instead of ever shrinking back down.
+  offersEl.style.height = '';
+  bizEl.style.height = '';
+
+  // Two animation frames so the reset above has actually reflowed before
+  // we measure eventsEl/newsEl -- measuring in the same frame we just
+  // cleared styles in can still read stale layout in some browsers.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (eventsEl.style.display !== 'none') {
+        offersEl.style.height = eventsEl.offsetHeight + 'px';
+      }
+      if (newsEl.style.display !== 'none') {
+        bizEl.style.height = newsEl.offsetHeight + 'px';
+      }
+    });
+  });
 }
+
+let columnHeightsResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(columnHeightsResizeTimer);
+  columnHeightsResizeTimer = setTimeout(syncColumnHeights, 200);
+});
 
 async function loadBoard(){
   const res = await fetch(`${API_BASE}/board?townId=${currentTown.id}${previewMode ? '&admin=1' : ''}`);
