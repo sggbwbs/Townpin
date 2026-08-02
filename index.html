@@ -541,7 +541,7 @@
      overflow-x + scroll-snap gives real native swipe on mobile for free,
      no touch-event JS needed; the arrow buttons just scroll by one page
      width for desktop/non-touch use. */
-  .pagedItemsContainer{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+  .pagedItemsContainer{display:flex;align-items:flex-start;overflow-x:auto;scroll-snap-type:x mandatory;
     scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;}
   .pagedItemsContainer::-webkit-scrollbar{display:none;}
   .itemsPage{flex:0 0 100%;scroll-snap-align:start;display:flex;flex-direction:column;gap:12px;min-width:0;}
