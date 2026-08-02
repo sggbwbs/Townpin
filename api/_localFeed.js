@@ -644,22 +644,18 @@ async function fetchOuluEventsFromAPI() {
         event_start_time: upcoming.startTimeMissing ? null : formatHelsinkiTime(upcoming.start),
         event_end_time: (upcoming.endTimeMissing || upcoming.end === upcoming.start) ? null : formatHelsinkiTime(upcoming.end),
         source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`,
-        // Different situation than the enrichWithImages problem this file
-        // documents elsewhere (that one scraped each event's individual
-        // detail PAGE, which is a JS-rendered app with no real image in
-        // its static HTML). This instead checks whether the LISTING API
-        // response -- which is already structured JSON, not scraped HTML
-        // -- happens to include an image field directly. Unverified
-        // against a real response (this sandbox can't fetch Kaleva's API
-        // to confirm the actual field name), so this tries several
-        // plausible names defensively; if none exist, image_url just
-        // comes back undefined and the frontend falls back to its
-        // existing no-photo handling, same as before.
-        image_url: p.mainImage || p.image || p.coverImage || p.thumbnail ||
-          (Array.isArray(p.images) && p.images[0] && (p.images[0].url || p.images[0])) || null,
-        // Same honesty caveat as image_url above -- unverified field-name
-        // guess, not confirmed against a real API response. Only shown by
-        // the frontend if actually present, never invented.
+        // Confirmed against a real response: the site's own rendered
+        // <img srcset> showed https://localhub-oy.s3.eu-central-1
+        // .amazonaws.com/images/{hash}, where {hash} is the value of
+        // page.imageMobile (640w) or page.imageList (320w) directly from
+        // this API's own JSON -- not a guess anymore, verified by
+        // comparing the actual DOM output against the API field values.
+        // imageMobile chosen as a reasonable middle-ground size for a
+        // card thumbnail; falls back to imageList, then no photo at all
+        // if an event genuinely doesn't have one (both fields empty).
+        image_url: (p.imageMobile || p.imageList)
+          ? `https://localhub-oy.s3.eu-central-1.amazonaws.com/images/${p.imageMobile || p.imageList}`
+          : null,
         category: p.category || p.eventType || p.type ||
           (Array.isArray(p.tags) && p.tags[0] && (p.tags[0].name || p.tags[0])) || null
       }))
