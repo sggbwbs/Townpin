@@ -457,7 +457,7 @@
      fixed 380px), this fixed overlap can start cutting into the
      results text instead of just the photo -- worth an eye on that state
      specifically, not just the empty/default view. */
-  #homeGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;
+  #homeGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start;
     position:relative;z-index:2;margin-top:-22px;}
   @media (min-width:1000px){ #homeGrid{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);} }
   #offersSection{background:var(--panel);border:1px solid var(--line);border-radius:16px;
@@ -578,7 +578,7 @@
   .newsRowBadge{flex:none;width:32px;height:32px;border-radius:50%;color:#fff;
     display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;
     font-size:14px;font-weight:700;}
-  .newsRowBody{flex:0 1 auto;max-width:calc(100% - 96px);min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .newsRowBody{flex:none;width:fit-content;max-width:calc(100% - 96px);min-width:0;display:flex;flex-direction:column;gap:2px;}
   .newsRow b{font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--ink);line-height:1.35;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
   .newsRowMeta{font-size:11.5px;color:var(--ink-dim);}
