@@ -2716,6 +2716,23 @@ async function loadTilannehuone(){
   }
 }
 
+// The Kaleva events feed sometimes lists the exact same event more than
+// once (seen with identical title + date + time appearing 2-4 times in
+// a single day). Dedup on an exact match of title+date+time rather than
+// anything fuzzier -- a Finnish and English session of the same
+// exhibition tour, for example, have different titles ("Näyttelyesittely"
+// vs "Näyttelyesittely englanniksi") and are genuinely different events,
+// not duplicates, so they should still both show up.
+function dedupeEvents(events){
+  const seen = new Set();
+  return events.filter(ev => {
+    const key = `${ev.title_fi}|${ev.event_date}|${ev.event_start_time}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function loadFeed(){
   try {
     const isOulu = currentTown && currentTown.name === 'Oulu';
@@ -2742,11 +2759,11 @@ async function loadFeed(){
         if (kalevaSorted[i]) mergedNews.push(kalevaSorted[i]);
         if (yleSorted[i]) mergedNews.push(yleSorted[i]);
       }
-      currentFeedItems = { news: mergedNews, events: kalevaData.events || [] };
+      currentFeedItems = { news: mergedNews, events: dedupeEvents(kalevaData.events || []) };
     } else {
       const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${currentNewsCategory}${previewMode ? '&admin=1' : ''}`);
       const data = await res.json();
-      currentFeedItems = { news: data.news || [], events: data.events || [] };
+      currentFeedItems = { news: data.news || [], events: dedupeEvents(data.events || []) };
     }
   } catch (e) {
     currentFeedItems = { news: [], events: [] };
