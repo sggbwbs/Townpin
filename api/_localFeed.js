@@ -1101,8 +1101,24 @@ async function getEventsSection(supabase, townId, townName) {
     // outright -- see comment above. An event already found earlier
     // today is still a real, valid "happening today" event even if
     // Kaleva's own live listing no longer surfaces it as "upcoming".
-    const alreadyKnown = new Set(existingEvents.map(e => e.source_url || e.title_fi));
+    const alreadyKnown = new Map(existingEvents.map(e => [e.source_url || e.title_fi, e]));
     const genuinelyNew = fresh.filter(e => !alreadyKnown.has(e.source_url || e.title_fi));
+
+    // Backfill: an event already cached before the image_url fix existed
+    // (or from a moment when Kaleva's own data didn't have one yet) would
+    // otherwise stay stuck with no photo until it naturally expires --
+    // which could be hours or days away. If this fresh fetch has an image
+    // for an event we already know about, update that row instead of
+    // silently skipping it as "already known".
+    const imageBackfills = fresh.filter(e => {
+      const existing = alreadyKnown.get(e.source_url || e.title_fi);
+      return existing && !existing.image_url && e.image_url;
+    });
+    for (const e of imageBackfills){
+      const existing = alreadyKnown.get(e.source_url || e.title_fi);
+      await supabase.from('local_feed_items').update({ image_url: e.image_url }).eq('id', existing.id);
+      existing.image_url = e.image_url; // keep the in-memory copy in sync for the response below
+    }
 
     if (genuinelyNew.length === 0) {
       return applyAdminEventCuration(existingEvents); // nothing new to add, what we had is still complete
