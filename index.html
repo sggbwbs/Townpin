@@ -472,6 +472,20 @@
   #homeGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:stretch;
     position:relative;z-index:2;margin-top:-22px;}
   @media (min-width:1000px){ #homeGrid{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);} }
+  /* Mobile-only stacking order: events, news, businesses, Tilannehuone --
+     different from the DOM order (events, Tilannehuone, news, businesses)
+     that the desktop 2x2 grid pairs up row-by-row. `order` only needs to
+     be set below 1000px -- once the desktop media query above kicks in,
+     these simply stop applying (order isn't set anywhere else), and every
+     item falls back to its default order:0, which resolves ties by DOM
+     order -- exactly the original events/offers/news/biz pairing, so
+     nothing needs to be explicitly reset for wider viewports. */
+  @media (max-width:999px){
+    #eventsSection{order:1;}
+    #newsSection{order:2;}
+    #bizFeedCard{order:3;}
+    #offersSection{order:4;}
+  }
   #offersSection{background:var(--panel);border:1px solid var(--line);border-radius:20px;
     padding:20px;box-shadow:var(--shadow-md);transition:box-shadow 0.2s ease;
     display:flex;flex-direction:column;}
@@ -693,15 +707,20 @@
   }
 
   #askHeroResults{max-width:640px;margin:0 auto;text-align:left;display:none;}
+  #askSheetMinimizeBtn{display:none;}
   #mobileTabBar{display:none;}
   @media (max-width:900px){
     body{padding-bottom:64px;}
-    #mobileTabBar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:150;
-      background:var(--panel);border-top:1px solid var(--line);padding:8px 4px calc(8px + env(safe-area-inset-bottom));}
-    #mobileTabBar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
-      color:var(--ink-dim);text-decoration:none;font-size:10.5px;font-family:'IBM Plex Sans',sans-serif;}
-    #mobileTabBar a span{font-size:18px;}
-    #mobileTabBar a.active{color:var(--amber);}
+    #mobileTabBar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:210;
+      background:var(--panel);border-top:1px solid var(--line);padding:8px 12px calc(8px + env(safe-area-inset-bottom));}
+    #mobileAskForm{display:flex;align-items:center;gap:8px;width:100%;}
+    #mobileAskInput{flex:1;min-width:0;padding:11px 16px;border-radius:999px;border:1px solid var(--line);
+      background:var(--panelT7);color:var(--ink);font-size:14px;font-family:'IBM Plex Sans',sans-serif;}
+    #mobileAskInput::placeholder{color:var(--ink-dim);}
+    #mobileAskSendBtn{flex:none;width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
+      background:linear-gradient(135deg,#7c5cff,#5847c9);color:#fff;font-size:16px;font-weight:700;
+      display:flex;align-items:center;justify-content:center;}
+    #mobileAskSendBtn:disabled{opacity:0.5;cursor:default;}
   }
   #askSuggestRow{display:flex;flex-wrap:nowrap;justify-content:center;gap:8px;max-width:960px;margin:16px auto 0;}
   @media (max-width:900px){ #askSuggestRow{flex-wrap:wrap;max-width:560px;} }
@@ -710,6 +729,37 @@
     backdrop-filter:blur(4px);white-space:nowrap;flex:none;}
   .askSuggestChip:hover{background:rgba(20,15,40,0.7);}
   #askHeroResults.open{display:block;margin-top:24px;}
+  /* Turns the shared ask-results panel into a bottom sheet on mobile,
+     instead of the plain inline block it is on desktop -- same element,
+     same #askResultsList content, just repositioned. Sits just above
+     #mobileTabBar (which stays visible and stable at the very bottom
+     per the request) rather than covering it, so the input is always
+     reachable to ask a follow-up or dismiss/reopen. Declared after the
+     base #askHeroResults.open rule above, so at this same specificity
+     it wins purely on source order while this media query is active --
+     no !important needed. */
+  @media (max-width:900px){
+    #askHeroResults.open{
+      position:fixed;left:0;right:0;
+      bottom:calc(64px + env(safe-area-inset-bottom));
+      max-width:none;margin:0;
+      max-height:60vh;overflow-y:auto;
+      background:var(--panel);border-top:1px solid var(--line);
+      border-radius:20px 20px 0 0;
+      box-shadow:0 -10px 30px rgba(20,15,40,0.25);
+      padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+      z-index:200;
+      transform:translateY(0);
+      transition:transform 0.25s ease;
+    }
+    /* Minimized slides the sheet fully out of view (rather than removing
+       .open / clearing its content) so the last answer is still there,
+       ready to slide back up instantly, without re-asking the question. */
+    #askHeroResults.open.minimized{ transform:translateY(115%); }
+    #askSheetMinimizeBtn{display:flex;align-items:center;justify-content:center;
+      width:100%;padding:2px 0 10px;margin:-4px 0 4px;border:none;background:none;cursor:pointer;
+      color:var(--ink-dim);font-size:16px;line-height:1;}
+  }
   .askResultBlock{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-md);
     padding:16px 18px;margin-bottom:12px;font-size:14px;line-height:1.6;color:var(--ink);}
   [data-theme="light"] .askResultBlock{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
@@ -883,6 +933,7 @@
       <button type="button" class="askSuggestChip" onclick="askAsk('Etsi putkimies Oulusta', document.getElementById('askHeroSendBtn'))">Etsi putkimies Oulusta</button>
     </div>
     <div id="askHeroResults">
+      <button type="button" id="askSheetMinimizeBtn" aria-label="Pienennä" onclick="setAskSheetMinimized(true)">︿</button>
       <div id="askResultsList"></div>
       <div id="askFollowupRow" style="display:none;">
         <input type="text" id="askFollowupInput" autocomplete="off" data-i18n-placeholder="askFollowupPlaceholder" placeholder="Kysy jotain muuta…" />
@@ -998,10 +1049,10 @@
 </main>
 
 <nav id="mobileTabBar">
-  <a href="/" class="active"><span>🏠</span>Etusivu</a>
-  <a href="#" id="mobileTabSearch" onclick="document.getElementById('askHeroInput').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('askHeroInput').focus();return false;"><span>🔍</span>Haku</a>
-  <a href="#eventsSection"><span>📅</span>Tapahtumat</a>
-  <a href="#" id="mobileTabProfile" onclick="openAuthModal();return false;"><span>👤</span>Profiili</a>
+  <form id="mobileAskForm" onsubmit="return false;">
+    <input type="text" id="mobileAskInput" autocomplete="off" data-i18n-placeholder="askHeroPlaceholder" placeholder="Mitä haluaisit tehdä tänään?" />
+    <button type="button" id="mobileAskSendBtn" aria-label="Kysy">↑</button>
+  </form>
 </nav>
 
 <div id="overlay">
@@ -3453,9 +3504,20 @@ function askAppendResult(html, extraClass){
   el.className = `askResultBlock${extraClass ? ' ' + extraClass : ''}`;
   el.innerHTML = html;
   list.appendChild(el);
-  document.getElementById('askHeroResults').classList.add('open');
+  const resultsPanel = document.getElementById('askHeroResults');
+  resultsPanel.classList.add('open');
+  resultsPanel.classList.remove('minimized'); // a fresh answer should always surface the mobile sheet, even if a previous one had been minimized
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   return el;
+}
+
+// Only meaningfully visible in the mobile bottom-sheet layout (see the
+// #askHeroResults.open.minimized CSS) -- minimizing keeps .open and all
+// rendered content in place, just slides the sheet off-screen, so
+// reopening (tapping the persistent search bar again) is instant rather
+// than needing to re-ask the question.
+function setAskSheetMinimized(minimized){
+  document.getElementById('askHeroResults').classList.toggle('minimized', !!minimized);
 }
 
 // Lightweight markdown -- headers ("## Heading") and bullet lists
@@ -3705,6 +3767,34 @@ document.getElementById('askFollowupInput').addEventListener('keydown', (e)=>{
   if (!question) return;
   input.value = '';
   askAsk(question, document.getElementById('askFollowupSendBtn'));
+});
+
+// The persistent mobile search bar (replacing the old 4-icon tab bar)
+// reuses the exact same askAsk()/askAppendResult() pipeline as the hero
+// bar above -- it just happens to render into the same #askHeroResults
+// panel, which the mobile CSS turns into a bottom sheet instead of an
+// inline block. No separate rendering path to keep in sync.
+document.getElementById('mobileAskSendBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('mobileAskInput');
+  const question = input.value.trim();
+  if (!question) return;
+  input.value = '';
+  askAsk(question, document.getElementById('mobileAskSendBtn'));
+});
+document.getElementById('mobileAskInput').addEventListener('keydown', (e)=>{
+  if (e.key !== 'Enter') return;
+  const input = e.target;
+  const question = input.value.trim();
+  if (!question) return;
+  input.value = '';
+  askAsk(question, document.getElementById('mobileAskSendBtn'));
+});
+// Tapping back into the bar (without necessarily typing a new question)
+// should bring a previously-minimized sheet back up, e.g. to re-read the
+// last answer or use the follow-up field inside it, rather than only
+// ever reopening via a brand new question.
+document.getElementById('mobileAskInput').addEventListener('focus', () => {
+  if (document.getElementById('askHeroResults').classList.contains('open')) setAskSheetMinimized(false);
 });
 
 // The board itself is no longer a clickable grid -- purchasing is now a
