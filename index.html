@@ -578,14 +578,13 @@
   .newsRow{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;
     text-decoration:none;color:inherit;transition:background 0.15s ease;}
   .newsRow:hover{background:var(--panelT4);}
-  .newsRowBadge{flex:none;width:32px;height:32px;border-radius:50%;color:#fff;
+  .newsRowBadge{flex:none;width:42px;height:42px;border-radius:50%;color:#fff;object-fit:cover;
     display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;
-    font-size:14px;font-weight:700;}
-  .newsRowBody{flex:none;width:fit-content;max-width:calc(100% - 96px);min-width:0;display:flex;flex-direction:column;gap:2px;}
+    font-size:16px;font-weight:700;}
+  .newsRowBody{flex:none;width:fit-content;max-width:calc(100% - 60px);min-width:0;display:flex;flex-direction:column;gap:2px;}
   .newsRow b{font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--ink);line-height:1.35;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
   .newsRowMeta{font-size:11.5px;color:var(--ink-dim);}
-  .newsRowThumb{flex:none;width:52px;height:52px;border-radius:8px;object-fit:cover;}
 
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;transition:box-shadow 0.15s ease;height:140px;}
@@ -2917,15 +2916,23 @@ function makeFeedItemEl(item){
   el.className = 'newsRow';
   if (hasLink){ el.href = item.source_url; el.target = '_blank'; el.rel = 'noopener'; }
 
-  // Small circular source badge -- always shown regardless of whether a
-  // real photo is also available, since it's the source-identity marker
-  // now, separate from the thumbnail (matching the reference design).
-  const badge = document.createElement('span');
-  badge.className = 'newsRowBadge';
+  // The circular icon is the real photo when one's available -- showing
+  // both a generic colored letter AND the real photo separately (the
+  // previous design) was redundant; the photo is strictly more useful
+  // once it exists. Falls back to the colored source-letter only when
+  // there's genuinely no photo for that item.
   const isKaleva = item.source_name === 'Kaleva';
   const isYle = item.source_name === 'Yle';
-  badge.style.background = isKaleva ? '#f7941d' : isYle ? '#00b4d8' : 'var(--amber)';
-  badge.textContent = isKaleva ? 'K' : isYle ? 'Y' : (item.source_name ? item.source_name[0] : '•');
+  const badge = document.createElement(item.image_url ? 'img' : 'span');
+  badge.className = 'newsRowBadge';
+  if (item.image_url){
+    badge.src = item.image_url;
+    badge.alt = '';
+    badge.loading = 'lazy';
+  } else {
+    badge.style.background = isKaleva ? '#f7941d' : isYle ? '#00b4d8' : 'var(--amber)';
+    badge.textContent = isKaleva ? 'K' : isYle ? 'Y' : (item.source_name ? item.source_name[0] : '•');
+  }
   el.appendChild(badge);
 
   const body = document.createElement('div');
@@ -2938,15 +2945,6 @@ function makeFeedItemEl(item){
   metaEl.textContent = formatFreshness([item]); // reuses the existing "X min/h/pv sitten" formatter for a single item
   body.appendChild(metaEl);
   el.appendChild(body);
-
-  if (item.image_url){
-    const img = document.createElement('img');
-    img.className = 'newsRowThumb';
-    img.src = item.image_url;
-    img.alt = '';
-    img.loading = 'lazy';
-    el.appendChild(img);
-  }
 
   return el;
 }
