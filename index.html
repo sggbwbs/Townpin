@@ -54,6 +54,36 @@
     --sq-empty-bg:rgba(33,28,56,0.035); --sq-empty-border:rgba(33,28,56,0.10); --sq-plus:rgba(33,28,56,0.28);
   }
   *{box-sizing:border-box;}
+  /* Custom line-icon set replacing emoji placeholders (📅/🚨/📰/📍 etc.)
+     across the header, ask bar, and section headers -- sized/aligned to
+     behave like an inline text glyph (1em square, baseline-nudged) so it
+     drops into existing button/heading markup without layout changes,
+     and uses currentColor so it always matches its surrounding text
+     rather than needing its own color rules at every call site. */
+  .icon{width:1em;height:1em;vertical-align:-0.16em;flex:none;color:currentColor;}
+  .icon-lg{width:1.3em;height:1.3em;vertical-align:-0.22em;}
+
+  /* ---- Skeleton loading states ----
+     Previously these four cards just sat empty (no loading indicator at
+     all) for however long their fetch took, or in the business card's
+     case showed plain "Ladataan..." text. A shimmering placeholder that
+     roughly mirrors the real content's shape reads as "this is loading"
+     rather than "this is broken/empty", and reuses each section's real
+     card classes (.eventCard, .newsRow, .feedItemCompact) so it sits
+     exactly where the real content will land instead of causing a
+     layout jump once it arrives. Each container's real render function
+     replaces this markup outright, so it only ever shows once, briefly. */
+  @keyframes skeletonShimmer{
+    0%{background-position:200% 0;}
+    100%{background-position:-200% 0;}
+  }
+  .skel{background:linear-gradient(90deg, var(--panelT4) 25%, var(--line) 37%, var(--panelT4) 63%);
+    background-size:400% 100%;animation:skeletonShimmer 1.6s ease-in-out infinite;border-radius:6px;
+    color:transparent!important;}
+  .skelRow{display:flex;gap:12px;}
+  .skelLine{height:12px;border-radius:4px;}
+  .skelEventCard .eventCardPhoto{background:none;}
+  .skelNewsRow{padding-bottom:14px;}
   html,body{margin:0;min-height:100%;max-width:100%;overflow-x:hidden;
     background:radial-gradient(1200px 800px at 15% -10%, var(--glow), transparent 60%), linear-gradient(160deg, var(--bg-0), var(--bg-1) 100%);
     font-family:'IBM Plex Sans',sans-serif;color:var(--ink); transition:background .2s ease, color .2s ease;}
@@ -472,6 +502,24 @@
   #homeGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:stretch;
     position:relative;z-index:2;margin-top:-22px;}
   @media (min-width:1000px){ #homeGrid{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);} }
+  /* A quiet, one-time entrance for the four homepage cards on load --
+     each staggered slightly by its DOM position so they settle in
+     sequence rather than all at once, without calling attention to
+     itself the way a bouncier or longer animation would. Respects
+     prefers-reduced-motion since this is decorative, not functional. */
+  @media (prefers-reduced-motion: no-preference){
+    #eventsSection, #offersSection, #newsSection, #bizFeedCard{
+      animation:cardEntrance 0.5s cubic-bezier(0.16,1,0.3,1) backwards;
+    }
+    #eventsSection{animation-delay:0s;}
+    #offersSection{animation-delay:0.06s;}
+    #newsSection{animation-delay:0.1s;}
+    #bizFeedCard{animation-delay:0.16s;}
+  }
+  @keyframes cardEntrance{
+    from{opacity:0;transform:translateY(10px);}
+    to{opacity:1;transform:translateY(0);}
+  }
   /* Mobile-only stacking order: events, news, businesses, Tilannehuone --
      different from the DOM order (events, Tilannehuone, news, businesses)
      that the desktop 2x2 grid pairs up row-by-row. `order` only needs to
@@ -622,7 +670,7 @@
   .eventCard.ended .eventCardMeta{font-style:italic;}
   .eventCardPhoto{position:relative;width:100%;aspect-ratio:4/3;max-height:130px;background:var(--panelT4);flex:none;}
   .eventCardPhoto img{width:100%;height:100%;object-fit:cover;display:block;}
-  .eventCardPhotoFallback{display:flex;align-items:center;justify-content:center;font-size:32px;
+  .eventCardPhotoFallback{display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--ink-dim);
     background:linear-gradient(135deg,var(--panelT7),var(--panelT4));}
   .eventCardBadge{position:absolute;top:10px;right:10px;background:var(--amber);color:#fff;
     font-family:'Space Grotesk',sans-serif;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;}
@@ -771,7 +819,7 @@
       padding:14px 18px calc(14px + env(safe-area-inset-bottom));
       z-index:200;
       transform:translateY(0);
-      transition:transform 0.25s ease;
+      transition:transform 0.32s cubic-bezier(0.16,1,0.3,1);
     }
     /* Minimized slides the sheet fully out of view (rather than removing
        .open / clearing its content) so the last answer is still there,
@@ -861,7 +909,7 @@
     </svg></div>
     <div class="name">PAIKALLIS<span>CANVAS</span><small id="brandTownMobile">Oulu</small></div>
   </div>
-  <span id="townPill">📍 <span id="townPillName">Oulu</span> ⌄</span>
+  <span id="townPill"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <span id="townPillName">Oulu</span> ⌄</span>
   <div style="display:flex;align-items:center;gap:10px;">
     <div id="weatherWrap">
       <div id="weatherWidget" style="display:none;">
@@ -871,11 +919,11 @@
       </div>
       <div id="weatherForecast" style="display:none;"></div>
     </div>
-    <button id="accountBtn" onclick="openAuthModal()">👤 <span id="accountBtnLabel" data-i18n="loginBtnLabel">Kirjaudu</span></button>
-    <button id="mobileBellBtn" aria-label="Ilmoitukset" onclick="alert('Ilmoitukset ovat tulossa pian.')">🔔</button>
+    <button id="accountBtn" onclick="openAuthModal()"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="accountBtnLabel" data-i18n="loginBtnLabel">Kirjaudu</span></button>
+    <button id="mobileBellBtn" aria-label="Ilmoitukset" onclick="alert('Ilmoitukset ovat tulossa pian.')"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
     <button id="themeToggle" title="Vaihda vaalea/tumma teema" style="border:none;background:var(--panelT7);
       border:1px solid var(--line);border-radius:999px;width:34px;height:34px;cursor:pointer;
-      font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--ink);">🌙</button>
+      font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--ink);"></button>
     <div id="langToggle">
       <button id="langFi" class="active" onclick="setLang('fi')">FI</button>
       <button id="langEn" onclick="setLang('en')">EN</button>
@@ -956,8 +1004,8 @@
     <p class="askHeroSub" data-i18n="askHeroSub">Löydä tapahtumat, yritykset, uutiset, tarjoukset ja paikalliset palvelut helposti.</p>
     <div id="askHeroRow">
       <input type="text" id="askHeroInput" autocomplete="off" data-i18n-placeholder="askHeroPlaceholder" placeholder="Mitä haluaisit tehdä tänään?" />
-      <button id="askMicBtn" type="button" aria-label="Puhu" style="display:none;">🎤</button>
-      <button id="askHeroSendBtn" data-i18n="askHeroButton">✨ Kysy</button>
+      <button id="askMicBtn" type="button" aria-label="Puhu" style="display:none;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+      <button id="askHeroSendBtn"><svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6L12 2z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg> <span data-i18n="askHeroButton">Kysy</span></button>
     </div>
     <p style="font-size:11px;color:#e8e4f7;margin:8px 0 0;text-align:center;" data-i18n="askAiDisclaimer">Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.</p>
     <div id="askSuggestRow">
@@ -971,7 +1019,7 @@
       <div id="askResultsList"></div>
       <div id="askFollowupRow" style="display:none;">
         <input type="text" id="askFollowupInput" autocomplete="off" data-i18n-placeholder="askFollowupPlaceholder" placeholder="Kysy jotain muuta…" />
-        <button id="askFollowupMicBtn" type="button" aria-label="Puhu" style="display:none;">🎤</button>
+        <button id="askFollowupMicBtn" type="button" aria-label="Puhu" style="display:none;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
         <button id="askFollowupSendBtn" aria-label="Lähetä">↑</button>
       </div>
     </div>
@@ -981,14 +1029,27 @@
   <div id="homeGrid">
     <div id="eventsSection">
       <div class="cardHeadRow">
-        <h3 class="feedSubhead" data-i18n="eventsSectionTitle">📅 Tapahtumat tänään</h3>
+        <h3 class="feedSubhead"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg> <span data-i18n="eventsSectionTitle">Tapahtumat tänään</span></h3>
       </div>
       <div id="eventsCollapsedView">
         <p class="note" id="eventsCountNote"></p>
         <p class="note" id="eventsSourceNoteWrap">
           <span id="eventsSourceNoteText">Lähde: Kaleva</span>
         </p>
-        <div id="eventItems"></div>
+        <div id="eventItems"><div class="skelRow">
+          <div class="eventCard skelEventCard"><div class="eventCardPhoto skel"></div><div class="eventCardBody">
+            <div class="skel skelLine" style="width:92%;"></div><div class="skel skelLine" style="width:65%;margin-top:2px;"></div>
+            <div class="skel skelLine" style="width:40%;height:10px;margin-top:4px;"></div></div></div>
+          <div class="eventCard skelEventCard"><div class="eventCardPhoto skel"></div><div class="eventCardBody">
+            <div class="skel skelLine" style="width:80%;"></div><div class="skel skelLine" style="width:55%;margin-top:2px;"></div>
+            <div class="skel skelLine" style="width:35%;height:10px;margin-top:4px;"></div></div></div>
+          <div class="eventCard skelEventCard"><div class="eventCardPhoto skel"></div><div class="eventCardBody">
+            <div class="skel skelLine" style="width:88%;"></div><div class="skel skelLine" style="width:70%;margin-top:2px;"></div>
+            <div class="skel skelLine" style="width:42%;height:10px;margin-top:4px;"></div></div></div>
+          <div class="eventCard skelEventCard"><div class="eventCardPhoto skel"></div><div class="eventCardBody">
+            <div class="skel skelLine" style="width:75%;"></div><div class="skel skelLine" style="width:50%;margin-top:2px;"></div>
+            <div class="skel skelLine" style="width:38%;height:10px;margin-top:4px;"></div></div></div>
+        </div></div>
         <p class="note" id="noEventsThisWeek" style="display:none;"></p>
         <div class="pagerControls" id="eventsPagerControls" style="display:none;">
           <button class="pagerArrow" id="eventsPagerPrev" type="button" aria-label="Edelliset">‹</button>
@@ -1000,10 +1061,13 @@
 
     <div id="offersSection">
       <div class="cardHeadRow">
-        <h3 class="feedSubhead">🚨 Tilannehuone</h3>
+        <h3 class="feedSubhead"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Tilannehuone</h3>
         <span><a class="cardHeadLink" href="https://www.tilannehuone.fi/" target="_blank" rel="noopener">Näytä kaikki →</a></span>
       </div>
-      <div id="tilannehuoneItems"></div>
+      <div id="tilannehuoneItems">
+        <div class="feedItem feedItemCompact skelCard"><div class="skel skelLine" style="width:65%;"></div><div class="skel skelLine" style="width:45%;height:10px;margin-top:6px;"></div></div>
+        <div class="feedItem feedItemCompact skelCard"><div class="skel skelLine" style="width:50%;"></div><div class="skel skelLine" style="width:38%;height:10px;margin-top:6px;"></div></div>
+      </div>
       <p class="note" id="offersEmptyNote" style="display:none;">Ei tilannehuoneen ilmoituksia juuri nyt.</p>
       <p class="note" id="offersLoadErr" style="display:none;">Ilmoituksia ei juuri nyt saatu ladattua. Yritä hetken kuluttua uudelleen.</p>
       <div class="pagerControls" id="tilannehuonePagerControls" style="display:none;">
@@ -1015,7 +1079,7 @@
 
     <div id="newsSection" style="display:none;">
       <div class="cardHeadRow">
-        <h3 class="feedSubhead" data-i18n="newsSectionTitle">📰 Tuoreimmat uutiset</h3>
+        <h3 class="feedSubhead"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h13a2 2 0 0 1 2 2v13a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V4z"/><path d="M19 8h1a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2"/><line x1="7" y1="8" x2="14" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></svg> <span data-i18n="newsSectionTitle">Tuoreimmat uutiset</span></h3>
         <span><a id="viewAllNewsLinkEl" class="cardHeadLink" href="#">Näytä kaikki →</a></span>
       </div>
       <div id="newsCollapsedView">
@@ -1027,7 +1091,14 @@
           <option value="ulkomaat" data-i18n="newsCatUlkomaat">Ulkomaat</option>
         </select>
         <p class="note" id="newsSourceNote"></p>
-        <div id="newsItems"></div>
+        <div id="newsItems">
+          <div class="newsRow skelNewsRow"><span class="skel" style="width:42px;height:42px;border-radius:50%;flex:none;"></span>
+            <div style="flex:1;min-width:0;"><div class="skel skelLine" style="width:95%;"></div><div class="skel skelLine" style="width:30%;height:10px;margin-top:6px;"></div></div></div>
+          <div class="newsRow skelNewsRow"><span class="skel" style="width:42px;height:42px;border-radius:50%;flex:none;"></span>
+            <div style="flex:1;min-width:0;"><div class="skel skelLine" style="width:80%;"></div><div class="skel skelLine" style="width:25%;height:10px;margin-top:6px;"></div></div></div>
+          <div class="newsRow skelNewsRow"><span class="skel" style="width:42px;height:42px;border-radius:50%;flex:none;"></span>
+            <div style="flex:1;min-width:0;"><div class="skel skelLine" style="width:88%;"></div><div class="skel skelLine" style="width:28%;height:10px;margin-top:6px;"></div></div></div>
+        </div>
         <div class="pagerControls" id="newsPagerControls" style="display:none;">
           <button class="pagerArrow" id="newsPagerPrev" type="button" aria-label="Edelliset">‹</button>
           <div class="pagerDots" id="newsPagerDots"></div>
@@ -1042,13 +1113,17 @@
     <div id="bizFeedCard">
       <div id="bizFeedCardHead">
         <div>
-          <h3>Suositellut paikalliset yritykset</h3>
+          <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 20v-6h6v6"/></svg> Suositellut paikalliset yritykset</h3>
           <p>Paikallisia yrityksiä Oulusta</p>
         </div>
         <button id="bizFeedCta">Yrityksesi tähän? →</button>
       </div>
       <div id="bizFeedScrollWindow">
-        <p id="bizFeedLoading">Ladataan yrityksiä...</p>
+        <p id="bizFeedLoading" style="display:flex;gap:14px;padding:16px 18px;margin:0;">
+          <span class="skel" style="width:56px;height:56px;border-radius:14px;flex:none;"></span>
+          <span class="skel" style="width:56px;height:56px;border-radius:14px;flex:none;"></span>
+          <span class="skel" style="width:56px;height:56px;border-radius:14px;flex:none;"></span>
+        </p>
         <div id="bizFeedScrollTrack"></div>
       </div>
       <p id="bizFeedEmpty" style="display:none;">Ei vielä yrityksiä taulussa.</p>
@@ -1057,24 +1132,24 @@
 
   <div id="featureTiles">
     <button type="button" class="featureTile" onclick="document.getElementById('askHeroInput').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('askHeroInput').focus();">
-      <span class="featureTileIcon" style="background:#5847c9;">✨</span>
+      <span class="featureTileIcon" style="background:#5847c9;"><svg class="icon-lg" viewBox="0 0 24 24" fill="#fff"><path d="M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6L12 2z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg></span>
       <b>Kysy tekoälyoppaalta</b>
       <span>Saat vastauksen mihin tahansa Ouluun liittyvään kysymykseen.</span>
     </button>
     <div class="featureTile featureTileSoon">
-      <span class="featureTileIcon" style="background:#d6336c;">❤️</span>
+      <span class="featureTileIcon" style="background:#d6336c;"><svg class="icon-lg" viewBox="0 0 24 24" fill="#fff"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></span>
       <b>Henkilökohtaiset suositukset</b>
       <span>Tallenna suosikit ja saat vinkkejä sinulle tärkeistä asioista.</span>
       <span class="featureTileSoonBadge">Tulossa</span>
     </div>
     <div class="featureTile featureTileSoon">
-      <span class="featureTileIcon" style="background:#2f9e44;">🔔</span>
+      <span class="featureTileIcon" style="background:#2f9e44;"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
       <b>Älä missaa mitään</b>
       <span>Tilaa ilmoitukset tapahtumista, tarjouksista ja uutisista.</span>
       <span class="featureTileSoonBadge">Tulossa</span>
     </div>
     <div class="featureTile featureTileSoon">
-      <span class="featureTileIcon" style="background:#1c7ed6;">📍</span>
+      <span class="featureTileIcon" style="background:#1c7ed6;"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
       <b>Lähelläsi</b>
       <span>Näe palvelut ja tapahtumat sijaintisi perusteella.</span>
       <span class="featureTileSoonBadge">Tulossa</span>
@@ -1683,7 +1758,7 @@ const STRINGS = {
     askHeroTitle: 'Kaikki Oulussa<br>yhdestä paikasta',
     askHeroSub: 'Löydä tapahtumat, yritykset, uutiset, tarjoukset ja paikalliset palvelut helposti.',
     askHeroPlaceholder: 'Mitä haluaisit tehdä tänään?',
-    askHeroButton: '✨ Kysy',
+    askHeroButton: 'Kysy',
     askAiDisclaimer: 'Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.',
     askFeedbackPrompt: 'Oliko tästä apua?',
     askFeedbackCommentPlaceholder: 'Mikä meni pieleen? (valinnainen)',
@@ -1736,7 +1811,7 @@ const STRINGS = {
     authDeleteAccount: 'Poista tilini',
     authDeleteConfirm: 'Tämä poistaa tilisi ja kaikki siihen liittyvät tiedot pysyvästi. Jatketaanko?',
     authGenericError: 'Jokin meni pieleen. Yritä uudelleen.',
-    newsSectionTitle: '📰 Tuoreimmat uutiset',
+    newsSectionTitle: 'Tuoreimmat uutiset',
     eventsSectionTitle: 'Tapahtumat tänään',
     noEventsThisWeek: 'Ei tiedossa olevia tapahtumia tälle viikolle.',
     featuredBadge: 'Suositeltu',
@@ -1876,7 +1951,7 @@ const STRINGS = {
     askHeroTitle: 'Everything in Oulu<br>in one place',
     askHeroSub: 'Find events, businesses, news, deals, and local services with ease.',
     askHeroPlaceholder: 'What would you like to do today?',
-    askHeroButton: '✨ Ask',
+    askHeroButton: 'Ask',
     askAiDisclaimer: 'Answers are AI-generated and may contain errors.',
     askFeedbackPrompt: 'Was this helpful?',
     askFeedbackCommentPlaceholder: "What went wrong? (optional)",
@@ -1929,7 +2004,7 @@ const STRINGS = {
     authDeleteAccount: 'Delete my account',
     authDeleteConfirm: 'This permanently deletes your account and all associated data. Continue?',
     authGenericError: 'Something went wrong. Please try again.',
-    newsSectionTitle: '📰 Latest news',
+    newsSectionTitle: 'Latest news',
     eventsSectionTitle: 'Events today',
     noEventsThisWeek: 'No known events for this week.',
     featuredBadge: 'Featured',
@@ -2097,9 +2172,11 @@ if (isIOSDevice() && !isStandaloneApp()) {
 }
 
 /* ---- light/dark theme toggle ---- */
+const ICON_SUN = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+const ICON_MOON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 function applyTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
-  document.getElementById('themeToggle').textContent = theme === 'light' ? '🌙' : '☀️';
+  document.getElementById('themeToggle').innerHTML = theme === 'light' ? ICON_MOON : ICON_SUN;
   try { localStorage.setItem('theme', theme); } catch (e) {}
 }
 document.getElementById('themeToggle').addEventListener('click', ()=>{
@@ -2993,7 +3070,7 @@ function makeEventCardEl(item){
     photoWrap.appendChild(img);
   } else {
     photoWrap.classList.add('eventCardPhotoFallback');
-    photoWrap.textContent = '📅';
+    photoWrap.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
   }
   if (item.admin_highlighted){
     const badge = document.createElement('span');
@@ -3778,11 +3855,12 @@ async function askAsk(question, sendBtn){
     }
 
     const answer = data.answer || t('askError');
+    const pinIconSvg = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
     let html = renderAskMarkdown(answer);
     if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
-      html += '<p class="askMentionsNote">📍 = ' + t('askMentionsNote') + '</p>';
+      html += '<p class="askMentionsNote">' + pinIconSvg + ' = ' + t('askMentionsNote') + '</p>';
       html += '<div class="askMentions">' + data.mentioned.map(m =>
-        `<a class="askMentionChip" href="/pin/${m.squareId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${m.squareId})">📍 ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`
+        `<a class="askMentionChip" href="/pin/${m.squareId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${m.squareId})">${pinIconSvg} ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`
       ).join('') + '</div>';
       // The banner now paginates (see renderLogoBanner) -- if a business
       // just recommended here isn't on whatever page happens to be
