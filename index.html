@@ -84,6 +84,15 @@
   .skelLine{height:12px;border-radius:4px;}
   .skelEventCard .eventCardPhoto{background:none;}
   .skelNewsRow{padding-bottom:14px;}
+
+  /* Shared empty-state look: a muted icon over a short, plain-spoken
+     message, instead of a bare line of text sitting in otherwise-empty
+     space. An empty card isn't broken, so this stays quiet (no warning
+     colors, no border) -- it just gives the empty space some shape. */
+  .emptyState{display:flex;flex-direction:column;align-items:center;gap:10px;
+    padding:30px 16px;text-align:center;color:var(--ink-dim);}
+  .emptyState .icon-lg{width:34px;height:34px;opacity:0.45;}
+  .emptyState p{margin:0;font-size:13px;line-height:1.5;max-width:260px;}
   html,body{margin:0;min-height:100%;max-width:100%;overflow-x:hidden;
     background:radial-gradient(1200px 800px at 15% -10%, var(--glow), transparent 60%), linear-gradient(160deg, var(--bg-0), var(--bg-1) 100%);
     font-family:'IBM Plex Sans',sans-serif;color:var(--ink); transition:background .2s ease, color .2s ease;}
@@ -474,7 +483,7 @@
   .bizFeedRow b{font-size:13px;font-weight:700;color:var(--ink);display:block;line-height:1.25;text-align:center;}
   .bizFeedRowIndustry{display:block;font-size:11px;color:var(--ink-dim);text-align:center;margin-top:2px;}
   .bizFeedRowText{min-width:0;max-width:110px;}
-  #bizFeedEmpty{padding:20px 18px;font-size:12.5px;color:var(--ink-dim);}
+  #bizFeedEmpty{font-size:12.5px;}
   #bizFeedLoading{padding:20px 18px;font-size:12.5px;color:var(--ink-dim);text-align:center;}
   #bizFeedCta{flex:none;white-space:nowrap;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;
     background:var(--amber);color:#fff;font-weight:700;font-size:12px;font-family:'Space Grotesk',sans-serif;}
@@ -548,7 +557,6 @@
      actually makes the horizontal swipe pagination work, is untouched. */
   #tilannehuoneItems{flex:1;align-items:center;}
   [data-theme="light"] #offersSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
-  #offersEmptyNote{text-align:center;padding:24px 12px;}
   .tilannehuoneMeta{font-size:11.5px !important;color:var(--ink-dim);margin:2px 0 6px !important;}
   /* 4 standard rows at 140px + 3×18px gaps = 614px total. 5 of these
      compact rows + 4×18px gaps need to fit that same total, so
@@ -693,6 +701,16 @@
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
   .newsRowMeta{font-size:11.5px;color:var(--ink-dim);}
 
+  /* The lead story: same row structure, just turned up -- a visibly
+     bigger photo/badge and larger title than the rest of the list, so
+     the freshest item reads as the headline rather than blending in.
+     Kept to size/weight only (no color/border tricks) to stay quiet
+     alongside the rest of the card rather than looking like a separate
+     component. */
+  .newsRow.newsRowLead{padding-top:4px;padding-bottom:18px;gap:14px;}
+  .newsRow.newsRowLead .newsRowBadge{width:58px;height:58px;font-size:20px;}
+  .newsRow.newsRowLead b{font-size:15.5px;line-height:1.3;}
+
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
     display:flex;gap:12px;align-items:flex-start;transition:box-shadow 0.15s ease;height:140px;}
   .feedItem:hover{box-shadow:0 4px 14px rgba(88,71,201,0.10);}
@@ -702,7 +720,6 @@
   .feedItem p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
     margin:0 0 6px;font-size:13px;color:var(--ink-dim);line-height:1.5;}
   .feedItem a{font-size:11.5px;color:var(--amber);text-decoration:underline;}
-  #noEventsThisWeek{padding:20px 0;}
   #factsSection{margin:40px auto 8px;max-width:760px;text-align:center;}
   #factsSection h2{font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--ink);margin:0 0 22px;}
   .factsRow{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;}
@@ -1050,7 +1067,7 @@
             <div class="skel skelLine" style="width:75%;"></div><div class="skel skelLine" style="width:50%;margin-top:2px;"></div>
             <div class="skel skelLine" style="width:38%;height:10px;margin-top:4px;"></div></div></div>
         </div></div>
-        <p class="note" id="noEventsThisWeek" style="display:none;"></p>
+        <div class="note" id="noEventsThisWeek" style="display:none;"></div>
         <div class="pagerControls" id="eventsPagerControls" style="display:none;">
           <button class="pagerArrow" id="eventsPagerPrev" type="button" aria-label="Edelliset">‹</button>
           <div class="pagerDots" id="eventsPagerDots"></div>
@@ -1068,7 +1085,7 @@
         <div class="feedItem feedItemCompact skelCard"><div class="skel skelLine" style="width:65%;"></div><div class="skel skelLine" style="width:45%;height:10px;margin-top:6px;"></div></div>
         <div class="feedItem feedItemCompact skelCard"><div class="skel skelLine" style="width:50%;"></div><div class="skel skelLine" style="width:38%;height:10px;margin-top:6px;"></div></div>
       </div>
-      <p class="note" id="offersEmptyNote" style="display:none;">Ei tilannehuoneen ilmoituksia juuri nyt.</p>
+      <div class="note" id="offersEmptyNote" style="display:none;"><div class="emptyState"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><p>Ei tilannehuoneen ilmoituksia juuri nyt.</p></div></div>
       <p class="note" id="offersLoadErr" style="display:none;">Ilmoituksia ei juuri nyt saatu ladattua. Yritä hetken kuluttua uudelleen.</p>
       <div class="pagerControls" id="tilannehuonePagerControls" style="display:none;">
         <button class="pagerArrow" id="tilannehuonePagerPrev" type="button" aria-label="Edelliset">‹</button>
@@ -1126,7 +1143,7 @@
         </p>
         <div id="bizFeedScrollTrack"></div>
       </div>
-      <p id="bizFeedEmpty" style="display:none;">Ei vielä yrityksiä taulussa.</p>
+      <div id="bizFeedEmpty" style="display:none;"><div class="emptyState"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 20v-6h6v6"/></svg><p>Ei vielä yrityksiä taulussa.</p></div></div>
     </div>
   </div>
 
@@ -3145,10 +3162,19 @@ function makeEventCardEl(item){
   return el;
 }
 
-function makeFeedItemEl(item){
+function makeFeedItemEl(item, index){
   const hasLink = item.source_url && /^https?:\/\//i.test(item.source_url);
   const el = document.createElement(hasLink ? 'a' : 'div');
   el.className = 'newsRow';
+  // The single freshest story reads with more visual weight than the
+  // rest of the list -- a bigger photo/badge and a larger title -- the
+  // way an actual news page leads with its top story rather than
+  // listing every item at identical size regardless of how current it
+  // is. Only the very first item overall (not per-page), since paging
+  // through older stories shouldn't make page 2's first item look like
+  // a second "lead".
+  const isLead = index === 0;
+  if (isLead) el.classList.add('newsRowLead');
   if (hasLink){ el.href = item.source_url; el.target = '_blank'; el.rel = 'noopener'; }
 
   // The circular icon is the real photo when one's available -- showing
@@ -3268,7 +3294,7 @@ function renderPagedList(containerBox, items, pagerPrefix, pageSize, itemBuilder
   for (let p = 0; p < pageCount; p++){
     const page = document.createElement('div');
     page.className = 'itemsPage';
-    items.slice(p * pageSize, (p + 1) * pageSize).forEach(item => page.appendChild(itemBuilderFn(item)));
+    items.slice(p * pageSize, (p + 1) * pageSize).forEach((item, i) => page.appendChild(itemBuilderFn(item, p * pageSize + i)));
     containerBox.appendChild(page);
   }
 
@@ -3325,7 +3351,7 @@ function renderEventsList(events){
 
   if (events.length === 0){
     noneMsg.style.display = 'block';
-    noneMsg.textContent = t('noEventsThisWeek');
+    noneMsg.innerHTML = '<div class="emptyState"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg><p>' + t('noEventsThisWeek') + '</p></div>';
     eventsBox.innerHTML = '';
     document.getElementById('eventsPagerControls').style.display = 'none';
   } else {
