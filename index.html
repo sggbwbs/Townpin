@@ -451,13 +451,26 @@
   .forecastDay .dIcon img, .forecastHour .dIcon img{width:32px;height:32px;}
   .forecastDay .dTemps, .forecastHour .dTemps{font-size:12px;color:var(--ink-dim);}
   .forecastDay .dTemps b, .forecastHour .dTemps b{color:var(--ink);}
+  /* A thin top-edge accent + matching icon color per card, so the four
+     card types read as distinct at a glance rather than all sharing the
+     exact same neutral-ink icon. Colors are reused from elsewhere on
+     this page rather than invented fresh: events takes the brand
+     violet (it's the lead card), Tilannehuone the existing --danger red
+     (already means "alert" via the feature tiles' bell), and news/
+     businesses reuse the exact blue/green already used for the
+     "Lähelläsi"/notifications feature tiles. inset box-shadow (not
+     border-top) so it follows the card's existing border-radius
+     without needing separate corner math. */
   #eventsSection{background:var(--panel);border:1px solid var(--line);border-radius:20px;
-    padding:18px 20px;box-shadow:var(--shadow-md);transition:box-shadow 0.2s ease;}
+    padding:18px 20px;box-shadow:var(--shadow-md), inset 0 3px 0 0 var(--amber);transition:box-shadow 0.2s ease;}
+  #eventsSection .feedSubhead svg{color:var(--amber);}
   #eventsSection:hover, #newsSection:hover, #bizFeedCard:hover, #offersSection:hover{box-shadow:0 10px 28px rgba(88,71,201,0.14);}
   #newsSection{margin-bottom:0;background:var(--panel);border:1px solid var(--line);
-    border-radius:20px;padding:18px 20px;box-shadow:var(--shadow-md);transition:box-shadow 0.2s ease;}
+    border-radius:20px;padding:18px 20px;box-shadow:var(--shadow-md), inset 0 3px 0 0 #1c7ed6;transition:box-shadow 0.2s ease;}
+  #newsSection .feedSubhead svg{color:#1c7ed6;}
   #bizFeedCard{background:var(--panel);border:1px solid var(--line);border-radius:20px;
-    padding:0;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow 0.2s ease;}
+    padding:0;box-shadow:var(--shadow-md), inset 0 3px 0 0 #2f9e44;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow 0.2s ease;}
+  #bizFeedCardHead h3 svg{color:#2f9e44;}
   #bizFeedCardHead{padding:16px 18px;border-bottom:1px solid var(--line);
     display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
   #bizFeedCardHead > div{min-width:0;}
@@ -465,9 +478,14 @@
   #bizFeedCardHead p{font-size:11px;color:var(--ink-dim);margin:0;}
   /* Light mode (the default, matching the prototype) drops the border in favor
      of a bigger, softer shadow -- the border was added specifically to fix a
-     dark-mode contrast issue, so it stays there but isn't needed here. */
-  [data-theme="light"] #eventsSection, [data-theme="light"] #newsSection,
-  [data-theme="light"] #bizFeedCard{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
+     dark-mode contrast issue, so it stays there but isn't needed here.
+     Split into one rule per card (rather than one shared selector) so
+     each can combine the same softer light-mode shadow with its own
+     accent color -- a single shared rule can't set three different
+     inset colors at once. */
+  [data-theme="light"] #eventsSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10), inset 0 3px 0 0 var(--amber);}
+  [data-theme="light"] #newsSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10), inset 0 3px 0 0 #1c7ed6;}
+  [data-theme="light"] #bizFeedCard{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10), inset 0 3px 0 0 #2f9e44;}
   #bizFeedScrollWindow{height:auto;overflow:hidden;position:relative;flex:1;
     display:flex;align-items:center;
     mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);}
@@ -544,8 +562,9 @@
     #offersSection{order:4;}
   }
   #offersSection{background:var(--panel);border:1px solid var(--line);border-radius:20px;
-    padding:20px;box-shadow:var(--shadow-md);transition:box-shadow 0.2s ease;
+    padding:20px;box-shadow:var(--shadow-md), inset 0 3px 0 0 var(--danger);transition:box-shadow 0.2s ease;
     display:flex;flex-direction:column;}
+  #offersSection .feedSubhead svg{color:var(--danger);}
   /* flex:1 lets this grow to fill whatever height syncColumnHeights sets
      on #offersSection (matched to eventsSection's real height) instead of
      staying only as tall as its own 1-2 page content -- align-items:center
@@ -556,7 +575,7 @@
      class's own display:flex/row-direction/overflow-x, which is what
      actually makes the horizontal swipe pagination work, is untouched. */
   #tilannehuoneItems{flex:1;align-items:center;}
-  [data-theme="light"] #offersSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
+  [data-theme="light"] #offersSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10), inset 0 3px 0 0 var(--danger);}
   .tilannehuoneMeta{font-size:11.5px !important;color:var(--ink-dim);margin:2px 0 6px !important;}
   /* 4 standard rows at 140px + 3×18px gaps = 614px total. 5 of these
      compact rows + 4×18px gaps need to fit that same total, so
@@ -1078,7 +1097,7 @@
 
     <div id="offersSection">
       <div class="cardHeadRow">
-        <h3 class="feedSubhead"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Tilannehuone</h3>
+        <h3 class="feedSubhead"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <span>Tilannehuone</span></h3>
         <span><a class="cardHeadLink" href="https://www.tilannehuone.fi/" target="_blank" rel="noopener">Näytä kaikki →</a></span>
       </div>
       <div id="tilannehuoneItems">
@@ -1130,7 +1149,7 @@
     <div id="bizFeedCard">
       <div id="bizFeedCardHead">
         <div>
-          <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 20v-6h6v6"/></svg> Suositellut paikalliset yritykset</h3>
+          <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 20v-6h6v6"/></svg> <span>Suositellut paikalliset yritykset</span></h3>
           <p>Paikallisia yrityksiä Oulusta</p>
         </div>
         <button id="bizFeedCta">Yrityksesi tähän? →</button>
