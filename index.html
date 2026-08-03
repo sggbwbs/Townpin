@@ -497,14 +497,18 @@
     text-decoration:none;color:inherit;transition:background 0.15s ease;}
   .bizFeedRow:hover{background:var(--panelT4);}
   .bizFeedLogo{width:76px;height:76px;border-radius:14px;object-fit:contain;flex:none;
-    background:#fff;padding:7px;box-sizing:border-box;border:1px solid var(--line);box-shadow:0 2px 6px rgba(0,0,0,0.06);}
+    background:#fff;padding:7px;box-sizing:border-box;border:1px solid var(--line);box-shadow:0 2px 6px rgba(0,0,0,0.06);
+    transition:transform 0.15s ease, box-shadow 0.15s ease;}
+  .bizFeedRow:hover .bizFeedLogo{transform:translateY(-2px);box-shadow:0 8px 18px rgba(88,71,201,0.18);}
   .bizFeedRow b{font-size:13px;font-weight:700;color:var(--ink);display:block;line-height:1.25;text-align:center;}
   .bizFeedRowIndustry{display:block;font-size:11px;color:var(--ink-dim);text-align:center;margin-top:2px;}
   .bizFeedRowText{min-width:0;max-width:110px;}
   #bizFeedEmpty{font-size:12.5px;}
   #bizFeedLoading{padding:20px 18px;font-size:12.5px;color:var(--ink-dim);text-align:center;}
   #bizFeedCta{flex:none;white-space:nowrap;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;
-    background:var(--amber);color:#fff;font-weight:700;font-size:12px;font-family:'Space Grotesk',sans-serif;}
+    background:var(--amber);color:#fff;font-weight:700;font-size:12px;font-family:'Space Grotesk',sans-serif;
+    transition:box-shadow 0.15s ease, transform 0.15s ease;}
+  #bizFeedCta:hover{box-shadow:0 4px 14px rgba(88,71,201,0.35);transform:translateY(-1px);}
   /* Events and news sit side by side as two cards from 1000px up -- each
      keeps a single-column internal item list at that width since they're
      now half-width, rather than the old 2-3 internal columns which were
@@ -1384,6 +1388,8 @@
   <span class="biz">PaikallisCanvas</span>
   <span class="sep">·</span>
   <a href="#" id="legalLink" data-i18n="legalLinkText">Ehdot ja tietosuoja</a>
+  <span class="sep">·</span>
+  <a onclick="openFeedbackModal()" style="cursor:pointer;" data-i18n="siteFeedbackLink">Anna palautetta palvelusta</a>
 </div>
 
 <div id="companyInfoOverlay">
@@ -1487,10 +1493,7 @@
   </div>
 </div>
 
-<p style="text-align:center;margin:0 0 8px;">
-  <a onclick="openFeedbackModal()" style="font-size:13px;color:var(--ink-dim);text-decoration:underline;cursor:pointer;" data-i18n="siteFeedbackLink">Anna palautetta palvelusta</a>
-</p>
-<footer data-i18n="footerText">PaikallisCanvas · paikallinen tekoälyopas</footer>
+<footer data-i18n="footerText">paikallinen tekoälyopas</footer>
 
 <script>
 const API_BASE = '/api';
@@ -1989,7 +1992,7 @@ const STRINGS = {
     thenPerMonth: 'sitten {price}€/kk',
     renewNote: 'Uusiutuu automaattisesti. Peruuta milloin vain — banneripaikat vapautuvat takaisin.',
     continueBtn: 'Jatka maksuun →',
-    footerText: 'PaikallisCanvas · paikallinen tekoälyopas',
+    footerText: 'paikallinen tekoälyopas',
     fillRequired: 'Täytä yrityksen nimi, verkkosivu ja sähköposti.',
     addressRequiredErr: 'Yrityksen osoite on pakollinen — se näkyy kartalla.',
     confirmRequired: 'Vahvista, että tämä on yritystilaus, ennen kuin jatkat.',
@@ -2182,7 +2185,7 @@ const STRINGS = {
     thenPerMonth: 'then €{price}/month',
     renewNote: 'Renews automatically. Cancel anytime — your slots open back up.',
     continueBtn: 'Continue to payment →',
-    footerText: 'PaikallisCanvas · your local AI guide',
+    footerText: 'your local AI guide',
     fillRequired: 'Please fill in company name, website and email.',
     addressRequiredErr: 'A business address is required — it will be shown on the map.',
     confirmRequired: 'Please confirm this is a business subscription before continuing.',
