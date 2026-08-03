@@ -891,6 +891,7 @@
 
   #askHeroResults{max-width:640px;margin:0 auto;text-align:left;display:none;}
   #askSheetMinimizeBtn{display:none;}
+  #askDesktopChatHeader{display:none;}
   #mobileTabBar{display:none;}
   @media (max-width:900px){
     body{padding-bottom:64px;}
@@ -913,6 +914,58 @@
     transition:background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;}
   .askSuggestChip:hover{background:rgba(20,15,40,0.7);transform:translateY(-1px);box-shadow:0 4px 14px rgba(10,8,20,0.35);}
   #askHeroResults.open{display:block;margin-top:24px;}
+  /* ---- Desktop docked chat panel ----
+     Previously the answer just grew #askHeroResults inline, permanently
+     pushing the homepage cards further down the page every time --
+     visible screen space it never gave back short of a refresh. `main`
+     is centered with max-width:1500px, which on anything wider than
+     that leaves an unused margin on both sides (see the padding-right
+     trick below) -- more than enough room for a persistent, docked chat
+     window there instead, closer to how a real chat assistant behaves:
+     always reachable, never disturbing the page underneath it.
+     body's padding-right (not main's own margin) is what makes room --
+     main still centers itself via margin:0 auto, but now within body's
+     *remaining* content box once padding-right eats into it, shifting
+     main's centered position left exactly enough to clear the panel.
+     Below 1300px there usually isn't enough spare margin for this to
+     make sense at a readable width, so it falls back to the old inline
+     block behavior instead of cramming a chat panel into a sliver of
+     space. Mobile (<=900px) is a separate, untouched code path entirely
+     (the bottom sheet elsewhere in this file) -- this block only ever
+     applies above 1300px.
+     Declared after the base #askHeroResults.open rule above, on purpose:
+     media queries don't add specificity, so at the same specificity the
+     *later* rule in source order wins whenever both apply -- placing
+     this block earlier in the file (where it was first written) would
+     have silently lost to the base rule every time, regardless of
+     viewport width. */
+  @media (min-width:1301px){
+    body.desktopChatOpen{padding-right:clamp(300px, 27vw, 400px);transition:padding-right 0.25s ease;}
+    #askHeroResults.open{
+      display:flex;flex-direction:column;
+      position:fixed;top:104px;right:20px;bottom:20px;
+      width:clamp(280px, 25vw, 380px);max-width:none;margin:0;
+      background:var(--panel);border:1px solid var(--line);border-radius:18px;
+      box-shadow:var(--shadow-lg);z-index:150;overflow:hidden;
+    }
+    #askDesktopChatHeader{display:flex;align-items:center;justify-content:space-between;
+      padding:14px 16px;border-bottom:1px solid var(--line);flex:none;}
+    #askDesktopChatHeader span{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--ink);}
+    #askDesktopChatCloseBtn{border:none;background:none;color:var(--ink-dim);cursor:pointer;
+      width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;}
+    #askDesktopChatCloseBtn:hover{background:var(--panelT4);color:var(--ink);}
+    #askResultsList{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;}
+    /* Chat-bubble treatment: the question aligns right in the brand
+       accent color (like a "sent" message), the answer aligns left in
+       a neutral tone (like a "received" one) -- only while actually
+       docked, so the exact same markup still renders as plain stacked
+       cards in the <=1300px inline fallback and on mobile. */
+    #askResultsList .askResultBlock{margin-bottom:0;max-width:88%;}
+    #askResultsList .askResultBlock.askQuestionEcho{align-self:flex-end;background:var(--amber);
+      color:#fff;font-weight:600;border-radius:16px 16px 4px 16px;}
+    #askResultsList .askResultBlock:not(.askQuestionEcho){align-self:flex-start;border-radius:16px 16px 16px 4px;}
+    #askFollowupRow{flex:none;padding:12px 16px;border-top:1px solid var(--line);margin:0;}
+  }
   /* Turns the shared ask-results panel into a bottom sheet on mobile,
      instead of the plain inline block it is on desktop -- same element,
      same #askResultsList content, just repositioned. Sits just above
@@ -1130,6 +1183,10 @@
       <button type="button" class="askSuggestChip" onclick="askAsk('Etsi putkimies Oulusta', document.getElementById('askHeroSendBtn'))">Etsi putkimies Oulusta</button>
     </div>
     <div id="askHeroResults">
+      <div id="askDesktopChatHeader">
+        <span data-i18n="askDesktopChatTitle">Kysy tekoälyoppaalta</span>
+        <button type="button" id="askDesktopChatCloseBtn" aria-label="Sulje" onclick="closeDesktopChat()">✕</button>
+      </div>
       <button type="button" id="askSheetMinimizeBtn" aria-label="Pienennä" onclick="setAskSheetMinimized(true)">︿</button>
       <div id="askResultsList"></div>
       <div id="askFollowupRow" style="display:none;">
@@ -1873,6 +1930,7 @@ const STRINGS = {
     askHeroSub: 'Löydä tapahtumat, yritykset, uutiset, tarjoukset ja paikalliset palvelut helposti.',
     askHeroPlaceholder: 'Mitä haluaisit tehdä tänään?',
     askHeroButton: 'Kysy',
+    askDesktopChatTitle: 'Kysy tekoälyoppaalta',
     askAiDisclaimer: 'Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.',
     askFeedbackPrompt: 'Oliko tästä apua?',
     askFeedbackCommentPlaceholder: 'Mikä meni pieleen? (valinnainen)',
@@ -2066,6 +2124,7 @@ const STRINGS = {
     askHeroSub: 'Find events, businesses, news, deals, and local services with ease.',
     askHeroPlaceholder: 'What would you like to do today?',
     askHeroButton: 'Ask',
+    askDesktopChatTitle: 'Ask the AI guide',
     askAiDisclaimer: 'Answers are AI-generated and may contain errors.',
     askFeedbackPrompt: 'Was this helpful?',
     askFeedbackCommentPlaceholder: "What went wrong? (optional)",
@@ -3828,6 +3887,7 @@ function askAppendResult(html, extraClass){
   const resultsPanel = document.getElementById('askHeroResults');
   resultsPanel.classList.add('open');
   resultsPanel.classList.remove('minimized'); // a fresh answer should always surface the mobile sheet, even if a previous one had been minimized
+  document.body.classList.add('desktopChatOpen'); // only has any visual effect above 1301px (see the CSS); harmless elsewhere
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   return el;
 }
@@ -3839,6 +3899,17 @@ function askAppendResult(html, extraClass){
 // than needing to re-ask the question.
 function setAskSheetMinimized(minimized){
   document.getElementById('askHeroResults').classList.toggle('minimized', !!minimized);
+}
+
+// The desktop docked chat panel's own close button -- unlike mobile's
+// minimize (which keeps the sheet ready to instantly reopen from the
+// persistent search bar), desktop has no equivalent persistent surface
+// to reopen from once closed, so this fully hides the panel and gives
+// the page's full width back. The conversation itself isn't cleared --
+// asking a new question from the hero bar reopens it with history intact.
+function closeDesktopChat(){
+  document.getElementById('askHeroResults').classList.remove('open');
+  document.body.classList.remove('desktopChatOpen');
 }
 
 // Lightweight markdown -- headers ("## Heading") and bullet lists
@@ -3939,10 +4010,20 @@ async function askAsk(question, sendBtn){
 
   askPending = true;
   if (sendBtn) sendBtn.disabled = true;
-  // Only the current question+answer is ever shown -- a new question
-  // clears whatever's there first, rather than stacking on top of every
-  // previous one (which got messy fast once more than one was on screen).
-  document.getElementById('askResultsList').innerHTML = '';
+  // Mobile *and* the medium-width range both keep the original behavior:
+  // only the current question+answer is ever shown, a new question
+  // clears whatever was there first. That's still correct below 1301px
+  // even though it's no longer just "mobile" -- 901-1300px still falls
+  // back to the old plain-inline layout (see the CSS), not the
+  // scrollable docked panel, so letting history stack there would
+  // reintroduce the exact unbounded-page-growth problem this avoided in
+  // the first place. Only >=1301px (the actual docked chat window,
+  // which is a properly contained, scrollable surface) keeps full
+  // history -- that's the whole point of it reading as a "chat" rather
+  // than a one-shot answer box.
+  if (window.matchMedia('(max-width:1300px)').matches){
+    document.getElementById('askResultsList').innerHTML = '';
+  }
   askAppendResult(escapeAskText(question), 'askQuestionEcho');
   const pendingEl = askAppendResult(escapeAskText(t('askThinking')), 'pending');
   document.getElementById('askFollowupRow').style.display = 'flex';
