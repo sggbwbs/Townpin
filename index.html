@@ -1010,6 +1010,18 @@
        the deliberate small overlap at the hero/homeGrid boundary in any
        other state. */
     #askHero:has(#askHeroResults.open){ z-index:220; }
+    /* Same chat-bubble look as the desktop docked panel -- a purple,
+       right-aligned bubble for the echoed question, instead of the
+       plain neutral label-style block it used elsewhere. #askResultsList
+       isn't a flex container on mobile the way the desktop panel is
+       (that display:flex is scoped to >=1301px only), so margin-left:auto
+       on a max-width'd block does the same right-alignment job here that
+       align-self does there. */
+    #askResultsList .askResultBlock.askQuestionEcho{
+      background:var(--amber);color:#fff;font-weight:600;
+      border-radius:16px 16px 4px 16px;padding:9px 16px;font-size:14px;
+      max-width:80%;margin:0 0 8px auto;
+    }
   }
   .askResultBlock{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-md);
     padding:16px 18px;margin-bottom:12px;font-size:14px;line-height:1.6;color:var(--ink);}
