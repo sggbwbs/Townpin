@@ -996,27 +996,67 @@
      at 901-1300px there's no bar to clear, so the sheet can just sit
      near the screen's bottom edge directly. See the narrower override
      just below for that one property. */
+  /* Floating reopen affordance -- shown whenever there's a prior
+     conversation but the chat isn't currently visible (minimized on the
+     sheet, or closed via the X on the desktop docked panel). Positioned
+     as a plain top-level element (sibling of #mobileTabBar, not nested
+     inside #askHero) rather than inside the hero section -- past bugs
+     in this exact file (see the z-index comments elsewhere) came from
+     fixed-position elements nested inside ancestors that turned out to
+     establish their own stacking context, so keeping this genuinely
+     top-level avoids repeating that. JS toggles display via
+     updateReopenButtonVisibility(), called after every state change
+     that could affect it (asking a question, minimizing, closing). */
+  #askReopenChatBtn{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:20px;
+    z-index:190;align-items:center;gap:8px;padding:11px 20px;border-radius:999px;border:none;cursor:pointer;
+    background:var(--amber);color:#fff;font-weight:700;font-family:'Space Grotesk',sans-serif;font-size:13px;
+    box-shadow:0 8px 22px rgba(88,71,201,0.35);transition:box-shadow 0.15s ease, transform 0.15s ease;}
+  #askReopenChatBtn:hover{box-shadow:0 10px 26px rgba(88,71,201,0.45);}
+  #askReopenChatBtn.visible{display:flex;}
+  @media (max-width:900px){
+    /* Clears #mobileTabBar (the persistent search bar), same reasoning
+       as the sheet's own bottom offset at this width. */
+    #askReopenChatBtn{bottom:calc(64px + 14px + env(safe-area-inset-bottom));}
+  }
+  @media (min-width:1301px){
+    /* Aligned to the same side the docked panel itself lives on, so
+       reopening feels like it's coming back from where it went, rather
+       than popping up in an unrelated spot. */
+    #askReopenChatBtn{left:auto;right:20px;transform:none;}
+  }
   @media (max-width:1300px){
     #askHeroResults.open{
       position:fixed;left:0;right:0;
       bottom:20px;
       max-width:none;margin:0;
-      max-height:60vh;overflow-y:auto;overscroll-behavior:contain;
+      max-height:60vh;
+      display:flex;flex-direction:column;
       background:var(--panel);border-top:1px solid var(--line);
       border-radius:20px 20px 0 0;
       box-shadow:0 -10px 30px rgba(20,15,40,0.25);
-      padding:14px 18px calc(14px + env(safe-area-inset-bottom));
       z-index:200;
       transform:translateY(0);
       transition:transform 0.32s cubic-bezier(0.16,1,0.3,1);
+      overflow:hidden;
     }
     /* Minimized slides the sheet fully out of view (rather than removing
        .open / clearing its content) so the last answer is still there,
        ready to slide back up instantly, without re-asking the question. */
     #askHeroResults.open.minimized{ transform:translateY(115%); }
-    #askSheetMinimizeBtn{display:flex;align-items:center;justify-content:center;
-      width:100%;padding:2px 0 10px;margin:-4px 0 4px;border:none;background:none;cursor:pointer;
+    /* flex:none (not part of the scrolling area) -- previously the whole
+       #askHeroResults.open box itself was the one scrollable region,
+       with this button as just its first child, so a tall conversation
+       scrolled the button itself out of view along with everything
+       else, needing a scroll back up inside the sheet just to reach it.
+       Now #askResultsList below is the *only* thing that scrolls; this
+       stays fixed at the top of the sheet regardless of how long the
+       conversation gets. */
+    #askSheetMinimizeBtn{display:flex;align-items:center;justify-content:center;flex:none;
+      width:100%;padding:10px 0 6px;margin:0;border:none;background:none;cursor:pointer;
       color:var(--ink-dim);font-size:16px;line-height:1;}
+    #askResultsList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 18px 14px;}
+    #askFollowupRow{flex:none;padding:12px 18px calc(12px + env(safe-area-inset-bottom));
+      border-top:1px solid var(--line);margin:0;}
     /* #askHeroResults.open's own z-index:200 above only settles paint
        order *within* #askHero's stacking context (#askHero itself is
        position:relative;z-index:1) -- it says nothing about #askHero's
@@ -1033,15 +1073,17 @@
     /* Same chat-bubble look as the desktop docked panel -- a purple,
        right-aligned bubble for the echoed question, instead of the
        plain neutral label-style block it used elsewhere. #askResultsList
-       isn't a flex container here the way the desktop panel is (that
-       display:flex is scoped to >=1301px only), so margin-left:auto on
-       a max-width'd block does the same right-alignment job here that
-       align-self does there. */
+       isn't a flex column the way the desktop panel is (its own
+       display:flex above is row-direction, since it's the flex *item*
+       here, not laying its own children out that way), so margin-left:auto
+       on a max-width'd block does the same right-alignment job here that
+       align-self does on desktop. */
     #askResultsList .askResultBlock.askQuestionEcho{
       background:var(--amber);color:#fff;font-weight:600;
       border-radius:16px 16px 4px 16px;padding:9px 16px;font-size:14px;
-      max-width:80%;margin:0 0 8px auto;
+      max-width:80%;margin:8px 0 8px auto;
     }
+    #askResultsList .askResultBlock:not(.askQuestionEcho){margin-bottom:8px;}
   }
   /* #mobileTabBar (the persistent bottom search bar the sheet sits
      above) only actually renders at <=900px -- see its own CSS -- so
@@ -1375,6 +1417,11 @@
     <button type="button" id="mobileAskSendBtn" aria-label="Kysy">↑</button>
   </form>
 </nav>
+
+<button type="button" id="askReopenChatBtn" onclick="reopenChat()">
+  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  <span data-i18n="askReopenChatBtn">Näytä keskustelu</span>
+</button>
 
 <div id="overlay">
   <div id="modal">
@@ -1970,6 +2017,7 @@ const STRINGS = {
     askHeroSub: 'Löydä tapahtumat, yritykset, uutiset, tarjoukset ja paikalliset palvelut helposti.',
     askHeroPlaceholder: 'Mitä haluaisit tehdä tänään?',
     askHeroButton: 'Kysy',
+    askReopenChatBtn: 'Näytä keskustelu',
     askDesktopChatTitle: 'Kysy tekoälyoppaalta',
     askAiDisclaimer: 'Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.',
     askFeedbackPrompt: 'Oliko tästä apua?',
@@ -2164,6 +2212,7 @@ const STRINGS = {
     askHeroSub: 'Find events, businesses, news, deals, and local services with ease.',
     askHeroPlaceholder: 'What would you like to do today?',
     askHeroButton: 'Ask',
+    askReopenChatBtn: 'Show conversation',
     askDesktopChatTitle: 'Ask the AI guide',
     askAiDisclaimer: 'Answers are AI-generated and may contain errors.',
     askFeedbackPrompt: 'Was this helpful?',
@@ -3928,6 +3977,7 @@ function askAppendResult(html, extraClass){
   resultsPanel.classList.add('open');
   resultsPanel.classList.remove('minimized'); // a fresh answer should always surface the mobile sheet, even if a previous one had been minimized
   document.body.classList.add('desktopChatOpen'); // only has any visual effect above 1301px (see the CSS); harmless elsewhere
+  updateReopenButtonVisibility();
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   return el;
 }
@@ -3935,21 +3985,48 @@ function askAppendResult(html, extraClass){
 // Only meaningfully visible in the mobile bottom-sheet layout (see the
 // #askHeroResults.open.minimized CSS) -- minimizing keeps .open and all
 // rendered content in place, just slides the sheet off-screen, so
-// reopening (tapping the persistent search bar again) is instant rather
-// than needing to re-ask the question.
+// reopening (tapping the persistent search bar again, focusing the hero
+// input, or the floating reopen button below) is instant rather than
+// needing to re-ask the question.
 function setAskSheetMinimized(minimized){
   document.getElementById('askHeroResults').classList.toggle('minimized', !!minimized);
+  updateReopenButtonVisibility();
 }
 
-// The desktop docked chat panel's own close button -- unlike mobile's
-// minimize (which keeps the sheet ready to instantly reopen from the
-// persistent search bar), desktop has no equivalent persistent surface
-// to reopen from once closed, so this fully hides the panel and gives
-// the page's full width back. The conversation itself isn't cleared --
-// asking a new question from the hero bar reopens it with history intact.
+// The desktop docked chat panel's own close button -- unlike the sheet's
+// minimize (which keeps it ready to instantly reopen), desktop's close
+// fully hides the panel and gives the page's full width back. The
+// conversation itself isn't cleared either way -- asking a new question,
+// focusing the hero input, or the floating reopen button below all
+// bring it back with history intact.
 function closeDesktopChat(){
   document.getElementById('askHeroResults').classList.remove('open');
   document.body.classList.remove('desktopChatOpen');
+  updateReopenButtonVisibility();
+}
+
+// Shows the floating reopen button whenever there's a real conversation
+// to return to but the chat isn't currently visible -- covers both ways
+// it can be hidden (sheet minimized, or desktop panel closed via its X)
+// with one shared check, since both end up meaning the same thing:
+// "there's history, but nothing on screen showing it right now".
+function updateReopenButtonVisibility(){
+  const panel = document.getElementById('askHeroResults');
+  const hasHistory = document.getElementById('askResultsList').children.length > 0;
+  const isHidden = !panel.classList.contains('open') || panel.classList.contains('minimized');
+  document.getElementById('askReopenChatBtn').classList.toggle('visible', hasHistory && isHidden);
+}
+
+// Brings the chat back regardless of *how* it was hidden -- re-adds
+// .open (undoing closeDesktopChat) and clears .minimized (undoing
+// setAskSheetMinimized) in one call, since the floating button is the
+// one entry point that needs to handle either case interchangeably.
+function reopenChat(){
+  const panel = document.getElementById('askHeroResults');
+  panel.classList.add('open');
+  panel.classList.remove('minimized');
+  document.body.classList.add('desktopChatOpen');
+  updateReopenButtonVisibility();
 }
 
 // Lightweight markdown -- headers ("## Heading") and bullet lists
@@ -4050,20 +4127,16 @@ async function askAsk(question, sendBtn){
 
   askPending = true;
   if (sendBtn) sendBtn.disabled = true;
-  // Mobile *and* the medium-width range both keep the original behavior:
-  // only the current question+answer is ever shown, a new question
-  // clears whatever was there first. That's still correct below 1301px
-  // even though it's no longer just "mobile" -- 901-1300px still falls
-  // back to the old plain-inline layout (see the CSS), not the
-  // scrollable docked panel, so letting history stack there would
-  // reintroduce the exact unbounded-page-growth problem this avoided in
-  // the first place. Only >=1301px (the actual docked chat window,
-  // which is a properly contained, scrollable surface) keeps full
-  // history -- that's the whole point of it reading as a "chat" rather
-  // than a one-shot answer box.
-  if (window.matchMedia('(max-width:1300px)').matches){
-    document.getElementById('askResultsList').innerHTML = '';
-  }
+  // Every width now keeps full conversation history -- previously only
+  // the >=1301px docked panel did, because <=1300px used to be a plain
+  // inline block with no bound on its own height, and letting history
+  // stack there would have meant the page just kept growing forever
+  // with every question. Now that <=1300px is a properly contained,
+  // scrollable sheet (its own max-height + overflow-y:auto, restructured
+  // so the scrolling happens inside #askResultsList specifically), that
+  // risk is gone, so there's no reason left to clear history there and
+  // not elsewhere -- it should read as one consistent chat window
+  // regardless of viewport width, the same way the docked panel already does.
   askAppendResult(escapeAskText(question), 'askQuestionEcho');
   const pendingEl = askAppendResult(escapeAskText(t('askThinking')), 'pending');
   document.getElementById('askFollowupRow').style.display = 'flex';
