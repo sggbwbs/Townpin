@@ -892,7 +892,7 @@
 
   #askHeroResults{max-width:640px;margin:0 auto;text-align:left;display:none;}
   #askSheetMinimizeBtn{display:none;}
-  #askDesktopChatCloseBtn{display:none;}
+  #askDesktopChatMinimizeBtn{display:none;}
   #askNewChatBtn{display:none;}
   #askDesktopChatHeader{display:none;}
   #askChatToolbarBtns{display:flex;align-items:center;gap:2px;}
@@ -964,12 +964,22 @@
       width:clamp(280px, 25vw, 380px);max-width:none;margin:0;
       background:var(--panel);border:1px solid var(--line);border-radius:18px;
       box-shadow:var(--shadow-lg);z-index:150;overflow:hidden;
+      transform:translateX(0);
+      transition:transform 0.32s cubic-bezier(0.16,1,0.3,1);
     }
+    /* Previously .minimized had no effect at all at this breakpoint --
+       only the sheet's own media query defined the slide-away
+       transform, so repurposing this button from close to minimize
+       (see the HTML) needed this added too, or toggling the class here
+       would have silently done nothing. Slides right (off toward the
+       same edge the panel is docked to) rather than down, matching the
+       direction it lives in. */
+    #askHeroResults.open.minimized{ transform:translateX(120%); }
     #askDesktopChatHeader{display:flex;align-items:center;justify-content:space-between;
       padding:14px 16px;border-bottom:1px solid var(--line);flex:none;}
     #askChatToolbarTitle{display:block;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--ink);}
     #askNewChatBtn{display:flex;}
-    #askDesktopChatCloseBtn{display:flex;}
+    #askDesktopChatMinimizeBtn{display:flex;font-size:16px;line-height:1;}
     #askResultsList{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:16px;display:flex;flex-direction:column;gap:10px;}
     /* Chat-bubble treatment: the question aligns right in the brand
        accent color (like a "sent" message), the answer aligns left in
@@ -1293,7 +1303,7 @@
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
           </button>
           <button type="button" id="askSheetMinimizeBtn" aria-label="Pienennä keskustelu" onclick="setAskSheetMinimized(true)">︿</button>
-          <button type="button" id="askDesktopChatCloseBtn" aria-label="Sulje keskustelu" onclick="closeDesktopChat()">✕</button>
+          <button type="button" id="askDesktopChatMinimizeBtn" aria-label="Pienennä keskustelu" onclick="setAskSheetMinimized(true)">︿</button>
         </div>
       </div>
       <div id="askResultsList" role="log" aria-live="polite" aria-label="Keskustelu tekoälyoppaan kanssa"></div>
@@ -4112,34 +4122,23 @@ function askAppendResult(html, extraClass, openPanel){
   return el;
 }
 
-// Only meaningfully visible in the mobile bottom-sheet layout (see the
-// #askHeroResults.open.minimized CSS) -- minimizing keeps .open and all
-// rendered content in place, just slides the sheet off-screen, so
-// reopening (tapping the persistent search bar again, focusing the hero
-// input, or the floating reopen button below) is instant rather than
-// needing to re-ask the question.
+// Slides the panel off-screen while keeping .open and all rendered
+// content in place, rather than tearing anything down -- used by both
+// the sheet (<=1300px, slides down) and the desktop docked panel
+// (>=1301px, slides right; see the two separate .minimized transform
+// rules). Reopening (tapping the persistent search bar, focusing the
+// hero input, or the floating reopen button) is instant either way,
+// rather than needing to re-ask the question.
 function setAskSheetMinimized(minimized){
   document.getElementById('askHeroResults').classList.toggle('minimized', !!minimized);
   updateReopenButtonVisibility();
 }
 
-// The desktop docked chat panel's own close button -- unlike the sheet's
-// minimize (which keeps it ready to instantly reopen), desktop's close
-// fully hides the panel and gives the page's full width back. The
-// conversation itself isn't cleared either way -- asking a new question,
-// focusing the hero input, or the floating reopen button below all
-// bring it back with history intact.
-function closeDesktopChat(){
-  document.getElementById('askHeroResults').classList.remove('open');
-  document.body.classList.remove('desktopChatOpen');
-  updateReopenButtonVisibility();
-}
-
 // Shows the floating reopen button whenever there's a real conversation
-// to return to but the chat isn't currently visible -- covers both ways
-// it can be hidden (sheet minimized, or desktop panel closed via its X)
-// with one shared check, since both end up meaning the same thing:
-// "there's history, but nothing on screen showing it right now".
+// to return to but the chat isn't currently visible -- both the sheet
+// and the desktop docked panel minimize the same way now (toggling
+// .minimized via setAskSheetMinimized), so one shared check covers
+// both: "there's history, but nothing on screen showing it right now".
 function updateReopenButtonVisibility(){
   const panel = document.getElementById('askHeroResults');
   const hasHistory = document.getElementById('askResultsList').children.length > 0;
@@ -4147,10 +4146,10 @@ function updateReopenButtonVisibility(){
   document.getElementById('askReopenChatBtn').classList.toggle('visible', hasHistory && isHidden);
 }
 
-// Brings the chat back regardless of *how* it was hidden -- re-adds
-// .open (undoing closeDesktopChat) and clears .minimized (undoing
-// setAskSheetMinimized) in one call, since the floating button is the
-// one entry point that needs to handle either case interchangeably.
+// Brings the chat back regardless of which breakpoint hid it --
+// re-adds .open (in case it was ever removed) and clears .minimized,
+// since the floating button is the one entry point that needs to work
+// the same way everywhere.
 function reopenChat(){
   const panel = document.getElementById('askHeroResults');
   panel.classList.add('open');
@@ -4271,12 +4270,23 @@ async function askAsk(question, sendBtn){
   const pendingEl = askAppendResult(escapeAskText(t('askThinking')), 'pending');
   document.getElementById('askFollowupRow').style.display = 'flex';
 
+  // A hard ceiling on how long "Mietitään..." can sit there -- without
+  // this, a genuinely hung request (network stall, an unusually slow
+  // web-search-backed answer, a backend issue) left no way out at all
+  // except reloading the page. 45s is generous enough for a normal
+  // multi-search answer to complete, short enough that a real hang
+  // doesn't look indistinguishable from "broken forever".
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => abortController.abort(), 45000);
+
   try {
     const res = await fetch(`${API_BASE}/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ townId: currentTown.id, question, history: askHistory })
+      body: JSON.stringify({ townId: currentTown.id, question, history: askHistory }),
+      signal: abortController.signal
     });
+    clearTimeout(timeoutId);
 
     if (res.status === 401 || res.status === 402){
       pendingEl.remove();
@@ -4381,6 +4391,7 @@ async function askAsk(question, sendBtn){
     askHistory = askHistory.slice(-6);
     saveAskHistoryToStorage();
   } catch (err) {
+    clearTimeout(timeoutId);
     pendingEl.remove();
     askAppendResult(escapeAskText(t('askError')));
   } finally {
@@ -4462,19 +4473,18 @@ document.getElementById('askHeroInput').addEventListener('focus', () => {
 // Escape dismisses the open chat -- minimize on the sheet (<=1300px, so
 // it's ready to instantly reopen), close on the desktop docked panel
 // (>=1301px, matching its own X button). Previously a keyboard-only
-// user had no way to dismiss the chat at all short of tabbing all the
-// way to the minimize/close button by hand. Focus moves back to the
+// Escape dismisses the open chat by minimizing it (same mechanism at
+// every breakpoint now -- desktop's toolbar button was changed from a
+// full close to minimize too, see setAskSheetMinimized). Previously a
+// keyboard-only user had no way to dismiss the chat at all short of
+// tabbing all the way to the button by hand. Focus moves back to the
 // hero input afterward, a predictable place to land regardless of
 // which ask entry point was actually used to get here.
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   const panel = document.getElementById('askHeroResults');
   if (!panel.classList.contains('open') || panel.classList.contains('minimized')) return;
-  if (window.matchMedia('(min-width:1301px)').matches){
-    closeDesktopChat();
-  } else {
-    setAskSheetMinimized(true);
-  }
+  setAskSheetMinimized(true);
   document.getElementById('askHeroInput').focus();
 });
 
