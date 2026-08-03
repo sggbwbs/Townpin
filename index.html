@@ -615,16 +615,33 @@
      events/Tilannehuone) -- expanding news in place would grow its own
      row's height, and stretch would then drag the business card's
      height along with it too, even though nothing about the business
-     card actually changed. #newsSection.feedCardExpanded instead takes
-     it out of grid flow (position:absolute, but still placed via
-     grid-column/grid-row so it lines up with the grid's own tracks) and
-     stretches it to cover the *same column's* two rows -- i.e. over the
-     events card above it -- rather than pushing anything else around.
-     An absolutely-positioned grid item doesn't factor into that grid's
-     track sizing at all, so the business card's row is entirely
-     unaffected. Mobile doesn't need this: events/news aren't side by
-     side there (see the mobile `order` rules below), so expanding news
-     in place is already just normal, expected downward growth. */
+     card actually changed.
+     Two things this went through before landing here:
+     (1) position:absolute + inset:0 sized to the *original* grid area
+     kept the business card untouched, but forced news's own box to
+     exactly that height regardless of its real (often much taller, now
+     showing everything) content -- overflowing past its own box into
+     whatever came next, and since an absolutely-positioned item doesn't
+     count toward that grid's track sizing at all, the grid could end up
+     *shorter* than before, pulling the feature tiles below it upward.
+     (2) Switching to position:relative + grid-row:1/3 (spanning both
+     rows, back in normal flow) fixed that shift, but reintroduced the
+     first problem in a different shape: the business card's row is now
+     partly sized by news's spanning height demand, so its height still
+     changed with news's expand state -- just shrinking instead of
+     growing, empirically confirmed while testing this fix, not assumed.
+     The combination that actually satisfies both at once: position:
+     absolute again (so news genuinely can't affect the business card's
+     row), sized by its own content (top/left/right but no bottom, so
+     height is intrinsic rather than forced) with a generous max-height
+     + scroll instead of unbounded overflow -- and separately, JS
+     freezes the business card's height at the exact moment news
+     expands (see expandFeedCard/collapseFeedCard), since pulling news
+     out of the row-sizing calculation is exactly what let the business
+     card's height depend on news's state to begin with. Mobile doesn't
+     need any of this: events/news aren't side by side there (see the
+     mobile `order` rules below), so expanding news in place is already
+     just normal, expected downward growth. */
   #newsExpandedView{animation:expandedViewIn 0.35s ease;transition:opacity 0.18s ease, transform 0.18s ease;}
   @keyframes expandedViewIn{
     from{opacity:0;transform:translateY(10px);}
@@ -634,10 +651,10 @@
     #newsSection.feedCardExpanded{
       position:absolute;
       grid-column:1;
-      grid-row:1 / 3;
-      inset:0;
+      top:0;left:0;right:0;
       z-index:60;
-      max-height:none;
+      max-height:80vh;
+      overflow-y:auto;
       box-shadow:0 24px 60px rgba(20,15,40,0.32);
     }
   }
@@ -2954,6 +2971,17 @@ let feedCardExpandedType = null; // null | 'events' | 'news'
 function expandFeedCard(type){
   feedCardExpandedType = type;
   const linkEl = document.getElementById('viewAllNewsLinkEl');
+  const bizEl = document.getElementById('bizFeedCard');
+
+  // Must happen before adding .feedCardExpanded below: once news is
+  // pulled out of grid flow (position:absolute), its row is sized by
+  // the business card's own natural height alone -- freezing that
+  // height right now, while news is still occupying its normal spot,
+  // keeps the business card exactly where it was instead of visibly
+  // resizing as soon as news stops contributing to the row.
+  if (window.matchMedia('(min-width:1000px)').matches){
+    bizEl.style.minHeight = bizEl.getBoundingClientRect().height + 'px';
+  }
 
   document.getElementById('newsCollapsedView').style.display = 'none';
   document.getElementById('newsExpandedView').style.display = 'block';
@@ -2996,6 +3024,7 @@ function collapseFeedCard(){
     document.getElementById('newsCollapsedView').style.display = 'block';
     document.getElementById('newsExpandedView').style.display = 'none';
     document.getElementById('newsSection').classList.remove('feedCardExpanded');
+    document.getElementById('bizFeedCard').style.minHeight = ''; // release the freeze from expandFeedCard
     expandedView.style.opacity = '';
     expandedView.style.transform = '';
 
