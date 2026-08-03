@@ -535,15 +535,36 @@
      now half-width, rather than the old 2-3 internal columns which were
      sized for each section spanning the full page width. */
   /* "Näytä kaikki" swaps a card's own content between collapsed and
-     expanded views in place -- this used to navigate to
-     /tapahtumat.html or /uutiset.html, both since removed now that this
-     covers the same ground. Used to also need to hide/resize a sibling
-     card sharing the same grid row; now that events/news are standalone
-     full-width cards, there's no sibling to manage at all. */
+     expanded views in place. On the >=1000px 2x2 grid, news shares its
+     row with the business card (align-items:stretch, same as
+     events/Tilannehuone) -- expanding news in place would grow its own
+     row's height, and stretch would then drag the business card's
+     height along with it too, even though nothing about the business
+     card actually changed. #newsSection.feedCardExpanded instead takes
+     it out of grid flow (position:absolute, but still placed via
+     grid-column/grid-row so it lines up with the grid's own tracks) and
+     stretches it to cover the *same column's* two rows -- i.e. over the
+     events card above it -- rather than pushing anything else around.
+     An absolutely-positioned grid item doesn't factor into that grid's
+     track sizing at all, so the business card's row is entirely
+     unaffected. Mobile doesn't need this: events/news aren't side by
+     side there (see the mobile `order` rules below), so expanding news
+     in place is already just normal, expected downward growth. */
   #newsExpandedView{animation:expandedViewIn 0.35s ease;transition:opacity 0.18s ease, transform 0.18s ease;}
   @keyframes expandedViewIn{
     from{opacity:0;transform:translateY(10px);}
     to{opacity:1;transform:translateY(0);}
+  }
+  @media (min-width:1000px){
+    #newsSection.feedCardExpanded{
+      position:absolute;
+      grid-column:1;
+      grid-row:1 / 3;
+      inset:0;
+      z-index:60;
+      max-height:none;
+      box-shadow:0 24px 60px rgba(20,15,40,0.32);
+    }
   }
   #newsSourceColumnsGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;}
   @media (min-width:1000px){ #newsSourceColumnsGrid{grid-template-columns:repeat(3,minmax(0,1fr));} }
@@ -2789,6 +2810,7 @@ function expandFeedCard(type){
 
   document.getElementById('newsCollapsedView').style.display = 'none';
   document.getElementById('newsExpandedView').style.display = 'block';
+  document.getElementById('newsSection').classList.add('feedCardExpanded');
   loadNewsSourceColumns();
 
   // The link itself now flips to "collapse" mode -- previously this text
@@ -2826,6 +2848,7 @@ function collapseFeedCard(){
   setTimeout(() => {
     document.getElementById('newsCollapsedView').style.display = 'block';
     document.getElementById('newsExpandedView').style.display = 'none';
+    document.getElementById('newsSection').classList.remove('feedCardExpanded');
     expandedView.style.opacity = '';
     expandedView.style.transform = '';
 
@@ -2967,7 +2990,14 @@ function makeEventCardEl(item){
     dateStr = `${startD.getDate()}.${startD.getMonth() + 1}.`;
   }
   const timeStr = item.event_start_time ? ` klo ${item.event_start_time}` : '';
-  metaEl.textContent = ended ? 'Päättynyt' : (dateStr + timeStr);
+  // Previously just showed the literal string "Päättynyt" with nothing
+  // else once ended, discarding dateStr/timeStr entirely -- meaning if
+  // that classification were ever wrong (see hasEventEnded's own
+  // fallback-to-start-time comment above), there was no way to tell from
+  // the UI itself, since the actual listed date/time wasn't visible
+  // anywhere to check it against. Showing both lets that be verified at
+  // a glance instead of just having to trust the label.
+  metaEl.textContent = ended ? `Päättynyt · ${dateStr}${timeStr}` : (dateStr + timeStr);
   body.appendChild(metaEl);
 
   if (item.address){
