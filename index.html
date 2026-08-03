@@ -3013,7 +3013,20 @@ function makeEventCardEl(item){
   const metaEl = document.createElement('div');
   metaEl.className = 'eventCardMeta';
   const startD = new Date(item.event_date + 'T00:00:00');
-  const isMultiDay = item.event_end_date && item.event_end_date !== item.event_date;
+  const hasBothTimes = !!(item.event_start_time && item.event_end_time);
+  // A one-calendar-day gap between event_date/event_end_date where both a
+  // start and end time are known is really just a single evening event
+  // that happens to run past midnight (e.g. 22:30-01:00), not a genuine
+  // multi-day span -- showing it as a date *range* ("3.-4.8.") reads like
+  // a multi-day festival, when "3.8. klo 22:30-01:00" is what's actually
+  // happening and is much clearer. A genuine multi-day event (several
+  // full days) either has a gap bigger than 1 day, or no specific times
+  // at all, so this doesn't affect those.
+  const daysDiff = item.event_end_date
+    ? Math.round((new Date(item.event_end_date + 'T00:00:00') - startD) / 86400000)
+    : 0;
+  const isOvernightSpan = daysDiff === 1 && hasBothTimes;
+  const isMultiDay = item.event_end_date && item.event_end_date !== item.event_date && !isOvernightSpan;
   let dateStr;
   if (isMultiDay){
     const endD = new Date(item.event_end_date + 'T00:00:00');
@@ -3023,7 +3036,17 @@ function makeEventCardEl(item){
   } else {
     dateStr = `${startD.getDate()}.${startD.getMonth() + 1}.`;
   }
-  const timeStr = item.event_start_time ? ` klo ${item.event_start_time}` : '';
+  // Previously only ever showed the start time -- an event with a known
+  // end time (whether a same-day workshop with a real end, or an
+  // overnight event like the one above) now shows the full range instead
+  // of just when it begins.
+  let timeStr = '';
+  if (item.event_start_time){
+    timeStr = ` klo ${item.event_start_time}`;
+    if (item.event_end_time && item.event_end_time !== item.event_start_time){
+      timeStr += `–${item.event_end_time}`;
+    }
+  }
   // Previously just showed the literal string "Päättynyt" with nothing
   // else once ended, discarding dateStr/timeStr entirely -- meaning if
   // that classification were ever wrong (see hasEventEnded's own
