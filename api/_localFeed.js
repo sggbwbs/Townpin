@@ -521,6 +521,31 @@ function getHelsinkiDayBounds() {
   return { start, end };
 }
 
+// "YYYY-MM-DD" in real Europe/Helsinki local time -- the calendar-date
+// counterpart to formatHelsinkiTime below. Needed because a raw ISO
+// timestamp's first 10 characters are its UTC calendar date, which is
+// only the same as the Helsinki calendar date for most of the day --
+// anything from roughly 00:00-02:59 Helsinki time (Helsinki is UTC+2/+3)
+// falls on the *previous* UTC day, so naively slicing the raw string
+// silently produces the wrong date for any event ending shortly after
+// midnight. Confirmed against a real case: an event listed as
+// 22:30-01:00 came through with event_end_date equal to event_date (the
+// start day) instead of the next day, because event_end_date was built
+// from upcoming.end.slice(0, 10) directly -- meanwhile event_end_time
+// was already correctly Helsinki-local via formatHelsinkiTime, so the
+// date and time-of-day ended up describing two different, inconsistent
+// timelines for the same field.
+function formatHelsinkiDate(isoString) {
+  if (!isoString) return null;
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date(isoString));
+  } catch (err) {
+    return null;
+  }
+}
+
 // "HH:MM" in real Europe/Helsinki local time, for showing the actual
 // time of day an event starts/ends -- not just its date.
 function formatHelsinkiTime(isoString) {
@@ -624,8 +649,8 @@ async function fetchOuluEventsFromAPI() {
         // ongoing from an earlier day, before popularity is considered
         // at all -- "starting today" is what someone asking "what's on
         // today" most wants to see first.
-        const aStartsToday = a.upcoming.start.slice(0, 10) === todayStr ? 0 : 1;
-        const bStartsToday = b.upcoming.start.slice(0, 10) === todayStr ? 0 : 1;
+        const aStartsToday = formatHelsinkiDate(a.upcoming.start) === todayStr ? 0 : 1;
+        const bStartsToday = formatHelsinkiDate(b.upcoming.start) === todayStr ? 0 : 1;
         if (aStartsToday !== bStartsToday) return aStartsToday - bStartsToday;
         return b.views - a.views;
       })
@@ -634,8 +659,8 @@ async function fetchOuluEventsFromAPI() {
         title_fi: p.name,
         summary_fi: getSummary(p),
         address: (p.locations && p.locations[0] && p.locations[0].address) || null,
-        event_date: upcoming.start.slice(0, 10),
-        event_end_date: upcoming.end ? upcoming.end.slice(0, 10) : null,
+        event_date: formatHelsinkiDate(upcoming.start),
+        event_end_date: upcoming.end ? formatHelsinkiDate(upcoming.end) : null,
         // Kaleva's own data always populates start/end, even when the
         // real time isn't known -- in that case it just duplicates
         // start into end (confirmed against a real API response) and
@@ -706,8 +731,8 @@ async function fetchHelsinkiEventsFromAPI() {
         const descSourceFi = (e.short_description && e.short_description.fi) || (e.description && e.description.fi) || '';
         const descSourceEn = (e.short_description && e.short_description.en) || (e.description && e.description.en) || descSourceFi;
         const locationName = (e.location && e.location.name && (e.location.name.fi || e.location.name.en)) || '';
-        const startDate = e.start_time ? e.start_time.slice(0, 10) : null;
-        const endDate = e.end_time ? e.end_time.slice(0, 10) : null;
+        const startDate = e.start_time ? formatHelsinkiDate(e.start_time) : null;
+        const endDate = e.end_time ? formatHelsinkiDate(e.end_time) : null;
         return {
           title_fi: locationName ? `${titleFi} (${locationName})` : titleFi,
           title_en: locationName ? `${titleEn} (${locationName})` : titleEn,
