@@ -528,7 +528,21 @@
      stretch has nothing to visibly change. */
   #homeGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:stretch;
     position:relative;z-index:2;margin-top:-22px;}
-  @media (min-width:1000px){ #homeGrid{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);} }
+  @media (min-width:1000px){
+    #homeGrid{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);}
+    /* Explicit placement instead of relying on implicit auto-placement
+       (DOM order alone) -- needed specifically because #newsSection
+       becomes position:absolute when expanded (see .feedCardExpanded
+       below), which takes it out of the auto-placement algorithm
+       entirely. Without an explicit assignment here, #bizFeedCard (the
+       next item in DOM order) would silently auto-place itself into
+       news's now-vacated cell instead of staying in column 2 -- exactly
+       what was happening, confirmed by testing this in isolation. */
+    #eventsSection{grid-column:1;grid-row:1;}
+    #offersSection{grid-column:2;grid-row:1;}
+    #newsSection{grid-column:1;grid-row:2;}
+    #bizFeedCard{grid-column:2;grid-row:2;}
+  }
   /* A quiet, one-time entrance for the four homepage cards on load --
      each staggered slightly by its DOM position so they settle in
      sequence rather than all at once, without calling attention to
@@ -638,10 +652,25 @@
      freezes the business card's height at the exact moment news
      expands (see expandFeedCard/collapseFeedCard), since pulling news
      out of the row-sizing calculation is exactly what let the business
-     card's height depend on news's state to begin with. Mobile doesn't
-     need any of this: events/news aren't side by side there (see the
-     mobile `order` rules below), so expanding news in place is already
-     just normal, expected downward growth. */
+     card's height depend on news's state to begin with.
+     Two more bugs surfaced from that, both about grid-column/grid-row
+     values with an indefinite end (just "1" rather than "1 / 2"): (a)
+     for an absolutely-positioned grid item specifically, an indefinite
+     end line makes its containing block fall back to the *entire grid
+     container's* width rather than just that one column -- so the
+     overlay was stretching across both columns (covering the business
+     card entirely) instead of just matching events' width, and (b)
+     since #newsSection becomes position:absolute when expanded, it's
+     removed from the auto-placement algorithm entirely, which let
+     #bizFeedCard (the next item in DOM order) silently auto-place
+     itself into news's now-vacant cell instead of staying in column 2 --
+     both empirically confirmed in isolation before landing on this
+     fix. All four cards now get an explicit grid-column/grid-row
+     (immediately below), and the expanded state uses explicit "1 / 2"
+     and "1 / 3" end lines rather than leaving them indefinite. Mobile
+     doesn't need any of this: events/news aren't side by side there
+     (see the mobile `order` rules below), so expanding news in place is
+     already just normal, expected downward growth. */
   #newsExpandedView{animation:expandedViewIn 0.35s ease;transition:opacity 0.18s ease, transform 0.18s ease;}
   @keyframes expandedViewIn{
     from{opacity:0;transform:translateY(10px);}
@@ -650,7 +679,8 @@
   @media (min-width:1000px){
     #newsSection.feedCardExpanded{
       position:absolute;
-      grid-column:1;
+      grid-column:1 / 2;
+      grid-row:1 / 3;
       top:0;left:0;right:0;
       z-index:60;
       max-height:80vh;
