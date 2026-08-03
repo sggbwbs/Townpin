@@ -646,13 +646,13 @@
      growing, empirically confirmed while testing this fix, not assumed.
      The combination that actually satisfies both at once: position:
      absolute again (so news genuinely can't affect the business card's
-     row), sized by its own content (top/left/right but no bottom, so
-     height is intrinsic rather than forced) with a generous max-height
-     + scroll instead of unbounded overflow -- and separately, JS
-     freezes the business card's height at the exact moment news
-     expands (see expandFeedCard/collapseFeedCard), since pulling news
-     out of the row-sizing calculation is exactly what let the business
-     card's height depend on news's state to begin with.
+     row), sized to fill its column's actual reserved height (see the
+     inset/bottom note below) with a generous max-height + scroll for
+     content taller than that -- and separately, JS freezes the business
+     card's height at the exact moment news expands (see
+     expandFeedCard/collapseFeedCard), since pulling news out of the
+     row-sizing calculation is exactly what let the business card's
+     height depend on news's state to begin with.
      Two more bugs surfaced from that, both about grid-column/grid-row
      values with an indefinite end (just "1" rather than "1 / 2"): (a)
      for an absolutely-positioned grid item specifically, an indefinite
@@ -667,8 +667,23 @@
      both empirically confirmed in isolation before landing on this
      fix. All four cards now get an explicit grid-column/grid-row
      (immediately below), and the expanded state uses explicit "1 / 2"
-     and "1 / 3" end lines rather than leaving them indefinite. Mobile
-     doesn't need any of this: events/news aren't side by side there
+     and "1 / 3" end lines rather than leaving them indefinite.
+     One more round after that: with only top/left/right set (no
+     bottom), news's box height was purely intrinsic to its own content
+     -- fine when its content happened to be about as tall as the
+     events+business column, but left a visible gap below the card
+     whenever news's real content was *shorter* than that (its own
+     reserved area, based on events+business's real height, doesn't
+     automatically become news's height just because it's absolutely
+     positioned within it -- inset properties only compute an automatic
+     height from top+bottom together, not from top alone). Adding
+     bottom:0 back is what actually fills that reserved area -- safe to
+     do now that grid-column/grid-row have explicit end lines, so this
+     only affects news's own box height, not whether it affects the
+     business card's sizing (confirmed empirically: it doesn't). Content
+     taller than that available height still scrolls internally rather
+     than overflowing, via max-height + overflow-y:auto. Mobile doesn't
+     need any of this: events/news aren't side by side there
      (see the mobile `order` rules below), so expanding news in place is
      already just normal, expected downward growth. */
   #newsExpandedView{animation:expandedViewIn 0.35s ease;transition:opacity 0.18s ease, transform 0.18s ease;}
@@ -681,7 +696,7 @@
       position:absolute;
       grid-column:1 / 2;
       grid-row:1 / 3;
-      top:0;left:0;right:0;
+      top:0;left:0;right:0;bottom:0;
       z-index:60;
       max-height:80vh;
       overflow-y:auto;
