@@ -123,6 +123,20 @@
   #weatherForecast{position:absolute;top:calc(100% + 10px);right:0;z-index:30;
     background:var(--panel);border:1px solid var(--line);border-radius:12px;
     box-shadow:var(--shadow-md);padding:14px;margin:0 !important;max-width:none !important;}
+  /* On mobile, right:0 anchors the dropdown to #weatherWrap's own right
+     edge -- but #weatherWrap sits inside a header that's crowded with
+     icons and can wrap onto its own line on narrow screens, so that
+     anchor point isn't reliable there the way it is on a roomy desktop
+     header. Confirmed showing up oddly positioned/overlapping other
+     header content on some mobile devices. position:fixed spanning most
+     of the viewport width (rather than being anchored to any specific
+     header element at all) guarantees it always lands somewhere
+     sensible and fully visible, regardless of how the header itself
+     happens to be laid out on any given phone. */
+  @media (max-width:900px){
+    #weatherForecast{position:fixed;top:96px;left:12px;right:12px;
+      max-height:70vh;overflow-y:auto;overscroll-behavior:contain;}
+  }
   #brand{display:flex;align-items:center;gap:14px;cursor:pointer;}
   #brandMark{width:64px;height:76px;display:flex;align-items:center;justify-content:center;
     flex:none;filter:drop-shadow(0 3px 6px rgba(14,42,71,0.35));}
@@ -442,7 +456,7 @@
   #weatherIcon{font-size:20px;line-height:1;display:inline-flex;align-items:center;}
   #weatherIcon img{width:24px;height:24px;display:block;}
   #weatherTemp{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--ink);}
-  #weatherForecast{display:flex;flex-direction:column;gap:12px;max-width:600px;margin:14px auto 0;padding:2px;}
+  #weatherForecast{display:flex;flex-direction:column;gap:12px;}
   #weatherHourlyRow, #weatherDaysRow{display:flex;gap:8px;overflow-x:auto;padding:2px;}
   .forecastDay, .forecastHour{flex:none;width:78px;background:var(--panelT4);border:1px solid var(--line);border-radius:10px;
     padding:10px 6px;text-align:center;}
@@ -852,10 +866,24 @@
      rather than a generic dark-photo-with-white-text treatment. */
   #heroPhotoWrap{position:relative;width:100vw;left:50%;margin-left:-50vw;
     padding:40px 20px 32px;margin-bottom:0;display:flex;flex-direction:column;align-items:center;}
-  #heroPhotoWrap::before{content:'';position:absolute;top:0;left:0;right:0;height:380px;z-index:0;
+  /* bottom:0 (not a fixed height) -- previously both of these used a
+     guessed height:380px, which matched the content's real height on
+     some devices but not others: different viewport widths wrap the
+     headline/subhead differently, different font rendering engines
+     measure text differently, and notched phones add real vertical
+     space via safe-area insets. Whenever actual content (headline,
+     subhead, ask bar, the 4 suggestion chips) added up to more than
+     380px, whatever came last -- the suggestion chips -- spilled below
+     the photo backdrop entirely, landing on the plain page background
+     instead. bottom:0 makes both of these stretch to match
+     #heroPhotoWrap's own real height exactly, on any device, since it's
+     already position:relative (the containing block for these
+     absolutely-positioned pseudo-elements) and top:0 + bottom:0
+     together resolve to "exactly as tall as the parent actually is". */
+  #heroPhotoWrap::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;
     background:linear-gradient(180deg,rgba(10,8,20,0.55) 0%,rgba(10,8,20,0.32) 40%,rgba(10,8,20,0.55) 100%),
       url('/hero-oulu.jpg') center/cover;}
-  #heroPhotoWrap::after{content:'';position:absolute;top:0;left:0;right:0;height:380px;z-index:0;
+  #heroPhotoWrap::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;
     background:radial-gradient(600px 320px at 50% 40%, rgba(124,92,255,0.22), transparent 70%);
     pointer-events:none;}
   #askHero{max-width:600px;width:100%;text-align:center;position:relative;z-index:1;
@@ -1290,10 +1318,10 @@
     </div>
     <p style="font-size:11px;color:#e8e4f7;margin:8px 0 0;text-align:center;" data-i18n="askAiDisclaimer">Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.</p>
     <div id="askSuggestRow">
-      <button type="button" class="askSuggestChip" onclick="askAsk('Mitä Oulussa tapahtuu tänään?', document.getElementById('askHeroSendBtn'))">Mitä Oulussa tapahtuu tänään?</button>
-      <button type="button" class="askSuggestChip" onclick="askAsk('Missä syödä hyvää lounasta?', document.getElementById('askHeroSendBtn'))">Missä syödä hyvää lounasta?</button>
-      <button type="button" class="askSuggestChip" onclick="askAsk('Lasten tapahtumia viikonloppuna', document.getElementById('askHeroSendBtn'))">Lasten tapahtumia viikonloppuna</button>
-      <button type="button" class="askSuggestChip" onclick="askAsk('Etsi putkimies Oulusta', document.getElementById('askHeroSendBtn'))">Etsi putkimies Oulusta</button>
+      <button type="button" class="askSuggestChip" onclick="askAsk('Mitä tapahtuu tänään?', document.getElementById('askHeroSendBtn'))"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Mitä tapahtuu tänään?</button>
+      <button type="button" class="askSuggestChip" onclick="askAsk('Lounaspaikat', document.getElementById('askHeroSendBtn'))"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="2" x2="7" y2="8"/><line x1="9" y1="2" x2="9" y2="8"/><line x1="11" y1="2" x2="11" y2="8"/><path d="M7 8c0 1 .5 2 2 2s2-1 2-2"/><line x1="9" y1="10" x2="9" y2="22"/><path d="M17 2c-1.5 1-2 4-2 6s1 2 2 2 2 0 2-2-.5-5-2-6z"/><line x1="17" y1="10" x2="17" y2="22"/></svg> Lounaspaikat</button>
+      <button type="button" class="askSuggestChip" onclick="askAsk('Lasten tekemistä', document.getElementById('askHeroSendBtn'))"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="7" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h0a5 5 0 0 1 5 5v2"/><circle cx="17" cy="7" r="2.4"/><path d="M15 20v-1.5a4 4 0 0 1 4-4h0a4 4 0 0 1 3 1.4"/></svg> Lasten tekemistä</button>
+      <button type="button" class="askSuggestChip" onclick="askAsk('Harrastukset', document.getElementById('askHeroSendBtn'))"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="20" y="9" width="3" height="6" rx="1"/><line x1="6" y1="12" x2="18" y2="12"/><rect x="4" y="7" width="2" height="10" rx="0.5"/><rect x="18" y="7" width="2" height="10" rx="0.5"/></svg> Harrastukset</button>
     </div>
     <div id="askHeroResults">
       <div id="askDesktopChatHeader">
@@ -4157,6 +4185,36 @@ function reopenChat(){
   document.body.classList.add('desktopChatOpen');
   updateReopenButtonVisibility();
 }
+
+// A more universally-compatible fallback for the same scroll-chaining
+// problem overscroll-behavior:contain (in the CSS) is meant to solve --
+// that CSS property has had incomplete or buggy support on some mobile
+// browsers, notably older iOS Safari versions, where it doesn't fully
+// stop a scrollable element's own scroll gesture from bleeding into the
+// page behind it once the element hits its top/bottom edge. This is the
+// classic technique from before overscroll-behavior existed: track
+// finger movement directly, and call preventDefault() only in the exact
+// direction that would otherwise hand scrolling off to the page --
+// dragging further down while already at the top, or further up while
+// already at the bottom -- so normal scrolling inside the list is
+// completely unaffected either way.
+function preventScrollChaining(el){
+  let lastY = 0;
+  el.addEventListener('touchstart', (e) => {
+    lastY = e.touches[0].clientY;
+  }, { passive: true });
+  el.addEventListener('touchmove', (e) => {
+    const y = e.touches[0].clientY;
+    const draggingDown = y > lastY; // finger moving down the screen -- reveals content above, scrollTop decreasing
+    const atTop = el.scrollTop <= 0;
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+    if ((atTop && draggingDown) || (atBottom && !draggingDown)){
+      e.preventDefault();
+    }
+    lastY = y;
+  }, { passive: false });
+}
+preventScrollChaining(document.getElementById('askResultsList'));
 
 // Lightweight markdown -- headers ("## Heading") and bullet lists
 // ("- item"), on top of the existing **bold** support -- lets a
