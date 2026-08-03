@@ -2739,20 +2739,54 @@ function getHelsinkiNowString(){
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 }
 
-// Confirmed against Kaleva's own site: an event with no explicit end
-// time is treated as "mennyt tapahtuma" (past) once its START time
-// passes, not end-of-day as originally assumed here. That assumption
-// was wrong -- verified by checking an event Kaleva itself already
-// marked as ended while this filter still considered it current.
-// No longer used to remove events entirely -- filtering strictly by end
-// time left almost nothing to show once the day progresses, since
-// events are sparse to begin with. Used per-item now to visually mark
-// ended events (greyed out, "Päättynyt" label) instead of hiding them.
+// A few hours' grace when no real end time is known, rather than either
+// extreme tried before: treating "no end known" as "already over the
+// instant it starts" (this function's own prior behavior) marks a
+// multi-hour event as ended immediately if its real end merely didn't
+// make it into our data -- confirmed happening for a real event whose
+// own listing page showed a 2.5-hour span, but whose event_end_time
+// came through as null (Kaleva's endTimeMissing flag or a stale cache
+// row -- not something this sandbox can confirm against the live API).
+// The even earlier "ends at midnight" assumption (see the comment on
+// hasEventEnded below) had the opposite problem: it left things Kaleva
+// itself already considered over still showing as current. Splitting
+// the difference is a smaller, safer error in both directions than
+// either extreme -- this is calendar/clock arithmetic on the raw
+// "YYYY-MM-DD"/"HH:MM" strings, not real Date/timezone conversion, so
+// it can't introduce a DST-related bug the way subtracting real Date
+// objects across a timezone boundary could.
+const DEFAULT_EVENT_DURATION_HOURS = 3;
+function addHoursToDateTimeString(dateStr, timeStr, hoursToAdd){
+  const [h, m] = timeStr.split(':').map(Number);
+  const totalMinutesRaw = h * 60 + m + hoursToAdd * 60;
+  const dayOffset = Math.floor(totalMinutesRaw / (24 * 60));
+  const totalMinutes = totalMinutesRaw - dayOffset * 24 * 60;
+  const newH = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const newM = String(totalMinutes % 60).padStart(2, '0');
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const newDateStr = new Date(Date.UTC(y, mo - 1, d + dayOffset)).toISOString().slice(0, 10);
+  return `${newDateStr}T${newH}:${newM}`;
+}
+
+// Confirmed against Kaleva's own site (for a different event, one with
+// no end time recorded at all): treated as "mennyt tapahtuma" (past)
+// once its start time passes if genuinely nothing else is known. That
+// was the reasoning for always falling back to event_start_time as a
+// stand-in "end" whenever event_end_time was missing -- but that
+// conflates two different situations: an event where no end was ever
+// recorded anywhere, versus one that has a perfectly real, multi-hour
+// end time that simply failed to come through in this specific row.
+// Only the former should get the aggressive "ended at start" treatment;
+// the latter gets the grace-period assumption above instead.
 function hasEventEnded(ev){
   const nowStr = getHelsinkiNowString();
-  const endDateStr = ev.event_end_date || ev.event_date;
-  const endTimeStr = ev.event_end_time || ev.event_start_time || '23:59';
-  return `${endDateStr}T${endTimeStr}` < nowStr;
+  if (ev.event_end_date || ev.event_end_time){
+    const endDateStr = ev.event_end_date || ev.event_date;
+    const endTimeStr = ev.event_end_time || '23:59';
+    return `${endDateStr}T${endTimeStr}` < nowStr;
+  }
+  if (!ev.event_start_time) return false; // no time info at all -- nothing to call "ended" against
+  return addHoursToDateTimeString(ev.event_date, ev.event_start_time, DEFAULT_EVENT_DURATION_HOURS) < nowStr;
 }
 
 async function loadFeed(){
