@@ -892,7 +892,23 @@
 
   #askHeroResults{max-width:640px;margin:0 auto;text-align:left;display:none;}
   #askSheetMinimizeBtn{display:none;}
+  #askDesktopChatCloseBtn{display:none;}
+  #askNewChatBtn{display:none;}
   #askDesktopChatHeader{display:none;}
+  #askChatToolbarBtns{display:flex;align-items:center;gap:2px;}
+  /* Shared icon-button look for new-chat/minimize/close -- one rule
+     instead of repeating border/background/hover per button, since all
+     three are the same small circular icon-button shape. Deliberately
+     does NOT set display here: each button's own #id rule controls
+     that per breakpoint (hidden by default, shown only where relevant)
+     -- a `#askChatToolbarBtns button` selector has higher specificity
+     than a plain `#askSheetMinimizeBtn` one (ID+type beats ID alone),
+     so setting display:flex here would silently override every
+     button's own hidden state at every width, regardless of source
+     order -- confirmed happening exactly that way before removing it. */
+  #askChatToolbarBtns button{border:none;background:none;color:var(--ink-dim);cursor:pointer;
+    width:28px;height:28px;border-radius:50%;align-items:center;justify-content:center;flex:none;}
+  #askChatToolbarBtns button:hover{background:var(--panelT4);color:var(--ink);}
   #mobileTabBar{display:none;}
   @media (max-width:900px){
     body{padding-bottom:64px;}
@@ -951,10 +967,9 @@
     }
     #askDesktopChatHeader{display:flex;align-items:center;justify-content:space-between;
       padding:14px 16px;border-bottom:1px solid var(--line);flex:none;}
-    #askDesktopChatHeader span{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--ink);}
-    #askDesktopChatCloseBtn{border:none;background:none;color:var(--ink-dim);cursor:pointer;
-      width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;}
-    #askDesktopChatCloseBtn:hover{background:var(--panelT4);color:var(--ink);}
+    #askChatToolbarTitle{display:block;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--ink);}
+    #askNewChatBtn{display:flex;}
+    #askDesktopChatCloseBtn{display:flex;}
     #askResultsList{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:16px;display:flex;flex-direction:column;gap:10px;}
     /* Chat-bubble treatment: the question aligns right in the brand
        accent color (like a "sent" message), the answer aligns left in
@@ -1045,15 +1060,20 @@
     #askHeroResults.open.minimized{ transform:translateY(115%); }
     /* flex:none (not part of the scrolling area) -- previously the whole
        #askHeroResults.open box itself was the one scrollable region,
-       with this button as just its first child, so a tall conversation
-       scrolled the button itself out of view along with everything
-       else, needing a scroll back up inside the sheet just to reach it.
-       Now #askResultsList below is the *only* thing that scrolls; this
-       stays fixed at the top of the sheet regardless of how long the
-       conversation gets. */
-    #askSheetMinimizeBtn{display:flex;align-items:center;justify-content:center;flex:none;
-      width:100%;padding:10px 0 6px;margin:0;border:none;background:none;cursor:pointer;
-      color:var(--ink-dim);font-size:16px;line-height:1;}
+       with the minimize button as just its first child, so a tall
+       conversation scrolled the button itself out of view along with
+       everything else, needing a scroll back up inside the sheet just
+       to reach it. Now #askResultsList below is the *only* thing that
+       scrolls; this toolbar stays fixed at the top of the sheet
+       regardless of how long the conversation gets. Same toolbar
+       structure as the desktop panel's header, just compact -- no
+       title, and minimize instead of close, since the sheet's whole
+       point is instant reopening rather than a full dismiss. */
+    #askDesktopChatHeader{display:flex;align-items:center;justify-content:flex-end;
+      padding:8px 8px 4px;flex:none;}
+    #askChatToolbarTitle{display:none;}
+    #askNewChatBtn{display:flex;}
+    #askSheetMinimizeBtn{display:flex;font-size:16px;line-height:1;}
     #askResultsList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 18px 14px;}
     #askFollowupRow{flex:none;padding:12px 18px calc(12px + env(safe-area-inset-bottom));
       border-top:1px solid var(--line);margin:0;}
@@ -1094,6 +1114,7 @@
   }
   .askResultBlock{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-md);
     padding:16px 18px;margin-bottom:12px;font-size:14px;line-height:1.6;color:var(--ink);}
+  .askTypingText{margin:0;white-space:pre-wrap;}
   [data-theme="light"] .askResultBlock{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10);}
   .askResultBlock.pending{color:var(--ink-dim);font-style:italic;}
   .askResultBlock.askQuestionEcho{background:var(--panel);border-radius:8px;border:1px solid var(--line);box-shadow:var(--shadow-md);padding:6px 4px 6px 18px;margin-bottom:6px;
@@ -1266,11 +1287,16 @@
     </div>
     <div id="askHeroResults">
       <div id="askDesktopChatHeader">
-        <span data-i18n="askDesktopChatTitle">Kysy tekoälyoppaalta</span>
-        <button type="button" id="askDesktopChatCloseBtn" aria-label="Sulje" onclick="closeDesktopChat()">✕</button>
+        <span data-i18n="askDesktopChatTitle" id="askChatToolbarTitle">Kysy tekoälyoppaalta</span>
+        <div id="askChatToolbarBtns">
+          <button type="button" id="askNewChatBtn" aria-label="Uusi keskustelu" title="Uusi keskustelu" onclick="startNewConversation()">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button type="button" id="askSheetMinimizeBtn" aria-label="Pienennä keskustelu" onclick="setAskSheetMinimized(true)">︿</button>
+          <button type="button" id="askDesktopChatCloseBtn" aria-label="Sulje keskustelu" onclick="closeDesktopChat()">✕</button>
+        </div>
       </div>
-      <button type="button" id="askSheetMinimizeBtn" aria-label="Pienennä" onclick="setAskSheetMinimized(true)">︿</button>
-      <div id="askResultsList"></div>
+      <div id="askResultsList" role="log" aria-live="polite" aria-label="Keskustelu tekoälyoppaan kanssa"></div>
       <div id="askFollowupRow" style="display:none;">
         <input type="text" id="askFollowupInput" autocomplete="off" data-i18n-placeholder="askFollowupPlaceholder" placeholder="Kysy jotain muuta…" />
         <button id="askFollowupMicBtn" type="button" aria-label="Puhu" style="display:none;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
@@ -1418,7 +1444,7 @@
   </form>
 </nav>
 
-<button type="button" id="askReopenChatBtn" onclick="reopenChat()">
+<button type="button" id="askReopenChatBtn" aria-label="Näytä keskustelu" onclick="reopenChat()">
   <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
   <span data-i18n="askReopenChatBtn">Näytä keskustelu</span>
 </button>
@@ -3862,6 +3888,107 @@ async function buyCredits(){
 
 // ---- AI local guide: hero search ----
 let askHistory = [];   // {role:'user'|'assistant', content:string}[] sent to /api/ask as context
+
+// ---- Chat history persistence (localStorage) ----
+// Keeps the conversation across reloads instead of losing it the
+// moment the tab refreshes -- previously askHistory lived in memory
+// only. Capped at 24h so a stale, long-forgotten conversation doesn't
+// resurface out of nowhere on a much later visit.
+const ASK_HISTORY_STORAGE_KEY = 'paikallisCanvasAskHistory';
+const ASK_HISTORY_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function saveAskHistoryToStorage(){
+  try {
+    localStorage.setItem(ASK_HISTORY_STORAGE_KEY, JSON.stringify({ savedAt: Date.now(), pairs: askHistory }));
+  } catch (e) {
+    // Private browsing / storage quota / disabled storage -- losing
+    // persistence silently is fine, the chat still works fully for the
+    // rest of this session either way.
+  }
+}
+
+// Called once on page load. Restored messages render as plain
+// markdown-formatted text via the same renderAskMarkdown() live answers
+// use -- interactive extras a live answer can have (map, business
+// mention chips, thumbs-up/down feedback) needed data (coordinates,
+// business IDs, the exact question/answer pair for feedback wiring)
+// that isn't worth persisting just to reconstruct on reload, so restored
+// history shows the actual content without those. Doesn't force the
+// panel open on load -- just makes sure the floating reopen button
+// reflects that there's history waiting, same as any other "hidden but
+// present" state.
+function restoreAskHistoryFromStorage(){
+  let saved;
+  try {
+    const raw = localStorage.getItem(ASK_HISTORY_STORAGE_KEY);
+    if (!raw) return;
+    saved = JSON.parse(raw);
+  } catch (e) { return; }
+  if (!saved || !Array.isArray(saved.pairs) || saved.pairs.length === 0) return;
+  if (Date.now() - (saved.savedAt || 0) > ASK_HISTORY_MAX_AGE_MS){
+    try { localStorage.removeItem(ASK_HISTORY_STORAGE_KEY); } catch (e) {}
+    return;
+  }
+  askHistory = saved.pairs;
+  for (let i = 0; i < askHistory.length - 1; i += 2){
+    const q = askHistory[i];
+    const a = askHistory[i + 1];
+    if (!q || !a || q.role !== 'user' || a.role !== 'assistant') continue;
+    askAppendResult(escapeAskText(q.content), 'askQuestionEcho', false);
+    askAppendResult(renderAskMarkdown(a.content), null, false);
+  }
+  document.getElementById('askFollowupRow').style.display = 'flex';
+  updateReopenButtonVisibility();
+}
+
+// The toolbar's "+" button -- clears the visible conversation, the
+// context sent to /api/ask, and the persisted copy, so the next
+// question starts genuinely fresh rather than carrying old context
+// forward. Doesn't close/minimize the panel itself, just empties it.
+function startNewConversation(){
+  askHistory = [];
+  document.getElementById('askResultsList').innerHTML = '';
+  document.getElementById('askFollowupRow').style.display = 'none';
+  try { localStorage.removeItem(ASK_HISTORY_STORAGE_KEY); } catch (e) {}
+  updateReopenButtonVisibility();
+}
+
+// A client-side reveal animation, not real token-by-token streaming
+// from the API -- genuine streaming isn't something this endpoint can
+// safely do without substantial backend rework: it uses tool calls
+// (web search) and returns one structured JSON payload (business
+// mentions, map points, web result links all parsed out of the final
+// response), not a plain token stream, so partial output can't just be
+// forwarded to the client as it arrives. This gets the same "it's
+// typing" feel once the full answer is already in hand, revealing it
+// progressively instead of dropping the whole thing in at once.
+// Duration is fixed regardless of answer length (longer answers just
+// take bigger jumps per step) so a long response doesn't feel
+// painfully slow, and it's skipped entirely under
+// prefers-reduced-motion, showing the full text immediately instead.
+function typeReveal(el, fullText, onDone){
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !fullText){
+    el.textContent = fullText || '';
+    if (onDone) onDone();
+    return;
+  }
+  const totalDurationMs = 700;
+  const steps = Math.min(50, Math.max(16, Math.ceil(fullText.length / 15)));
+  const stepTime = totalDurationMs / steps;
+  const charsPerStep = Math.max(1, Math.ceil(fullText.length / steps));
+  let i = 0;
+  el.textContent = '';
+  const timer = setInterval(() => {
+    i += charsPerStep;
+    if (i >= fullText.length){
+      el.textContent = fullText;
+      clearInterval(timer);
+      if (onDone) onDone();
+    } else {
+      el.textContent = fullText.slice(0, i);
+    }
+  }, stepTime);
+}
 let askResultBlockCounter = 0; // gives each chat result's webResults block a unique id for show-more/less
 
 // Voice input -- a real browser feature (Chrome/Safari/Edge), not a paid
@@ -3967,18 +4094,21 @@ function escapeAskText(str){
   return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function askAppendResult(html, extraClass){
+function askAppendResult(html, extraClass, openPanel){
+  if (openPanel === undefined) openPanel = true;
   const list = document.getElementById('askResultsList');
   const el = document.createElement('div');
   el.className = `askResultBlock${extraClass ? ' ' + extraClass : ''}`;
   el.innerHTML = html;
   list.appendChild(el);
-  const resultsPanel = document.getElementById('askHeroResults');
-  resultsPanel.classList.add('open');
-  resultsPanel.classList.remove('minimized'); // a fresh answer should always surface the mobile sheet, even if a previous one had been minimized
-  document.body.classList.add('desktopChatOpen'); // only has any visual effect above 1301px (see the CSS); harmless elsewhere
-  updateReopenButtonVisibility();
-  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (openPanel){
+    const resultsPanel = document.getElementById('askHeroResults');
+    resultsPanel.classList.add('open');
+    resultsPanel.classList.remove('minimized'); // a fresh answer should always surface the mobile sheet, even if a previous one had been minimized
+    document.body.classList.add('desktopChatOpen'); // only has any visual effect above 1301px (see the CSS); harmless elsewhere
+    updateReopenButtonVisibility();
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
   return el;
 }
 
@@ -4234,9 +4364,14 @@ async function askAsk(question, sendBtn){
       <button class="askFeedbackBtn" data-rating="down" aria-label="Huono vastaus">👎</button>
     </div>`;
 
-    const resultEl = askAppendResult(html);
-    wireAskFeedback(resultEl.querySelector('#' + feedbackId), question, answer);
-    if (mapId) renderAskMap(mapId, mapPoints);
+    const resultEl = askAppendResult('<p class="askTypingText"></p>');
+    const typingEl = resultEl.querySelector('.askTypingText');
+    typeReveal(typingEl, answer, () => {
+      resultEl.innerHTML = html;
+      wireAskFeedback(resultEl.querySelector('#' + feedbackId), question, answer);
+      if (mapId) renderAskMap(mapId, mapPoints);
+      resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
 
     // Keep server-side context bounded too (see MAX_HISTORY_TURNS in
     // api/ask.js) -- trimming here as well just avoids sending an
@@ -4244,6 +4379,7 @@ async function askAsk(question, sendBtn){
     askHistory.push({ role: 'user', content: question });
     askHistory.push({ role: 'assistant', content: answer });
     askHistory = askHistory.slice(-6);
+    saveAskHistoryToStorage();
   } catch (err) {
     pendingEl.remove();
     askAppendResult(escapeAskText(t('askError')));
@@ -4321,6 +4457,25 @@ document.getElementById('mobileAskInput').addEventListener('focus', () => {
 // a real bug, not just a theoretical gap.
 document.getElementById('askHeroInput').addEventListener('focus', () => {
   if (document.getElementById('askHeroResults').classList.contains('open')) setAskSheetMinimized(false);
+});
+
+// Escape dismisses the open chat -- minimize on the sheet (<=1300px, so
+// it's ready to instantly reopen), close on the desktop docked panel
+// (>=1301px, matching its own X button). Previously a keyboard-only
+// user had no way to dismiss the chat at all short of tabbing all the
+// way to the minimize/close button by hand. Focus moves back to the
+// hero input afterward, a predictable place to land regardless of
+// which ask entry point was actually used to get here.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const panel = document.getElementById('askHeroResults');
+  if (!panel.classList.contains('open') || panel.classList.contains('minimized')) return;
+  if (window.matchMedia('(min-width:1301px)').matches){
+    closeDesktopChat();
+  } else {
+    setAskSheetMinimized(true);
+  }
+  document.getElementById('askHeroInput').focus();
 });
 
 // The board itself is no longer a clickable grid -- purchasing is now a
@@ -4818,6 +4973,8 @@ async function applyContentOverrides(townId){
 async function init(){
   const underMaintenance = await checkMaintenanceMode();
   if (underMaintenance) return; // page replaced entirely -- nothing else should run
+
+  restoreAskHistoryFromStorage();
 
   // Preview mode -- only ever actually unlocks anything if this browser
   // also has a real, valid admin session (see openBoard's admin=1 flag
