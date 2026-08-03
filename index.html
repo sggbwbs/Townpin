@@ -4239,6 +4239,16 @@ document.getElementById('mobileAskInput').addEventListener('keydown', (e)=>{
 document.getElementById('mobileAskInput').addEventListener('focus', () => {
   if (document.getElementById('askHeroResults').classList.contains('open')) setAskSheetMinimized(false);
 });
+// Same reopen-on-focus behavior for the top hero ask bar -- this one
+// matters even more than the mobile bar above: #mobileTabBar (and its
+// input) only actually exists at <=900px, but the sheet treatment now
+// covers everything up to 1300px (see the CSS). Between 901-1300px the
+// hero input is the *only* ask entry point at all, so without this,
+// minimizing the sheet there had no way back whatsoever -- confirmed as
+// a real bug, not just a theoretical gap.
+document.getElementById('askHeroInput').addEventListener('focus', () => {
+  if (document.getElementById('askHeroResults').classList.contains('open')) setAskSheetMinimized(false);
+});
 
 // The board itself is no longer a clickable grid -- purchasing is now a
 // simple quantity picker (how many ad slots), with the exact same
