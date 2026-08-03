@@ -3253,7 +3253,16 @@ function renderEventsList(events){
     document.getElementById('eventsPagerControls').style.display = 'none';
   } else {
     noneMsg.style.display = 'none';
-    renderPagedList(eventsBox, events, 'events', EVENTS_PAGE_SIZE, makeEventCardEl);
+    // Ended events sink to the last page(s) instead of staying wherever
+    // they happened to land chronologically/via admin curation -- even
+    // an admin_highlighted pick shouldn't keep leading the list once it's
+    // actually over. Array.sort is stable (guaranteed by spec in every
+    // engine this runs in), so within the "still current" group and
+    // within the "ended" group, the existing order -- highlighted picks
+    // first, then the rest, per applyAdminEventCuration on the backend --
+    // is left exactly as it was; only the ended/not-ended split changes.
+    const sorted = events.slice().sort((a, b) => (hasEventEnded(a) ? 1 : 0) - (hasEventEnded(b) ? 1 : 0));
+    renderPagedList(eventsBox, sorted, 'events', EVENTS_PAGE_SIZE, makeEventCardEl);
   }
   syncColumnHeights();
 }
