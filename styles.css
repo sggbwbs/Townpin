@@ -395,7 +395,7 @@
   #feedbackModal .err{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
     font-size:12px;margin-bottom:10px;}
 
-  #nearbyOverlay, #favoritesOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
+  #nearbyOverlay, #favoritesOverlay, #digestOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
     align-items:center;justify-content:center;padding:20px;}
   .simpleModal{position:relative;background:var(--paper);color:var(--ink);width:100%;max-width:480px;
     max-height:85vh;overflow-y:auto;overscroll-behavior:contain;
