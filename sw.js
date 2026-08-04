@@ -14,7 +14,7 @@
 // re-cached every time it succeeds; the cache is only a fallback for
 // when the network request itself fails (actually offline).
 
-const CACHE_NAME = 'paikalliscanvas-shell-v1';
+const CACHE_NAME = 'paikalliscanvas-shell-v2';
 const SHELL_URLS = ['/', '/oulu', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -42,7 +42,16 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return; // never cache or intercept API calls
 
   event.respondWith(
-    fetch(event.request)
+    // cache:'no-store' forces this past the browser's own HTTP cache,
+    // not just the separate Service Worker Cache API above -- without
+    // it, fetch() here is still subject to normal Cache-Control
+    // behavior, meaning "network-first" in intent could still end up
+    // silently served from the browser's local HTTP cache in practice,
+    // with the request never actually reaching the network at all.
+    // Confirmed as a real, reproducible cause of "I deployed a green
+    // build but the site still shows the old version" for at least one
+    // real visitor -- not just a theoretical concern.
+    fetch(event.request, { cache: 'no-store' })
       .then(res => {
         const resClone = res.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone)).catch(() => {});
