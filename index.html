@@ -2953,7 +2953,7 @@ function renderBizFeedCard(){
     const bizId = sq.group_id || sq.id;
     const favorited = isBusinessFavorited(bizId);
     return `<div class="bizFeedRow">
-    <button type="button" class="bizFeedFavoriteBtn${favorited ? ' favorited' : ''}" data-biz-id="${bizId}" aria-label="${t('favoriteToggleLabel')}" onclick="toggleBusinessFavorite(${bizId});">
+    <button type="button" class="bizFeedFavoriteBtn${favorited ? ' favorited' : ''}" data-biz-id="${bizId}" aria-label="${t('favoriteToggleLabel')}" onclick="toggleBusinessFavorite('${bizId}', ${sq.id});">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
     </button>
     <a class="bizFeedRowLink" href="/pin/${sq.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${sq.id})">
@@ -4024,7 +4024,15 @@ function isBusinessFavorited(id){
 // still displays correctly in the favorites list even if it's not
 // currently showing in the live banner (e.g. a lapsed ad slot, or this
 // particular page load just didn't include it).
-function toggleBusinessFavorite(id){
+// navId is stored separately from id -- id (group_id when present) is
+// the right thing to dedup/toggle on, since one business can own
+// several board squares and shouldn't get favorited multiple times,
+// but api/pin/[id].js only ever looks up by the numeric squares.id
+// column, never group_id. Storing just one shared value for both
+// purposes meant a group_id-based favorite's own link pointed at a URL
+// the backend can't resolve -- navId keeps navigation always using the
+// numeric ID regardless of what the dedup key happens to be.
+function toggleBusinessFavorite(id, navId){
   const favorites = getFavoriteBusinesses();
   const idx = favorites.findIndex(f => String(f.id) === String(id));
   if (idx >= 0){
@@ -4032,7 +4040,7 @@ function toggleBusinessFavorite(id){
   } else {
     const sq = (currentSquares || []).find(s => String(s.group_id || s.id) === String(id));
     if (!sq) return;
-    favorites.push({ id, company_name: sq.company_name, logo_url: sq.logo_url, industry: sq.industry || '', savedAt: Date.now() });
+    favorites.push({ id, navId: navId !== undefined ? navId : sq.id, company_name: sq.company_name, logo_url: sq.logo_url, industry: sq.industry || '', savedAt: Date.now() });
   }
   saveFavoriteBusinesses(favorites);
   updateFavoriteButtonsUI();
@@ -4081,20 +4089,29 @@ function renderFavoritesList(){
     list.innerHTML = `<p class="nearbyEmptyMsg">${escapeAskText(t('favoritesEmpty'))}</p>`;
     return;
   }
-  list.innerHTML = favorites.map(f => `
+  list.innerHTML = favorites.map(f => {
+    // navId is only present on favorites saved after this fix -- older
+    // saved favorites (from before navId existed) fall back to f.id,
+    // which is correct for the common case (a business with only one
+    // square, where id and the dedup key were always the same numeric
+    // value anyway) and only wrong for the specific group_id case this
+    // fix addresses, which simply won't have a working link until
+    // re-favorited. Not worth a migration for what's a one-click fix.
+    const navId = f.navId !== undefined ? f.navId : f.id;
+    return `
     <div class="nearbyListItem">
-      <a class="nearbyListItemLink" href="/pin/${f.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${f.id})">
+      <a class="nearbyListItemLink" href="/pin/${navId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${navId})">
         <img src="${f.logo_url}" alt="" loading="lazy" />
         <div class="nearbyListItemText">
           <b>${escapeAskText(f.company_name)}</b>
           <span>${escapeAskText(f.industry || '')}</span>
         </div>
       </a>
-      <button type="button" class="bizFeedFavoriteBtn nearbyFavoriteBtn favorited" data-biz-id="${f.id}" aria-label="${t('favoriteToggleLabel')}" onclick="toggleBusinessFavorite(${f.id});renderFavoritesList();">
+      <button type="button" class="bizFeedFavoriteBtn nearbyFavoriteBtn favorited" data-biz-id="${f.id}" aria-label="${t('favoriteToggleLabel')}" onclick="toggleBusinessFavorite('${f.id}', ${navId});renderFavoritesList();">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
       </button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 let lastKnownNearbyLocation = null; // cached per page-load only, not persisted -- avoids re-prompting if the modal is reopened in the same session
@@ -4193,7 +4210,7 @@ function renderNearbyResults(userLat, userLng){
       const favorited = isBusinessFavorited(bizId);
       return `
       <div class="nearbyListItem">
-        <a class="nearbyListItemLink" href="/pin/${bizId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${bizId})">
+        <a class="nearbyListItemLink" href="/pin/${b.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${b.id})">
           <img src="${b.logo_url}" alt="" loading="lazy" />
           <div class="nearbyListItemText">
             <b>${escapeAskText(b.company_name)}</b>
@@ -4201,7 +4218,7 @@ function renderNearbyResults(userLat, userLng){
           </div>
           <span class="nearbyDistance">${formatDistanceKm(b._distanceKm)}</span>
         </a>
-        <button type="button" class="bizFeedFavoriteBtn nearbyFavoriteBtn${favorited ? ' favorited' : ''}" data-biz-id="${bizId}" aria-label="${t('favoriteToggleLabel')}" onclick="toggleBusinessFavorite(${bizId});">
+        <button type="button" class="bizFeedFavoriteBtn nearbyFavoriteBtn${favorited ? ' favorited' : ''}" data-biz-id="${bizId}" aria-label="${t('favoriteToggleLabel')}" onclick="toggleBusinessFavorite('${bizId}', ${b.id});">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
         </button>
       </div>`;
