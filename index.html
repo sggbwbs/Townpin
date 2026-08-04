@@ -434,20 +434,20 @@
   #feedbackModal .err{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
     font-size:12px;margin-bottom:10px;}
 
-  #nearbyOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
+  #nearbyOverlay, #favoritesOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
     align-items:center;justify-content:center;padding:20px;}
-  #nearbyModal{position:relative;background:var(--paper);color:var(--ink);width:100%;max-width:480px;
+  .simpleModal{position:relative;background:var(--paper);color:var(--ink);width:100%;max-width:480px;
     max-height:85vh;overflow-y:auto;overscroll-behavior:contain;
     border-radius:14px;padding:32px;box-shadow:var(--shadow-lg);font-family:'IBM Plex Sans',sans-serif;}
-  #nearbyModal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 6px;font-size:19px;}
-  #nearbyModal p.authSub{font-size:12.5px;color:var(--ink-dim);margin:0 0 18px;line-height:1.5;}
-  #nearbyModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:var(--ink-dim);
+  .simpleModal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 6px;font-size:19px;}
+  .simpleModal p.authSub{font-size:12.5px;color:var(--ink-dim);margin:0 0 18px;line-height:1.5;}
+  .simpleModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:var(--ink-dim);
     background:none;border:none;width:28px;height:28px;border-radius:50%;}
-  #nearbyModal .close:hover{background:rgba(0,0,0,0.06);}
-  #nearbyModal button.authSubmit{width:100%;background:var(--amber);color:#fff;border:none;
+  .simpleModal .close:hover{background:rgba(0,0,0,0.06);}
+  .simpleModal button.authSubmit{width:100%;background:var(--amber);color:#fff;border:none;
     border-radius:8px;padding:11px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;}
-  #nearbyModal button.authSubmit:disabled{opacity:0.6;cursor:default;}
-  #nearbyModal .err{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
+  .simpleModal button.authSubmit:disabled{opacity:0.6;cursor:default;}
+  .simpleModal .err{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
     font-size:12px;margin:12px 0 0;}
   .nearbyPrivacyNote{font-size:11.5px;color:var(--ink-dim);text-align:center;margin:14px 0 0;line-height:1.4;}
   #nearbyMap{height:220px;border-radius:12px;margin-bottom:14px;background:var(--panelT4);
@@ -463,6 +463,7 @@
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .nearbyListItemText span{display:block;font-size:11.5px;color:var(--ink-dim);}
   .nearbyDistance{flex:none;font-size:12px;font-weight:700;color:var(--amber);white-space:nowrap;}
+  .nearbyFavoriteBtn{position:static;flex:none;}
   .nearbyEmptyMsg{text-align:center;color:var(--ink-dim);font-size:13px;padding:20px 0;}
 
   #accountBtn{border:none;background:var(--panelT7);border:1px solid var(--line);border-radius:999px;
@@ -539,7 +540,7 @@
   #bizFeedScrollWindow:hover #bizFeedScrollTrack{animation-play-state:paused;}
   @keyframes bizFeedScroll{ 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
   .bizFeedRow{display:flex;flex-direction:column;align-items:center;gap:10px;padding:22px 24px;
-    border-right:1px solid var(--line);flex:none;white-space:nowrap;
+    border-right:1px solid var(--line);flex:none;white-space:nowrap;position:relative;
     text-decoration:none;color:inherit;transition:background 0.15s ease;}
   .bizFeedRow:hover{background:var(--panelT4);}
   .bizFeedLogo{width:76px;height:76px;border-radius:14px;object-fit:contain;flex:none;
@@ -549,6 +550,18 @@
   .bizFeedRow b{font-size:13px;font-weight:700;color:var(--ink);display:block;line-height:1.25;text-align:center;}
   .bizFeedRowIndustry{display:block;font-size:11px;color:var(--ink-dim);text-align:center;margin-top:2px;}
   .bizFeedRowText{min-width:0;max-width:110px;}
+  /* Favorite toggle -- sits inside the row's own <a> link, so its click
+     handler must stop propagation/prevent default or clicking the heart
+     would also navigate away via the parent link. Neutral outline by
+     default, filled brand-color heart once saved, matching the same
+     "small icon button" language used for the chat toolbar buttons. */
+  .bizFeedFavoriteBtn{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;
+    border:none;background:var(--panelT7);color:var(--ink-dim);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;z-index:1;
+    transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease;}
+  .bizFeedFavoriteBtn:hover{background:var(--panelT4);transform:scale(1.1);}
+  .bizFeedFavoriteBtn.favorited{color:#d6336c;}
+  .bizFeedFavoriteBtn svg{width:15px;height:15px;}
   #bizFeedEmpty{font-size:12.5px;}
   #bizFeedLoading{padding:20px 18px;font-size:12.5px;color:var(--ink-dim);text-align:center;}
   #bizFeedCta{flex:none;white-space:nowrap;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;
@@ -668,6 +681,9 @@
   .featureTile>span:not(.featureTileIcon):not(.featureTileSoonBadge){font-size:12.5px;color:var(--ink-dim);line-height:1.4;}
   .featureTileSoonBadge{position:absolute;top:14px;right:14px;font-size:10.5px;font-weight:700;color:var(--amber);
     background:var(--panelT4);border:1px solid var(--line);border-radius:999px;padding:3px 9px;}
+  #favoritesTileBadge.featureTileBadge{position:absolute;top:12px;right:12px;min-width:20px;height:20px;
+    border-radius:999px;background:#d6336c;color:#fff;font-size:11px;font-weight:700;
+    align-items:center;justify-content:center;padding:0 5px;box-sizing:border-box;}
 
   /* Events and news sit side by side as two cards from 1000px up -- each
      keeps a single-column internal item list at that width since they're
@@ -1326,7 +1342,7 @@
 </div>
 
 <div id="nearbyOverlay">
-  <div id="nearbyModal">
+  <div id="nearbyModal" class="simpleModal">
     <button class="close" onclick="closeNearbyModal()">✕</button>
     <h2 data-i18n="nearbyTitle">Lähelläsi</h2>
     <p class="authSub" data-i18n="nearbySub">Näytä paikalliset yritykset lähimmästä kauimpaan sijaintisi perusteella.</p>
@@ -1339,6 +1355,15 @@
       <div id="nearbyMap"></div>
       <div id="nearbyList"></div>
     </div>
+  </div>
+</div>
+
+<div id="favoritesOverlay">
+  <div id="favoritesModal" class="simpleModal">
+    <button class="close" onclick="closeFavoritesModal()">✕</button>
+    <h2 data-i18n="favoritesTitle">Suosikkisi</h2>
+    <p class="authSub" data-i18n="favoritesSub">Tallennetut yritykset yhdessä paikassa.</p>
+    <div id="favoritesList"></div>
   </div>
 </div>
 
@@ -1503,12 +1528,12 @@
       <b>Kysy tekoälyoppaalta</b>
       <span>Saat vastauksen mihin tahansa Ouluun liittyvään kysymykseen.</span>
     </button>
-    <div class="featureTile featureTileSoon">
+    <button type="button" class="featureTile" onclick="openFavoritesModal()" style="position:relative;">
       <span class="featureTileIcon" style="background:#d6336c;"><svg class="icon-lg" viewBox="0 0 24 24" fill="#fff"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></span>
       <b>Henkilökohtaiset suositukset</b>
       <span>Tallenna suosikit ja saat vinkkejä sinulle tärkeistä asioista.</span>
-      <span class="featureTileSoonBadge">Tulossa</span>
-    </div>
+      <span id="favoritesTileBadge" class="featureTileBadge" style="display:none;"></span>
+    </button>
     <div class="featureTile featureTileSoon">
       <span class="featureTileIcon" style="background:#2f9e44;"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
       <b>Älä missaa mitään</b>
@@ -2140,6 +2165,10 @@ const STRINGS = {
     nearbyErrorDenied: 'Sijainnin käyttö evätty. Voit sallia sen selaimen asetuksista.',
     nearbyErrorFailed: 'Sijaintia ei saatu haettua. Yritä uudelleen.',
     nearbyEmpty: 'Ei vielä sijaintitietoja sisältäviä yrityksiä.',
+    favoritesTitle: 'Suosikkisi',
+    favoritesSub: 'Tallennetut yritykset yhdessä paikassa.',
+    favoritesEmpty: 'Ei vielä tallennettuja suosikkeja. Paina sydäntä yrityksen kohdalla tallentaaksesi sen.',
+    favoriteToggleLabel: 'Tallenna suosikiksi',
     askAiDisclaimer: 'Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.',
     askFeedbackPrompt: 'Oliko tästä apua?',
     askFeedbackCommentPlaceholder: 'Mikä meni pieleen? (valinnainen)',
@@ -2344,6 +2373,10 @@ const STRINGS = {
     nearbyErrorDenied: 'Location access denied. You can allow it in your browser settings.',
     nearbyErrorFailed: 'Could not get your location. Please try again.',
     nearbyEmpty: 'No businesses with location data yet.',
+    favoritesTitle: 'Your favorites',
+    favoritesSub: 'Saved businesses, all in one place.',
+    favoritesEmpty: 'No favorites saved yet. Tap the heart on a business to save it.',
+    favoriteToggleLabel: 'Save as favorite',
     askAiDisclaimer: 'Answers are AI-generated and may contain errors.',
     askFeedbackPrompt: 'Was this helpful?',
     askFeedbackCommentPlaceholder: "What went wrong? (optional)",
@@ -2860,13 +2893,20 @@ function renderBizFeedCard(){
   scrollWindow.style.display = 'block';
   empty.style.display = 'none';
 
-  const rowHtml = (sq) => `<a class="bizFeedRow" href="/pin/${sq.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${sq.id})">
+  const rowHtml = (sq) => {
+    const bizId = sq.group_id || sq.id;
+    const favorited = isBusinessFavorited(bizId);
+    return `<a class="bizFeedRow" href="/pin/${sq.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${sq.id})">
+    <button type="button" class="bizFeedFavoriteBtn${favorited ? ' favorited' : ''}" data-biz-id="${bizId}" aria-label="${t('favoriteToggleLabel')}" onclick="event.preventDefault();event.stopPropagation();toggleBusinessFavorite(${bizId});">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+    </button>
     <img class="bizFeedLogo" src="${sq.logo_url}" alt="" loading="lazy" />
     <span class="bizFeedRowText">
       <b>${escapeAskText(sq.company_name)}</b>
       ${sq.industry ? `<span class="bizFeedRowIndustry">${escapeAskText(sq.industry)}</span>` : ''}
     </span>
   </a>`;
+  };
 
   // Only loop the scroll animation (and duplicate the list for a seamless
   // wrap) when there's enough content to actually need scrolling --
@@ -3871,6 +3911,109 @@ document.getElementById('feedbackOverlay').addEventListener('click', (e)=>{
 // database (see api/ask.js's own use of them for the AI's answer maps),
 // so this needed no new backend work at all, just a client-side
 // distance sort + a Leaflet map matching the one already used there.
+// ---- Henkilökohtaiset suositukset (favorites) ----
+// Scoped to businesses specifically, not events/news -- those rotate
+// daily (events) or within hours (news), so "saving" one would just
+// point at something that's no longer there by the next visit.
+// Businesses are the kind of thing worth bookmarking long-term (a
+// salon, a favorite restaurant), so a localStorage-backed favorites
+// list is genuinely useful for them in a way it wouldn't be for the
+// other two. Same persistence pattern as the chat history.
+const FAVORITE_BUSINESSES_STORAGE_KEY = 'paikallisCanvasFavoriteBusinesses';
+
+function getFavoriteBusinesses(){
+  try {
+    const raw = localStorage.getItem(FAVORITE_BUSINESSES_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+function saveFavoriteBusinesses(list){
+  try { localStorage.setItem(FAVORITE_BUSINESSES_STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+}
+function isBusinessFavorited(id){
+  return getFavoriteBusinesses().some(f => f.id === id);
+}
+
+// A full snapshot (name/logo/industry), not just the ID, is saved --
+// unlike events/news this is deliberately fine to do for businesses
+// since they're long-lived, but it also means a favorited business
+// still displays correctly in the favorites list even if it's not
+// currently showing in the live banner (e.g. a lapsed ad slot, or this
+// particular page load just didn't include it).
+function toggleBusinessFavorite(id){
+  const favorites = getFavoriteBusinesses();
+  const idx = favorites.findIndex(f => f.id === id);
+  if (idx >= 0){
+    favorites.splice(idx, 1);
+  } else {
+    const sq = (currentSquares || []).find(s => (s.group_id || s.id) === id);
+    if (!sq) return;
+    favorites.push({ id, company_name: sq.company_name, logo_url: sq.logo_url, industry: sq.industry || '', savedAt: Date.now() });
+  }
+  saveFavoriteBusinesses(favorites);
+  updateFavoriteButtonsUI();
+}
+
+// Keeps every rendered favorite button in sync at once -- the same
+// business can appear in more than one place (the homepage banner, the
+// Lähelläsi list), and toggling it in one spot should visually update
+// it everywhere else it happens to also be showing, not just the
+// specific button that was clicked.
+function updateFavoriteButtonsUI(){
+  const favoriteIds = new Set(getFavoriteBusinesses().map(f => f.id));
+  document.querySelectorAll('.bizFeedFavoriteBtn[data-biz-id]').forEach(btn => {
+    const id = Number(btn.dataset.bizId);
+    btn.classList.toggle('favorited', favoriteIds.has(id));
+  });
+  updateFavoritesTileBadge();
+}
+
+// Shows a small count badge on the "Henkilökohtaiset suositukset" tile
+// once there's at least one favorite -- makes it visibly a real,
+// working feature with actual content behind it, not just a static tile.
+function updateFavoritesTileBadge(){
+  const count = getFavoriteBusinesses().length;
+  const badge = document.getElementById('favoritesTileBadge');
+  if (!badge) return;
+  if (count > 0){
+    badge.textContent = count;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function openFavoritesModal(){
+  document.getElementById('favoritesOverlay').style.display = 'flex';
+  renderFavoritesList();
+}
+function closeFavoritesModal(){
+  document.getElementById('favoritesOverlay').style.display = 'none';
+}
+
+function renderFavoritesList(){
+  const favorites = getFavoriteBusinesses().sort((a, b) => b.savedAt - a.savedAt); // most recently saved first
+  const list = document.getElementById('favoritesList');
+  if (favorites.length === 0){
+    list.innerHTML = `<p class="nearbyEmptyMsg">${escapeAskText(t('favoritesEmpty'))}</p>`;
+    return;
+  }
+  list.innerHTML = favorites.map(f => `
+    <a class="nearbyListItem" href="/pin/${f.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${f.id})">
+      <img src="${f.logo_url}" alt="" loading="lazy" />
+      <div class="nearbyListItemText">
+        <b>${escapeAskText(f.company_name)}</b>
+        <span>${escapeAskText(f.industry || '')}</span>
+      </div>
+      <button type="button" class="bizFeedFavoriteBtn nearbyFavoriteBtn favorited" data-biz-id="${f.id}" aria-label="${t('favoriteToggleLabel')}" onclick="event.preventDefault();event.stopPropagation();toggleBusinessFavorite(${f.id});renderFavoritesList();">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+      </button>
+    </a>
+  `).join('');
+}
+
 let lastKnownNearbyLocation = null; // cached per page-load only, not persisted -- avoids re-prompting if the modal is reopened in the same session
 
 function openNearbyModal(){
@@ -3888,6 +4031,9 @@ function closeNearbyModal(){
 }
 document.getElementById('nearbyOverlay').addEventListener('click', (e) => {
   if (e.target.id === 'nearbyOverlay') closeNearbyModal();
+});
+document.getElementById('favoritesOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'favoritesOverlay') closeFavoritesModal();
 });
 
 function requestNearbyLocation(){
@@ -3959,16 +4105,22 @@ function renderNearbyResults(userLat, userLng){
   if (nearest.length === 0){
     list.innerHTML = `<p class="nearbyEmptyMsg">${escapeAskText(t('nearbyEmpty'))}</p>`;
   } else {
-    list.innerHTML = nearest.map(b => `
-      <a class="nearbyListItem" href="/pin/${b.group_id || b.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${b.group_id || b.id})">
+    list.innerHTML = nearest.map(b => {
+      const bizId = b.group_id || b.id;
+      const favorited = isBusinessFavorited(bizId);
+      return `
+      <a class="nearbyListItem" href="/pin/${bizId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${bizId})">
         <img src="${b.logo_url}" alt="" loading="lazy" />
         <div class="nearbyListItemText">
           <b>${escapeAskText(b.company_name)}</b>
           <span>${escapeAskText(b.industry || '')}</span>
         </div>
         <span class="nearbyDistance">${formatDistanceKm(b._distanceKm)}</span>
-      </a>
-    `).join('');
+        <button type="button" class="bizFeedFavoriteBtn nearbyFavoriteBtn${favorited ? ' favorited' : ''}" data-biz-id="${bizId}" aria-label="${t('favoriteToggleLabel')}" onclick="event.preventDefault();event.stopPropagation();toggleBusinessFavorite(${bizId});">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+        </button>
+      </a>`;
+    }).join('');
   }
 
   renderNearbyMap(userLat, userLng, nearest);
@@ -5252,6 +5404,7 @@ async function init(){
   if (underMaintenance) return; // page replaced entirely -- nothing else should run
 
   restoreAskHistoryFromStorage();
+  updateFavoritesTileBadge();
 
   // Preview mode -- only ever actually unlocks anything if this browser
   // also has a real, valid admin session (see openBoard's admin=1 flag
