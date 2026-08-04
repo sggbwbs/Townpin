@@ -4628,6 +4628,13 @@ function askAppendResult(html, extraClass, openPanel){
 // rather than needing to re-ask the question.
 function setAskSheetMinimized(minimized){
   document.getElementById('askHeroResults').classList.toggle('minimized', !!minimized);
+  // Also give back the reserved right-side margin (only visually
+  // relevant at >=1301px, see body.desktopChatOpen's CSS) while
+  // minimized -- previously this stayed reserved even with the panel
+  // hidden, leaving the page shifted left with an empty gap where the
+  // panel used to be, which reads as a layout bug rather than
+  // intentional space for a panel that's no longer visible.
+  document.body.classList.toggle('desktopChatOpen', !minimized);
   updateReopenButtonVisibility();
 }
 
