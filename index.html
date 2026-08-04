@@ -4002,8 +4002,20 @@ function getFavoriteBusinesses(){
 function saveFavoriteBusinesses(list){
   try { localStorage.setItem(FAVORITE_BUSINESSES_STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
 }
+// String(...) on both sides of every comparison in this file, not just
+// === -- IDs from the API could come through as either a string or a
+// number depending on the database column type, while the ID embedded
+// in an inline onclick handler is always parsed as a plain JS number
+// literal. A strict === between a string "45" and a number 45 is
+// false, which meant a real ID-type mismatch could make every one of
+// these silently fail to find a match -- no error, no visible effect,
+// just nothing happening at all. Confirmed as the actual cause after
+// direct testing showed the click, the event handler, and the CSS all
+// working, yet real-device clicks still produced zero visible change --
+// String() coercion makes the comparison correct regardless of which
+// type either side happens to be.
 function isBusinessFavorited(id){
-  return getFavoriteBusinesses().some(f => f.id === id);
+  return getFavoriteBusinesses().some(f => String(f.id) === String(id));
 }
 
 // A full snapshot (name/logo/industry), not just the ID, is saved --
@@ -4014,11 +4026,11 @@ function isBusinessFavorited(id){
 // particular page load just didn't include it).
 function toggleBusinessFavorite(id){
   const favorites = getFavoriteBusinesses();
-  const idx = favorites.findIndex(f => f.id === id);
+  const idx = favorites.findIndex(f => String(f.id) === String(id));
   if (idx >= 0){
     favorites.splice(idx, 1);
   } else {
-    const sq = (currentSquares || []).find(s => (s.group_id || s.id) === id);
+    const sq = (currentSquares || []).find(s => String(s.group_id || s.id) === String(id));
     if (!sq) return;
     favorites.push({ id, company_name: sq.company_name, logo_url: sq.logo_url, industry: sq.industry || '', savedAt: Date.now() });
   }
@@ -4032,10 +4044,9 @@ function toggleBusinessFavorite(id){
 // it everywhere else it happens to also be showing, not just the
 // specific button that was clicked.
 function updateFavoriteButtonsUI(){
-  const favoriteIds = new Set(getFavoriteBusinesses().map(f => f.id));
+  const favoriteIds = new Set(getFavoriteBusinesses().map(f => String(f.id)));
   document.querySelectorAll('.bizFeedFavoriteBtn[data-biz-id]').forEach(btn => {
-    const id = Number(btn.dataset.bizId);
-    btn.classList.toggle('favorited', favoriteIds.has(id));
+    btn.classList.toggle('favorited', favoriteIds.has(String(btn.dataset.bizId)));
   });
   updateFavoritesTileBadge();
 }
