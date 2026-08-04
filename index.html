@@ -538,6 +538,12 @@
     mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);}
   #bizFeedScrollTrack{display:flex;flex-direction:row;width:max-content;animation:bizFeedScroll 20s linear infinite;}
   #bizFeedScrollWindow:hover #bizFeedScrollTrack{animation-play-state:paused;}
+  /* Touch devices have no :hover at all, so the row never paused there
+     -- tapping the favorite heart mid-scroll meant tapping a target
+     that was actively moving out from under your finger. This
+     JS-driven class (see the pointerdown/pointerup listeners) covers
+     touch the same way :hover already covers desktop mouse use. */
+  #bizFeedScrollWindow.interacting #bizFeedScrollTrack{animation-play-state:paused;}
   @keyframes bizFeedScroll{ 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
   .bizFeedRow{display:flex;flex-direction:column;align-items:center;gap:10px;padding:22px 24px;
     border-right:1px solid var(--line);flex:none;white-space:nowrap;position:relative;
@@ -2162,7 +2168,7 @@ const STRINGS = {
     nearbyPrivacyNote: 'Sijaintiasi ei tallenneta -- sitä käytetään vain tämän listan järjestämiseen selaimessasi.',
     nearbyLocating: 'Haetaan sijaintia…',
     nearbyErrorUnsupported: 'Selaimesi ei tue sijainninhakua.',
-    nearbyErrorDenied: 'Sijainnin käyttö evätty. Voit sallia sen selaimen asetuksista.',
+    nearbyErrorDenied: 'Sijainnin käyttö evätty. Tarkista sekä selaimen sijaintilupa (selaimen asetukset) että laitteesi sijaintipalvelut (käyttöjärjestelmän asetukset) -- kumpi tahansa pois päältä aiheuttaa tämän saman virheen.',
     nearbyErrorFailed: 'Sijaintia ei saatu haettua. Yritä uudelleen.',
     nearbyEmpty: 'Ei vielä sijaintitietoja sisältäviä yrityksiä.',
     favoritesTitle: 'Suosikkisi',
@@ -2370,7 +2376,7 @@ const STRINGS = {
     nearbyPrivacyNote: "Your location isn't stored -- it's only used to sort this list, in your browser.",
     nearbyLocating: 'Finding your location…',
     nearbyErrorUnsupported: "Your browser doesn't support location lookup.",
-    nearbyErrorDenied: 'Location access denied. You can allow it in your browser settings.',
+    nearbyErrorDenied: "Location access denied. Check both your browser's site permission (browser settings) and your device's location services (system settings) -- either one being off causes this same error.",
     nearbyErrorFailed: 'Could not get your location. Please try again.',
     nearbyEmpty: 'No businesses with location data yet.',
     favoritesTitle: 'Your favorites',
@@ -4287,6 +4293,14 @@ async function buyCredits(){
 
 // ---- AI local guide: hero search ----
 let askHistory = [];   // {role:'user'|'assistant', content:string}[] sent to /api/ask as context
+// Same length/order as askHistory, but local-persistence use only --
+// never sent to the API. askHistory's objects must stay exactly
+// {role, content} since they're spread directly into the messages array
+// sent to Anthropic, which is strict about unexpected fields; business
+// mention data (used to restore the clickable business chips after a
+// reload) has to live somewhere else entirely rather than riding along
+// on the same objects.
+let askMentionsByTurn = [];
 
 // ---- Chat history persistence (localStorage) ----
 // Keeps the conversation across reloads instead of losing it the
@@ -4296,9 +4310,22 @@ let askHistory = [];   // {role:'user'|'assistant', content:string}[] sent to /a
 const ASK_HISTORY_STORAGE_KEY = 'paikallisCanvasAskHistory';
 const ASK_HISTORY_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+// Shared between the live answer path and restoreAskHistoryFromStorage
+// -- exactly the same markup either way, so a restored answer's
+// business links look identical to a freshly-received one instead of
+// the two rendering paths quietly drifting apart over time.
+function buildMentionsHtml(mentioned){
+  const pinIconSvg = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+  let html = '<p class="askMentionsNote">' + pinIconSvg + ' = ' + t('askMentionsNote') + '</p>';
+  html += '<div class="askMentions">' + mentioned.map(m =>
+    `<a class="askMentionChip" href="/pin/${m.squareId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${m.squareId})">${pinIconSvg} ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`
+  ).join('') + '</div>';
+  return html;
+}
+
 function saveAskHistoryToStorage(){
   try {
-    localStorage.setItem(ASK_HISTORY_STORAGE_KEY, JSON.stringify({ savedAt: Date.now(), pairs: askHistory }));
+    localStorage.setItem(ASK_HISTORY_STORAGE_KEY, JSON.stringify({ savedAt: Date.now(), pairs: askHistory, mentions: askMentionsByTurn }));
   } catch (e) {
     // Private browsing / storage quota / disabled storage -- losing
     // persistence silently is fine, the chat still works fully for the
@@ -4306,16 +4333,18 @@ function saveAskHistoryToStorage(){
   }
 }
 
-// Called once on page load. Restored messages render as plain
-// markdown-formatted text via the same renderAskMarkdown() live answers
-// use -- interactive extras a live answer can have (map, business
-// mention chips, thumbs-up/down feedback) needed data (coordinates,
-// business IDs, the exact question/answer pair for feedback wiring)
-// that isn't worth persisting just to reconstruct on reload, so restored
-// history shows the actual content without those. Doesn't force the
-// panel open on load -- just makes sure the floating reopen button
-// reflects that there's history waiting, same as any other "hidden but
-// present" state.
+// Called once on page load. Restored messages render via the same
+// renderAskMarkdown() + buildMentionsHtml() live answers use, including
+// the clickable business mention chips (see askMentionsByTurn) --
+// previously those were dropped on restore since only the plain
+// question/answer text was persisted, so a reload silently lost every
+// business link a past answer had shown. The map and thumbs-up/down
+// feedback still don't come back (those need live coordinate/business-ID
+// wiring that genuinely isn't worth persisting just to reconstruct),
+// but the actual clickable recommendations -- the part someone would
+// actually want to revisit -- now do. Doesn't force the panel open on
+// load -- just makes sure the floating reopen button reflects that
+// there's history waiting, same as any other "hidden but present" state.
 function restoreAskHistoryFromStorage(){
   let saved;
   try {
@@ -4329,12 +4358,22 @@ function restoreAskHistoryFromStorage(){
     return;
   }
   askHistory = saved.pairs;
+  // Falls back to an empty array per-turn for anything saved before
+  // this field existed, rather than erroring -- an older saved
+  // conversation just won't have mention chips on restore, same as
+  // before this change, instead of breaking outright.
+  askMentionsByTurn = Array.isArray(saved.mentions) ? saved.mentions : [];
   for (let i = 0; i < askHistory.length - 1; i += 2){
     const q = askHistory[i];
     const a = askHistory[i + 1];
     if (!q || !a || q.role !== 'user' || a.role !== 'assistant') continue;
     askAppendResult(escapeAskText(q.content), 'askQuestionEcho', false);
-    askAppendResult(renderAskMarkdown(a.content), null, false);
+    let html = renderAskMarkdown(a.content);
+    const mentioned = askMentionsByTurn[i + 1];
+    if (Array.isArray(mentioned) && mentioned.length > 0){
+      html += buildMentionsHtml(mentioned);
+    }
+    askAppendResult(html, null, false);
   }
   document.getElementById('askFollowupRow').style.display = 'flex';
   updateReopenButtonVisibility();
@@ -4346,6 +4385,7 @@ function restoreAskHistoryFromStorage(){
 // forward. Doesn't close/minimize the panel itself, just empties it.
 function startNewConversation(){
   askHistory = [];
+  askMentionsByTurn = [];
   document.getElementById('askResultsList').innerHTML = '';
   document.getElementById('askFollowupRow').style.display = 'none';
   try { localStorage.removeItem(ASK_HISTORY_STORAGE_KEY); } catch (e) {}
@@ -4577,6 +4617,29 @@ function preventScrollChaining(el){
 }
 preventScrollChaining(document.getElementById('askResultsList'));
 
+// See the CSS comment on #bizFeedScrollWindow.interacting -- :hover
+// alone (the original pause mechanism) doesn't exist on touch devices,
+// so the auto-scrolling business row never stopped moving there at
+// all, making the favorite heart a genuinely moving target to tap.
+(() => {
+  const scrollWindow = document.getElementById('bizFeedScrollWindow');
+  if (!scrollWindow) return;
+  let resumeTimer = null;
+  scrollWindow.addEventListener('pointerdown', () => {
+    clearTimeout(resumeTimer);
+    scrollWindow.classList.add('interacting');
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => {
+    scrollWindow.addEventListener(evt, () => {
+      // A short grace period before resuming -- releasing a tap
+      // shouldn't immediately set the row moving again right as the
+      // resulting click/favorite-toggle is still processing.
+      clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(() => scrollWindow.classList.remove('interacting'), 600);
+    });
+  });
+})();
+
 // Lightweight markdown -- headers ("## Heading") and bullet lists
 // ("- item"), on top of the existing **bold** support -- lets a
 // multi-item answer look like actual structured sections instead of one
@@ -4743,13 +4806,9 @@ async function askAsk(question, sendBtn){
     }
 
     const answer = data.answer || t('askError');
-    const pinIconSvg = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
     let html = renderAskMarkdown(answer);
     if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
-      html += '<p class="askMentionsNote">' + pinIconSvg + ' = ' + t('askMentionsNote') + '</p>';
-      html += '<div class="askMentions">' + data.mentioned.map(m =>
-        `<a class="askMentionChip" href="/pin/${m.squareId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${m.squareId})">${pinIconSvg} ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`
-      ).join('') + '</div>';
+      html += buildMentionsHtml(data.mentioned);
       // The banner now paginates (see renderLogoBanner) -- if a business
       // just recommended here isn't on whatever page happens to be
       // showing, jump to the page it's actually on so what's visible
@@ -4806,8 +4865,11 @@ async function askAsk(question, sendBtn){
     // api/ask.js) -- trimming here as well just avoids sending an
     // ever-growing payload on every single message as a chat goes long.
     askHistory.push({ role: 'user', content: question });
+    askMentionsByTurn.push(null);
     askHistory.push({ role: 'assistant', content: answer });
+    askMentionsByTurn.push(Array.isArray(data.mentioned) ? data.mentioned : []);
     askHistory = askHistory.slice(-6);
+    askMentionsByTurn = askMentionsByTurn.slice(-6);
     saveAskHistoryToStorage();
   } catch (err) {
     clearTimeout(timeoutId);
