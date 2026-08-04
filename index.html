@@ -452,11 +452,17 @@
   .nearbyPrivacyNote{font-size:11.5px;color:var(--ink-dim);text-align:center;margin:14px 0 0;line-height:1.4;}
   #nearbyMap{height:220px;border-radius:12px;margin-bottom:14px;background:var(--panelT4);
     z-index:0;} /* z-index:0 keeps Leaflet's own internal panes (which use high z-indexes) from bleeding above this modal's own close button etc. */
-  .nearbyListItem{display:flex;align-items:center;gap:12px;padding:10px 4px;text-decoration:none;color:inherit;
+  .nearbyListItem{display:flex;align-items:center;gap:12px;padding:10px 4px;
     border-radius:10px;transition:background 0.15s ease;}
   .nearbyListItem:hover{background:var(--panelT4);}
   .nearbyListItem:not(:last-child){border-bottom:1px solid var(--line);}
-  .nearbyListItem img{width:40px;height:40px;border-radius:10px;object-fit:contain;background:#fff;
+  /* Wraps only the clickable content -- the favorite button (see
+     .bizFeedRowLink's CSS comment for the full reasoning) is a sibling
+     of this, not nested inside it, so a heart click can't possibly
+     reach the link underneath regardless of event-handling quirks. */
+  .nearbyListItemLink{display:flex;align-items:center;gap:12px;flex:1;min-width:0;
+    text-decoration:none;color:inherit;}
+  .nearbyListItemLink img{width:40px;height:40px;border-radius:10px;object-fit:contain;background:#fff;
     border:1px solid var(--line);padding:4px;box-sizing:border-box;flex:none;}
   .nearbyListItemText{flex:1;min-width:0;}
   .nearbyListItemText b{display:block;font-size:13.5px;color:var(--ink);font-weight:700;
@@ -562,10 +568,23 @@
      touch the same way :hover already covers desktop mouse use. */
   #bizFeedScrollWindow.interacting #bizFeedScrollTrack{animation-play-state:paused;}
   @keyframes bizFeedScroll{ 0%{transform:translateX(0);} 100%{transform:translateX(-50%);} }
-  .bizFeedRow{display:flex;flex-direction:column;align-items:center;gap:10px;padding:22px 24px;
+  .bizFeedRow{display:flex;flex-direction:column;align-items:center;padding:22px 24px;
     border-right:1px solid var(--line);flex:none;white-space:nowrap;position:relative;
-    text-decoration:none;color:inherit;transition:background 0.15s ease;}
+    transition:background 0.15s ease;}
   .bizFeedRow:hover{background:var(--panelT4);}
+  /* Wraps only the logo+text, not the whole row -- the favorite button
+     is a sibling of this, not nested inside it (see the HTML in
+     renderBizFeedCard). Previously the button *was* nested inside the
+     row's own <a>, relying on stopPropagation()/preventDefault() in its
+     click handler to stop the click from also triggering navigation --
+     which tested correctly here but was reported as unreliable on at
+     least one real device/browser combination. Structurally moving the
+     button outside the link entirely removes any dependency on that
+     event-handling behavior working a specific way: a click on the
+     heart now simply cannot reach the link at all, regardless of
+     browser quirks. */
+  .bizFeedRowLink{display:flex;flex-direction:column;align-items:center;gap:10px;
+    text-decoration:none;color:inherit;}
   .bizFeedLogo{width:76px;height:76px;border-radius:14px;object-fit:contain;flex:none;
     background:#fff;padding:7px;box-sizing:border-box;border:1px solid var(--line);box-shadow:0 2px 6px rgba(0,0,0,0.06);
     transition:transform 0.15s ease, box-shadow 0.15s ease;}
@@ -573,9 +592,8 @@
   .bizFeedRow b{font-size:13px;font-weight:700;color:var(--ink);display:block;line-height:1.25;text-align:center;}
   .bizFeedRowIndustry{display:block;font-size:11px;color:var(--ink-dim);text-align:center;margin-top:2px;}
   .bizFeedRowText{min-width:0;max-width:110px;}
-  /* Favorite toggle -- sits inside the row's own <a> link, so its click
-     handler must stop propagation/prevent default or clicking the heart
-     would also navigate away via the parent link. Neutral outline by
+  /* Sibling of .bizFeedRowLink now, not nested inside it -- see the CSS
+     comment on .bizFeedRowLink above for why. Neutral outline by
      default, filled brand-color heart once saved, matching the same
      "small icon button" language used for the chat toolbar buttons. */
   .bizFeedFavoriteBtn{position:absolute;top:6px;right:6px;width:36px;height:36px;border-radius:50%;
@@ -2919,16 +2937,18 @@ function renderBizFeedCard(){
   const rowHtml = (sq) => {
     const bizId = sq.group_id || sq.id;
     const favorited = isBusinessFavorited(bizId);
-    return `<a class="bizFeedRow" href="/pin/${sq.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${sq.id})">
-    <button type="button" class="bizFeedFavoriteBtn${favorited ? ' favorited' : ''}" data-biz-id="${bizId}" aria-label="${t('favoriteToggleLabel')}" onclick="event.preventDefault();event.stopPropagation();toggleBusinessFavorite(${bizId});">
+    return `<div class="bizFeedRow">
+    <button type="button" class="bizFeedFavoriteBtn${favorited ? ' favorited' : ''}" data-biz-id="${bizId}" aria-label="${t('favoriteToggleLabel')}" onclick="toggleBusinessFavorite(${bizId});">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
     </button>
-    <img class="bizFeedLogo" src="${sq.logo_url}" alt="" loading="lazy" />
-    <span class="bizFeedRowText">
-      <b>${escapeAskText(sq.company_name)}</b>
-      ${sq.industry ? `<span class="bizFeedRowIndustry">${escapeAskText(sq.industry)}</span>` : ''}
-    </span>
-  </a>`;
+    <a class="bizFeedRowLink" href="/pin/${sq.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${sq.id})">
+      <img class="bizFeedLogo" src="${sq.logo_url}" alt="" loading="lazy" />
+      <span class="bizFeedRowText">
+        <b>${escapeAskText(sq.company_name)}</b>
+        ${sq.industry ? `<span class="bizFeedRowIndustry">${escapeAskText(sq.industry)}</span>` : ''}
+      </span>
+    </a>
+  </div>`;
   };
 
   // Only loop the scroll animation (and duplicate the list for a seamless
@@ -4036,16 +4056,18 @@ function renderFavoritesList(){
     return;
   }
   list.innerHTML = favorites.map(f => `
-    <a class="nearbyListItem" href="/pin/${f.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${f.id})">
-      <img src="${f.logo_url}" alt="" loading="lazy" />
-      <div class="nearbyListItemText">
-        <b>${escapeAskText(f.company_name)}</b>
-        <span>${escapeAskText(f.industry || '')}</span>
-      </div>
-      <button type="button" class="bizFeedFavoriteBtn nearbyFavoriteBtn favorited" data-biz-id="${f.id}" aria-label="${t('favoriteToggleLabel')}" onclick="event.preventDefault();event.stopPropagation();toggleBusinessFavorite(${f.id});renderFavoritesList();">
+    <div class="nearbyListItem">
+      <a class="nearbyListItemLink" href="/pin/${f.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${f.id})">
+        <img src="${f.logo_url}" alt="" loading="lazy" />
+        <div class="nearbyListItemText">
+          <b>${escapeAskText(f.company_name)}</b>
+          <span>${escapeAskText(f.industry || '')}</span>
+        </div>
+      </a>
+      <button type="button" class="bizFeedFavoriteBtn nearbyFavoriteBtn favorited" data-biz-id="${f.id}" aria-label="${t('favoriteToggleLabel')}" onclick="toggleBusinessFavorite(${f.id});renderFavoritesList();">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
       </button>
-    </a>
+    </div>
   `).join('');
 }
 
@@ -4144,17 +4166,19 @@ function renderNearbyResults(userLat, userLng){
       const bizId = b.group_id || b.id;
       const favorited = isBusinessFavorited(bizId);
       return `
-      <a class="nearbyListItem" href="/pin/${bizId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${bizId})">
-        <img src="${b.logo_url}" alt="" loading="lazy" />
-        <div class="nearbyListItemText">
-          <b>${escapeAskText(b.company_name)}</b>
-          <span>${escapeAskText(b.industry || '')}</span>
-        </div>
-        <span class="nearbyDistance">${formatDistanceKm(b._distanceKm)}</span>
-        <button type="button" class="bizFeedFavoriteBtn nearbyFavoriteBtn${favorited ? ' favorited' : ''}" data-biz-id="${bizId}" aria-label="${t('favoriteToggleLabel')}" onclick="event.preventDefault();event.stopPropagation();toggleBusinessFavorite(${bizId});">
+      <div class="nearbyListItem">
+        <a class="nearbyListItemLink" href="/pin/${bizId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${bizId})">
+          <img src="${b.logo_url}" alt="" loading="lazy" />
+          <div class="nearbyListItemText">
+            <b>${escapeAskText(b.company_name)}</b>
+            <span>${escapeAskText(b.industry || '')}</span>
+          </div>
+          <span class="nearbyDistance">${formatDistanceKm(b._distanceKm)}</span>
+        </a>
+        <button type="button" class="bizFeedFavoriteBtn nearbyFavoriteBtn${favorited ? ' favorited' : ''}" data-biz-id="${bizId}" aria-label="${t('favoriteToggleLabel')}" onclick="toggleBusinessFavorite(${bizId});">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
         </button>
-      </a>`;
+      </div>`;
     }).join('');
   }
 
