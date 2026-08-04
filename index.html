@@ -538,6 +538,15 @@
     mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);}
   #bizFeedScrollTrack{display:flex;flex-direction:row;width:max-content;animation:bizFeedScroll 20s linear infinite;}
   #bizFeedScrollWindow:hover #bizFeedScrollTrack{animation-play-state:paused;}
+  /* Redundant with the rule above on paper (hovering a descendant also
+     means its ancestors are :hover'd, so this "shouldn't" be necessary)
+     -- kept anyway as a more direct safeguard with no dependency on
+     that bubbling working exactly as expected on every browser/device,
+     since a reported case of the container-hover pause not visibly
+     taking effect couldn't be reproduced reliably enough here to
+     pin down a single root cause. Costs nothing since both rules set
+     the same value when they do apply. */
+  #bizFeedScrollTrack:hover{animation-play-state:paused;}
   /* Touch devices have no :hover at all, so the row never paused there
      -- tapping the favorite heart mid-scroll meant tapping a target
      that was actively moving out from under your finger. This
@@ -4625,18 +4634,26 @@ preventScrollChaining(document.getElementById('askResultsList'));
   const scrollWindow = document.getElementById('bizFeedScrollWindow');
   if (!scrollWindow) return;
   let resumeTimer = null;
-  scrollWindow.addEventListener('pointerdown', () => {
+  const pause = () => {
     clearTimeout(resumeTimer);
     scrollWindow.classList.add('interacting');
-  });
+  };
+  const scheduleResume = () => {
+    // A short grace period before resuming -- releasing a tap/moving the
+    // mouse away shouldn't immediately set the row moving again right as
+    // the resulting click/favorite-toggle is still processing.
+    clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(() => scrollWindow.classList.remove('interacting'), 600);
+  };
+  // pointerenter (not just pointerdown) gives mouse users a JS-driven
+  // pause too, not just the CSS :hover rule -- a genuine belt-and-
+  // suspenders backup in case :hover itself doesn't take effect the
+  // same way on every browser/device, which a direct pointer-event
+  // listener wouldn't share the same failure mode with.
+  scrollWindow.addEventListener('pointerenter', pause);
+  scrollWindow.addEventListener('pointerdown', pause);
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => {
-    scrollWindow.addEventListener(evt, () => {
-      // A short grace period before resuming -- releasing a tap
-      // shouldn't immediately set the row moving again right as the
-      // resulting click/favorite-toggle is still processing.
-      clearTimeout(resumeTimer);
-      resumeTimer = setTimeout(() => scrollWindow.classList.remove('interacting'), 600);
-    });
+    scrollWindow.addEventListener(evt, scheduleResume);
   });
 })();
 
