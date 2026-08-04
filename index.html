@@ -154,6 +154,26 @@
   </div>
 </div>
 
+<div id="digestOverlay">
+  <div id="digestModal" class="simpleModal">
+    <button class="close" onclick="closeDigestModal()">✕</button>
+    <h2 data-i18n="digestTitle">Älä missaa mitään</h2>
+    <p class="authSub" data-i18n="digestSub">Saat aamuisin klo 8 lyhyen koonnin päivän tapahtumista, uutisista ja suosikkiyrityksistäsi sähköpostiisi.</p>
+    <div id="digestFormView">
+      <input type="email" id="digestEmailInput" placeholder="sähköposti@esimerkki.fi" data-i18n-placeholder="digestEmailPlaceholder" style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:8px;border:1px solid var(--line);font-size:14px;font-family:'IBM Plex Sans',sans-serif;margin-bottom:12px;background:var(--panel);color:var(--ink);" />
+      <button class="authSubmit" id="digestSubmitBtn" onclick="submitDigestSignup()" data-i18n="digestSubmitBtn">Tilaa</button>
+      <p id="digestErrorMsg" class="err" style="display:none;"></p>
+      <p class="nearbyPrivacyNote" data-i18n="digestPrivacyNote">Voit peruuttaa tilauksen milloin tahansa jokaisen viestin lopusta löytyvällä linkillä.</p>
+    </div>
+    <div id="digestSuccessView" style="display:none;text-align:center;padding:12px 0;">
+      <p data-i18n="digestSuccessMsg">Tarkista sähköpostisi ja vahvista tilaus klikkaamalla lähettämäämme linkkiä.</p>
+    </div>
+    <div id="digestStatusView" style="display:none;text-align:center;padding:12px 0;">
+      <p id="digestStatusMsg"></p>
+    </div>
+  </div>
+</div>
+
 <div id="installBanner">
   <span id="installBannerText"></span>
   <button id="installBannerBtn" style="display:none;" data-i18n="installBannerButton">Asenna</button>
@@ -321,12 +341,11 @@
       <span>Tallenna suosikit ja saat vinkkejä sinulle tärkeistä asioista.</span>
       <span id="favoritesTileBadge" class="featureTileBadge" style="display:none;"></span>
     </button>
-    <div class="featureTile featureTileSoon">
+    <button type="button" class="featureTile" onclick="openDigestModal()">
       <span class="featureTileIcon" style="background:#2f9e44;"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
       <b>Älä missaa mitään</b>
       <span>Tilaa ilmoitukset tapahtumista, tarjouksista ja uutisista.</span>
-      <span class="featureTileSoonBadge">Tulossa</span>
-    </div>
+    </button>
     <button type="button" class="featureTile" onclick="openNearbyModal()">
       <span class="featureTileIcon" style="background:#1c7ed6;"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
       <b>Lähelläsi</b>

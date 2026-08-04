@@ -213,6 +213,95 @@ function closeFavoritesModal(){
   document.getElementById('favoritesOverlay').style.display = 'none';
 }
 
+function openDigestModal(){
+  document.getElementById('digestOverlay').style.display = 'flex';
+  document.getElementById('digestFormView').style.display = 'block';
+  document.getElementById('digestSuccessView').style.display = 'none';
+  document.getElementById('digestStatusView').style.display = 'none';
+  document.getElementById('digestErrorMsg').style.display = 'none';
+}
+function closeDigestModal(){
+  document.getElementById('digestOverlay').style.display = 'none';
+}
+document.getElementById('digestOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'digestOverlay') closeDigestModal();
+});
+
+async function submitDigestSignup(){
+  const input = document.getElementById('digestEmailInput');
+  const email = input.value.trim();
+  const errBox = document.getElementById('digestErrorMsg');
+  errBox.style.display = 'none';
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    errBox.textContent = t('digestErrorInvalidEmail');
+    errBox.style.display = 'block';
+    return;
+  }
+  if (!currentTown){
+    errBox.textContent = t('digestErrorGeneric');
+    errBox.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('digestSubmitBtn');
+  btn.disabled = true;
+
+  // navId (the numeric square ID), not the group_id dedup key -- the
+  // digest backend looks businesses up against squares.id (see
+  // api/notifications.js), same reasoning as everywhere else favorites
+  // touch navigation: group_id isn't a valid lookup key there.
+  const favoriteBusinessIds = getFavoriteBusinesses().map(f => f.navId !== undefined ? f.navId : f.id);
+
+  try {
+    const res = await fetch(`${API_BASE}/notifications/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, townId: currentTown.id, favoriteBusinessIds })
+    });
+    if (!res.ok){
+      const data = await res.json().catch(() => ({}));
+      errBox.textContent = data.error === 'invalid_email' ? t('digestErrorInvalidEmail') : t('digestErrorGeneric');
+      errBox.style.display = 'block';
+      btn.disabled = false;
+      return;
+    }
+    document.getElementById('digestFormView').style.display = 'none';
+    document.getElementById('digestSuccessView').style.display = 'block';
+  } catch (err) {
+    errBox.textContent = t('digestErrorGeneric');
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Handles landing back on the homepage after clicking the confirm or
+// unsubscribe link in a digest email (see the redirects in
+// api/notifications.js) -- a simple one-time toast rather than a
+// dedicated page, since there's nothing else useful to show there.
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const digestStatus = params.get('digest');
+  if (!digestStatus) return;
+  const messages = {
+    confirmed: t('digestToastConfirmed'),
+    unsubscribed: t('digestToastUnsubscribed'),
+    invalid: t('digestToastInvalid')
+  };
+  if (messages[digestStatus]){
+    document.getElementById('digestOverlay').style.display = 'flex';
+    document.getElementById('digestFormView').style.display = 'none';
+    document.getElementById('digestSuccessView').style.display = 'none';
+    document.getElementById('digestStatusView').style.display = 'block';
+    document.getElementById('digestStatusMsg').textContent = messages[digestStatus];
+  }
+  // Clean the URL so refreshing/sharing it doesn't re-show the message.
+  params.delete('digest');
+  const cleanUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+  window.history.replaceState({}, '', cleanUrl);
+})();
+
 function renderFavoritesList(){
   const favorites = getFavoriteBusinesses().sort((a, b) => b.savedAt - a.savedAt); // most recently saved first
   const list = document.getElementById('favoritesList');
