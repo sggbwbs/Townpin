@@ -1,23 +1,11 @@
-# PaikallisCanvas — an AI-powered local guide for Oulu
+# PaikallisCanvas — Oulu's local business board
 
-The main product is what a person living in or visiting Oulu actually
-opens the site for: an **AI-powered search** ("Mitä haluaisit tehdä
-tänään?") that answers questions about what to do, eat, or find in town
-right now, backed by **real local events** and **real local news** —
-not a generic chatbot guessing at things. Weather is in there too, as
-useful daily-glance context.
-
-Local businesses take part by claiming one or more squares on a visual
-grid of Oulu — each square is a small logo banner, and squares bought
-together render as one bigger block with one logo spanning the area.
-That's how the site pays for itself, and it's also a genuine advantage
-for the visitor experience: the AI search actively recommends board
-businesses first when they're genuinely relevant to the question, ahead
-of a generic web result, and links straight to that business's own
-`/pin/{id}` page. €5/month per square (4+ squares at €4/square), or a
-discounted prepaid term (3/6/12 months, up to "2 months free"). No
-contract, cancel anytime — squares stay live until the end of the
-period already paid for, then release automatically.
+Businesses claim one or more squares on a visual grid representing Oulu —
+€5/month per square (4+ squares at €4/square), or a discounted prepaid
+term (3/6/12 months, up to "2 months free"). Each square is also its own
+indexed webpage at `/pin/{id}` — that's the real product, not just the
+grid. No contract, cancel anytime — squares stay live until the end of
+the period already paid for, then release automatically.
 
 **Deliberately Oulu-only right now**, on the advice of Oulun Seudun
 Uusyrityskeskus: prove the concept in one town before expanding. The
@@ -26,53 +14,61 @@ open to the public" in `/admin`), but only Oulu is currently enabled —
 the public search box for other cities is hidden, and both the frontend
 and the checkout backend itself enforce this (not just the UI).
 
-The site is Finnish-first with an English toggle, and installable as a
-home-screen app (PWA) on both Android and iOS.
+The site is Finnish-first with an English toggle.
 
-## What a visitor actually sees, in the order it matters
+## What's actually on the site right now
 
-1. **AI local-guide search** — a hero search box, not a hidden chat
-   bubble, and the first thing anyone sees. Grounded first in this
-   town's real active board businesses (name, industry, tagline,
-   AI-researched blurb) and today's real news/events; falls back to a
-   real web search only for things that local data doesn't cover (a
-   trail, a museum, a one-off festival). Anything recommended by name —
-   board business or not — gets a real, direct link to its own site,
-   never a directory/review/booking platform, checked both by
-   instruction and by a server-side heuristic; falls back to a Google
-   search when no confident direct link exists. Anchored to the real
-   current date (Europe/Helsinki), so "this weekend"/"last week"
-   reasoning is actually correct. Rate-limited per IP (~25
-   questions/day), since unlike the RSS-based feeds, every question is a
-   real API call.
-2. **Real local events** — actual events (titles, dates, times, venues,
-   ticket links) from Kaleva's own event platform, scoped to today,
-   normally ranked by real popularity (Kaleva's own view-count figure).
-   Admins can also hand-pick up to 4 events to lead the list — with an
-   optional highlight for a subset of those — for days that deserve
-   deliberate curation (a major festival, a sponsored listing) rather
-   than trusting the automatic ranking alone; the true daily count and
-   "Show more" still reflect every real event, picks just lead.
-3. **Real local news** — actual headlines from Kaleva's public RSS feed
-   for the Oulu region, refreshed every ~2 hours. No AI involved in the
-   news itself; genuine journalism with a link back to the source.
-4. **A local weather widget** — current Oulu temperature, click to
-   expand an hourly-today strip plus a 7-day forecast. Uses Open-Meteo
-   (free, no API key, no backend endpoint needed).
-5. **The board** — a click-to-select grid (click one square, click a
-   second to select the whole rectangle between them) where businesses'
-   logo banners actually live, and where the AI search, news, and events
-   above give people a real, recurring reason to visit in the first
-   place.
-6. **"Today in Oulu" shareable card** (`/today-card.html`, linked from
-   `/admin`) — a downloadable PNG combining today's real weather and
-   most popular event, for outreach/social use, not a public-facing page.
-
-## For the businesses on the board
-
-- Each square is also its own indexed webpage at `/pin/{id}` — that's a
-  real product in its own right, not just a grid position, and it's what
-  the AI search links to directly.
+- **The board**: a 10×10 (100-square) grid for Oulu. Click one square to
+  select it, click a second to select every square in the rectangle
+  between them — works the same on phone, tablet, and desktop. Squares
+  bought together render as one block with a single logo spanning the
+  area.
+- **A local weather widget** — current Oulu temperature, click to expand
+  today's hourly forecast plus a 7-day forecast. Uses Open-Meteo (free,
+  no API key, no backend endpoint needed — called directly from the
+  browser).
+- **Homepage layout**: a 2×2 grid below the hero/ask bar (stacks to a
+  single column below 1000px). Top row is Events + Tilannehuone side by
+  side; bottom row is News + Mainostetut yritykset (businesses) side by
+  side. Each card is independently paginated — no more "Show more"
+  buttons anywhere; instead each card shows a fixed page of items with
+  arrow buttons and dot indicators, plus real native horizontal swipe on
+  mobile via CSS scroll-snap (no touch-event JS needed).
+- **Events card** ("Tapahtumat tänään") — photo-forward cards (image,
+  title, date/time, address), 4 across per page. Real photos come from
+  Kaleva's own S3-hosted images (confirmed URL pattern:
+  `https://localhub-oy.s3.eu-central-1.amazonaws.com/images/{hash}`,
+  where `{hash}` is the event's own `imageMobile`/`imageList` field —
+  verified directly against a real API response and the site's own
+  rendered `<img>` output, not a guess). Events that have already ended
+  still show, but greyed out with "Päättynyt" in place of the date/time,
+  rather than being removed — filtering them out entirely left almost
+  nothing to show once the day progresses. Duplicate listings from
+  Kaleva's own feed (the same event appearing 2-4× with identical
+  title/date/time) are deduplicated; a Finnish vs English session of the
+  same event, which have different titles, are correctly kept as
+  separate.
+- **News card** ("Tuoreimmat uutiset") — compact rows blending Kaleva +
+  Yle, capped to the 3 latest. Each row's circular icon is the article's
+  real photo when Kaleva/Yle's own site has one (fetched via each
+  article's `og:image`, with a browser-like User-Agent since sites often
+  block or reduce content for bare server-side requests); falls back to
+  a colored K/Y letter only when a given article genuinely has no photo.
+  "Näytä kaikki" expands into a 3-source-column view (Kaleva/Yle/Oulun
+  kaupunki, each with its own category dropdown) in place, not a
+  separate page.
+- **Tilannehuone** ("🚨 Tilannehuone") — real incident/safety reports
+  (traffic accidents, building fires, etc.) scraped from tilannehuone.fi
+  per-town query pages, with a fallback to their national RSS feed if
+  the per-town scrape fails. Links out to the real site for the full
+  feed.
+- **Mainostetut yritykset / Suositellut paikalliset yritykset** — the
+  businesses that have claimed squares, shown as a horizontally
+  auto-scrolling row of logo + name + real industry category (a
+  `squares.industry` column that already existed in the schema but
+  wasn't surfaced anywhere in the frontend before). Auto-scrolls
+  seamlessly (duplicated track + `translateX` loop) once there's more
+  than 1 business; pauses on hover.
 - **Self-service management** (`/manage`, linked after purchase) —
   businesses can edit their tagline, logo, color, and AI-researched
   "quick info" blurb; see real view-count analytics for their page; and
@@ -84,26 +80,22 @@ home-screen app (PWA) on both Android and iOS.
   `apple-touch-icon` — deliberately NOT a generic preview photo, which
   was confirmed to often be wrong). Also suggests an industry category
   via a low-risk AI classification call (picking from a fixed list, not
-  generating anything).
+  generating anything). That same `industry` field is what now shows
+  under each business's name in the homepage card.
 
 ## Admin capabilities (`/admin`)
+
+Redesigned into genuine columns (Tapahtumat / Yritykset / Tilastot /
+AI-palaute / Muut työkalut) side by side, rather than one long stacked
+page — extracted via tag-balanced boundary detection so nothing got
+manually copy-pasted or risked corruption during the move.
 
 - Edit site copy (hero text, value props, footer) with live preview
 - Grant free squares or move a company to a different town
 - Enable/disable which towns are open to the public
-- **Choose today's featured events** — hand-pick up to 4 events to lead
-  the public events list, with an optional highlight for a subset
-- **Teach the AI agent** — freeform standing instructions injected into
-  every chat request's system prompt (e.g. "always mention X by name
-  when asked about car rentals")
 - **Maintenance mode** — one click puts the homepage under construction
   (a simple "back soon" message) without touching `/manage`, individual
   business pin pages, or this admin panel itself
-- **Kävijälaskuri** — a simple page-load counter (today / last 7 days /
-  all-time). Deliberately basic: no unique-visitor dedup, no per-page
-  breakdown, just "how much traffic are we getting" at a glance
-- **Daily share card** — link to `/today-card.html` for generating the
-  outreach PNG above
 
 ## Anti-abuse protections worth knowing about
 
@@ -135,7 +127,20 @@ contributor to slow page loads) and the least accurate of the three
 content feeds, since retail/grocery deals are usually published as
 app-only or image/PDF flyers, not indexable text. The code still exists
 in `_localFeed.js` in case it's worth revisiting differently later, but
-nothing calls it anymore.
+nothing calls it anymore. **Tilannehuone now occupies that same visual
+slot on the homepage** (top-right, next to events) — worth being clear
+that it's a genuinely different, real feature (real incident/safety
+reports from tilannehuone.fi), not a revival of the AI-searched offers
+concept.
+
+A basic public-transport ("from X, to Y, here's your bus and when")
+feature was scoped out but not built: a real Oulun seudun liikenne GTFS
+feed was supplied and confirmed genuine, but building actual trip-
+planning (matching routes that serve both stops, in the right order, at
+real times) is meaningfully harder than just listing nearby stops, which
+itself would already need proper batched import of a 1M+ row dataset.
+Set aside as not "light," per explicit direction, rather than shipping a
+half-working version.
 
 ## On the €5/month vs €12/year trade-off
 
@@ -194,25 +199,19 @@ anyone real.
 
 ## Files
 ```
-index.html                     frontend — Finnish/English toggle, AI search box,
-                                weather widget, news/events feed, click-to-select
-                                grid, claim modal, PWA install banner
+index.html                     frontend — Finnish/English toggle, click-to-select
+                                grid, weather widget, news/events feed, claim modal
 admin.html                     copy editor, grant/move squares, towns open/closed,
-                                AI agent hints, event selection/highlighting,
-                                maintenance mode toggle, visitor stats
+                                maintenance mode toggle
 manage.html                    self-service listing management (tagline/logo/color/
                                 blurb, view analytics, cancel subscription)
-today-card.html                admin-linked "Today in Oulu" shareable PNG generator
 generate-hash.html             one-time browser tool to generate admin credentials
-manifest.json, sw.js, icons/   PWA install support (static-shell-only service worker)
 
 api/town.js                    finds/enables a town board (public: enabled-only;
                                 admin: any town, via an authenticated bypass)
-api/data.js                    merged board+feed endpoint (same public /api/board and
-                                /api/feed URLs via vercel.json rewrites) — returns
-                                claimed squares, or news+events for a town
-api/ask.js                     AI local-guide chat endpoint — grounded in board
-                                businesses + real news/events, web search fallback
+api/board.js                   returns a town's claimed squares only (fast, no feed data)
+api/feed.js                    returns news + events for a town (separate from board.js
+                                so feed generation can never block the grid from loading)
 api/create-checkout-session.js validates + reserves squares (5 min, IP-capped), starts
                                 a Stripe subscription or one-time prepaid charge
 api/webhook.js                 activates squares on payment; expires them on cancellation
@@ -220,29 +219,29 @@ api/webhook.js                 activates squares on payment; expires them on can
 api/manage.js                  self-service editing + cancel-subscription endpoint
 api/pin/[id].js                the SEO page for each claimed square; tracks view_count
 api/fetch-site-info.js         website autofill: name/tagline/real-logo-only/industry
-api/maintenance.js             merged cron endpoint (abandoned reservations, expired
-                                prepaid terms, active-square re-screening) — dispatches
-                                on Vercel's cron header, never called from the frontend
+api/cleanup.js                 daily cron — clears abandoned reservations + expired
+                                prepaid terms
+api/recheck-squares.js         weekly cron — re-screens active squares for link swaps
 api/upload-logo.js             direct logo upload + crop
-api/admin/[action].js           merged admin actions (login, content, grant, revoke,
-                                move, towns list/enable/disable, AI hints, event
-                                selection/highlighting, visitor stats, maintenance toggle)
+api/admin/[action].js          merged admin actions (login, content, grant, revoke,
+                                move, towns list/enable/disable, maintenance toggle)
 api/admin/_auth.js             admin session token sign/verify
-api/_db.js, api/_geocode.js, api/_linkCheck.js, api/_moderate.js,
-api/_companyInfo.js, api/_pricing.js, api/_rateLimit.js, api/_squares.js   shared helpers
+api/_db.js, api/_linkCheck.js, api/_moderate.js, api/_companyInfo.js   shared helpers
 api/_localFeed.js               news (real RSS) + events (real Kaleva API) fetching/
-                                caching/admin-curation logic; offers code still here
-                                but unused
+                                caching logic; offers code still here but unused
+api/tilannehuone.js             standalone endpoint for real incident/safety reports
+                                (tilannehuone.fi scrape + national RSS fallback) —
+                                deliberately lightweight, no Stripe/bcrypt/Supabase
+                                imports, unlike the other API files
 
 schema.sql                     run once in Supabase (all migrations, safe to re-run)
 vercel.json                    routing (including the /oulu clean URL) + cron schedules
 .env.example                   environment variables needed
 ```
 
-*(11 of 12 available Vercel Hobby serverless functions currently in use
-— one slot of headroom, not sitting exactly at the ceiling. Any future
-new endpoint should still prefer consolidating into an existing file
-over adding a new one, since the ceiling is easy to hit again.)*
+*(Confirmed running on Vercel **Pro**, not Hobby — the old 12-function
+Hobby-tier limit doesn't apply here, so `api/tilannehuone.js` existing as
+its own standalone function isn't a concern.)*
 
 ## Everything below this point is the detailed build history
 
@@ -1358,92 +1357,6 @@ order at all, since there's only one day to sort within). Shown 5 at a
 time; clicking "Show more" reveals 5 *additional* each click (not "reveal
 everything at once" like news does) — genuinely incremental pagination.
 
-## Legal/disclosure fixes: expanded privacy text, AI disclaimers, weather attribution
-
-Addressed gaps found in a legal review, all deliberately kept low-profile
-— no new popups, banners, or consent dialogs, just more complete text in
-places that already existed:
-
-- **Terms & Privacy modal** (`/` → "Ehdot ja tietosuoja", both FI and EN)
-  now discloses the IP addresses already being stored (checkout
-  reservation limits, admin login attempts, AI search rate limiting) and
-  names the third-party processors actually handling data — Stripe,
-  Supabase, Anthropic — plus a rough retention note for abuse-prevention
-  logs. Also added a **content-rights clause** (buyer confirms they have
-  the right to use any logo/content they upload, and is responsible for
-  not infringing anyone else's) and an **AI-content clause** (search
-  answers and "automatically found" business blurbs are AI-generated,
-  can be wrong, and businesses can edit/remove their own via `/manage`).
-  Still just a modal opened by clicking a footer link — nothing pops up
-  unprompted.
-- **AI search disclaimer** — one small, muted line ("Vastaukset ovat
-  tekoälyn tuottamia...") under the search box on the homepage, styled to
-  read as fine print, not a warning banner.
-- **Pin page AI-blurb caveat** — the existing "🔎 Automaattisesti löydetty
-  tieto" quick-info box now has a small caption underneath noting it's
-  AI-assembled and may be inaccurate, matching the size/weight of the
-  existing source-link text right above it.
-- **Open-Meteo attribution** — a small credit line ("Sää: Open-Meteo.com",
-  linked) at the bottom of the forecast panel, satisfying their
-  attribution license term without adding any visual weight to the
-  widget itself.
-
-Not done here, since they're not code changes: reaching out to Kaleva
-about the events API (see the email drafted for this), and confirming
-Data Processing Agreements are actually in place with Stripe, Supabase,
-and Anthropic — both flagged in the same review but need action outside
-the codebase.
-
-## Weather widget: animated Meteocons icons instead of plain emoji
-
-Replaced the emoji weather icons (☀️🌧️❄️ etc.) with [Meteocons](https://meteocons.com) — hand-crafted, animated SVG weather icons, loaded straight from their CDN as plain `<img>` tags (no npm package, no bundler, no new backend dependency). Applies everywhere a weather icon shows: the header pill, the hourly-today strip, and the 7-day forecast.
-
-**Genuinely lightweight**: each icon is a small, cacheable SVG file fetched directly by the browser — no extra JS library, no icon font, nothing added to the page's own bundle. `loading="lazy"` on every icon `<img>`.
-
-**Day/night aware where Meteocons has a variant** (clear, partly cloudy, fog, thunderstorms) — the current conditions pill and hourly strip request `is_day` from Open-Meteo alongside temperature/weather code, so a clear night correctly shows a moon-based icon instead of a sun. The 7-day forecast always uses the day variant (a forecast card represents a whole day, not one moment).
-
-**Never shows a broken image**: every icon `<img>` has an `onerror` handler that swaps back to the original plain emoji if the Meteocons CDN ever fails to serve that icon (an unexpected weather code, a CDN hiccup) — the emoji map was kept specifically as this fallback, not removed.
-
-**Pinned to a specific CDN version** (`3.0.0-next.10`) rather than `latest` — confirmed directly against the live CDN that `latest` currently 404s (Meteocons hasn't published a stable v3 release yet, only versioned pre-release builds). Meteocons' own docs note a pre-release tag can be pruned roughly 3 months after the next full release ships, so this version may need bumping later — check https://meteocons.com/docs/cdn if icons ever stop appearing (the onerror fallback covers that gap gracefully in the meantime).
-
-Only `index.html`'s own weather widget was changed — `today-card.html`'s shareable PNG still draws the plain emoji directly onto its `<canvas>`, since swapping that to an `<img>`-based icon would require loading it as a cross-origin `Image` first (Meteocons' CDN does send CORS headers, so this is possible) and risks silently breaking the "download PNG" feature if that ever tightens — left alone unless specifically wanted.
-
-## New: admin can hand-pick which events show, with optional highlighting
-
-A new "Choose today's featured events" card on `/admin` lists every
-currently-live event for the (currently single) enabled town, each with a
-checkbox and a "☆ Highlight" toggle. Checking up to 4 events and saving
-puts those events at the top of the public board, ahead of the automatic
-ranking. Order is: highlighted picks first, then the rest of the manual
-picks, then everything else — so a highlight reads as "top of the list,"
-not just a badge further down. **The full list and its true count are
-preserved** — only the order changes — so the existing "X events today"
-count and "Show more" toggle on the board still reflect the real number
-of events happening, with picks simply leading. (An earlier version of
-this truncated the list to 4 server-side, which made the displayed count
-wrong whenever more than 4 real events existed for the day — fixed.)
-Unchecking everything and saving reverts to fully automatic ordering.
-
-**Highlighting is a separate, optional layer on top of selection** — a
-highlighted event gets an amber outline and a small "Suositeltu"/
-"Featured" badge on the public board. The highlight toggle is disabled
-in the admin UI for any event that isn't checked, and the backend
-rejects a highlight for anything not also selected, so the two can never
-drift out of sync.
-
-**No new serverless function needed** — both actions
-(`/api/admin/list-events`, `/api/admin/select-events`) are two more cases
-in the existing `admin/[action].js` dispatcher, same pattern as the AI
-hints list/add/delete actions. Two new boolean columns on
-`local_feed_items` (`admin_selected`, `admin_highlighted`) hold the
-state; `getEventsSection` in `_localFeed.js` checks for any
-`admin_selected` row and, if found, returns only those events instead of
-the normal list — checked at every return path (cache hit, merge,
-nothing-new), so a saved selection sticks regardless of which branch of
-the caching logic produced the result. Saving the selection always
-resets the whole town's flags first, so unchecking something actually
-clears it rather than only ever accumulating.
-
 ## Weather widget: added today's hourly forecast
 
 Clicking the weather pill now shows two things stacked: an hourly strip
@@ -1452,989 +1365,76 @@ for today (every 3 hours: 00:00, 03:00, 06:00...) above the existing
 `hourly` data alongside `current` and `daily` — no extra API calls
 needed.
 
-## Weather widget always shown, no click needed; events title reflects today-only scope
-
-Weather now shows the hourly-today + 7-day forecast immediately once
-loaded — no click required, the toggle behavior was removed entirely
-(the element is now a plain, non-interactive div).
-
-Events section title changed to "Tapahtumat tänään" / "Events today" to
-accurately reflect the today-only scope from the previous change.
-
-**On a real question asked, not a change made**: whether removing
-English translations or dark mode would speed up the site — no, neither
-would meaningfully help. Both are cheap (a few KB of text, CSS variable
-overrides), and the actual performance issues found earlier tonight were
-backend data-fetching architecture (sequential vs. parallel feed
-generation, the offers feature), already fixed. Kept both features as-is
-rather than cutting real value for no real gain.
-
-## Fixed: stale cached events showing wrong dates entirely
-
-Real bug, confirmed directly from a screenshot showing five different
-day numbers (5, 12, 3, 3, 4) all claiming to be "today." Root cause: the
-cache-freshness check only verified *age* (under 20 hours old), never
-whether the cached rows' actual dates still matched today. Once events
-were scoped to "today only," a cache that happened to still be within
-its 20-hour window — but was generated before that change, or simply
-before the calendar day flipped — kept getting served as valid, mixing
-in dates from whatever days were cached across earlier versions of this
-logic.
-
-**Fixed properly**: cached event rows are now only considered usable if
-their `event_date` genuinely equals today's real date in Europe/Helsinki
-time — not just "recent enough." Any mismatch (including all the
-current stale multi-day rows) is treated as an empty cache, forcing an
-immediate fresh fetch. This is now self-correcting going forward: it
-can't silently drift stale again the same way, since every check
-re-validates against the actual current calendar day, every time.
-
-## Found the actual remaining bug: the AI fallback was never updated
-
-The previous cache fix was correct but incomplete — it explains why *old*
-cached rows could persist, but the screenshot showed a *fresh* set of
-wildly scattered dates (1st through 24th of the month) even after a
-confirmed clean cache clear. That pattern is the signature of the
-AI-search fallback, not the real Kaleva API — its prompt still said
-"next 4 weeks," left over from before events were scoped to today only.
-
-**What was actually happening**: the real API was very likely returning
-zero results for "just today" specifically (a single day is a narrow
-window, and it may genuinely have nothing listed some days), so the code
-fell through to the fallback — which then generated events spread across
-the whole month, since nothing had told it to scope down to today.
-
-**Fixed two ways, not just one**: the fallback prompt now explicitly asks
-for today only, AND there's a hard code-level filter afterward that
-rejects anything not dated exactly today — regardless of whether the AI
-follows the instruction perfectly. Same "don't just trust the prompt"
-principle applied elsewhere in this file.
-
-## Found a third real bug: timezone offset + "floor" excluding today's earlier events
-
-The logs confirmed the request was succeeding (200, no errors, real
-Kaleva API called) — just legitimately returning zero results. Two real
-bugs combined to cause that:
-
-1. **Timezone offset was silently ignored.** The "end of today" cutoff
-   was built from Helsinki's calendar date but treated as if it were
-   already a UTC timestamp — never actually applying Helsinki's UTC+2/+3
-   offset. Off by a few hours, every time.
-2. **The window's floor was "right now," not "start of today."** As the
-   day goes on, more of today's events have already started relative to
-   the current moment, and were being excluded as if they were in the
-   past — even though they're still genuinely "today's" events. By
-   evening, most of a day's events would already be filtered out this way.
-
-**Fixed properly**: a new `getHelsinkiDayBounds()` function gets
-Helsinki's actual UTC offset directly from `Intl` (not assumed or
-ignored), and the window now runs from the true start of today through
-its true end — regardless of what time of day the request happens to
-run.
-
-## Rewrote the main copy to explain the mechanism, not just the pitch
-
-The hero subhead now explicitly explains the two distinct ways
-visibility actually happens: real Oulu locals browsing the board itself
-(checking today's news/events/weather — a genuine reason to visit, not
-just a business directory), and each business's own indexed page
-appearing in Google independently of board traffic. Previously it just
-said "customers find you on the board and Google" without explaining
-*why* anyone would be on the board in the first place.
-
-Also fixed a real static/STRINGS divergence found along the way — the
-static HTML default for the "findable on Google" value card still said
-"oman sivun" (a page) instead of the corrected "oman esittelysivun" (a
-showcase page) from an earlier clarity fix, meaning it only displayed
-correctly once the JS had already replaced it, not on first paint.
-
-## New: "Today in Oulu" shareable card generator
-
-A new page, `/today-card.html`, generates a real downloadable PNG image
-(1080×1080, feed-post friendly for Facebook/Instagram) combining:
-- Today's real weather (same Open-Meteo source as the site's widget)
-- Today's single most popular event (reuses `/api/feed`, already sorted
-  by real popularity — just takes the first result)
-- PaikallisCanvas branding, including a signature grid-of-squares motif
-  in the corner that echoes the actual board itself, rather than a
-  generic weather-card look
-
-**Built as a genuine daily-use tool, not a one-off**: click "Lataa
-kuvana" and it downloads immediately as a dated PNG file, ready to post
-directly — no manual screenshotting needed. Regenerates fresh every time
-the page loads, since it's pulling real current data each time.
-
-**Linked from `/admin`** (a new "Daily share card" section, gated behind
-login like everything else there) rather than the public site — this is
-a tool for outreach, not something public visitors need to find.
-
-No new serverless function needed — `today-card.html` is a static page
-(same category as `admin.html`/`manage.html`), and it calls the
-*existing* `/api/town` and `/api/feed` endpoints directly from the
-browser.
-
-Card since expanded to show more: today's high/low alongside the
-current temperature, a short plain-language weather description, and up
-to 3 of today's most popular events (previously just 1) instead of one
-long single-event summary.
-
-## New: AI local-guide search (`/api/ask.js`)
-
-A hero search box at the very top of the page — "Mitä haluaisit tehdä
-tänään?" — not a hidden chat bubble. Deliberately the first thing a
-visitor sees, since this is meant to become the site's primary way of
-finding things, not a secondary feature bolted onto the board.
-
-Grounded in real local data, in priority order: this town's active
-board businesses (name, industry, tagline, AI blurb), today's real news
-and events, and — only when that doesn't cover the question — a real
-web search. Board businesses are recommended first when genuinely
-relevant and linked to their own `/pin/{id}` page; that's the whole
-point of the site, not an awkward ad read.
-
-**Anything else recommended by name gets a real, direct link too** —
-not just a name with nothing to click. The URL has to be that specific
-business's own site, never a directory, review site, or reservation/
-booking platform (dinnerbooking.com, TripAdvisor, Visit Oulu, etc.) that
-merely mentions it alongside others — checked both by instruction and
-by an actual server-side heuristic (does the business's real name show
-up in the domain at all?), plus a small known-domain denylist as a fast
-secondary check. When no confident direct link exists — including when
-a business genuinely has no website — it falls back to a Google search
-for that business's name + town, built server-side rather than trusted
-from the model.
-
-**Anchored to the real current date** (Europe/Helsinki time, injected
-into every request) — without this, "this weekend" / "last week"
-reasoning was pure guesswork built from whatever a search result
-happened to say, which is dated to whenever *that page* was written,
-not to right now. Also strips citation markup (`<cite>` tags) that
-web-search-grounded responses include by default, which isn't
-meaningful in a plain chat box with no citation UI to render it in.
-
-Rate-limited at ~25 questions/IP/day (`_rateLimit.js`, same pattern as
-admin login brute-force protection) — normal use is genuinely cheap
-(roughly $0.005–0.015/question on Haiku), but an unattended script
-hammering the endpoint has no other natural ceiling.
-
-## Stayed under Vercel Hobby's 12-serverless-function cap
-
-Adding `ask.js` pushed the real count of non-`_`-prefixed `/api/*.js`
-files to 13 (each file = one function, regardless of internal
-complexity, regardless of `_`-prefixed helpers which don't count).
-Merged two pairs, both zero real-world risk:
-
-- `cleanup.js` + `recheck-squares.js` → `maintenance.js` — both are
-  cron-only, never called from the frontend, distinguished via Vercel's
-  own `x-vercel-cron-schedule` header rather than a query param.
-- `board.js` + `feed.js` → `data.js` — the frontend still calls the
-  exact same `/api/board` and `/api/feed` URLs, completely unchanged,
-  routed to the merged file via `vercel.json` rewrites (which merge the
-  original query params in automatically). Still two separate requests
-  at two separate times, so feed generation still never blocks the
-  board itself from rendering.
-
-Currently at 11 functions — one slot of headroom, not sitting exactly
-at the ceiling.
-
-## Installable as an app (PWA)
-
-`manifest.json` + `sw.js`, wired into `index.html`. Icons generated
-from the existing brand mark (the pin + amber grid SVG in the header),
-not a new design — plain + "maskable" variants (extra padding so
-Android's circular/squircle crop never clips it) at 512/192px, plus a
-180px apple-touch-icon and a 32px favicon.
-
-The service worker is deliberately conservative: it only caches the
-static shell (the HTML document + manifest) for a faster repeat load
-and a basic offline fallback, and explicitly never touches anything
-under `/api/*`. This is a live-data site — board availability, news,
-events, weather, chat answers — and a cache-first service worker is
-exactly how you end up with someone stuck looking at yesterday's board
-after a deploy.
-
-**A real install button, not just a browser-menu option** — a
-dismissible banner under the header shows a genuine "Asenna" button on
-Chrome/Edge/Android (via `beforeinstallprompt`, with the browser's own
-default mini-infobar suppressed in favor of this). iOS Safari never
-fires that event at all, so it gets manual instructions instead ("tap
-the share button → Add to Home Screen") rather than nothing.
-
-## Simple visitor counter (kävijälaskuri) on `/admin`
-
-A new `page_views` table (one row per page load, fired best-effort from
-the frontend once the town resolves) and a new admin dashboard card
-showing today / last 7 days / all-time counts. Deliberately basic — no
-unique-visitor dedup, no IP storage, no per-page breakdown — a rough
-"how much traffic are we getting" number, not an analytics platform.
-
-No new serverless function needed — both the public tracking endpoint
-and the admin-only stats endpoint were added as two new cases in the
-existing `admin/[action].js` dispatcher, the same pattern already used
-for login/logout/content/grant/etc.
-
-## Visitor accounts, AI-chat credits, two-admin logins, perf tweaks, and a rebrand
-
-A larger batch of changes, still inside Vercel Hobby's 12-function cap:
-
-- **Visitor accounts** — email + password only (`users` table), opt-in
-  personalization consent (off by default), password reset via a
-  Resend-sent email link. All new `/api/user/*` actions live inside
-  `api/data.js` (routed through `vercel.json` rewrites, same trick as
-  `/api/board`/`/api/feed`) — zero new functions.
-- **AI-chat quota** — 10 free questions/day, resetting at midnight
-  Europe/Helsinki (a real calendar day, not a rolling 24h window — see
-  `countIpToday`/`countUserToday` in `api/_rateLimit.js`), tracked by
-  account for logged-in visitors and by IP for anonymous ones. Past the
-  free 10, a logged-in visitor can buy 10 more for €0.99 (one-time
-  Stripe Checkout); an anonymous visitor is prompted to register
-  instead. Admins are unlimited.
-- **Two admins, same access** — separate password hashes
-  (`ADMIN_PASSWORD_HASH` / `ADMIN2_PASSWORD_HASH`), the session token
-  carries a label so the panel can show "logged in as: X" for
-  accountability. Not a permissions split — both admins can do
-  everything.
-- **Performance** — longer edge-cache lifetimes on `/api/board` and
-  `/api/feed` (15s → 60s, matching how infrequently the underlying data
-  actually changes), `defer` on the Cropper.js/Leaflet `<script>` tags
-  so they stop blocking initial page parse, and `preconnect` hints for
-  the external font/CDN domains.
-- **Rebrand** — tab title, meta description, and footer tagline now
-  lead with "paikallinen tekoälyopas" (local AI guide) instead of the
-  ad-slot pitch, and the footer tagline deliberately no longer names
-  Oulu specifically, so it reads correctly once other cities launch.
-
-**Known next step, not yet done:** the hero headline
-(`heroTitle`/`heroSub` in `site_content`) still hardcodes "Oulu" by
-name ("Näytä yrityksesi koko Oululle."). `site_content` is a *global*
-table today — one row per key/language, not per town — so as written,
-every town's board would show the same Oulu-specific hero text once a
-second city goes live. Before adding city #2, this needs either (a) a
-`town_id` column on `site_content` so each town gets its own hero copy
-(more admin work per city, but correct Finnish grammar every time), or
-(b) a template with the town name substituted in, which will need a
-human check per city since Finnish case endings (-lle/-lla/-ssa) don't
-always attach cleanly to an arbitrary city name. Leaning toward (a).
-
-## Website and logo are now optional, not required
-
-Not every business has a website or a logo yet -- both were previously
-hard-required at every entry point (the public purchase flow, and the
-admin panel's grant/edit-company forms), which meant those businesses
-simply couldn't buy a square at all. Nothing in the database ever
-required this (`website_url`/`logo_url` were always nullable columns);
-the requirement was purely validation logic, in four places:
-`api/create-checkout-session.js`, `api/admin/[action].js` (grant and
-edit-company), and their matching frontend checks in `index.html` and
-`admin.html`.
-
-Knock-on fixes needed once both could be genuinely absent:
-- `api/_moderate.js` and `api/_companyInfo.js` no longer try to
-  fetch/reference an empty URL -- they fall back to judging/describing
-  the business on its name alone.
-- `api/pin/[id].js`'s "Visit website →" button and schema.org `url`
-  field are now conditional (the logo `<img>`/`og:image` already were).
-- Empty-string values are normalized to `null` on save, matching the
-  existing pattern for every other optional field, rather than storing
-  `''`.
-
-No display fix was needed for the "no logo" case beyond that: the
-board itself isn't a grid of visible tiles (see the earlier
-"scrolling logo banner" note) -- a business's logo only appears at all
-in that banner and on its own `/pin/{id}` page, and the banner already
-skipped squares with no logo before this change.
-
-## Date-scoped event curation -- plan tomorrow's picks today
-
-Admin event curation ("choose up to 4 events to feature") used to be
-a single flat always-on state (`admin_selected`/`admin_highlighted`
-columns on `local_feed_items`) with no concept of *which day* it
-applied to -- there was no way to prepare tomorrow's picks without
-overwriting today's, and no way to prepare anything further ahead at
-all.
-
-Replaced with a new `event_picks` table (`town_id`, `event_id`,
-`pick_date`, `highlighted`) -- the old columns are left in place,
-unused, rather than dropped (see the "website and logo" entry above
-for why this app doesn't do destructive schema changes). Both
-`list-events` and `select-events` in `api/admin/[action].js` now take
-a `date` (default: today), and the live public feed
-(`getEventsSection` in `api/_localFeed.js`) always asks "what's picked
-for *today's actual date*, right now" -- so picks made in advance for
-tomorrow apply automatically the moment tomorrow begins, with no cron
-job needed to "activate" them.
-
-Two places now expose this:
-
-- **`admin.html`**'s existing "Choose featured events" card gained a
-  date field. Switching it reloads that day's events and picks;
-  saving only ever touches that one day's plan.
-- **`today-card.html`** (the shareable social-image tool) gained a
-  date picker too. Today keeps working exactly as it always did (the
-  public feed, no login required) -- picking a *future* date requires
-  an admin login (the date input's `max` is clamped to today for
-  anyone not logged in, so a logged-out visitor can't even reach the
-  future-date code path) and pulls that day's events via the
-  authenticated admin endpoint, plus that day's forecast instead of a
-  "current" reading -- there's no "current" temperature for a day
-  that hasn't happened yet, so the layout swaps to lead with the
-  high/low instead. The date pill, section header ("TÄNÄÄN" /
-  "HUOMENNA" / the correct Finnish essive form of the weekday for
-  anything further out), page title, and download filename all follow
-  the chosen day.
-
-## Date-scoped event curation -- reverted
-
-The feature described immediately above didn't reliably pick the right
-events once deployed (events for other days weren't showing up as
-expected in practice) and was reverted rather than debugged further.
-`admin.html`, `today-card.html`, `api/admin/[action].js`, and
-`api/_localFeed.js` are all back to the always-today flat
-`admin_selected`/`admin_highlighted` behavior described further above,
-and `today-card.html` is back to being a plain single-day ("today
-only") card generator -- no date picker, no admin login required to
-use it.
-
-The `event_picks` table added for this feature is left in the schema
-(harmless, unused -- same reasoning as the old boolean columns further
-up: this app doesn't do destructive schema changes). If picking events
-for future days comes back as a priority later, it's worth
-approaching as its own focused piece of work rather than bundled with
-other changes, given how many places actually touch event curation
-(the public feed, the admin panel, and the card generator all read or
-write it).
-
-## Fixed: "Could not find available squares after several attempts"
-
-Real bug in `pickRandomEmptySquares` (`api/_squares.js`), hit when
-adding slots to an existing business from the admin panel (and
-latent anywhere else that grants/assigns squares). It only counted a
-square's index as "taken" if a row existed with status active or
-pending -- but the database's `unique(town_id, idx)` constraint has
-no such exception: once ANY row has ever existed at an index, even
-one that's since expired or been cancelled, that exact index can
-never be inserted again. As squares churned over time (downsizing,
-cancellations, expired prepaid terms), this kept treating those
-permanently-retired indices as available, so it collided with the
-real constraint on every single retry -- not an occasional race, a
-guaranteed failure once a town had enough churn in its history.
-Fixed by counting a square as taken based on ANY row ever existing at
-that index, regardless of status -- matching the constraint exactly,
-and arguably the more correct behavior anyway (a `/pin/{id}` page is
-meant to be a stable permanent URL; silently handing a used-then-expired
-index to a different business later would be its own kind of bug).
-
-Also capped the "number of ad slots" +/- stepper at 20 in both admin
-panel flows (granting a free square, editing an existing business) --
-previously uncapped, so a stray extra click (or holding the button
-down) could run the requested count up into the hundreds with nothing
-stopping it.
-
-## Admin panel is now town-aware (first step toward multi-city)
-
-Step one of expanding beyond Oulu (Tampere, Helsinki, Vantaa, Espoo,
-Rovaniemi, Jyväskylä, Turku are the planned next cities). Two things
-that used to silently assume "whichever town happens to be enabled"
-now genuinely respect which town you're managing:
-
-- **One shared town selector**, always visible in the admin header
-  ("Managing: ___"), persisted in localStorage across reloads. Every
-  town-scoped section reads from this single source of truth instead
-  of picking its own -- previously the events-picker card had already
-  grown its own separate town dropdown; that's been consolidated into
-  the shared one rather than left as a second, independently-drifting
-  picker.
-- **AI chat hints are now genuinely per-town**, not global-only. New
-  `town_id` column on `ai_agent_hints` (nullable -- null means "applies
-  to every town's chat", a specific value scopes it to just that one).
-  The hints list shows both this town's hints and the global ones
-  together, clearly labeled which is which.
-- The shared selector lists closed (not-yet-public) towns too, not
-  just open ones -- you'll often want to prep a new city's events and
-  hints before flipping it to "Open to public," not only after.
-
-**What this does NOT yet cover** -- still genuinely single-city (Oulu)
-or not yet needed:
-- **`site_content` (hero text, footer, etc.) is still global**, one
-  row per key/language, no `town_id`. This is the next real piece of
-  work before a second city can go live with its own correct copy --
-  see the earlier note on this same limitation for why it's a bigger
-  change (Finnish grammar doesn't template cleanly across arbitrary
-  city names).
-- **News and events are still 100% hardcoded to Oulu** -- Kaleva's RSS
-  feed URLs, Kaleva's event API (one hardcoded Oulu-specific collection
-  ID), and even the weather widgets' lat/long are all Oulu-only right
-  now, in `api/_localFeed.js`, `index.html`, and `today-card.html`.
-  Real per-city sources still need to be built -- LinkedEvents (the
-  open, multi-city Finnish events API standard) looks like a strong
-  candidate covering Helsinki, Espoo, Vantaa, Turku, and Tampere, but
-  this needs its own dedicated build, plus a genuine per-city check for
-  news (Kaleva's free public RSS is unusually generous for a regional
-  paper -- the equivalent papers for other cities may not offer the
-  same, and need checking one at a time rather than assumed).
-- The grant-square and edit-company admin flows still let you type or
-  search for a town directly rather than defaulting to the shared
-  selector -- left as-is on purpose, since granting or editing a
-  business isn't necessarily about "the town I'm currently managing"
-  specifically.
-
-## Three follow-up fixes to the town-aware admin panel
-
-- **Seeded the 7 planned expansion cities** (Tampere, Helsinki, Vantaa,
-  Espoo, Rovaniemi, Jyväskylä, Turku) directly in `schema.sql`, so they
-  show up ready to enable in the Towns card immediately -- previously
-  a city only existed once some visitor happened to search for it by
-  name first (which is how Espoo/Helsinki/Tampere had already
-  appeared, as real visitor searches, not a deliberate seed).
-- **Fixed the default "Managing" town** -- it was defaulting to
-  whichever town sorted first alphabetically (Espoo), since
-  `towns-list` orders by name and nothing told it to prefer Oulu.
-  Now explicitly defaults to Oulu specifically.
-- **Added a way to fix legacy AI hints.** Hints written before
-  per-town scoping existed all defaulted to town_id null ("applies
-  everywhere") -- correct for the data as it was, but wrong for
-  several that were actually written with Oulu specifically in mind
-  (one links directly to visitoulu.fi/ouka.fi). Rather than guessing
-  which old hints were really city-specific vs. genuinely universal
-  (a national chain mentioned in one hint might reasonably apply
-  everywhere), any hint still shown as "All towns" now gets a
-  "Move to [current town]" button so the admin can fix the ones that
-  need it, one at a time, with the actual content in front of them.
-
-## Delete a town
-
-The Towns card only ever let you open/close a town, not remove one --
-no way to clear out a stub town that got auto-created by a visitor
-searching a name that isn't actually a planned city (Kempele,
-Merikarvia, Rauma, Tyrnävä showed up this way, cluttering the list
-next to the real 7 expansion cities). Added a Delete button, shown
-only for closed towns. Safety is mostly the database itself, not just
-app logic: `squares.town_id` has no cascade, so Postgres refuses the
-delete outright (a foreign-key violation) if the town has any squares
-at all, even old expired ones -- the app just turns that into a clear
-message instead of a raw DB error.
-
-## site_content is now per-town
-
-The last piece flagged as global-only back when the hero-text problem
-was first noted. `site_content` gains a `town_id` column: `0` is a
-sentinel meaning "the default/fallback text, shown to any town without
-its own override" (not a real town id, so deliberately no foreign key
-on it), a real town id is an explicit override for just that one town.
-
-Existing content all became the default via the column's own default
-value -- zero migration needed for Oulu to keep working exactly as it
-already did. Oulu additionally got its own explicit override, copied
-from that same default text, since it was written specifically
-naming Oulu in the first place ("Näytä yrityksesi koko Oululle") --
-making that fact explicit in the data rather than accidental. Every
-*other* town still falls back to that same Oulu-flavored default text
-until someone writes a real override for it -- expected and fine, not
-a bug: better to show something (even if it's not perfectly tailored
-yet) than nothing.
-
-The admin editor now shows, per field, whether it's using the shared
-default or has actually been customized for whichever town is
-currently selected (the same shared selector from the earlier
-town-aware admin work) -- saving always writes an override for that
-specific town, never touches the shared default.
-
-The public site applies content in two passes, not one, and this
-mattered enough to note: the shared defaults apply immediately on page
-load (fast, no need to know which town yet), and a second pass layers
-in the current town's own overrides once `/api/town` has actually
-resolved which town this page is for -- re-running `setLang()` itself
-so the DOM reflects the more specific text, not just an in-memory
-object nobody re-rendered from.
-
-## Preview a closed town before opening it to the public
-
-There was no way to actually see a closed town's real board -- the
-`admin=1` bypass already existed in `api/town.js`, but only
-admin.html's own internal tools (grant/move squares) ever used it;
-the real public-facing page never did, so the only way to check a new
-city's board, news, events, weather, and AI chat before launch was to
-open it to the public first and hope.
-
-The Towns card now has a **Preview →** link on every closed town,
-opening `/board/{slug}?preview=1` in a new tab -- the actual real
-page, not a mockup, including this town's own site_content overrides,
-its news/events (once those are wired up per-city), the AI chat, all
-of it. A clear banner at the top makes it obvious this isn't the live
-public view.
-
-The real security boundary is server-side, same as before: the
-`?preview=1` param only does anything if the browser also has a valid
-admin session cookie (`isAdminRequest = admin === '1' &&
-isAuthenticated(req)` in `api/town.js`) -- someone without that cookie
-hitting the exact same URL still gets the normal "not available" wall,
-same as any other visitor. The query param is just a convenience for
-an already-logged-in admin, not a bypass on its own.
-
-`/board/:slug` already had a generic wildcard rewrite in `vercel.json`
-(unlike the short clean-URL form, which needs an explicit entry per
-city) -- so this needed zero routing changes.
-
-## Weather, events, news, and AI chat are now genuinely per-city
-
-The last major piece: making a previewed (or opened) non-Oulu town
-actually show its own real content instead of Oulu's, in every one of
-these.
-
-**Weather** -- `towns` gains `lat`/`lng` columns, seeded with real
-coordinates for Oulu and all 7 expansion cities. Both the widget and
-its forecast now read `currentTown.lat`/`.lng` instead of a hardcoded
-Oulu coordinate.
-
-**Events -- a real bug, not just a missing feature.** `generateEventItems`
-was calling Oulu's real Kaleva-events API unconditionally, regardless
-of which town asked. Since that call almost never returns empty for
-Oulu, the fallback path (a genuinely generic, already-built AI-web-search
-event finder, `generateEventItemsViaAISearch`) never actually ran for
-any other town -- every non-Oulu board was silently showing Oulu's own
-events, mislabeled as if they were local. Fixed by only calling the
-Oulu-specific API when the town actually is Oulu; every other town now
-correctly goes straight to the AI search fallback, which already
-existed and already worked, it just never used to be reachable.
-
-**News -- built the same missing half.** Unlike events, there was no
-generic fallback for news at all -- only Kaleva's Oulu RSS feeds
-existed. Added `generateNewsItemsViaAISearch`, mirroring the events
-fallback's exact structure and tone: search for genuinely current
-local news about the given town, write original 1-2 sentence
-summaries in both languages, cite a real source URL. `getNewsSection`
-now branches the same way `generateEventItems` does -- Oulu uses the
-real RSS feeds, every other town uses this.
-
-**The source attribution shown on the page** ("Lähde: Kaleva" + a
-"see all events" link to Kaleva's own platform) was also hardcoded
-regardless of town. Now shows the real Kaleva attribution and a
-working "view all" link only for Oulu; every other town shows a plain,
-honest "Found via AI web search" note instead, with no fake link to
-a page that doesn't exist for that city.
-
-**AI chat needed no prompt changes at all** -- it was already fully
-town-agnostic (no hardcoded "Oulu" anywhere in `ask.js`'s prompt
-construction), built entirely from whatever town's businesses, hints,
-and now-correctly-scoped events/news get passed in. Once the
-news/events data itself became genuinely per-town, the chat became
-accurate per-town automatically, for free.
-
-**Not covered by this pass:** `today-card.html` (the shareable daily
-image tool) is still Oulu-only -- it has no town selector and wasn't
-part of this specific request. Worth a follow-up once a second city's
-event/news pipeline is confirmed working well through the main site
-first.
-
-**Known limitation, not a bug:** AI-search-generated events/news cost a
-real API call per cache refresh (roughly once a day per town, per the
-existing refresh-interval pattern), unlike Oulu's free RSS/API-based
-path. Worth watching per-town AI cost on the admin cost dashboard once
-a second city is actually opened.
-
-## Closed a real cost gap: /api/board and /api/feed didn't check "enabled" at all
-
-`/api/town` already blocked a closed town from being found or visited
-normally, but `/api/board` and `/api/feed` never checked a town's
-`enabled` status at all -- they just took whatever townId a request
-gave them and ran with it. Since town ids are plain sequential
-integers, a direct call like `/api/feed?townId=5` for a closed town's
-id would still trigger a genuine, billable AI search call for its
-events/news (see getEventsSection/getNewsSection) and return its real
-board data -- without going through the public gate, an admin login,
-or the preview flow at all. Not reachable through normal use of the
-site, but a real gap for anyone calling the API directly.
-
-Both now use the exact same gate `/api/town` already had: enabled, or
-a genuinely authenticated admin session with `admin=1`. The frontend's
-own board/feed fetches now pass `admin=1` automatically whenever
-`previewMode` is on (see the Preview feature above), same as the
-`/api/town` call already did -- so previewing a closed town's board
-and feed still works exactly as before, this only closes the gap for
-anyone going around the normal page entirely.
-
-## Helsinki opened -- real events via LinkedEvents, clean URL, weather already worked
-
-Three things needed for Helsinki specifically now that it's actually
-public:
-
-- **Clean URL**: `/helsinki` added to `vercel.json`, matching Oulu's
-  `/oulu` rewrite -- without this, only the generic `/board/helsinki-fi`
-  pattern worked; a direct visit or reload of `/helsinki` itself would
-  have 404'd at Vercel's routing layer before the page's own JS ever ran.
-- **Weather**: already working -- Helsinki's coordinates were seeded
-  back during the original multi-city groundwork, nothing new needed.
-- **Events**: real, structured, free data via LinkedEvents
-  (api.hel.fi/linkedevents) -- the official open events API jointly
-  built by Finland's largest cities. CC BY 4.0 licensed, so the real
-  official title/description text is used directly (no AI paraphrasing
-  needed, unlike the AI-search fallback), and it's already bilingual
-  FI/EN at the source, so no translation step either. `generateEventItems`
-  now has a second real branch (`fetchHelsinkiEventsFromAPI`) alongside
-  Oulu's Kaleva integration, same pattern: only Helsinki calls it, every
-  other town still goes to the generic AI-search fallback.
-
-**Field names in the Helsinki integration are based on LinkedEvents'
-documented, stable API shape, not a response this sandbox could
-actually fetch and verify live** (api.hel.fi disallows automated
-fetch tools, though a real server-side integration is exactly what
-that API is built for) -- worth checking Helsinki's actual preview
-once deployed to confirm titles/times/locations are extracting
-correctly, and adjusting field names in `fetchHelsinkiEventsFromAPI`
-if something's off.
-
-**News**: still using the generic AI-search fallback for Helsinki, not
-a dedicated feed. There's a real, promising lead -- the City of
-Helsinki's own hel.fi news is confirmed to be published as open-data
-RSS (CC BY 4.0) -- but the exact feed URL wasn't something a
-reasonable search budget could pin down with confidence this session,
-and guessing wrong would just silently do nothing (safe, but not
-useful). Worth a focused follow-up once the real feed URL is confirmed
-directly from hel.fi/fi/uutiset.
-
-## Helsinki news -- found a real source after all: Yle's Uusimaa RSS
-
-Couldn't confirm a working hel.fi city-news feed URL (see above), but
-found a stronger option instead: **Yle**, Finland's national public
-broadcaster (license-fee funded, no ads, not paywalled), publishes real
-regional news as standard RSS. Confirmed live during this build --
-`https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET&concepts=18-177980`
-actually returned real RSS/XML content when fetched directly, using
-the exact query syntax documented on Yle's own RSS-feeds page.
-`18-177980` is Yle's own topic id for "Uusimaa" (the region containing
-Helsinki), taken from Yle's own topic page URL structure.
-
-`fetchHelsinkiNewsFromRSS` reuses the exact same `extractTag`-based RSS
-parser already built for Oulu's Kaleva feed -- it's the same standard
-RSS 2.0 format, so no new parsing logic was needed, just a new URL.
-`getNewsSection` now has three branches: Oulu (Kaleva RSS), Helsinki
-(this new Yle RSS), everyone else (the generic AI-search fallback).
-
-**One thing worth spot-checking once this is live:** the sandbox's
-browsing tool could confirm the feed *mechanism* works (real RSS came
-back), but when re-fetching the exact same URL a second time to inspect
-its content, it substituted a different, previously-seen concept id
-from an unrelated earlier search instead of genuinely re-fetching mine
--- a quirk of this environment's fetch tool, not evidence of anything
-wrong with the real integration. Worth confirming Helsinki's actual
-live news (once deployed) is genuinely Uusimaa-scoped content and not
-some other Yle region, just to be sure.
-
-## Premium AI-chat tier: pay for a stronger model, not just more questions
-
-Two separate levers now, not one: the existing "buy more questions"
-credit system (quantity) gets a second, pricier sibling that buys
-*better* answers (quality) instead.
-
-- **Free daily cap dropped from 10 to 5** (`FREE_QUESTIONS_PER_DAY` in
-  `api/_limits.js`) -- deliberate, alongside adding the paid premium
-  option.
-- **Standard credits**: 5 for €0.99 (was 10 for €0.99 -- same price
-  point, smaller bundle, matching the new daily cap so "buy more" now
-  reads as "one more day's worth"). Still Haiku, unchanged quality.
-- **Premium credits**: 5 for €1.99, genuinely a different model
-  (Sonnet, not Haiku) -- a separate balance
-  (`premium_credit_balance`), not a multiplier on the standard one,
-  because spending one is under the visitor's explicit control (a
-  toggle in the chat UI), not automatic just because they're
-  available.
-- **Why explicit control, not automatic spending**: the point of
-  paying for premium is choosing *when* it's worth it (a complex
-  planning question) vs. not (a quick one-off question) -- silently
-  spending it every time would take that choice away and burn through
-  a purchase faster than intended.
-- **Priority order when a premium credit could apply**: checked
-  *before* the free daily quota, not after -- someone who bought
-  premium and explicitly asked for it should get it regardless of
-  whether they still have free questions left today; it's a separate
-  balance, not a fallback.
-- **A new, more specific error**: if the free quota is used up and the
-  visitor didn't ask for premium, but does have premium credits sitting
-  there unused, they get `need_credits_but_has_premium` instead of a
-  generic "buy more" -- the chat UI turns this into a one-click "use a
-  premium credit instead?" retry, not just another purchase prompt.
-- **Admins get the premium model by default**, same as they've always
-  gotten unlimited free access -- no credit-cost concern for an admin
-  account either way.
-- **The link-extraction backstop call stays on the cheap model always**,
-  even for a premium-answered question -- it's a mechanical
-  "find the names already in this text" task, not something that
-  benefits from a stronger model, so there's no reason to double the
-  premium cost on every single question just for that step.
-
-## Admin tool: manually fix a user's AI-chat credits
-
-Built after a real support case -- a customer was charged for credits
-but the Stripe webhook never credited the account (webhook delivery
-failures happen occasionally; nothing wrong was found in the crediting
-code itself when this was investigated). There was no way to fix this
-except hand-writing SQL directly in Supabase.
-
-New card in the admin panel: look up an account by email, see its
-current standard/premium balance, adjust either one by any amount
-(positive to add, negative to correct an accidental over-credit).
-Uses the same atomic increment functions the webhook itself calls, not
-a plain read-then-write, so this can't race with a purchase or a chat
-request happening at the same moment.
-
-**If a webhook failure like this happens again**, the two places to
-check first are Stripe Dashboard -> Developers -> Webhooks -> the
-specific event (shows the exact response your server sent back) and
-Vercel's function logs for `/api/webhook` around that timestamp (the
-handler logs both a failed insert and any other thrown error).
-
-**Root cause found, this time:** `STRIPE_WEBHOOK_SECRET` in Vercel was
-scoped to the Preview environment only, not Production -- so the real,
-live webhook endpoint was verifying signatures against the wrong
-secret on every single delivery, consistently, not intermittently.
-Fixed by re-scoping the env var to Production and redeploying.
-Worth remembering for any Stripe-related env var: Vercel scopes
-variables per environment (Production/Preview/Development), and it's
-easy to set one correctly for local testing (Preview) without
-realizing Production never got it.
-
-## Chat outage, then a real latency/cost problem, then premium removed entirely
-
-Three related fixes in sequence, worth reading together since each one
-uncovered the next.
-
-**The outage:** every single chat request was failing ("couldn't
-answer right now"). Root cause, confirmed via a captured API error:
-`temperature` is deprecated for the current models -- the API was
-rejecting every request outright with a 400, before generating any
-content at all. Removed the parameter entirely from both API calls in
-`api/ask.js`. Known tradeoff: this was originally set low specifically
-to reduce answer-to-answer inconsistency; losing that is an accepted
-cost of the API no longer accepting the parameter.
-
-**The latency/JSON problem that surfaced right after:** answers started
-taking 47 seconds to 1.3 minutes, and many still failed to parse as
-JSON even though real, substantial content was coming back. Root cause:
-the earlier "at least 4 recommendations" prompt change (see the
-site_content-era changelog entries above) was driving much more
-extensive web-search research and much longer generations than
-intended for an ordinary question -- both increasing latency and
-making the model more likely to never actually reach the JSON wrapper
-by the end of a very long answer. Dialed the requirement back to
-"up to 3-4 when they genuinely fit," added a hard `max_uses: 3` cap on
-the web search tool (a real ceiling, not just hoping the prompt wording
-keeps it bounded), and added an early JSON-format reminder near the
-top of the prompt in addition to the one at the end.
-
-**Premium (Sonnet) tier removed entirely.** It turned out to cost far
-more per question in real use than expected -- Sonnet's own higher
-per-token cost, compounding on top of the over-searching behavior
-above (which affected the free/standard tier too, not just premium).
-Removed from `api/ask.js` (admin and the new unlimited-whitelist users
-now use the standard model, same as everyone else), from the purchase
-flow in `api/data.js` (always sells standard now regardless of what
-any client sends), and from all of `index.html`'s UI (buy button,
-toggle, account panel line). `premium_credit_balance` and
-`credit_purchases.tier` are left in the schema, unused, rather than
-dropped -- harmless, and there may be a small existing balance worth
-manually honoring via the admin credits tool if anyone actually
-redeemed one before this was removed.
-
-## New: grant unlimited AI-chat access to specific trusted accounts
-
-New `unlimited_searches` boolean on `users` -- same no-cap treatment an
-admin session already gets, just for one particular registered
-visitor an admin has chosen to trust (an employee, a close partner
-business), not something with a quantity to run out of. Managed from
-the same admin card as the credit-fix tool: look an account up by
-email, toggle it on or off.
-
-## Found and fixed a real cost bug while auditing this: non-Oulu/Helsinki news was refreshing 10x too often
-
-News for any town using the AI-search fallback (everywhere except
-Oulu's Kaleva feed and Helsinki's Yle feed, both free) was using the
-same 2-hour refresh interval as those free RSS sources -- but that
-2-hour number was chosen because RSS is cheap to refresh often. A real,
-billable AI search call was inheriting that same cadence, roughly 10x
-more often than events use for the exact same kind of AI generation
-(events refresh every ~20 hours). Fixed: any town without a real free
-news source now uses the same ~20-hour interval events already use.
-
-## AI chat answer feedback (thumbs up/down)
-
-Doesn't retrain or fine-tune the model itself -- there's no such
-pipeline here, and that's not how Claude works through the API. What
-this actually does: gives a real, structured way to see which real
-answers visitors found unhelpful, with the actual question and answer
-text right there to read, instead of only ever finding out about a
-bad answer from a screenshot someone happened to send in.
-
-- New `ai_feedback` table (question, answer, rating, optional comment,
-  town).
-- New public endpoint (`/api/feedback`, no login required, same as
-  asking a question itself) -- thumbs up submits immediately, thumbs
-  down reveals an optional "what went wrong?" comment box first, since
-  that's the genuinely useful case to get real detail on.
-- New admin card ("AI chat feedback") to actually read it -- filterable
-  to down-only, town-aware via the same shared selector as hints/events.
-
-The real "teaching" still happens exactly the way it has all session --
-reading real failures and adjusting the prompt -- this just makes
-that systematic and available to anyone with admin access, not
-dependent on someone happening to screenshot a bad answer.
-
-## The Maps fallback was too broad -- fixed with a real distinguishing signal
-
-The earlier "fall back to Google Maps instead of a generic search"
-change was right for genuine physical places (a beach, a trail) but
-wrong for a real case that showed up: "Visit Oulu - Luontoreitit" and
-"Oulun kaupunki - Luontokohteet ja retkeily" aren't places at all --
-they're references to an organization's own informational webpage.
-Maps has no "place" to find for a page title like that and returned
-nothing useful.
-
-`googleSearchFallback` now checks for a literal " - " in the name --
-real place and business names essentially never contain that
-separator, while an "Organization - Topic" style reference always
-does. That one signal is enough to route the two cases correctly:
-a plain web search for the organizational/informational case (which
-can actually find that org's real page), Maps only for a genuine
-place-like name. The chip icon now reflects which one actually
-happened -- 📍 for a real Maps fallback, 🔍 for a plain search
-fallback -- instead of always showing the same icon regardless.
-
-## Maps fallback removed entirely
-
-Even with the smarter routing above, Google's own Maps search kept
-resolving obscure venue names to unrelated, more prominent businesses
-(the recurring Hellahuone/Ravintola Hella case) -- not something
-fixable from this side, since it's Google's own search behavior, not
-our query. Reverted to a plain web search for every fallback case.
-
-## Admin analytics dashboard
-
-Directly answers a specific piece of advice from Uusyrityskeskus's
-feedback email: track visitor counts and search volume from day one.
-Extended the existing visitor-stats card into three sections: page
-views (existing), AI question volume (new -- summed from the same
-tables that already enforce the daily free-question quota, no new
-tracking table needed), and AI feedback tally (new -- up/down counts
-from `ai_feedback`).
-
-## General site feedback form
-
-Distinct from the AI-answer-specific 👍/👎 feedback -- this is "what do
-you think of the service overall," reachable from a link near the
-footer on the main site. New `site_feedback` table, new public
-`/api/site-feedback` endpoint (no login required, same reasoning as
-the AI feedback), new admin card to actually read submissions.
-
-## Fixed a real SEO issue found via Search Console
-
-No canonical tag existed anywhere in the page at all. Since `/`,
-`/oulu`, and `/board/oulu-fi` are all Vercel rewrites to the exact
-same `index.html`, Google was seeing several different URLs serving
-byte-identical content with no signal for which one to treat as the
-real page -- exactly "Duplicate without user-selected canonical" in
-Search Console's own report. Added a canonical tag, defaulting to
-`/oulu` (the current homepage default) and updating dynamically once
-a specific town resolves, so a second city's page correctly
-canonicalizes to itself instead of incorrectly pointing at Oulu.
-
-## Map point cap, and why a business's pin can be missing
-
-Added a cap (10 points) to the AI chat's map so a long answer with
-many results doesn't clutter it -- paid/board businesses were already
-structurally first in the point list (spread first in the array), so
-they're never pushed out by this cap.
-
-Separately, worth knowing generally: a board business's map pin comes
-from its own stored `lat`/`lng` -- if a business's address never
-successfully geocoded at signup (or geocoding silently failed), those
-fields are simply null and no pin shows, regardless of how prominently
-the business is mentioned. Not a cost issue (geocoding via Nominatim
-is free regardless of volume) -- the fix is re-saving that business's
-address in the admin panel to trigger a fresh geocode attempt.
-
-## New: per-business engagement tracking, and a fuller analytics picture
-
-Two new tables, `business_clicks` and `business_mentions`, both keyed
-by the same representative square id used everywhere else (pin pages,
-AI-chat linking). Clicks are tracked from the logo banner and from a
-mentioned chip in the AI chat (fire-and-forget, never blocks the real
-link). Mentions are tracked server-side in `ask.js` itself, automatic
-whenever a business is genuinely recommended -- no client action
-needed, and it captures being recommended even if nobody clicks it.
-
-New admin card, "Yritysten näkyvyys" -- a leaderboard of clicks and
-mentions per business, scoped to whichever town is currently selected.
-
-Also split out the existing question-volume stat into anonymous vs.
-logged-in, not just a combined total -- both numbers were already
-being computed to calculate the sum, just not surfaced separately
-before.
-
-## New: today-card sponsor slot
-
-A bottom-right sponsor slot (logo + business-chosen text, labeled
-"MAINOS" for the same disclosure reasons as the AI chat's advertiser
-tag) on the daily shareable "today card" image. Deliberately
-admin-managed for now, not a self-serve purchase -- price and duration
-weren't specified, and those are real business decisions worth making
-deliberately rather than guessed at. A self-serve Stripe checkout can
-be layered on top of the same `today_card_sponsor` table later; the
-rendering and admin management work identically either way. New admin
-card ("Tänään-kortin sponsori") to set or clear the current sponsor,
-one at a time per town.
-
-## New site colors, and an admin-controlled default
-
-Replaced the color values on the site's existing (but previously
-unused beyond a manual visitor toggle) light/dark theme system: dark
-default is now "Gradient-forward, dusk" (deep indigo-to-violet, pink
-accent), light is "Lilac and ink" (soft lilac background, deep violet
-accent). Only the color *values* changed -- every CSS variable name
-stayed the same, so no other styling rule needed touching.
-
-New admin card ("Sivuston väriteema") sets which of the two is the
-site-wide default for new visitors, stored in the existing
-`site_settings` table (no schema change needed). A visitor's own
-explicit choice (the existing 🌙/☀️ toggle, saved to their own
-localStorage) always wins over this default -- the admin setting only
-affects what a first-time visitor sees before they've ever touched
-the toggle themselves.
-
-## Dark mode contrast -- a much bigger sweep than one modal
-
-What started as one unreadable pitch modal turned out to be a
-sitewide issue: roughly 70 hardcoded colors across the purchase
-modal, auth modal, feedback modal, legal modal, business registration
-form, and several JS-generated inline styles had never been swept up
-when the light/dark theme system was built. All replaced with the
-proper theme variables. Also fixed the dark mode accent from pink to
-a genuine purple (matching Oulu's brand), switched "Kirjaudu" and the
-language selector from monospace to Space Grotesk (matching "Kysy"),
-and remapped the entire today-card canvas palette (which draws its
-own separate image, not sharing the site's CSS) to match the new
-light-mode colors.
-
-## Pricing and sizing overhaul
-
-Replaced the old volume-discount model (5€, 4€ at 4+ slots, gold at
-11-19, legendary at 20) entirely:
-
-- Flat 10€/slot, no volume discount.
-- Logo size grows across 1, 2, and 3 slots, then plateaus -- 4 and 5
-  are the same physical size as 3, distinguished by border treatment
-  instead of continuing to grow.
-- Gold border at 4 slots, legendary at 5 slots (now also the hard
-  maximum per town -- buying more provides no further size or
-  prestige benefit under the new plateau design).
-- 5 slots (legendary) includes 4 free monthly today-card features.
-  This is **not automated** -- the today-card sponsor tool stays
-  admin-managed either way, so this is documented directly in that
-  admin card as something to track manually, not a system that
-  enforces or counts usage itself.
-- First month still 50% off; all other old discount messaging
-  removed and rewritten for the new flat-rate model, across every
-  place it appeared (meta description, hero copy, value cards, the
-  purchase modal's pitch text, size-preview note, confirm-purchase
-  text) in both Finnish and English.
-- Every quantity cap updated to match the new ceiling: the customer
-  purchase flow's per-town stepper, and the admin grant/edit tool's
-  stepper, both now cap at 5 instead of 20.
+## Full homepage redesign: 2×2 grid, photo-forward events, real photos, Tilannehuone, admin columns
+
+A large session that rebuilt most of the homepage's visual identity and
+several backend pieces. Summarized here rather than as many small
+entries, since most of these changes touched and re-touched the same
+few areas as the design evolved through several rounds of feedback.
+
+**Layout**: went from a single-column stack through a couple of
+intermediate 2-column arrangements to the current 2×2 grid — events +
+Tilannehuone on top, news + businesses below, stacking to one column
+below 1000px. Learned the hard way that CSS Grid's `1fr` has an
+*implicit* `auto` minimum (not `0`), which lets one column's content
+force it wider than its fair share and squeeze its sibling toward zero —
+`minmax(0,1fr)` is used everywhere now specifically to avoid that class
+of bug recurring. Also learned that a plain flex/grid `align-items:
+stretch` default will silently stretch a shorter card to match a taller
+sibling's row height, which produced a lot of "why does this card have
+so much dead space" debugging before being tracked down.
+
+**Pagination replaced "Show more" everywhere**: events, news, and
+Tilannehuone all use one shared paged-list system now (horizontal
+scroll-snap for real native swipe on mobile, no touch-event JS needed,
+plus arrow/dot controls for desktop) instead of a growing vertical list.
+Event cards use a fixed width basis (sized for exactly 4 per row) rather
+than `flex:1`, specifically so fewer events on a page don't stretch
+wider/taller than normal — that was a real, repeatedly-hit bug.
+
+**Events**: photo-forward cards (name, date/time, address — a real
+`squares`-adjacent `locations[0].address` field that existed in Kaleva's
+API all along but wasn't being carried through to the frontend).
+Deduplicates exact repeats from Kaleva's own feed while correctly
+keeping distinct FI/EN sessions of the same event. Already-ended events
+stay visible but greyed out with "Päättynyt" rather than being removed
+— removing them left almost nothing to show as the day progresses.
+**Real event photos**: confirmed via actual browser devtools (network
+tab + inspecting a real rendered `<img>` element) that Kaleva's own
+S3-hosted images are at `https://localhub-oy.s3.eu-central-1.amazonaws.
+com/images/{hash}`, where `{hash}` is the event's own `imageMobile` or
+`imageList` field — several earlier attempts guessing at field names
+(`mainImage`, `image`, etc.) had failed silently. Also added a backfill
+step: events already cached before this fix existed were permanently
+stuck without a photo (the caching logic skips re-inserting anything
+already known by source_url/title), so a fresh fetch now updates the
+`image_url` on existing rows that are missing one, instead of only
+helping brand-new events going forward.
+
+**News**: compact rows (circular photo/logo icon, headline, freshness,
+capped to 3 latest) replacing the old badge+description card layout.
+The circular icon is the article's real photo (via `og:image`, with a
+browser-like User-Agent added since bare server-side requests are often
+blocked or served reduced content) when available, falling back to a
+colored K/Y letter only when an article genuinely has none — previously
+showed both separately, which was redundant once a real photo existed.
+
+**Tilannehuone**: moved into the "top-right, next to events" slot that
+an earlier, since-removed AI-searched offers feature used to occupy —
+genuinely different real feature (tilannehuone.fi incident reports), not
+a revival of that concept. Page size reduced to exactly one page's worth
+so no pagination controls are needed at all for it.
+
+**Businesses**: real horizontal auto-scroll (was vertical before), now
+triggers with as few as 2 businesses instead of requiring 5+. Shows each
+business's real `industry` field (already existed in the schema, wasn't
+surfaced in the frontend before) as a category subtext under the name.
+
+**Admin page**: restructured from one long stacked page into genuine
+side-by-side columns (Tapahtumat / Yritykset / Tilastot / AI-palaute /
+Muut työkalut), using tag-balanced boundary extraction to move each
+card's HTML rather than risky manual copy-paste.
+
+**General visual polish**: softened corner radius across the main cards
+(16→20px), added subtle hover-lift shadows to cards and a gradient +
+lift on the primary CTA button.
