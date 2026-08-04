@@ -537,6 +537,14 @@
     display:flex;align-items:center;
     mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);}
   #bizFeedScrollTrack{display:flex;flex-direction:row;width:max-content;animation:bizFeedScroll 20s linear infinite;}
+  /* Freezes the animation when there's only one business (see
+     renderBizFeedCard) -- a class instead of an inline style, so it
+     doesn't permanently outrank every hover-pause rule below no matter
+     how they're written. Only one business means nothing to scroll
+     through anyway, so this is never really "in conflict" with hover in
+     practice, but it's still correct to let the cascade actually work
+     instead of quietly locking it out. */
+  #bizFeedScrollTrack.bizFeedScrollTrackStatic{animation-play-state:paused;}
   #bizFeedScrollWindow:hover #bizFeedScrollTrack{animation-play-state:paused;}
   /* Redundant with the rule above on paper (hovering a descendant also
      means its ancestors are :hover'd, so this "shouldn't" be necessary)
@@ -2929,7 +2937,19 @@ function renderBizFeedCard(){
   // near-empty list slowly cycling through itself.
   const html = businesses.map(rowHtml).join('');
   track.innerHTML = businesses.length > 1 ? html + html : html;
-  track.style.animationPlayState = businesses.length > 1 ? 'running' : 'paused';
+  // Was track.style.animationPlayState = ... (an inline style) --
+  // inline styles always win over every stylesheet rule regardless of
+  // specificity, which meant this permanently locked the animation to
+  // "running" (the common case, since there's usually more than one
+  // business) in a way that NO hover-pause CSS rule could ever override,
+  // no matter how it was written. This is why every hover-pause attempt
+  // silently failed from the very first version, confirmed via a real
+  // DevTools inspection showing the inline style winning the cascade
+  // outright. A class-based toggle achieves the exact same original
+  // intent (freeze the animation when there's only one business, not
+  // enough content to actually need scrolling) while still letting the
+  // hover/.interacting rules apply normally on top of it.
+  track.classList.toggle('bizFeedScrollTrackStatic', businesses.length <= 1);
 }
 
 function renderLogoBanner(){
