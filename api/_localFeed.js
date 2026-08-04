@@ -521,6 +521,31 @@ function getHelsinkiDayBounds() {
   return { start, end };
 }
 
+// "YYYY-MM-DD" in real Europe/Helsinki local time -- the calendar-date
+// counterpart to formatHelsinkiTime below. Needed because a raw ISO
+// timestamp's first 10 characters are its UTC calendar date, which is
+// only the same as the Helsinki calendar date for most of the day --
+// anything from roughly 00:00-02:59 Helsinki time (Helsinki is UTC+2/+3)
+// falls on the *previous* UTC day, so naively slicing the raw string
+// silently produces the wrong date for any event ending shortly after
+// midnight. Confirmed against a real case: an event listed as
+// 22:30-01:00 came through with event_end_date equal to event_date (the
+// start day) instead of the next day, because event_end_date was built
+// from upcoming.end.slice(0, 10) directly -- meanwhile event_end_time
+// was already correctly Helsinki-local via formatHelsinkiTime, so the
+// date and time-of-day ended up describing two different, inconsistent
+// timelines for the same field.
+function formatHelsinkiDate(isoString) {
+  if (!isoString) return null;
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date(isoString));
+  } catch (err) {
+    return null;
+  }
+}
+
 // "HH:MM" in real Europe/Helsinki local time, for showing the actual
 // time of day an event starts/ends -- not just its date.
 function formatHelsinkiTime(isoString) {
@@ -553,9 +578,29 @@ async function fetchOuluEventsFromAPI() {
     const timeout = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(OULU_EVENTS_API, { signal: controller.signal });
     clearTimeout(timeout);
-    if (!res.ok) return [];
+    if (!res.ok) {
+      // Previously silent -- a non-200 response here (auth change, rate
+      // limit, endpoint moved, temporary outage, anything) produced
+      // zero events with absolutely no trace in the logs, making a real
+      // failure here indistinguishable from "Kaleva genuinely has no
+      // events right now". Logging the status and a snippet of the
+      // body is enough to tell those apart on the next occurrence
+      // without needing another guess-and-check round trip.
+      let bodySnippet = '';
+      try { bodySnippet = (await res.text()).slice(0, 500); } catch (e) {}
+      console.error(`Oulu events API returned ${res.status} ${res.statusText}. Body: ${bodySnippet}`);
+      return [];
+    }
 
     const data = await res.json();
+    if (!Array.isArray(data.pages)) {
+      // A 200 response with a different shape than expected (Kaleva
+      // restructuring their API) would otherwise also silently produce
+      // zero events -- genuinely indistinguishable from "there are just
+      // no upcoming events right now" without this. Logging the actual
+      // top-level keys is enough to spot a schema change at a glance.
+      console.error(`Oulu events API response is missing the expected "pages" array. Top-level keys: ${Object.keys(data || {}).join(', ')}`);
+    }
     const pages = data.pages || [];
     const { start, end: cutoff } = getHelsinkiDayBounds();
     const now = Date.now();
@@ -611,7 +656,7 @@ async function fetchOuluEventsFromAPI() {
 
     const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
 
-    return pages
+    const result = pages
       .filter(p => {
         const addr = (p.locations && p.locations[0] && p.locations[0].address) || '';
         if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
@@ -624,8 +669,8 @@ async function fetchOuluEventsFromAPI() {
         // ongoing from an earlier day, before popularity is considered
         // at all -- "starting today" is what someone asking "what's on
         // today" most wants to see first.
-        const aStartsToday = a.upcoming.start.slice(0, 10) === todayStr ? 0 : 1;
-        const bStartsToday = b.upcoming.start.slice(0, 10) === todayStr ? 0 : 1;
+        const aStartsToday = formatHelsinkiDate(a.upcoming.start) === todayStr ? 0 : 1;
+        const bStartsToday = formatHelsinkiDate(b.upcoming.start) === todayStr ? 0 : 1;
         if (aStartsToday !== bStartsToday) return aStartsToday - bStartsToday;
         return b.views - a.views;
       })
@@ -633,8 +678,9 @@ async function fetchOuluEventsFromAPI() {
       .map(({ page: p, upcoming }) => ({
         title_fi: p.name,
         summary_fi: getSummary(p),
-        event_date: upcoming.start.slice(0, 10),
-        event_end_date: upcoming.end ? upcoming.end.slice(0, 10) : null,
+        address: (p.locations && p.locations[0] && p.locations[0].address) || null,
+        event_date: formatHelsinkiDate(upcoming.start),
+        event_end_date: upcoming.end ? formatHelsinkiDate(upcoming.end) : null,
         // Kaleva's own data always populates start/end, even when the
         // real time isn't known -- in that case it just duplicates
         // start into end (confirmed against a real API response) and
@@ -642,9 +688,35 @@ async function fetchOuluEventsFromAPI() {
         // the field blank. Trust those flags, not field presence.
         event_start_time: upcoming.startTimeMissing ? null : formatHelsinkiTime(upcoming.start),
         event_end_time: (upcoming.endTimeMissing || upcoming.end === upcoming.start) ? null : formatHelsinkiTime(upcoming.end),
-        source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`
+        source_url: `https://tapahtumat.kaleva.fi/fi-FI/page/${p._id}`,
+        // Confirmed against a real response: the site's own rendered
+        // <img srcset> showed https://localhub-oy.s3.eu-central-1
+        // .amazonaws.com/images/{hash}, where {hash} is the value of
+        // page.imageMobile (640w) or page.imageList (320w) directly from
+        // this API's own JSON -- not a guess anymore, verified by
+        // comparing the actual DOM output against the API field values.
+        // imageMobile chosen as a reasonable middle-ground size for a
+        // card thumbnail; falls back to imageList, then no photo at all
+        // if an event genuinely doesn't have one (both fields empty).
+        image_url: (p.imageMobile || p.imageList)
+          ? `https://localhub-oy.s3.eu-central-1.amazonaws.com/images/${p.imageMobile || p.imageList}`
+          : null,
+        category: p.category || p.eventType || p.type ||
+          (Array.isArray(p.tags) && p.tags[0] && (p.tags[0].name || p.tags[0])) || null
       }))
       .filter(e => e.title_fi && e.event_date && e.summary_fi);
+
+    if (pages.length > 0 && result.length === 0) {
+      // The API responded fine and had real entries, but every single
+      // one got excluded somewhere in the filter/validate chain --
+      // points at a bug in the filtering logic itself (a field the
+      // address/date/summary checks depend on has changed shape), not
+      // Kaleva genuinely having zero Oulu events. Logging one raw
+      // sample page makes it possible to see exactly which field
+      // doesn't match what the filters above expect.
+      console.error(`Oulu events API returned ${pages.length} pages but all were filtered out. Sample page: ${JSON.stringify(pages[0]).slice(0, 1000)}`);
+    }
+    return result;
   } catch (err) {
     console.error('Oulu events API fetch failed:', err);
     return [];
@@ -691,11 +763,12 @@ async function fetchHelsinkiEventsFromAPI() {
         const descSourceFi = (e.short_description && e.short_description.fi) || (e.description && e.description.fi) || '';
         const descSourceEn = (e.short_description && e.short_description.en) || (e.description && e.description.en) || descSourceFi;
         const locationName = (e.location && e.location.name && (e.location.name.fi || e.location.name.en)) || '';
-        const startDate = e.start_time ? e.start_time.slice(0, 10) : null;
-        const endDate = e.end_time ? e.end_time.slice(0, 10) : null;
+        const startDate = e.start_time ? formatHelsinkiDate(e.start_time) : null;
+        const endDate = e.end_time ? formatHelsinkiDate(e.end_time) : null;
         return {
           title_fi: locationName ? `${titleFi} (${locationName})` : titleFi,
           title_en: locationName ? `${titleEn} (${locationName})` : titleEn,
+          address: (e.location && e.location.street_address) || locationName || null,
           // Trimmed, not truncated mid-word where reasonably avoidable --
           // matches how the rest of this file keeps summaries short.
           summary_fi: descSourceFi.slice(0, 400) || titleFi,
@@ -704,7 +777,14 @@ async function fetchHelsinkiEventsFromAPI() {
           event_end_date: (endDate && endDate !== startDate) ? endDate : null,
           event_start_time: e.is_all_day ? null : formatHelsinkiTime(e.start_time),
           event_end_time: (e.is_all_day || e.end_time === e.start_time) ? null : formatHelsinkiTime(e.end_time),
-          source_url: (e.info_url && (e.info_url.fi || e.info_url.en)) || `https://tapahtumat.hel.fi/fi/search?text=${encodeURIComponent(titleFi)}`
+          source_url: (e.info_url && (e.info_url.fi || e.info_url.en)) || `https://tapahtumat.hel.fi/fi/search?text=${encodeURIComponent(titleFi)}`,
+          // LinkedEvents' documented schema includes an `images` array,
+          // each entry with a `url` field -- higher confidence than the
+          // Kaleva field-name guess above since this is a stable, publicly
+          // documented API, but still unverified against a live response
+          // from this sandbox. Falls back to no image if the field isn't
+          // actually there.
+          image_url: (Array.isArray(e.images) && e.images[0] && e.images[0].url) || null
         };
       })
       .filter(ev => ev.title_fi && ev.event_date);
@@ -1078,8 +1158,37 @@ async function getEventsSection(supabase, townId, townName) {
     // outright -- see comment above. An event already found earlier
     // today is still a real, valid "happening today" event even if
     // Kaleva's own live listing no longer surfaces it as "upcoming".
-    const alreadyKnown = new Set(existingEvents.map(e => e.source_url || e.title_fi));
+    const alreadyKnown = new Map(existingEvents.map(e => [e.source_url || e.title_fi, e]));
     const genuinelyNew = fresh.filter(e => !alreadyKnown.has(e.source_url || e.title_fi));
+
+    // Backfill: an event already cached before the image_url fix existed
+    // (or from a moment when Kaleva's own data didn't have one yet) would
+    // otherwise stay stuck with no photo until it naturally expires --
+    // which could be hours or days away. If this fresh fetch has an image
+    // for an event we already know about, update that row instead of
+    // silently skipping it as "already known".
+    //
+    // Same reasoning applies to the date/time fields, not just the image:
+    // a row written while a date-extraction bug was still live (e.g. the
+    // UTC-vs-Helsinki-local off-by-one-day bug this fixed for
+    // event_end_date) would otherwise keep serving its wrong values
+    // forever, even after the bug itself is fixed and this refresh cycle
+    // re-fetches the correct data -- "already known" only ever compared
+    // by source_url/title, so a matched row's other fields were never
+    // actually re-synced against a fresh, possibly-corrected fetch.
+    const CORRECTABLE_FIELDS = ['event_date', 'event_end_date', 'event_start_time', 'event_end_time'];
+    for (const e of fresh){
+      const existing = alreadyKnown.get(e.source_url || e.title_fi);
+      if (!existing) continue;
+      const patch = {};
+      if (!existing.image_url && e.image_url) patch.image_url = e.image_url;
+      for (const field of CORRECTABLE_FIELDS){
+        if (e[field] !== existing[field]) patch[field] = e[field];
+      }
+      if (Object.keys(patch).length === 0) continue;
+      await supabase.from('local_feed_items').update(patch).eq('id', existing.id);
+      Object.assign(existing, patch); // keep the in-memory copy in sync for the response below
+    }
 
     if (genuinelyNew.length === 0) {
       return applyAdminEventCuration(existingEvents); // nothing new to add, what we had is still complete
