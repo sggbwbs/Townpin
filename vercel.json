@@ -17,10 +17,14 @@
     { "source": "/api/site-feedback", "destination": "/api/data?endpoint=site-feedback" },
     { "source": "/api/track-click", "destination": "/api/data?endpoint=track-click" },
     { "source": "/api/today-card-sponsor", "destination": "/api/data?endpoint=today-card-sponsor" },
-    { "source": "/api/user/:action", "destination": "/api/data?endpoint=user&action=:action" }
+    { "source": "/api/user/:action", "destination": "/api/data?endpoint=user&action=:action" },
+    { "source": "/api/notifications/subscribe", "destination": "/api/notifications?endpoint=subscribe" },
+    { "source": "/api/notifications/confirm", "destination": "/api/notifications?endpoint=confirm" },
+    { "source": "/api/notifications/unsubscribe", "destination": "/api/notifications?endpoint=unsubscribe" }
   ],
   "crons": [
     { "path": "/api/maintenance", "schedule": "0 4 * * *" },
-    { "path": "/api/maintenance", "schedule": "0 3 * * 0" }
+    { "path": "/api/maintenance", "schedule": "0 3 * * 0" },
+    { "path": "/api/notifications?endpoint=send-digest", "schedule": "*/15 * * * *" }
   ]
 }

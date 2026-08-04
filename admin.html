@@ -16,7 +16,7 @@
   .sub{color:var(--ink-dim);font-size:13px;margin:0 0 28px;}
   .card{background:var(--paper);color:#211c38;max-width:520px;width:100%;border-radius:14px;padding:32px;
     box-shadow:0 4px 16px rgba(88,71,201,0.07);}
-  #adminColumnsWrap{display:flex;flex-direction:row;flex-wrap:wrap;gap:20px;align-items:flex-start;
+  #adminColumnsWrap{display:none;flex-direction:row;flex-wrap:wrap;gap:20px;align-items:flex-start;
     width:100%;max-width:1400px;}
   .adminColumn{flex:1 1 340px;min-width:340px;display:flex;flex-direction:column;gap:20px;}
   .adminColumn .card{max-width:none;width:100%;}
@@ -612,6 +612,7 @@ document.getElementById('toggleEditCardBtn').addEventListener('click', () => {
 async function showEditor(){
   document.getElementById('loginCard').style.display = 'none';
   document.getElementById('dashHeaderCard').style.display = 'block';
+  document.getElementById('adminColumnsWrap').style.display = 'flex';
   document.getElementById('aiHintsCard').style.display = 'block';
   document.getElementById('aiFeedbackCard').style.display = 'block';
   document.getElementById('siteFeedbackCard').style.display = 'block';

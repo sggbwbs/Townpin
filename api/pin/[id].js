@@ -75,9 +75,9 @@ module.exports = async (req, res) => {
   if (error || !square || square.status !== 'active' || square.flagged) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.status(404).send(`<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8"><title>${lang === 'fi' ? 'Ei löytynyt' : 'Not found'} — PaikallisCanvas</title></head>
-      <body style="font-family:sans-serif;text-align:center;padding:80px 20px;color:#333;">
-        <h1>${t.notFoundTitle}</h1>
-        <p><a href="/">${t.backToHome}</a></p>
+      <body style="font-family:'IBM Plex Sans',sans-serif;text-align:center;padding:80px 20px;color:#211c38;background:#f3f2fa;">
+        <h1 style="font-family:'Space Grotesk',sans-serif;">${t.notFoundTitle}</h1>
+        <p><a href="/" style="color:#5847c9;font-weight:700;">${t.backToHome}</a></p>
       </body></html>`);
     return;
   }
@@ -153,31 +153,34 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:#0e2a47;color:#f5f7fa;
-    display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
-  .card{background:#f4efe4;color:#26210f;max-width:420px;width:100%;border-radius:14px;
-    padding:36px 32px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.35);}
-  .backLink{display:inline-flex;align-items:center;gap:6px;background:#eae3d3;color:#5c5440;
+  body{margin:0;font-family:'IBM Plex Sans',sans-serif;
+    background:radial-gradient(1200px 800px at 15% -10%, rgba(88,71,201,0.14), transparent 60%), linear-gradient(160deg, #f3f2fa, #ece9f7 100%);
+    color:#211c38;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
+  .card{background:#ffffff;color:#211c38;max-width:420px;width:100%;border-radius:14px;
+    padding:36px 32px;text-align:center;box-shadow:0 20px 50px rgba(88,71,201,0.14);border:1px solid #ddd8ef;}
+  .backLink{display:inline-flex;align-items:center;gap:6px;background:rgba(88,71,201,0.08);color:#5847c9;
     text-decoration:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;
     padding:9px 18px;border-radius:999px;margin:0 0 22px;transition:background-color 0.15s;}
-  .backLink:hover{background:#ddd4bc;}
+  .backLink:hover{background:rgba(88,71,201,0.16);}
   .logoWrap{width:${logoSize}px;max-height:${Math.round(logoSize * 1.5)}px;margin:0 auto 18px;
-    background:#eae3d3;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+    background:#f3f2fa;border:1px solid #ddd8ef;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
   .logo{width:100%;height:auto;max-height:${Math.round(logoSize * 1.5)}px;object-fit:contain;display:block;}
-  h1{font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0 0 8px;}
-  p.tagline{color:#5c5440;font-size:14.5px;margin:0 0 22px;}
-  a.visit{display:inline-block;background:#f2a65a;color:#2a1c0d;text-decoration:none;
-    font-family:'Space Grotesk',sans-serif;font-weight:700;padding:12px 26px;border-radius:8px;}
-  .foot{margin-top:26px;font-size:12px;color:#8a8168;}
-  .quickInfo{margin-top:22px;padding:14px 16px;background:#eee7d4;border-radius:9px;text-align:left;}
-  .quickInfoLabel{font-size:10.5px;letter-spacing:0.04em;text-transform:uppercase;color:#8a8168;margin-bottom:8px;}
-  .quickInfoText{font-size:13px;line-height:1.5;margin:0 0 6px;color:#3a331d;}
-  .quickInfoEn{color:#6b6249;font-style:italic;}
-  .quickInfoSource{font-size:11px;color:#8a8168;text-decoration:underline;}
-  .quickInfoDisclaimer{font-size:10.5px;color:#a39a80;margin:6px 0 0;}
-  .industryBadge{display:inline-block;background:#eae3d3;color:#5c5440;font-size:11px;font-weight:600;
+  h1{font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0 0 8px;color:#211c38;}
+  p.tagline{color:#6b6488;font-size:14.5px;margin:0 0 22px;}
+  a.visit{display:inline-block;background:#5847c9;color:#fff;text-decoration:none;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;padding:12px 26px;border-radius:8px;
+    box-shadow:0 8px 22px rgba(88,71,201,0.3);}
+  a.visit:hover{background:#463699;}
+  .foot{margin-top:26px;font-size:12px;color:#6b6488;}
+  .quickInfo{margin-top:22px;padding:14px 16px;background:#f3f2fa;border:1px solid #ddd8ef;border-radius:9px;text-align:left;}
+  .quickInfoLabel{font-size:10.5px;letter-spacing:0.04em;text-transform:uppercase;color:#6b6488;margin-bottom:8px;}
+  .quickInfoText{font-size:13px;line-height:1.5;margin:0 0 6px;color:#211c38;}
+  .quickInfoEn{color:#6b6488;font-style:italic;}
+  .quickInfoSource{font-size:11px;color:#5847c9;text-decoration:underline;}
+  .quickInfoDisclaimer{font-size:10.5px;color:#8a84a8;margin:6px 0 0;}
+  .industryBadge{display:inline-block;background:rgba(88,71,201,0.08);color:#5847c9;font-size:11px;font-weight:600;
     padding:4px 10px;border-radius:999px;margin:0 0 12px;}
-  .foot a{color:#8a8168;}
+  .foot a{color:#5847c9;}
 </style>
 </head>
 <body>

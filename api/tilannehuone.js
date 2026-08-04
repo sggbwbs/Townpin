@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
 
   let items = [];
   try {
-    items = await fetchTilannehuoneItems(3);
+    items = await fetchTilannehuoneItems(2);
   } catch (err) {
     console.error('Tilannehuone lookup failed (non-fatal):', err);
   }

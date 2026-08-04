@@ -1200,7 +1200,18 @@ async function getEventsSection(supabase, townId, townName) {
     // That produced the same misleading photo on every single event.
     // No image is a better outcome than a wrong, duplicated one.
     const rows = genuinelyNew.map(i => ({ town_id: townId, ...i }));
-    const { data: inserted } = await supabase.from('local_feed_items').insert(rows).select();
+    const { data: inserted, error: insertErr } = await supabase.from('local_feed_items').insert(rows).select();
+    if (insertErr) {
+      // Previously silent -- a failed insert here (schema mismatch, a
+      // column that doesn't exist, a value with the wrong type, a
+      // constraint violation) meant genuinely-fetched real events from
+      // Kaleva got quietly dropped on the floor, ending up
+      // indistinguishable from "Kaleva has no events today". Logging
+      // the actual Postgres/PostgREST error message, plus one sample
+      // row, is enough to see exactly which field doesn't match the
+      // table's real schema.
+      console.error(`Event insert failed: ${insertErr.message}. Sample row: ${JSON.stringify(rows[0]).slice(0, 1000)}`);
+    }
     return applyAdminEventCuration([...existingEvents, ...(inserted || [])]);
   } catch (err) {
     console.error('Events feed lookup failed:', err);
