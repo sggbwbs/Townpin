@@ -578,9 +578,29 @@ async function fetchOuluEventsFromAPI() {
     const timeout = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(OULU_EVENTS_API, { signal: controller.signal });
     clearTimeout(timeout);
-    if (!res.ok) return [];
+    if (!res.ok) {
+      // Previously silent -- a non-200 response here (auth change, rate
+      // limit, endpoint moved, temporary outage, anything) produced
+      // zero events with absolutely no trace in the logs, making a real
+      // failure here indistinguishable from "Kaleva genuinely has no
+      // events right now". Logging the status and a snippet of the
+      // body is enough to tell those apart on the next occurrence
+      // without needing another guess-and-check round trip.
+      let bodySnippet = '';
+      try { bodySnippet = (await res.text()).slice(0, 500); } catch (e) {}
+      console.error(`Oulu events API returned ${res.status} ${res.statusText}. Body: ${bodySnippet}`);
+      return [];
+    }
 
     const data = await res.json();
+    if (!Array.isArray(data.pages)) {
+      // A 200 response with a different shape than expected (Kaleva
+      // restructuring their API) would otherwise also silently produce
+      // zero events -- genuinely indistinguishable from "there are just
+      // no upcoming events right now" without this. Logging the actual
+      // top-level keys is enough to spot a schema change at a glance.
+      console.error(`Oulu events API response is missing the expected "pages" array. Top-level keys: ${Object.keys(data || {}).join(', ')}`);
+    }
     const pages = data.pages || [];
     const { start, end: cutoff } = getHelsinkiDayBounds();
     const now = Date.now();
@@ -636,7 +656,7 @@ async function fetchOuluEventsFromAPI() {
 
     const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
 
-    return pages
+    const result = pages
       .filter(p => {
         const addr = (p.locations && p.locations[0] && p.locations[0].address) || '';
         if (!/oulu/i.test(addr)) return false; // this collection covers all of Northern Finland, not just Oulu
@@ -685,6 +705,18 @@ async function fetchOuluEventsFromAPI() {
           (Array.isArray(p.tags) && p.tags[0] && (p.tags[0].name || p.tags[0])) || null
       }))
       .filter(e => e.title_fi && e.event_date && e.summary_fi);
+
+    if (pages.length > 0 && result.length === 0) {
+      // The API responded fine and had real entries, but every single
+      // one got excluded somewhere in the filter/validate chain --
+      // points at a bug in the filtering logic itself (a field the
+      // address/date/summary checks depend on has changed shape), not
+      // Kaleva genuinely having zero Oulu events. Logging one raw
+      // sample page makes it possible to see exactly which field
+      // doesn't match what the filters above expect.
+      console.error(`Oulu events API returned ${pages.length} pages but all were filtered out. Sample page: ${JSON.stringify(pages[0]).slice(0, 1000)}`);
+    }
+    return result;
   } catch (err) {
     console.error('Oulu events API fetch failed:', err);
     return [];
@@ -1135,14 +1167,27 @@ async function getEventsSection(supabase, townId, townName) {
     // which could be hours or days away. If this fresh fetch has an image
     // for an event we already know about, update that row instead of
     // silently skipping it as "already known".
-    const imageBackfills = fresh.filter(e => {
+    //
+    // Same reasoning applies to the date/time fields, not just the image:
+    // a row written while a date-extraction bug was still live (e.g. the
+    // UTC-vs-Helsinki-local off-by-one-day bug this fixed for
+    // event_end_date) would otherwise keep serving its wrong values
+    // forever, even after the bug itself is fixed and this refresh cycle
+    // re-fetches the correct data -- "already known" only ever compared
+    // by source_url/title, so a matched row's other fields were never
+    // actually re-synced against a fresh, possibly-corrected fetch.
+    const CORRECTABLE_FIELDS = ['event_date', 'event_end_date', 'event_start_time', 'event_end_time'];
+    for (const e of fresh){
       const existing = alreadyKnown.get(e.source_url || e.title_fi);
-      return existing && !existing.image_url && e.image_url;
-    });
-    for (const e of imageBackfills){
-      const existing = alreadyKnown.get(e.source_url || e.title_fi);
-      await supabase.from('local_feed_items').update({ image_url: e.image_url }).eq('id', existing.id);
-      existing.image_url = e.image_url; // keep the in-memory copy in sync for the response below
+      if (!existing) continue;
+      const patch = {};
+      if (!existing.image_url && e.image_url) patch.image_url = e.image_url;
+      for (const field of CORRECTABLE_FIELDS){
+        if (e[field] !== existing[field]) patch[field] = e[field];
+      }
+      if (Object.keys(patch).length === 0) continue;
+      await supabase.from('local_feed_items').update(patch).eq('id', existing.id);
+      Object.assign(existing, patch); // keep the in-memory copy in sync for the response below
     }
 
     if (genuinelyNew.length === 0) {
