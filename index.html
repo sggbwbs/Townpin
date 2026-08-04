@@ -433,6 +433,38 @@
     border-radius:8px;padding:11px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;}
   #feedbackModal .err{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
     font-size:12px;margin-bottom:10px;}
+
+  #nearbyOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
+    align-items:center;justify-content:center;padding:20px;}
+  #nearbyModal{position:relative;background:var(--paper);color:var(--ink);width:100%;max-width:480px;
+    max-height:85vh;overflow-y:auto;overscroll-behavior:contain;
+    border-radius:14px;padding:32px;box-shadow:var(--shadow-lg);font-family:'IBM Plex Sans',sans-serif;}
+  #nearbyModal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 6px;font-size:19px;}
+  #nearbyModal p.authSub{font-size:12.5px;color:var(--ink-dim);margin:0 0 18px;line-height:1.5;}
+  #nearbyModal .close{position:absolute;top:18px;right:20px;cursor:pointer;font-size:16px;color:var(--ink-dim);
+    background:none;border:none;width:28px;height:28px;border-radius:50%;}
+  #nearbyModal .close:hover{background:rgba(0,0,0,0.06);}
+  #nearbyModal button.authSubmit{width:100%;background:var(--amber);color:#fff;border:none;
+    border-radius:8px;padding:11px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;}
+  #nearbyModal button.authSubmit:disabled{opacity:0.6;cursor:default;}
+  #nearbyModal .err{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
+    font-size:12px;margin:12px 0 0;}
+  .nearbyPrivacyNote{font-size:11.5px;color:var(--ink-dim);text-align:center;margin:14px 0 0;line-height:1.4;}
+  #nearbyMap{height:220px;border-radius:12px;margin-bottom:14px;background:var(--panelT4);
+    z-index:0;} /* z-index:0 keeps Leaflet's own internal panes (which use high z-indexes) from bleeding above this modal's own close button etc. */
+  .nearbyListItem{display:flex;align-items:center;gap:12px;padding:10px 4px;text-decoration:none;color:inherit;
+    border-radius:10px;transition:background 0.15s ease;}
+  .nearbyListItem:hover{background:var(--panelT4);}
+  .nearbyListItem:not(:last-child){border-bottom:1px solid var(--line);}
+  .nearbyListItem img{width:40px;height:40px;border-radius:10px;object-fit:contain;background:#fff;
+    border:1px solid var(--line);padding:4px;box-sizing:border-box;flex:none;}
+  .nearbyListItemText{flex:1;min-width:0;}
+  .nearbyListItemText b{display:block;font-size:13.5px;color:var(--ink);font-weight:700;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .nearbyListItemText span{display:block;font-size:11.5px;color:var(--ink-dim);}
+  .nearbyDistance{flex:none;font-size:12px;font-weight:700;color:var(--amber);white-space:nowrap;}
+  .nearbyEmptyMsg{text-align:center;color:var(--ink-dim);font-size:13px;padding:20px 0;}
+
   #accountBtn{border:none;background:var(--panelT7);border:1px solid var(--line);border-radius:999px;
     padding:0 14px;height:34px;cursor:pointer;font-size:12.5px;color:var(--ink);font-family:'Space Grotesk',sans-serif;
     font-weight:400;display:flex;align-items:center;gap:6px;white-space:nowrap;}
@@ -1293,6 +1325,23 @@
   </div>
 </div>
 
+<div id="nearbyOverlay">
+  <div id="nearbyModal">
+    <button class="close" onclick="closeNearbyModal()">✕</button>
+    <h2 data-i18n="nearbyTitle">Lähelläsi</h2>
+    <p class="authSub" data-i18n="nearbySub">Näytä paikalliset yritykset lähimmästä kauimpaan sijaintisi perusteella.</p>
+    <div id="nearbyPromptView">
+      <button class="authSubmit" id="nearbyUseLocationBtn" onclick="requestNearbyLocation()" data-i18n="nearbyUseLocationBtn">Käytä sijaintiani</button>
+      <p id="nearbyErrorMsg" class="err" style="display:none;"></p>
+      <p class="nearbyPrivacyNote" data-i18n="nearbyPrivacyNote">Sijaintiasi ei tallenneta -- sitä käytetään vain tämän listan järjestämiseen selaimessasi.</p>
+    </div>
+    <div id="nearbyResultsView" style="display:none;">
+      <div id="nearbyMap"></div>
+      <div id="nearbyList"></div>
+    </div>
+  </div>
+</div>
+
 <div id="installBanner">
   <span id="installBannerText"></span>
   <button id="installBannerBtn" style="display:none;" data-i18n="installBannerButton">Asenna</button>
@@ -1466,12 +1515,11 @@
       <span>Tilaa ilmoitukset tapahtumista, tarjouksista ja uutisista.</span>
       <span class="featureTileSoonBadge">Tulossa</span>
     </div>
-    <div class="featureTile featureTileSoon">
+    <button type="button" class="featureTile" onclick="openNearbyModal()">
       <span class="featureTileIcon" style="background:#1c7ed6;"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
       <b>Lähelläsi</b>
       <span>Näe palvelut ja tapahtumat sijaintisi perusteella.</span>
-      <span class="featureTileSoonBadge">Tulossa</span>
-    </div>
+    </button>
   </div>
 </main>
 
@@ -2083,6 +2131,15 @@ const STRINGS = {
     askHeroButton: 'Kysy',
     askReopenChatBtn: 'Näytä keskustelu',
     askDesktopChatTitle: 'Kysy tekoälyoppaalta',
+    nearbyTitle: 'Lähelläsi',
+    nearbySub: 'Näytä paikalliset yritykset lähimmästä kauimpaan sijaintisi perusteella.',
+    nearbyUseLocationBtn: 'Käytä sijaintiani',
+    nearbyPrivacyNote: 'Sijaintiasi ei tallenneta -- sitä käytetään vain tämän listan järjestämiseen selaimessasi.',
+    nearbyLocating: 'Haetaan sijaintia…',
+    nearbyErrorUnsupported: 'Selaimesi ei tue sijainninhakua.',
+    nearbyErrorDenied: 'Sijainnin käyttö evätty. Voit sallia sen selaimen asetuksista.',
+    nearbyErrorFailed: 'Sijaintia ei saatu haettua. Yritä uudelleen.',
+    nearbyEmpty: 'Ei vielä sijaintitietoja sisältäviä yrityksiä.',
     askAiDisclaimer: 'Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.',
     askFeedbackPrompt: 'Oliko tästä apua?',
     askFeedbackCommentPlaceholder: 'Mikä meni pieleen? (valinnainen)',
@@ -2278,6 +2335,15 @@ const STRINGS = {
     askHeroButton: 'Ask',
     askReopenChatBtn: 'Show conversation',
     askDesktopChatTitle: 'Ask the AI guide',
+    nearbyTitle: 'Near you',
+    nearbySub: 'Show local businesses sorted from nearest to farthest based on your location.',
+    nearbyUseLocationBtn: 'Use my location',
+    nearbyPrivacyNote: "Your location isn't stored -- it's only used to sort this list, in your browser.",
+    nearbyLocating: 'Finding your location…',
+    nearbyErrorUnsupported: "Your browser doesn't support location lookup.",
+    nearbyErrorDenied: 'Location access denied. You can allow it in your browser settings.',
+    nearbyErrorFailed: 'Could not get your location. Please try again.',
+    nearbyEmpty: 'No businesses with location data yet.',
     askAiDisclaimer: 'Answers are AI-generated and may contain errors.',
     askFeedbackPrompt: 'Was this helpful?',
     askFeedbackCommentPlaceholder: "What went wrong? (optional)",
@@ -3797,6 +3863,149 @@ function closeFeedbackModal(){
 document.getElementById('feedbackOverlay').addEventListener('click', (e)=>{
   if (e.target.id === 'feedbackOverlay') closeFeedbackModal();
 });
+
+// ---- Lähelläsi (near-you) ----
+// Reuses currentSquares (the same business data already loaded for the
+// homepage banner/card, deduped by group_id the same way) rather than a
+// separate fetch -- businesses already have real lat/lng in the
+// database (see api/ask.js's own use of them for the AI's answer maps),
+// so this needed no new backend work at all, just a client-side
+// distance sort + a Leaflet map matching the one already used there.
+let lastKnownNearbyLocation = null; // cached per page-load only, not persisted -- avoids re-prompting if the modal is reopened in the same session
+
+function openNearbyModal(){
+  document.getElementById('nearbyOverlay').style.display = 'flex';
+  if (lastKnownNearbyLocation){
+    renderNearbyResults(lastKnownNearbyLocation.lat, lastKnownNearbyLocation.lng);
+  } else {
+    document.getElementById('nearbyPromptView').style.display = 'block';
+    document.getElementById('nearbyResultsView').style.display = 'none';
+    document.getElementById('nearbyErrorMsg').style.display = 'none';
+  }
+}
+function closeNearbyModal(){
+  document.getElementById('nearbyOverlay').style.display = 'none';
+}
+document.getElementById('nearbyOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'nearbyOverlay') closeNearbyModal();
+});
+
+function requestNearbyLocation(){
+  const btn = document.getElementById('nearbyUseLocationBtn');
+  document.getElementById('nearbyErrorMsg').style.display = 'none';
+  if (!navigator.geolocation){
+    showNearbyError(t('nearbyErrorUnsupported'));
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = t('nearbyLocating');
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      lastKnownNearbyLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      btn.disabled = false;
+      btn.textContent = t('nearbyUseLocationBtn');
+      renderNearbyResults(lastKnownNearbyLocation.lat, lastKnownNearbyLocation.lng);
+    },
+    (err) => {
+      btn.disabled = false;
+      btn.textContent = t('nearbyUseLocationBtn');
+      showNearbyError(err.code === err.PERMISSION_DENIED ? t('nearbyErrorDenied') : t('nearbyErrorFailed'));
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+  );
+}
+function showNearbyError(msg){
+  const el = document.getElementById('nearbyErrorMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// Standard Haversine formula -- straight-line distance in km between
+// two lat/lng points. Good enough for "roughly how far is this",
+// not meant to match real walking/driving distance.
+function distanceKm(lat1, lng1, lat2, lng2){
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function formatDistanceKm(km){
+  if (km < 1) return Math.round(km * 1000) + ' m';
+  return km.toFixed(1).replace('.', ',') + ' km';
+}
+
+function renderNearbyResults(userLat, userLng){
+  document.getElementById('nearbyPromptView').style.display = 'none';
+  document.getElementById('nearbyResultsView').style.display = 'block';
+
+  // Same dedup-by-group_id pattern as renderBizFeedCard -- a business
+  // with several purchased slots should still only appear once here.
+  const seen = new Set();
+  const businesses = [];
+  (currentSquares || []).forEach(sq => {
+    if (!sq.logo_url || !sq.company_name || typeof sq.lat !== 'number' || typeof sq.lng !== 'number') return;
+    const key = sq.group_id || `solo-${sq.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    businesses.push(sq);
+  });
+
+  businesses.forEach(b => { b._distanceKm = distanceKm(userLat, userLng, b.lat, b.lng); });
+  businesses.sort((a, b) => a._distanceKm - b._distanceKm);
+  const nearest = businesses.slice(0, 20);
+
+  const list = document.getElementById('nearbyList');
+  if (nearest.length === 0){
+    list.innerHTML = `<p class="nearbyEmptyMsg">${escapeAskText(t('nearbyEmpty'))}</p>`;
+  } else {
+    list.innerHTML = nearest.map(b => `
+      <a class="nearbyListItem" href="/pin/${b.group_id || b.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${b.group_id || b.id})">
+        <img src="${b.logo_url}" alt="" loading="lazy" />
+        <div class="nearbyListItemText">
+          <b>${escapeAskText(b.company_name)}</b>
+          <span>${escapeAskText(b.industry || '')}</span>
+        </div>
+        <span class="nearbyDistance">${formatDistanceKm(b._distanceKm)}</span>
+      </a>
+    `).join('');
+  }
+
+  renderNearbyMap(userLat, userLng, nearest);
+}
+
+let nearbyMapInstance = null;
+function renderNearbyMap(userLat, userLng, businesses){
+  if (typeof L === 'undefined') return;
+  ensureLeafletIcons();
+  const container = document.getElementById('nearbyMap');
+  if (!container) return;
+  // Reopening the modal re-renders the map -- Leaflet errors if you
+  // call L.map() on a container that already has one attached, so the
+  // previous instance needs tearing down first.
+  if (nearbyMapInstance){ nearbyMapInstance.remove(); nearbyMapInstance = null; }
+
+  const map = L.map('nearbyMap', { scrollWheelZoom: false });
+  nearbyMapInstance = map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  const userMarker = L.circleMarker([userLat, userLng], { radius: 8, color: '#fff', weight: 2, fillColor: '#5847c9', fillOpacity: 1 }).addTo(map);
+  const markers = [userMarker];
+  businesses.forEach(b => {
+    const m = L.marker([b.lat, b.lng]).bindPopup(escapeAskText(b.company_name));
+    m.addTo(map);
+    markers.push(m);
+  });
+
+  if (markers.length === 1){
+    map.setView([userLat, userLng], 14);
+  } else {
+    map.fitBounds(L.featureGroup(markers).getBounds().pad(0.2));
+  }
+}
 
 async function submitSiteFeedback(){
   const errBox = document.getElementById('siteFeedbackErr');
