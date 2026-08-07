@@ -832,22 +832,20 @@
      no touch-event JS needed; the arrow buttons just scroll by one page
      width for desktop/non-touch use. */
   .pagedItemsContainer{display:flex;align-items:flex-start;overflow-x:auto;scroll-snap-type:x mandatory;
-    scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;padding:3px;}
-  /* padding gives the highlighted event card's box-shadow ring (see
-     .eventCard.highlighted below) room to render fully -- overflow-x:auto
-     here forces overflow-y to also compute as non-visible (a scroll
-     container can't have one axis clip and the other stay fully open),
-     so with zero padding the container was clipping tight against its
-     own edges, cutting off the ring's top/bottom and the edges nearest
-     wherever the horizontal scroll happened to be. Deliberately NOT
-     paired with a compensating negative margin to cancel the padding's
-     visual footprint back out -- tried that first, and a negative
-     margin directly on this flex container collapsed its own width
-     calculation to zero (confirmed: card width measured 0 with it,
-     restored to normal immediately on removing it). Plain padding
-     alone still fixes the actual clipping, just with a small, likely
-     imperceptible 3px of extra spacing around the widget as the
-     tradeoff, instead of risking that same collapse. */
+    scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;}
+  /* No padding here -- tried adding some specifically to give the
+     highlighted event card's outward box-shadow ring room to render
+     (see the .eventCard.highlighted comment below for why an inset
+     shadow is used instead now), but padding on a
+     scroll-snap-type:x mandatory container turned out to cause a
+     different, worse problem: the initial render's scroll position
+     didn't line up with where the padding shifted each snap-aligned
+     page to, so the ring only rendered fully *after* an actual scroll
+     event forced the browser to re-evaluate the snap position -- not
+     visible on first load, confirmed by real device testing. Switching
+     the highlight to an inset shadow sidesteps the whole problem: it
+     renders entirely inside the card's own box and was never actually
+     a scroll-container-clipping issue to begin with once inset. */
   .pagedItemsContainer::-webkit-scrollbar{display:none;}
   .itemsPage{flex:0 0 100%;scroll-snap-align:start;display:flex;flex-direction:column;gap:12px;min-width:0;}
   /* Event pages lay their cards out in a horizontal row (matching the
@@ -870,7 +868,19 @@
     box-shadow:var(--shadow-md);transition:box-shadow 0.15s ease,transform 0.15s ease;}
   .eventCard:hover{box-shadow:0 8px 20px rgba(88,71,201,0.14);transform:translateY(-2px);}
   [data-theme="light"] .eventCard{border:none;box-shadow:0 12px 28px rgba(30,20,70,0.08);}
-  .eventCard.highlighted{box-shadow:0 0 0 2px var(--amber);}
+  .eventCard.highlighted{box-shadow:inset 0 0 0 2px var(--amber);}
+  /* inset, not an outward ring -- an outward box-shadow extends 2px
+     past the card's own border box, which put it at the mercy of
+     whatever ancestor happens to clip overflow (the horizontally
+     scrolling row this card sits in, in this case) and, worse, of
+     scroll-snap positioning subtleties when trying to make room for it
+     via padding on that same scroll container (see the
+     .pagedItemsContainer comment for the real, confirmed failure that
+     caused -- the ring only rendering fully after manually scrolling,
+     not on initial load). An inset shadow paints entirely within the
+     card's own box instead, working naturally with its existing
+     overflow:hidden and border-radius, with nothing external able to
+     clip or misalign it at all. */
   .eventCard.ended{opacity:0.55;}
   .eventCard.ended .eventCardPhoto{filter:grayscale(0.6);}
   .eventCard.ended .eventCardMeta{font-style:italic;}
