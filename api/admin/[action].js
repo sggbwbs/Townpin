@@ -556,7 +556,24 @@ async function handleListEventsForAdmin(req, res) {
     .or(`event_end_date.gte.${helsinkiToday},and(event_end_date.is.null,event_date.gte.${helsinkiToday})`)
     .order('event_date', { ascending: true });
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not load events.' }); }
-  res.status(200).json({ events: data || [], maxSelected: MAX_SELECTED_EVENTS });
+  // Same dedup key as the public site's own dedupeEvents() in
+  // app-board.js -- without this, the admin panel showed raw,
+  // undeduped rows straight from the database (multiple rows can
+  // legitimately exist for what's really the same event -- e.g. a
+  // multi-day event appearing once per occurrence from Kaleva's own
+  // API), while the public site was silently collapsing the exact
+  // same duplicates client-side. Kept in sync deliberately: an admin
+  // selecting/highlighting "an event" should see the same one clean
+  // entry a visitor would, not multiple near-identical rows for what
+  // reads as a single event.
+  const seen = new Set();
+  const deduped = (data || []).filter(ev => {
+    const key = `${ev.title_fi}|${ev.event_date}|${ev.event_start_time}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  res.status(200).json({ events: deduped, maxSelected: MAX_SELECTED_EVENTS });
 }
 
 // Saves which events (max 4) should override the automatic ranking on the
