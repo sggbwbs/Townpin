@@ -8,52 +8,77 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{ --bg-0:#f3f2fa; --panel:#ffffff; --line:#ddd8ef;
-    --paper:#ffffff; --amber:#5847c9; --amber-bright:#7a5cd6; --ink:#211c38; --ink-dim:#6b6488; --danger:#c0392b; }
+    --paper:#ffffff; --amber:#5847c9; --amber-bright:#7a5cd6; --ink:#211c38; --ink-dim:#6b6488; --danger:#c0392b;
+    --shadow-sm:0 2px 8px rgba(88,71,201,0.06); --shadow-md:0 6px 20px rgba(88,71,201,0.09);
+    --shadow-lg:0 14px 34px rgba(88,71,201,0.13); --good:#3a7d3a; }
   *{box-sizing:border-box;}
   body{margin:0;min-height:100vh;background:var(--bg-0);color:var(--ink);
     font-family:'IBM Plex Sans',sans-serif;display:flex;flex-direction:column;align-items:center;padding:60px 20px;}
   h1{font-family:'Space Grotesk',sans-serif;font-size:20px;margin:0 0 6px;}
+  /* Every individual card's own title used to be its own <h1> -- multiple
+     H1s on one page, a real heading-hierarchy/accessibility issue, not
+     just a style one. Now h2 (the column labels above them are also h2,
+     so this technically makes card titles siblings of their column label
+     rather than a level below -- an intentional, pragmatic simplification
+     rather than introducing an h3 tier purely for this, since visually
+     distinguishing them by weight/size below already reads as a clear
+     hierarchy without needing a deeper semantic nesting). */
+  .card h2{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;margin:0 0 6px;color:var(--ink);}
   .sub{color:var(--ink-dim);font-size:13px;margin:0 0 28px;}
-  .card{background:var(--paper);color:#211c38;max-width:520px;width:100%;border-radius:14px;padding:32px;
-    box-shadow:0 4px 16px rgba(88,71,201,0.07);}
-  #adminColumnsWrap{display:none;flex-direction:row;flex-wrap:wrap;gap:20px;align-items:flex-start;
+  .card{background:var(--paper);color:#211c38;max-width:520px;width:100%;border-radius:18px;padding:28px 30px;
+    box-shadow:var(--shadow-sm);border:1px solid var(--line);transition:box-shadow 0.18s ease,transform 0.18s ease;}
+  .card:hover{box-shadow:var(--shadow-md);}
+  #adminColumnsWrap{display:none;flex-direction:row;flex-wrap:wrap;gap:22px;align-items:flex-start;
     width:100%;max-width:1400px;}
-  .adminColumn{flex:1 1 340px;min-width:340px;display:flex;flex-direction:column;gap:20px;}
+  .adminColumn{flex:1 1 340px;min-width:340px;display:flex;flex-direction:column;gap:18px;}
   .adminColumn .card{max-width:none;width:100%;}
-  .adminColumnLabel{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:var(--ink);
-    margin:0;padding-left:4px;text-transform:uppercase;letter-spacing:0.04em;}
-  #quickNavCard{box-shadow:0 8px 24px rgba(88,71,201,0.14);max-width:700px;}
+  .adminColumnLabel{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--amber);
+    margin:0 0 2px;padding:0 4px;text-transform:uppercase;letter-spacing:0.06em;
+    display:flex;align-items:center;gap:8px;}
+  .colIcon{width:16px;height:16px;flex-shrink:0;}
+  #quickNavCard{box-shadow:var(--shadow-lg);max-width:700px;border-radius:20px;}
   #quickNavRow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
   .quickNavBtn{background:var(--bg-0);border:1px solid var(--line);color:var(--ink-dim);
     font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;padding:10px 16px;
-    border-radius:999px;cursor:pointer;}
+    border-radius:999px;cursor:pointer;transition:background 0.15s ease,color 0.15s ease,border-color 0.15s ease;}
+  .quickNavBtn:hover{background:#ece8fb;border-color:var(--amber);color:var(--amber);}
   .quickNavBtn.quickNavPrimary{background:var(--amber);border-color:var(--amber);color:#ffffff;}
-  .quickNavBtn:hover{filter:brightness(1.08);}
-  #loginCard input{width:100%;padding:12px 14px;border:1px solid #ddd8ef;border-radius:7px;
-    font-size:14px;margin-bottom:14px;font-family:'IBM Plex Sans',sans-serif;background:#ffffff;}
-  button{border:none;border-radius:8px;padding:12px 20px;font-family:'Space Grotesk',sans-serif;
-    font-weight:700;font-size:14px;cursor:pointer;background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#ffffff;}
-  .feedbackFilterBtn{background:none;border:1px solid #ddd8ef;color:#6b6488;padding:7px 14px;font-size:12.5px;font-weight:600;}
-  .feedbackFilterBtn.active{background:#211c38;color:#5847c9;border-color:#211c38;}
-  .feedbackItem{border:1px solid #ddd8ef;border-radius:8px;padding:12px 14px;margin-bottom:10px;}
+  .quickNavBtn.quickNavPrimary:hover{background:var(--amber-bright);border-color:var(--amber-bright);color:#ffffff;}
+  #loginCard input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:8px;
+    font-size:14px;margin-bottom:14px;font-family:'IBM Plex Sans',sans-serif;background:#ffffff;
+    transition:border-color 0.15s ease;}
+  #loginCard input:focus{outline:none;border-color:var(--amber);}
+  button{border:none;border-radius:9px;padding:12px 20px;font-family:'Space Grotesk',sans-serif;
+    font-weight:700;font-size:14px;cursor:pointer;background:linear-gradient(135deg,var(--amber-bright),var(--amber));
+    color:#ffffff;box-shadow:0 3px 10px rgba(88,71,201,0.18);transition:box-shadow 0.15s ease,transform 0.15s ease;}
+  button:hover{box-shadow:0 5px 16px rgba(88,71,201,0.26);transform:translateY(-1px);}
+  button:active{transform:translateY(0);}
+  #dashHeaderCard{border-radius:16px;}
+  .feedbackFilterBtn{background:none;border:1px solid var(--line);color:var(--ink-dim);padding:7px 14px;font-size:12.5px;font-weight:600;
+    box-shadow:none;}
+  .feedbackFilterBtn:hover{box-shadow:none;transform:none;background:var(--bg-0);}
+  .feedbackFilterBtn.active{background:var(--ink);color:var(--amber-bright);border-color:var(--ink);}
+  .feedbackItem{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;transition:border-color 0.15s ease;}
+  .feedbackItem:hover{border-color:var(--amber);}
   .feedbackItem .feedbackQ{font-weight:700;margin-bottom:6px;}
-  .feedbackItem .feedbackA{color:#6b6488;font-size:13px;margin-bottom:6px;white-space:pre-wrap;}
-  .feedbackItem .feedbackComment{background:#f3f2fa;border-radius:6px;padding:8px 10px;font-size:13px;font-style:italic;margin-bottom:6px;}
-  .feedbackItem .feedbackMeta{font-size:11.5px;color:#6b6488;}
+  .feedbackItem .feedbackA{color:var(--ink-dim);font-size:13px;margin-bottom:6px;white-space:pre-wrap;}
+  .feedbackItem .feedbackComment{background:var(--bg-0);border-radius:7px;padding:8px 10px;font-size:13px;font-style:italic;margin-bottom:6px;}
+  .feedbackItem .feedbackMeta{font-size:11.5px;color:var(--ink-dim);}
   .err{color:#b8452f;font-size:13px;margin:-4px 0 14px;display:none;}
   .field{margin-bottom:20px;}
   .field label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
-    color:#6b6488;margin-bottom:5px;}
-  .field .langLabel{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#6b6488;margin:8px 0 3px;}
-  .field textarea{width:100%;padding:9px 11px;border:1px solid #ddd8ef;border-radius:6px;font-size:13.5px;
-    font-family:'IBM Plex Sans',sans-serif;background:#ffffff;resize:vertical;min-height:44px;}
+    color:var(--ink-dim);margin-bottom:5px;}
+  .field .langLabel{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-dim);margin:8px 0 3px;}
+  .field textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;
+    font-family:'IBM Plex Sans',sans-serif;background:#ffffff;resize:vertical;min-height:44px;transition:border-color 0.15s ease;}
+  .field textarea:focus{outline:none;border-color:var(--amber);}
   .saveBar{position:sticky;bottom:-32px;background:var(--paper);padding:16px 0 0;margin-top:8px;
     display:flex;align-items:center;gap:14px;}
-  .saved{color:#4a7a5c;font-size:13px;display:none;}
-  #logoutLink{display:block;margin-top:18px;font-size:12px;color:#6b6488;text-decoration:underline;cursor:pointer;}
-  #previewBox{background:#1a1730;border-radius:10px;padding:32px 20px;text-align:center;margin-bottom:24px;
+  .saved{color:var(--good);font-size:13px;display:none;}
+  #logoutLink{display:block;margin-top:18px;font-size:12px;color:var(--ink-dim);text-decoration:underline;cursor:pointer;}
+  #previewBox{background:#1a1730;border-radius:14px;padding:32px 20px;text-align:center;margin-bottom:24px;
     font-family:'IBM Plex Sans',sans-serif;}
-  #previewBox h2{font-family:'Space Grotesk',sans-serif;color:#f5f7fb;font-size:22px;margin:0 0 10px;line-height:1.2;}
+  #previewBox h2{font-family:'Space Grotesk',sans-serif;color:#f5f7fb;font-size:22px;margin:0 0 10px;line-height:1.2;font-weight:700;}
   #previewBox h2 span{color:#5847c9;}
   #previewBox p{color:#8fa3bd;font-size:13px;max-width:400px;margin:0 auto 20px;line-height:1.5;}
   #previewValueRow{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;}
@@ -62,23 +87,26 @@
   #previewFooter{color:#8fa3bd;font-size:10px;margin-top:18px;font-family:'IBM Plex Mono',monospace;}
   #previewLangToggle{display:flex;gap:2px;justify-content:center;margin-bottom:16px;}
   #previewLangToggle button{background:none;border:1px solid #8fa3bd;color:#8fa3bd;font-size:11px;
-    padding:4px 10px;border-radius:999px;cursor:pointer;}
+    padding:4px 10px;border-radius:999px;cursor:pointer;box-shadow:none;}
+  #previewLangToggle button:hover{box-shadow:none;transform:none;}
   #previewLangToggle button.active{background:#5847c9;border-color:#5847c9;color:#ffffff;font-weight:700;}
   .qtyRow{display:flex;align-items:center;gap:16px;margin-top:6px;}
-  .qtyRow button{width:36px;height:36px;border-radius:50%;border:1px solid #ddd8ef;background:#ffffff;
-    color:#211c38;font-size:18px;font-weight:700;cursor:pointer;}
-  .qtyRow button:hover{border-color:var(--amber);}
+  .qtyRow button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#ffffff;
+    color:var(--ink);font-size:18px;font-weight:700;cursor:pointer;box-shadow:none;}
+  .qtyRow button:hover{border-color:var(--amber);box-shadow:none;transform:none;}
   .qtyRow button:disabled{opacity:0.4;cursor:default;}
   .qtyRow span{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;min-width:32px;text-align:center;}
   .compedRow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;
-    border-bottom:1px solid #ddd8ef;font-size:13px;}
+    border-bottom:1px solid var(--line);font-size:13px;}
   .compedRow:last-child{border-bottom:none;}
-  .revokeBtn{background:none;color:#b8452f;text-decoration:underline;padding:4px 8px;font-size:12px;}
-  .field input[type=text],.field input[type=url],.field input[type=date],.field input[type=number]{width:100%;padding:9px 11px;border:1px solid #ddd8ef;
-    border-radius:6px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;background:#ffffff;}
+  .revokeBtn{background:none;color:#b8452f;text-decoration:underline;padding:4px 8px;font-size:12px;box-shadow:none;}
+  .revokeBtn:hover{box-shadow:none;transform:none;}
+  .field input[type=text],.field input[type=url],.field input[type=date],.field input[type=number]{width:100%;padding:9px 11px;border:1px solid var(--line);
+    border-radius:7px;font-size:13.5px;font-family:'IBM Plex Sans',sans-serif;background:#ffffff;transition:border-color 0.15s ease;}
+  .field input[type=text]:focus,.field input[type=url]:focus,.field input[type=date]:focus,.field input[type=number]:focus{outline:none;border-color:var(--amber);}
   .grantColorRow{display:flex;gap:8px;margin-top:6px;}
-  .grantColorRow .swatch{width:26px;height:26px;border-radius:6px;cursor:pointer;border:2px solid transparent;}
-  .grantColorRow .swatch.sel{border-color:#211c38;}
+  .grantColorRow .swatch{width:26px;height:26px;border-radius:7px;cursor:pointer;border:2px solid transparent;}
+  .grantColorRow .swatch.sel{border-color:var(--ink);}
 </style>
 </head>
 <body>
@@ -108,9 +136,9 @@
 
 <div id="adminColumnsWrap">
   <div class="adminColumn">
-    <h2 class="adminColumnLabel">Tapahtumat</h2>
+    <h2 class="adminColumnLabel"><svg class="colIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Tapahtumat</h2>
 <div class="card" id="eventsCard" style="display:none;">
-  <h1>Choose today's featured events</h1>
+  <h2>Choose today's featured events</h2>
   <p class="sub">Pick up to 4 events to show on the public board instead of the automatic ranking — useful when you want specific events front and center (say, during a big festival). Optionally highlight a few of your picks to make them stand out. Uncheck everything and save to go back to automatic selection.</p>
   <div id="eventsPickerTownNote" class="sub" style="margin:6px 0 12px;font-weight:700;"></div>
   <div id="eventsPickerList"><p class="sub">Loading…</p></div>
@@ -121,9 +149,9 @@
   </div>
 
   <div class="adminColumn">
-    <h2 class="adminColumnLabel">Yritykset</h2>
+    <h2 class="adminColumnLabel"><svg class="colIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="1"/><line x1="8" y1="6" x2="8" y2="6.01"/><line x1="12" y1="6" x2="12" y2="6.01"/><line x1="16" y1="6" x2="16" y2="6.01"/><line x1="8" y1="10" x2="8" y2="10.01"/><line x1="12" y1="10" x2="12" y2="10.01"/><line x1="16" y1="10" x2="16" y2="10.01"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="16" y1="14" x2="16" y2="14.01"/><path d="M9 22v-4h6v4"/></svg>Yritykset</h2>
 <div class="card" id="moveCard" style="display:none;">
-  <h1>Manage a company</h1>
+  <h2>Manage a company</h2>
   <p class="sub">Edit a business's details, or move them to another town if they claimed slots in the wrong city. Works the same whether their slots were bought or granted free. Search by company name or email to find them.</p>
 
   <div class="field">
@@ -213,7 +241,7 @@
   </div>
 </div>
 <div class="card" id="grantCard" style="display:none;">
-  <h1>Grant free ad slots</h1>
+  <h2>Grant free ad slots</h2>
   <p class="sub">Reserve one or more ad slots for a company of your choice — no payment, no subscription.</p>
 
   <div class="field">
@@ -286,11 +314,11 @@
   </div>
 
   <hr style="margin:24px 0;border:none;border-top:1px solid #ddd8ef;">
-  <h1 style="font-size:15px;">Currently comped ad slots</h1>
+  <h2 style="font-size:15px;">Currently comped ad slots</h2>
   <div id="compedList"><p class="sub">Loading…</p></div>
 </div>
 <div class="card" id="townsCard" style="display:none;">
-  <h1>Towns open to the public</h1>
+  <h2>Towns open to the public</h2>
   <p class="sub">Only towns listed here as "Open" can be found or claimed by visitors — this is the "pilot one town first" restriction. Enable a new town when you're ready to expand there.</p>
 
   <div class="field">
@@ -307,9 +335,9 @@
   </div>
 
   <div class="adminColumn">
-    <h2 class="adminColumnLabel">Tilastot</h2>
+    <h2 class="adminColumnLabel"><svg class="colIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Tilastot</h2>
 <div class="card" id="visitorsCard" style="display:none;">
-  <h1>Analytiikka</h1>
+  <h2>Analytiikka</h2>
   <p class="sub" style="margin-bottom:6px;">Sivun lataukset — ei uniikkeja kävijöitä, vain kokonaismäärä.</p>
   <div id="visitorStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
     <div><b style="display:block;font-family:'Space Grotesk',sans-serif;font-size:26px;color:#211c38;" id="visitorsToday">–</b><span class="sub" style="margin:0;">Tänään</span></div>
@@ -332,12 +360,12 @@
   </div>
 </div>
 <div class="card" id="businessEngagementCard" style="display:none;">
-  <h1>Yritysten näkyvyys</h1>
+  <h2>Yritysten näkyvyys</h2>
   <p class="sub" style="margin-bottom:14px;">Kuinka moni klikkasi kunkin yrityksen logoa/mainintaa, ja kuinka monta kertaa tekoäly suositteli heitä vastauksissa -- valitun kaupungin yritykset.</p>
   <div id="businessEngagementList"><p class="sub">Loading…</p></div>
 </div>
 <div class="card" id="costCard" style="display:none;">
-  <h1>AI-kustannukset</h1>
+  <h2>AI-kustannukset</h2>
   <p class="sub" style="margin-bottom:14px;">
     <p class="sub" id="costDisclaimer" style="margin-bottom:14px;">Ladataan…</p>
   <div id="costStatsRow" style="display:flex;gap:24px;margin-bottom:18px;">
@@ -355,9 +383,9 @@
   </div>
 
   <div class="adminColumn">
-    <h2 class="adminColumnLabel">AI-palaute</h2>
+    <h2 class="adminColumnLabel"><svg class="colIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>AI-palaute</h2>
 <div class="card" id="aiHintsCard" style="display:none;">
-  <h1>Teach the AI agent</h1>
+  <h2>Teach the AI agent</h2>
   <p class="sub">Give the chat agent standing instructions — e.g. "When someone asks about car rentals (autovuokraamo), always mention Rese Autovuokraamo and Casahouse Rent by name." Plain language, short and direct works best. Applies to every question from now on.</p>
 
   <div id="aiHintsTownNote" class="sub" style="margin:0 0 10px;font-weight:700;"></div>
@@ -374,14 +402,14 @@
   <div class="err" id="aiHintErr"></div>
 
   <hr style="margin:22px 0;border:none;border-top:1px solid #ddd8ef;">
-  <h1 style="font-size:15px;">Current instructions</h1>
+  <h2 style="font-size:15px;">Current instructions</h2>
   <div id="aiHintsList"><p class="sub">Loading…</p></div>
 </div>
 <div class="card" id="aiFeedbackCard" style="display:none;">
-  <h1 style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleAiFeedbackCard()">
+  <h2 style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleAiFeedbackCard()">
     <span>AI chat feedback</span>
     <span id="aiFeedbackCollapseArrow" style="font-size:13px;color:#6b6488;">▼ Piilota</span>
-  </h1>
+  </h2>
   <div id="aiFeedbackBody">
     <p class="sub">Real 👍/👎 feedback from visitors on actual answers -- this doesn't retrain the AI itself (there's no such pipeline), but it's the most direct way to see which real questions got a bad answer, with the actual question and answer text right here to read.</p>
     <button id="summarizeFeedbackBtn">✨ Analysoi 👎-palaute tekoälyllä</button>
@@ -400,7 +428,7 @@
   </div>
 </div>
 <div class="card" id="siteFeedbackCard" style="display:none;">
-  <h1>Site feedback</h1>
+  <h2>Site feedback</h2>
   <p class="sub">General "what do you think of the service" feedback from the main site -- distinct from the AI chat feedback above. Shown across all towns, not scoped to whichever one is currently selected, since this is about the whole service.</p>
   <button id="clearSiteFeedbackBtn" style="background:none;border:1px solid #ddd8ef;color:#8a2c2c;font-size:12.5px;padding:8px 14px;margin-bottom:12px;">Tyhjennä kaikki</button>
   <div id="siteFeedbackList"><p class="sub">Loading…</p></div>
@@ -408,15 +436,15 @@
   </div>
 
   <div class="adminColumn">
-    <h2 class="adminColumnLabel">Muut työkalut</h2>
+    <h2 class="adminColumnLabel"><svg class="colIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Muut työkalut</h2>
 <div class="card" id="maintenanceCard" style="display:none;">
-  <h1>Site status</h1>
+  <h2>Site status</h2>
   <p class="sub" id="maintenanceStatusText" style="margin-bottom:12px;">Checking…</p>
   <button id="maintenanceToggleBtn">Loading…</button>
   <p class="sub" style="margin-top:12px;font-size:11.5px;">Only hides the main homepage — existing customer pages, /manage, and this admin panel keep working normally the whole time.</p>
 </div>
 <div class="card" id="colorThemeCard" style="display:none;">
-  <h1>Sivuston väriteema</h1>
+  <h2>Sivuston väriteema</h2>
   <p class="sub" style="margin-bottom:14px;">Oletusteema uusille kävijöille. Jos kävijä on jo itse vaihtanut oman teemansa (vaalea/tumma-nappi), heidän oma valintansa säilyy tästä riippumatta.</p>
   <div style="display:flex;gap:10px;margin-bottom:8px;">
     <button id="themeSetLight" class="feedbackFilterBtn">Vaalea — Lilac ja muste</button>
@@ -425,7 +453,7 @@
   <p class="sub" id="colorThemeCurrentLabel" style="font-size:12px;">Ladataan…</p>
 </div>
 <div class="card" id="todayCardSponsorCard" style="display:none;">
-  <h1>Tänään-kortin sponsori</h1>
+  <h2>Tänään-kortin sponsori</h2>
   <p class="sub" style="margin-bottom:14px;">Yksi yritys kerrallaan, näkyy oikeassa alakulmassa jaettavassa "Tänään" -kuvassa. Ei itsepalveluostoa -- tämä on tarkoituksella admin-hallittu, kunnes hinta ja kesto on päätetty muille kuin legendaarisille asiakkaille.</p>
   <p class="sub" style="margin-bottom:14px;background:#f3f2fa;padding:10px 12px;border-radius:8px;"><b>Muista:</b> jokainen 5 mainospaikan (legendaarinen) asiakas on oikeutettu 4 ilmaiseen Tänään-kortin näkyvyyteen kuukaudessa. Tämä työkalu ei seuraa käyttöä automaattisesti -- pidä itse kirjaa, keitä legendaarisia asiakkaita on ja kuinka moneen kertaan kukin on jo saanut näkyvyyttä kuluvana kuukautena.</p>
   <p class="sub" id="todayCardSponsorCurrent" style="font-weight:700;margin-bottom:14px;">Ladataan…</p>
@@ -447,14 +475,14 @@
   <div class="err" id="sponsorErr"></div>
 </div>
 <div class="card" id="shareCardCard" style="display:none;">
-  <h1>Daily share card</h1>
+  <h2>Daily share card</h2>
   <p class="sub" style="margin-bottom:12px;">A downloadable image with today's weather and top event — built for posting in local Facebook groups or social media to bring in real visitors.</p>
   <a href="/today-card.html" target="_blank" style="text-decoration:none;">
     <button type="button">Open today's card →</button>
   </a>
 </div>
 <div class="card" id="editCard" style="display:none;">
-  <h1>Edit site copy</h1>
+  <h2>Edit site copy</h2>
   <p class="sub">Changes go live within a few seconds — no redeploy needed. Only the main marketing copy is editable here.</p>
   <div id="editCardTownNote" class="sub" style="font-weight:700;margin-bottom:14px;"></div>
 
@@ -480,7 +508,7 @@
   </div>
 </div>
 <div class="card" id="userCreditsCard" style="display:none;">
-  <h1>Manage a user's AI-chat access</h1>
+  <h2>Manage a user's AI-chat access</h2>
   <p class="sub">Look an account up by email, then fix a credit balance (e.g. a purchase that was charged but never credited -- usually a Stripe webhook that didn't arrive or failed) or grant/revoke unlimited access for a specific trusted person.</p>
   <div class="field">
     <label>Account email</label>
