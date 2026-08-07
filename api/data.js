@@ -194,14 +194,19 @@ async function handleUserRegister(req, res) {
   }
 
   // Fire-and-forget -- doesn't block the response on the email actually
-  // sending. Login/access work the same either way (see the migration
-  // comment on why this doesn't gate anything); a failed send here
-  // shouldn't turn into a failed registration.
+  // sending. A failed send here shouldn't turn into a failed
+  // registration; worst case, the person can use "resend verification"
+  // (see handleUserResendVerification) once they realize nothing arrived.
   const verifyUrl = `${SITE_URL}/api/user/verify-email?token=${verifyToken}`;
   sendAccountVerificationEmail(cleanEmail, verifyUrl).catch(() => {});
 
-  setUserSessionCookie(res, user.id);
-  res.status(200).json({ ok: true, user: publicUser(user) });
+  // Deliberately NOT logging the person in here anymore -- verification
+  // is now required before login works at all (see handleUserLogin), so
+  // an immediate session here would just get rejected on their very next
+  // authenticated request. needsVerification tells the frontend to show
+  // a "check your email" state instead of treating this as a normal
+  // successful login.
+  res.status(200).json({ ok: true, needsVerification: true, email: cleanEmail });
 }
 
 async function handleUserLogin(req, res) {
@@ -220,7 +225,7 @@ async function handleUserLogin(req, res) {
 
   const { data: user } = await supabase
     .from('users')
-    .select('id, email, password_hash, credit_balance, premium_credit_balance, consent_personalization')
+    .select('id, email, password_hash, credit_balance, premium_credit_balance, consent_personalization, email_verified')
     .eq('email', cleanEmail)
     .maybeSingle();
 
@@ -234,6 +239,14 @@ async function handleUserLogin(req, res) {
   if (!user || !validPassword) {
     await recordRequest(supabase, 'user_auth_attempts', ip);
     return res.status(401).json({ error: 'Incorrect email or password.' });
+  }
+
+  // Distinct from the generic error above on purpose -- reaching this
+  // point already requires the correct password, so there's no new
+  // information being leaked to an attacker by being specific here,
+  // unlike staying vague about wrong credentials.
+  if (!user.email_verified) {
+    return res.status(403).json({ error: 'unverified_email' });
   }
 
   setUserSessionCookie(res, user.id);
@@ -379,6 +392,44 @@ async function handleUserRequestPasswordReset(req, res) {
   res.status(200).json(GENERIC_RESPONSE);
 }
 
+// Necessary now that email verification actually blocks login (see
+// handleUserLogin) -- without this, anyone whose verification email was
+// delayed, lost, or landed in spam would have no way back into their
+// own account at all. Same generic-response, rate-limited, don't-reveal-
+// whether-the-email-exists pattern as the password reset request above.
+async function handleUserResendVerification(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const ip = getClientIp(req);
+  const { email } = req.body || {};
+  const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+  const GENERIC_RESPONSE = {
+    ok: true,
+    message: 'Jos tämä sähköposti on rekisteröity eikä vielä vahvistettu, lähetimme sille uuden vahvistuslinkin. / If that email is registered and not yet verified, we\'ve sent it a new confirmation link.'
+  };
+
+  if (await isRateLimited(supabase, 'user_auth_attempts', ip, AUTH_MAX_ATTEMPTS, AUTH_WINDOW_HOURS)) {
+    return res.status(429).json({ error: 'Too many attempts -- please try again later.' });
+  }
+  await recordRequest(supabase, 'user_auth_attempts', ip);
+
+  if (!EMAIL_RE.test(cleanEmail)) return res.status(200).json(GENERIC_RESPONSE);
+
+  const { data: user } = await supabase.from('users').select('id, email, email_verified').eq('email', cleanEmail).maybeSingle();
+  // Same generic response whether the email doesn't exist, or exists but
+  // is already verified -- neither case should be distinguishable from
+  // the outside.
+  if (!user || user.email_verified) return res.status(200).json(GENERIC_RESPONSE);
+
+  const verifyToken = crypto.randomBytes(24).toString('hex');
+  await supabase.from('users').update({ verify_token: verifyToken }).eq('id', user.id);
+
+  const verifyUrl = `${SITE_URL}/api/user/verify-email?token=${verifyToken}`;
+  await sendAccountVerificationEmail(user.email, verifyUrl);
+
+  res.status(200).json(GENERIC_RESPONSE);
+}
+
 async function handleUserResetPassword(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   const { token, newPassword } = req.body || {};
@@ -419,6 +470,7 @@ async function handleUser(req, res) {
     case 'buy-credits': return handleUserBuyCredits(req, res);
     case 'request-password-reset': return handleUserRequestPasswordReset(req, res);
     case 'reset-password': return handleUserResetPassword(req, res);
+    case 'resend-verification': return handleUserResendVerification(req, res);
     case 'verify-email': return handleUserVerifyEmail(req, res);
     default: return res.status(404).json({ error: 'Unknown action.' });
   }
