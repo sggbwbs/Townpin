@@ -1,11 +1,20 @@
 # PaikallisCanvas — Oulu's local business board
 
-Businesses claim one or more squares on a visual grid representing Oulu —
-€5/month per square (4+ squares at €4/square), or a discounted prepaid
-term (3/6/12 months, up to "2 months free"). Each square is also its own
-indexed webpage at `/pin/{id}` — that's the real product, not just the
-grid. No contract, cancel anytime — squares stay live until the end of
-the period already paid for, then release automatically.
+Businesses buy one or more ad slots ("mainospaikka") on the board — a
+flat €29.90/month per slot regardless of quantity (no more per-square
+discounts or size tiers; every slot is now the same size), or a
+discounted prepaid term (3/6/12 months, up to "2 months free"). Each
+slot is also its own indexed webpage at `/pin/{id}` — that's the real
+product, not just the board listing itself. No contract, cancel
+anytime — slots stay live until the end of the period already paid for,
+then release automatically.
+
+*(Naming note for anyone reading the code: the database table and most
+internal variable/function names still say "squares" — `squares` table,
+`pricePerSquareEur()`, etc. — left as-is rather than renamed throughout,
+since it's purely internal naming and renaming it everywhere wasn't
+worth the risk/effort. There is no actual visual grid of clickable
+squares anymore — see "What's actually on the site" below.)*
 
 **Deliberately Oulu-only right now**, on the advice of Oulun Seudun
 Uusyrityskeskus: prove the concept in one town before expanding. The
@@ -18,11 +27,15 @@ The site is Finnish-first with an English toggle.
 
 ## What's actually on the site right now
 
-- **The board**: a 10×10 (100-square) grid for Oulu. Click one square to
-  select it, click a second to select every square in the rectangle
-  between them — works the same on phone, tablet, and desktop. Squares
-  bought together render as one block with a single logo spanning the
-  area.
+- **Buying a listing**: a quantity picker (how many slots, not which
+  specific ones — there's no clickable visual grid anymore), a choice
+  between monthly billing or a discounted prepaid term (3/6 months at
+  10%/15% off, or 12 months charged as 10 — "2 months free"), and an
+  option to also list in additional towns in the same purchase. Every
+  slot is the same flat €29.90/month regardless of quantity — no more
+  per-square volume discount or size tiers (gold-border/legendary tiers
+  existed at one point and were removed; may return later, but aren't
+  part of the current model).
 - **A local weather widget** — current Oulu temperature, click to expand
   today's hourly forecast plus a 7-day forecast. Uses Open-Meteo (free,
   no API key, no backend endpoint needed — called directly from the
@@ -82,6 +95,60 @@ The site is Finnish-first with an English toggle.
   via a low-risk AI classification call (picking from a fixed list, not
   generating anything). That same `industry` field is what now shows
   under each business's name in the homepage card.
+- **AI chat ("Kysy tekoälyoppaalta")** — a real docked panel on wide
+  desktop (slides in from the right, `body.desktopChatOpen` reserves
+  page margin), a bottom sheet everywhere else (tablet and phone share
+  the same treatment). Minimize/reopen persists correctly, conversation
+  history survives a reload (24h expiry, localStorage), business
+  mentions in an answer render as real clickable chips. Answers use a
+  client-side typing-reveal animation, not real token streaming — the
+  backend does tool-call web search plus structured JSON, which can't
+  be streamed safely, so this is an honest simulation, not a claim of
+  real streaming. Search is capped at 2 web searches per question
+  (`max_uses: 2` in `api/ask.js`) — a deliberate cost/latency ceiling,
+  not a bug; each search costs roughly $0.025–0.03 on top of Anthropic's
+  own token cost. The system prompt is long and deliberately
+  over-explained in its own comments — each rule cites the real,
+  specific failure that led to it (wrong dates, missed local
+  businesses, generic advice instead of a direct link, etc.), not just
+  an abstract instruction, since that's what's kept it from regressing
+  as more rules got added over time.
+- **Personalized recommendations ("Henkilökohtaiset suositukset")** —
+  localStorage-based business favorites (`paikallisCanvasFavoriteBusinesses`),
+  a heart toggle on business cards everywhere they appear (homepage
+  banner, Lähelläsi results, the favorites list itself). No account
+  system backs this — it's purely per-browser.
+- **Lähelläsi (near-you)** — browser Geolocation + Haversine distance,
+  sorted list of the closest businesses with lat/lng, shown with a
+  Leaflet map. Location is cached in memory for the page load only, not
+  persisted.
+- **Daily email digest ("Älä missaa mitään")** — opt-in daily 8am
+  (Helsinki time) email with today's events, latest news, and a
+  reminder of the visitor's favorited businesses. Double opt-in
+  (confirm-by-email before anything sends), reuses the same Resend
+  account already used for password resets — no separate email service.
+  The cron runs every 15 minutes and checks the real Helsinki wall-clock
+  time itself (`Intl.DateTimeFormat`) rather than trusting a fixed UTC
+  cron schedule, specifically because Finland's DST shift (UTC+2/UTC+3)
+  would otherwise make the digest arrive an hour off for half the year.
+  Favorited businesses are kept in sync going forward via a dedicated,
+  narrowly-scoped `sync_token` (separate from the confirm/unsubscribe
+  tokens) — a real gap that existed for a while: favorites were
+  originally only captured once, at signup, and never updated again
+  even if the visitor changed their favorites afterward.
+- **Account email verification** — registering no longer logs someone
+  in immediately; login is blocked until the verification link is
+  clicked (with a "resend verification" option, since without one,
+  anyone whose email was slow, lost, or in spam would be permanently
+  locked out). Worth knowing for anyone maintaining this: the first
+  version of the verification email send used a "fire and forget"
+  pattern that isn't safe on Vercel — the platform can freeze a
+  function's execution the instant its response is sent, pausing
+  anything still in flight, including an un-awaited request to Resend.
+  It only actually completed sending once a *later* request happened to
+  reuse the same warm execution and wake it back up — which looked
+  exactly like "the email only arrives after I try to log in," and was
+  genuinely confusing to track down. Fixed by `await`ing the send.
 
 ## Admin capabilities (`/admin`)
 
@@ -133,22 +200,52 @@ that it's a genuinely different, real feature (real incident/safety
 reports from tilannehuone.fi), not a revival of the AI-searched offers
 concept.
 
-A basic public-transport ("from X, to Y, here's your bus and when")
-feature was scoped out but not built: a real Oulun seudun liikenne GTFS
-feed was supplied and confirmed genuine, but building actual trip-
-planning (matching routes that serve both stops, in the right order, at
-real times) is meaningfully harder than just listing nearby stops, which
-itself would already need proper batched import of a 1M+ row dataset.
-Set aside as not "light," per explicit direction, rather than shipping a
-half-working version.
+A basic public-transport ("from X, to Y, here's your bus and when") trip-
+planning feature was scoped out early on but not built: matching routes
+that serve both stops, in the right order, at real times, is meaningfully
+harder than just listing nearby stops, and would need proper batched
+import of a 1M+ row GTFS dataset. Set aside as not "light," per explicit
+direction, rather than shipping a half-working version. Revisited later
+with a different, much lighter angle instead: Oulu's transit data flows
+through **Digitransit** (`api.digitransit.fi/routing/v2/waltti/gtfs/v1`),
+a shared national platform covering dozens of Finnish cities under
+"Waltti," not an Oulu-specific system — genuinely relevant to the
+multi-city plans below. It exposes a GraphQL API (JSON, not raw GTFS-RT
+protobuf) that already incorporates real-time service alerts and
+predictions, needing only a free subscription key. Two realistic,
+un-built ideas from this: **transit service alerts as their own small
+card/widget** (explicitly *not* merged into Tilannehuone — a delay or
+route change is routine service status, not a safety incident, and
+mixing the two would blur what Tilannehuone actually means), and a
+**"next departures from a nearby stop" widget**. Full live vehicle
+tracking on a map was considered and set aside as unlikely to be worth
+its complexity for this site.
 
-## On the €5/month vs €12/year trade-off
+Also discussed but not built: **business self-serve posting** (updates/
+photos a business could publish themselves, which the digest email's
+"favorited businesses" section is intentionally scoped around — it shows
+current info, not "what's new," precisely because there's no real update
+feed yet to draw from), **reviews/ratings** (needs a new table + real
+moderation), and a **full map view** beyond Lähelläsi (the Leaflet +
+business-coordinate pattern already exists and proved out; extending it
+to a dedicated map page is a smaller lift now than building it fresh).
 
-We originally moved to annual billing specifically to stop Stripe's
-per-transaction fee from eating a large share of a €1 charge. At
-€5/month, that fee (roughly €0.30 on an EU card) is about 6% of revenue
-instead of 25-30% — a real cost, but a normal, sustainable one for a
-subscription business, not a business-breaking one.
+## On pricing — a gap worth knowing about
+
+The site moved at some point from per-square pricing (originally €5/month,
+discounted at 4+ squares) to the current flat €29.90/month-per-slot,
+same-size-for-everyone model described above and confirmed directly in
+`api/_pricing.js` and the live checkout modal's own copy. **That
+transition was never actually recorded in this README** — there's no
+changelog entry for it below, and the reasoning behind moving to a
+single flat, notably higher price point isn't written down anywhere in
+the code either. Worth someone with that context adding a real entry for
+it at some point, both for anyone new joining the project and so this
+kind of gap doesn't recur. The original Stripe-fee-percentage reasoning
+that used to live in this section (fixed transaction fees eating an
+outsized share of a very small €5 charge) doesn't meaningfully apply at
+€29.90 — the same ~€0.30 EU-card fee is roughly 1% of that, not a real
+factor either way.
 
 ## On Google Maps
 
@@ -172,6 +269,52 @@ concrete, genuinely Oulu-specific starting points:
   of Oulu-area companies
 - **Finder.fi** — public Finnish company registry, searchable by "Oulu"
   for direct outreach contacts
+
+## Opening future cities — the real gap, and the plan
+
+The intent is to eventually open more cities than Oulu, ideally without
+needing a developer (or an AI assistant) involved for each one. Being
+honest about where things actually stand: **that's not true yet.** A
+meaningful amount of Oulu-specific logic is currently hardcoded directly
+in the code rather than configured — `fetchOuluEventsFromAPI()` exists as
+its own dedicated function, there are outright `if (townName ===
+'Helsinki')`-style branches, and API endpoints/behavior are baked in
+per-town rather than driven by data. Opening a second city today would
+mean *writing new code*, not filling out a form.
+
+What "ready to self-serve" actually requires, roughly in priority order:
+
+1. A real **town-configuration system** — the `towns` table holding
+   everything town-specific (which events source and its config, which
+   news feeds, transit region ID, map center, etc.), so a new city is a
+   new row plus an admin form, not new code.
+2. An **admin UI for onboarding a town** — add a city, point it at its
+   data sources, preview that things work, flip it live, no deploy
+   needed.
+3. **Preferring stable, documented data sources over reverse-engineered
+   ones** wherever a choice exists. The Kaleva events integration is the
+   cautionary tale here: an undocumented API silently changed shape (two
+   columns the code tried to insert, `address` and `category`, were
+   never actually added to the database — every single event insert had
+   been failing with zero visible error for a while), and even with
+   careful log-based debugging it took several rounds to actually find.
+   That's a genuinely hard failure mode for anyone without deep
+   technical background to diagnose alone. The Digitransit API discussed
+   above is a good example of the right kind of dependency instead —
+   documented, stable, and not reverse-engineered.
+4. **Real architecture documentation**, not just inline code comments
+   (though there are a lot of those, deliberately — most of this
+   codebase's comments explain *why*, with the specific real failure
+   that caused a given decision, not just *what* the code does, since
+   that's what actually helps someone come back to it later without
+   needing to re-derive the reasoning from scratch).
+
+The realistic bar to aim for isn't "zero developer/AI involvement ever
+again" — software needs maintenance, and some of the bugs hit during
+this project (subtle CSS layering issues, silent data-pipeline failures)
+are genuinely expert-level to diagnose. The realistic, valuable bar is:
+**adding a routine new city, or doing day-to-day moderation/content
+work, needs zero code changes.**
 
 ## Setup steps
 Same shape as before — Supabase → Stripe → Vercel → webhook.
@@ -199,19 +342,43 @@ anyone real.
 
 ## Files
 ```
-index.html                     frontend — Finnish/English toggle, click-to-select
-                                grid, weather widget, news/events feed, claim modal
+index.html                     HTML shell only -- the frontend used to be one
+                                large file with everything inline; split apart for
+                                maintainability. Keeps one small inline script for
+                                early theme detection (avoids a flash of the wrong
+                                theme before the rest of the JS loads).
+styles.css                     all CSS, extracted from index.html's old <style> block
+app-core.js                    setup, i18n/translation strings, auth UI strings, PWA install
+app-board.js                   board rendering, square selection, event card rendering
+app-feed.js                    news/events feed rendering, favorites, auth (login/
+                                register/verify), the daily digest signup modal
+app-chat.js                    AI chat panel, weather widget, nearby/Lähelläsi,
+                                admin-preview flows, page init
 admin.html                     copy editor, grant/move squares, towns open/closed,
-                                maintenance mode toggle
+                                maintenance mode toggle, event curation
 manage.html                    self-service listing management (tagline/logo/color/
                                 blurb, view analytics, cancel subscription)
 generate-hash.html             one-time browser tool to generate admin credentials
+today-card.html                standalone single-day printable/shareable events card
 
 api/town.js                    finds/enables a town board (public: enabled-only;
                                 admin: any town, via an authenticated bypass)
-api/board.js                   returns a town's claimed squares only (fast, no feed data)
-api/feed.js                    returns news + events for a town (separate from board.js
-                                so feed generation can never block the grid from loading)
+api/data.js                    the main consolidated endpoint -- board, feed
+                                (news+events), user auth (register/login/verify-email/
+                                resend-verification/password reset), buy-credits, and
+                                more, all routed via ?endpoint=&action= rather than
+                                separate files. Consolidated specifically to conserve
+                                Vercel serverless function count (though this project
+                                later turned out to be on the Pro plan, not Hobby, so
+                                that specific constraint no longer strictly applies --
+                                kept consolidated anyway since splitting back apart
+                                isn't free either and nothing was broken by staying
+                                merged).
+api/notifications.js           the daily digest -- subscribe/confirm/unsubscribe/
+                                sync-favorites/send-digest, same single-file-multi-
+                                endpoint pattern as api/data.js
+api/ask.js                     the AI chat backend -- system prompt, web search tool
+                                use, business/event/news context assembly
 api/create-checkout-session.js validates + reserves squares (5 min, IP-capped), starts
                                 a Stripe subscription or one-time prepaid charge
 api/webhook.js                 activates squares on payment; expires them on cancellation
@@ -219,20 +386,44 @@ api/webhook.js                 activates squares on payment; expires them on can
 api/manage.js                  self-service editing + cancel-subscription endpoint
 api/pin/[id].js                the SEO page for each claimed square; tracks view_count
 api/fetch-site-info.js         website autofill: name/tagline/real-logo-only/industry
-api/cleanup.js                 daily cron — clears abandoned reservations + expired
-                                prepaid terms
-api/recheck-squares.js         weekly cron — re-screens active squares for link swaps
+api/maintenance.js             merged cron jobs -- daily (clears abandoned
+                                reservations + expired prepaid terms) and weekly
+                                (re-screens active squares for link swaps)
 api/upload-logo.js             direct logo upload + crop
-api/admin/[action].js          merged admin actions (login, content, grant, revoke,
-                                move, towns list/enable/disable, maintenance toggle)
-api/admin/_auth.js             admin session token sign/verify
-api/_db.js, api/_linkCheck.js, api/_moderate.js, api/_companyInfo.js   shared helpers
-api/_localFeed.js               news (real RSS) + events (real Kaleva API) fetching/
-                                caching logic; offers code still here but unused
-api/tilannehuone.js             standalone endpoint for real incident/safety reports
-                                (tilannehuone.fi scrape + national RSS fallback) —
+api/tilannehuone.js            standalone endpoint for real incident/safety reports
+                                (tilannehuone.fi scrape + national RSS fallback) --
                                 deliberately lightweight, no Stripe/bcrypt/Supabase
                                 imports, unlike the other API files
+api/admin/[action].js          merged admin actions (login, content, grant, revoke,
+                                move, towns list/enable/disable, maintenance toggle,
+                                event curation/dedup)
+api/admin/_auth.js             admin session token sign/verify
+
+api/_db.js                     Supabase client
+api/_email.js                  all outbound email (password reset, digest confirm,
+                                digest itself, account verification) via Resend's
+                                plain HTTP API, no SDK
+api/_userAuth.js               visitor account session token sign/verify -- a
+                                deliberately separate secret from the admin one
+api/_localFeed.js              news (real RSS) + events (real Kaleva API) fetching/
+                                caching logic; offers code still here but unused
+api/_squares.js                shared square-assignment helper (main purchase flow
+                                and "post to additional towns" both use this now)
+api/_pricing.js                flat per-slot pricing calculation
+api/_geocode.js                address -> map coordinates via OpenStreetMap Nominatim
+api/_rateLimit.js              shared IP-window-count rate-limiting helper, one
+                                independent log table per feature
+api/_limits.js                 free AI-chat questions per day (anonymous by IP,
+                                logged-in by account), resets at Helsinki midnight
+api/_linkCheck.js, api/_moderate.js, api/_companyInfo.js   other shared helpers
+
+migrations/                    incremental SQL migrations run after schema.sql --
+                                notification_subscribers (+ its sync_token follow-up),
+                                users_email_verification, local_feed_items_address_category
+                                (this last one fixed a real, previously silent bug:
+                                two columns the event-insert code relied on, address
+                                and category, had never actually been added to the
+                                table, so every event insert had been failing)
 
 schema.sql                     run once in Supabase (all migrations, safe to re-run)
 vercel.json                    routing (including the /oulu clean URL) + cron schedules
@@ -1438,3 +1629,149 @@ card's HTML rather than risky manual copy-paste.
 **General visual polish**: softened corner radius across the main cards
 (16→20px), added subtle hover-lift shadows to cards and a gradient +
 lift on the primary CTA button.
+
+## AI chat rework, favorites, daily digest, and a long list of real bugs found and fixed
+
+**AI chat panel**: rebuilt from a panel that pushed the page down with no
+way to dismiss it into a real docked panel on wide desktop (slides in
+from the right, `body.desktopChatOpen` reserves page margin — and
+correctly gives that margin back when minimized, which an earlier
+version of this fix didn't do) and a bottom sheet everywhere else.
+Conversation history now persists across a reload (24h expiry,
+localStorage), with business mentions in a saved answer restored as the
+same real clickable chips a live answer gets, via one shared
+`buildMentionsHtml` function rather than two separate implementations
+drifting apart. Answers use a client-side typing-reveal animation, not
+real token streaming, since the backend does tool-call web search plus
+structured JSON output that can't be safely streamed.
+
+**Personalized recommendations / favorites**: localStorage-based
+(`paikallisCanvasFavoriteBusinesses`), heart toggle everywhere a
+business card appears. The initial version had a real bug that took a
+while to trace: business IDs are UUIDs (`group_id`), and the heart's
+`onclick` attribute embedded one unquoted — valid for a numeric ID, but
+a UUID's hyphens get parsed as subtraction, producing a JavaScript
+syntax error and a completely dead button. Fixed by quoting it and by
+switching the deduplication key to `group_id` (falling back to `id`)
+throughout, since one business can own multiple board squares but
+should only be favorited once.
+
+**Lähelläsi (near-you)**: browser Geolocation + Haversine distance,
+Leaflet map, sorted nearest-business list.
+
+**Daily email digest**: opt-in, double-confirmed, 8am Helsinki time.
+Built the timing check on the real Helsinki wall-clock time via
+`Intl.DateTimeFormat` rather than a fixed UTC cron schedule, specifically
+because Finland's DST shift would otherwise make the digest arrive an
+hour off for roughly half the year — verified directly against both a
+winter and summer date, including the specific case a naive fixed-UTC
+schedule would get wrong. A real gap existed for a while after shipping
+this: a visitor's favorited businesses were only ever captured once, at
+signup, and never updated again even if they changed their favorites on
+the same device afterward. Fixed with a dedicated, narrowly-scoped
+`sync_token` (deliberately separate from the confirm/unsubscribe
+tokens, so a leaked one could only ever be used to update favorites, not
+confirm or unsubscribe someone else's subscription).
+
+**The events pipeline was silently, completely broken for a while.**
+Root cause, found through several rounds of log-based debugging: the
+event-insert code had been trying to write two columns, `address` and
+`category`, that had never actually been added to the `local_feed_items`
+table — and the insert call had zero error handling, so every single
+failed insert was silently swallowed. Real events were being
+successfully fetched from Kaleva's API and then quietly dropped on the
+floor before ever reaching the database, indistinguishable from "there
+are just no events today." Fixed with a migration adding the missing
+columns, plus proper error logging on that insert going forward so a
+failure like this can't hide silently again. Real photos (from Kaleva's
+own S3-hosted images) came back correctly the moment the underlying data
+started flowing again — they'd never actually been broken themselves,
+just starved of real data.
+
+**Admin panel was showing duplicate events that the public site wasn't.**
+The admin event list queried the database directly with zero
+deduplication, while the public site was silently deduping the exact
+same rows client-side (by title + date + start time) before rendering.
+Applied the same dedup server-side so both views show the same clean
+list — an admin selecting or highlighting "an event" should see one
+entry per event, not several near-identical rows for what reads as a
+single event.
+
+**Mobile weather widget could get stuck permanently expanded**, with no
+way to close it, on some devices. The forecast panel's mobile styling
+(`position:fixed`) could end up covering its own toggle button depending
+on a given phone's header height, and the only way to close it was
+re-clicking that same button. Fixed with a dedicated close button inside
+the panel itself plus a click-outside handler — two independent ways
+back, neither depending on the other still being reachable.
+
+**Mobile event cards showed 4 per row, same as desktop**, leaving each
+title too narrow to read even with 2-line clamping. Now shows 3 per row
+under 640px, both in the CSS card-width calculation and in the JS
+pagination grouping so the two stay in sync.
+
+**Highlighted event card's ring border took three real attempts to get
+right**, each one teaching something different about how box-shadow
+interacts with its surroundings: an outward box-shadow got clipped by
+its horizontally-scrolling parent's overflow; trying to fix that by
+adding padding to the scroll container broke because that container also
+has `scroll-snap-type: x mandatory`, and the padding left the *initial*
+scroll position out of sync with the snap points (the ring only rendered
+correctly after an actual scroll event forced the browser to
+re-evaluate); switching to an inset shadow avoided both those problems
+but introduced a new one — an inset shadow paints behind an element's
+own content, the same layer a background color would, so it was
+completely hidden behind the card's own opaque photo. The version that
+actually works: a separate absolutely-positioned overlay element with
+its own border, painted in front of everything via z-index, still
+bounded within the card's own box so none of the scroll/clipping issues
+apply to it either.
+
+**Account email verification** is now actually required, not just
+tracked — registering no longer logs someone in immediately, and login
+is blocked until the verification link is clicked, with a
+"resend verification" option (necessary the moment login blocking
+exists, or anyone whose email is slow/lost/spam-filtered would be
+permanently locked out). The verification email itself had a genuinely
+confusing bug at first: it was sent "fire and forget," without waiting
+for it to finish, on the theory that registration should respond fast.
+That's unsafe on Vercel specifically — the platform can freeze a
+function's execution the instant its response is sent, pausing anything
+still in flight. The email request would get paused mid-flight and only
+actually complete once a *later* request happened to reuse the same warm
+execution environment and wake it back up — which looked exactly like
+"the verification email only ever arrives after I try to log in,"
+confirmed by a real Vercel request trace showing zero calls to Resend's
+API during registration itself, but one immediately during the next
+login attempt. Fixed by awaiting the send properly.
+
+**AI chat accuracy**: real downvoted feedback (14 recent 👎s) traced to
+five specific patterns, each addressed differently. Events sent to the
+AI's context previously had no date/time fields at all — title, summary,
+and a URL, nothing else — despite the system prompt having detailed
+instructions for reasoning about whether a multi-day event was still
+running; the instructions had no data to actually apply. Fixed by
+including the real `event_date`/`event_end_date`/`event_start_time`/
+`event_end_time` fields. Added explicit guidance for well-known local
+landmarks/seasonal fixtures that are neither a business nor a scheduled
+event (a large decorated Christmas tree with reindeer was the real
+missed example), for searching a named organization's own site directly
+rather than only a general topic search when someone asks about it by
+name, and for verifying a found program/schedule's own period actually
+matches what was asked (a spring season program had been used to answer
+an autumn question). Search depth (`max_uses`) was considered for a
+raise from 2 to 3, since incomplete results plausibly trace back to it,
+but kept at 2 on explicit direction to keep costs low for now — worth
+revisiting if incomplete-coverage feedback continues after the other
+four fixes land.
+
+**Researched, not yet built**: Oulu's public transit data flows through
+Digitransit, a national platform (not Oulu-specific) with a documented
+GraphQL API already incorporating real-time service alerts — a much
+better-suited dependency than the Kaleva situation above, and directly
+relevant to opening future cities, since it already covers many other
+Finnish "Waltti" cities. Two realistic ideas: transit alerts as their
+own small widget (deliberately not merged into Tilannehuone — a bus
+delay is routine service status, not a safety incident), and a "next
+departures from a nearby stop" widget. See "Opening future cities" above
+for the bigger architectural gap this points at.
