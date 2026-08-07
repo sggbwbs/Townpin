@@ -868,19 +868,36 @@
     box-shadow:var(--shadow-md);transition:box-shadow 0.15s ease,transform 0.15s ease;}
   .eventCard:hover{box-shadow:0 8px 20px rgba(88,71,201,0.14);transform:translateY(-2px);}
   [data-theme="light"] .eventCard{border:none;box-shadow:0 12px 28px rgba(30,20,70,0.08);}
-  .eventCard.highlighted{box-shadow:inset 0 0 0 2px var(--amber);}
-  /* inset, not an outward ring -- an outward box-shadow extends 2px
-     past the card's own border box, which put it at the mercy of
-     whatever ancestor happens to clip overflow (the horizontally
-     scrolling row this card sits in, in this case) and, worse, of
-     scroll-snap positioning subtleties when trying to make room for it
-     via padding on that same scroll container (see the
-     .pagedItemsContainer comment for the real, confirmed failure that
-     caused -- the ring only rendering fully after manually scrolling,
-     not on initial load). An inset shadow paints entirely within the
-     card's own box instead, working naturally with its existing
-     overflow:hidden and border-radius, with nothing external able to
-     clip or misalign it at all. */
+  .eventCard.highlighted{position:relative;}
+  .eventCard.highlighted::after{
+    content:'';position:absolute;inset:0;border:2px solid var(--amber);
+    border-radius:inherit;pointer-events:none;z-index:2;
+  }
+  /* An overlay pseudo-element, not a box-shadow of either kind -- two
+     different real failures ruled those out. An outward box-shadow
+     (0 0 0 2px, no inset) extends past the card's own border box, at
+     the mercy of whatever ancestor clips overflow (the horizontally
+     scrolling row this card sits in); giving it room via padding on
+     that scroll container caused a worse, confirmed problem instead --
+     the container has scroll-snap-type:x mandatory, and the added
+     padding left the *initial* render's scroll position out of sync
+     with the snap points, so the ring only rendered fully after an
+     actual scroll event forced the browser to recalculate. Switching
+     to an inset box-shadow avoided that (nothing extends outside the
+     box, no scroll-container interaction at all) but hit a different,
+     equally real problem: an inset shadow paints behind the element's
+     own content, the same layer a background-color would -- and the
+     card's own photo is a fully opaque <img> covering most of that
+     same area, so the ring was being completely hidden behind it,
+     confirmed by a real screenshot showing the ring perfectly visible
+     around the card's text body (no opaque content there) but entirely
+     missing around the photo itself. This overlay approach sidesteps
+     both failures at once: bounded within the card's own box like the
+     inset version (so no scroll-container clipping or snap interaction
+     ever applies to it), but painted via z-index on top of everything
+     -- including the photo -- rather than behind it. border-radius:inherit
+     keeps its corners matching the card's own rounding automatically.
+  */
   .eventCard.ended{opacity:0.55;}
   .eventCard.ended .eventCardPhoto{filter:grayscale(0.6);}
   .eventCard.ended .eventCardMeta{font-style:italic;}
