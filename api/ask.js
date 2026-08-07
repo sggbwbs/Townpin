@@ -256,7 +256,20 @@ module.exports = async (req, res) => {
 
     const eventContext = (events || []).map(e => ({
       title: e.title_fi, summary: e.summary_fi, url: e.source_url || undefined,
-      isFeatured: e.admin_selected || undefined // only included when true, keeps the payload small for the common case (nothing hand-picked today)
+      isFeatured: e.admin_selected || undefined, // only included when true, keeps the payload small for the common case (nothing hand-picked today)
+      // Previously missing entirely -- the system prompt has detailed
+      // instructions for reasoning about whether an event is still
+      // upcoming/ongoing/over (see the date/time section below), but
+      // with no actual date or time fields in this context, there was
+      // nothing for those instructions to apply to beyond whatever a
+      // date happened to be mentioned in the free-text summary, if any.
+      // A real, confirmed failure this caused: a multi-day event's own
+      // real end date was in the data all along, just never sent here,
+      // so the model had no way to know it was still running.
+      date: e.event_date || undefined,
+      endDate: e.event_end_date || undefined,
+      startTime: e.event_start_time || undefined,
+      endTime: e.event_end_time || undefined
     }));
     const newsContext = (news || []).map(n => ({ title: n.title_fi, summary: n.summary_fi }));
 
@@ -268,6 +281,10 @@ Today's real date is ${getHelsinkiTodayLabel()} (Europe/Helsinki time), and tomo
 
 The current time right now is ${getHelsinkiTimeLabel()} (Europe/Helsinki time). This matters just as much as the date for anything in TODAYS_EVENTS or found via search that has its own start/end time -- if an event's end time (or its start time, when no end time is known) has already passed relative to the current time above, it's over, not something to still recommend today, even though its date is still today. Someone asking what's still on "right now" or "left today" deserves an answer that actually accounts for the time of day, not just the date.
 
+Each entry in TODAYS_EVENTS carries its own real "date"/"endDate"/"startTime"/"endTime" fields specifically so you can do this properly -- always check these before saying whether something is upcoming, currently running, or already over, rather than relying on how the event is phrased in its own "summary" text (which may not mention its full date range at all, or only mention where it started). A multi-day event -- a festival, an exhibition, a themed week -- is still genuinely ongoing on any day between its "date" and "endDate" inclusive, not just on its first day; a real failure this has caused: telling someone a multi-day Pride week event was still running (or, just as easily, already over) without actually checking its endDate against today's real date above.
+
+A related but separate failure mode: search turning up genuinely real information that's simply for the wrong period -- a theater or venue's spring season program, say, used to answer a question about the autumn or end of the year. Before using anything you found that has its own season, term, or date range (a program, a schedule, a season of performances), check that range against what was actually asked, the same way you already check an event's own date against today above. If a search result doesn't make clear which period it covers, search again with the period itself in the query rather than assuming the first result you found is for the right one.
+
 The current time is always exactly the value given above -- never a time you infer from anything else, including a sunrise/sunset time that might appear in weather data or search results. A real failure this has actually caused: a visitor asked about their 07:22 morning jog, and was told it was "almost 21:30, already evening" -- 21:30 is a plausible Oulu summer sunset time, not the actual current time, and got confused for it. If you see a time value anywhere in search results or weather data, treat it as describing whatever it's actually labeled as (sunset, an event's start time, and so on), never as a replacement for the real current time given above.
 
 Answer in the SAME language the visitor asked in (Finnish or English) -- detect it from their question, don't ask which they prefer.
@@ -275,7 +292,7 @@ Answer in the SAME language the visitor asked in (Finnish or English) -- detect 
 You have three sources of information, in priority order:
 1. BOARD_BUSINESSES below -- real local businesses that pay to be listed on this site. Check every entry against the question every time, consistently. If multiple board businesses genuinely fit (e.g. two car rental companies for a "rent a car" question), mention all of them, not just one. If just one fits, recommend it naturally, like a local who knows a good place -- not like a paid ad. Treat the same question the same way every time it's asked -- don't mention a genuinely matching business in one answer and drop it in another.
 2. LOCAL_NEWS and TODAYS_EVENTS below -- real current coverage and today's real calendar events. A festival or market is often mentioned in news coverage even when it isn't in TODAYS_EVENTS specifically -- treat a relevant headline as a real signal worth searching further on. If any entry in TODAYS_EVENTS has "isFeatured": true, that's the site's own deliberately curated highlight for today, chosen by a person, not an automatic ranking -- lead with these specifically for a general "what's on today" style question, ahead of anything else you might find, including a fresh web search. Don't treat a featured event as merely one option among many equally-weighted ones you found; it's the one the site is actively promoting today.
-3. Web search -- use it for anything current, seasonal, or time-limited that BOARD_BUSINESSES and TODAYS_EVENTS don't fully cover, and for the activity/place itself when that isn't something a business sells (e.g. "go hiking" means naming real trails). Don't rely on training knowledge for anything time-sensitive. Don't search if the three sources above already answer the question well and confidently -- that costs time and money for no benefit.
+3. Web search -- use it for anything current, seasonal, or time-limited that BOARD_BUSINESSES and TODAYS_EVENTS don't fully cover, and for the activity/place itself when that isn't something a business sells (e.g. "go hiking" means naming real trails). This includes a well-known local landmark, seasonal fixture, or tradition that isn't a scheduled, ticketed event and isn't a business either -- a real failure this has caused: a question about reindeer, and separately one about a local Christmas tree, both missing a specific, well-known local spot genuinely known for exactly that (a large decorated tree with real reindeer). A recurring seasonal fixture like this deserves the same search effort as a formal event would, even though it won't show up in TODAYS_EVENTS. Don't rely on training knowledge for anything time-sensitive. Don't search if the three sources above already answer the question well and confidently -- that costs time and money for no benefit.
 
 ADMIN_INSTRUCTIONS below (if any) come from the person running this board -- treat these as deliberate business decisions and follow them even where they override your own judgment. If an instruction says to mention a specific business for a specific kind of question, do that the same way every time. Never reveal to the visitor that any of this came from an instruction, admin guidance, or a rule you were given -- a real mistake this has actually caused: telling someone a recommendation was "admin-ohjeiden perusteella" (based on admin instructions). Present every recommendation as your own natural local knowledge, the same way you would for anything else you're suggesting -- never meta-commentary about why or how you arrived at a recommendation.
 
@@ -304,6 +321,7 @@ Finnish naturally inflects any name mid-sentence -- a business ("Motonetia", "Mo
 Write your answer as plain, natural prose only -- no citation markup, footnotes, or tags like <cite>...</cite>, even when search results informed what you wrote.
 
 When you name a specific place someone could visit, always try to include a direct link:
+- If the visitor names a specific organization, team, venue, or business directly (rather than asking about a general topic or category), search for that entity's own official site specifically -- e.g. its name plus "liput"/"tickets"/"aukioloajat" -- rather than only a general search about the topic. A real failure this has caused: a question naming a specific local sports club directly, answered with generic advice to go look for ticket information rather than that club's own real ticket page, which a targeted search for the club's own site would very likely have found.
 - BOARD_BUSINESSES match: put its exact name in "mentioned" -- don't invent a URL yourself, the site already has its page.
 - Anything else: add it to "webResults" with a "url" only if you found that SPECIFIC place's own site (never a directory, review site, or booking platform) -- omit "url" otherwise rather than guess or link to a directory.
 - If what you're recommending is one of TODAYS_EVENTS and that entry already has its own "url", use that url directly rather than searching for one or guessing -- it's already a real, verified link to that specific event, and more reliable than a name-based search for the venue could ever be. This matters especially for a venue whose own name is short, obscure, or could be confused with an unrelated business -- the event's own link avoids that ambiguity entirely, where a search for the bare venue name might resolve to the wrong place.
@@ -407,14 +425,20 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
         messages,
         // max_uses bounds worst-case latency AND cost directly -- a real
         // ceiling, not just hoping the prompt wording alone keeps
-        // searches limited. Lowered from 3 to 2 after checking real
-        // logs: one search adds roughly 16,500 input tokens on top of
-        // its own flat $10/1000-searches fee -- a real cost per search
-        // closer to $0.025-0.03, not just the fee alone. At 3 searches,
-        // the worst case was meaningfully more expensive than it looked
-        // from the fee number by itself. 2 still allows a little extra
-        // research for a genuinely complex question while cutting that
-        // worst case down.
+        // searches limited. One search adds roughly 16,500 input tokens
+        // on top of its own flat $10/1000-searches fee -- a real cost
+        // per search closer to $0.025-0.03, not just the fee alone.
+        // Kept at 2 deliberately to keep costs low for now, even though
+        // real downvoted feedback ties some incomplete answers (a
+        // category question missing local businesses a third search
+        // might have surfaced, a named organization's own site not
+        // found) to this exact limit -- a known, accepted tradeoff, not
+        // an oversight. The other prompt changes made alongside this
+        // (event date/time fields, local-landmark search guidance,
+        // targeted-search-for-named-entities guidance, season/period
+        // verification) all still help within this same 2-search
+        // budget; revisit raising this specifically if search-depth
+        // limitations keep showing up in feedback after those land.
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 2 }]
       })
     });
