@@ -557,11 +557,14 @@ function setAuthMode(mode){
   authMode = ['login', 'register', 'forgot', 'reset'].includes(mode) ? mode : 'login';
   document.getElementById('authErr').style.display = 'none';
   document.getElementById('authForgotSentMsg').style.display = 'none';
+  document.getElementById('authVerifySentMsg').style.display = 'none';
+  document.getElementById('authResendVerificationBtn').style.display = 'none';
 
   const titles = { login: 'authLoginTitle', register: 'authRegisterTitle', forgot: 'authForgotTitle', reset: 'authResetTitle' };
   const buttons = { login: 'authLoginButton', register: 'authRegisterButton', forgot: 'authForgotButton', reset: 'authResetButton' };
   document.getElementById('authTitle').textContent = t(titles[authMode]);
   document.getElementById('authSubmitBtn').textContent = t(buttons[authMode]);
+  document.getElementById('authSubmitBtn').style.display = 'block';
 
   document.getElementById('authEmail').style.display = (authMode === 'reset') ? 'none' : 'block';
   document.getElementById('authPassword').style.display = (authMode === 'forgot') ? 'none' : 'block';
@@ -597,10 +600,18 @@ async function submitAuth(){
     });
     const data = await res.json();
     if (!res.ok){
-      errBox.textContent = data.error || t('authGenericError');
-      errBox.style.display = 'block';
+      if (data.error === 'unverified_email'){
+        errBox.textContent = t('authUnverifiedError');
+        errBox.style.display = 'block';
+        document.getElementById('authResendVerificationBtn').style.display = 'block';
+      } else {
+        errBox.textContent = data.error || t('authGenericError');
+        errBox.style.display = 'block';
+        document.getElementById('authResendVerificationBtn').style.display = 'none';
+      }
       return;
     }
+    document.getElementById('authResendVerificationBtn').style.display = 'none';
 
     if (authMode === 'forgot'){
       const msgEl = document.getElementById('authForgotSentMsg');
@@ -609,7 +620,22 @@ async function submitAuth(){
       return;
     }
 
-    // login, register, and a successful reset all land here with a real
+    if (authMode === 'register' && data.needsVerification){
+      // No session cookie was set (see handleUserRegister) -- verification
+      // is required before login works at all now, so this shows a
+      // "check your email" state instead of treating registration as an
+      // immediate successful login the way it used to.
+      document.getElementById('authEmail').style.display = 'none';
+      document.getElementById('authPassword').style.display = 'none';
+      document.getElementById('authConsentRow').style.display = 'none';
+      document.getElementById('authSubmitBtn').style.display = 'none';
+      const msgEl = document.getElementById('authVerifySentMsg');
+      msgEl.textContent = t('authVerifySentMessage');
+      msgEl.style.display = 'block';
+      return;
+    }
+
+    // login and a successful reset land here with a real logged-in user --
     // logged-in user -- reset also strips the one-time token from the
     // URL so refreshing the page can't try to reuse it.
     currentUser = data.user;
@@ -624,6 +650,35 @@ async function submitAuth(){
   } catch (e) {
     errBox.textContent = t('authGenericError');
     errBox.style.display = 'block';
+  }
+}
+
+async function resendVerificationEmail(){
+  const email = document.getElementById('authEmail').value.trim();
+  const errBox = document.getElementById('authErr');
+  if (!email){
+    errBox.textContent = t('authGenericError');
+    errBox.style.display = 'block';
+    return;
+  }
+  const btn = document.getElementById('authResendVerificationBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/user/resend-verification`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    errBox.style.display = 'none';
+    btn.style.display = 'none';
+    const msgEl = document.getElementById('authVerifySentMsg');
+    msgEl.textContent = data.message || t('authVerifySentMessage');
+    msgEl.style.display = 'block';
+  } catch (e) {
+    errBox.textContent = t('authGenericError');
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
   }
 }
 

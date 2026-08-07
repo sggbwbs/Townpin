@@ -85,6 +85,7 @@
       <h2 id="authTitle" data-i18n="authLoginTitle">Kirjaudu sisään</h2>
       <p class="authSub" id="authSubText" data-i18n="authSub">Kirjautuneena saat 5 ilmaista tekoälykysymystä päivässä (palautuu joka yö klo 00) ja voit ostaa lisää.</p>
       <p class="authSub" id="authForgotSentMsg" style="display:none;color:#3a7d3a;"></p>
+      <p class="authSub" id="authVerifySentMsg" style="display:none;color:#3a7d3a;"></p>
       <input type="email" id="authEmail" autocomplete="email" data-i18n-placeholder="authEmailPlaceholder" placeholder="Sähköposti">
       <input type="password" id="authPassword" autocomplete="current-password" data-i18n-placeholder="authPasswordPlaceholder" placeholder="Salasana (väh. 8 merkkiä)">
       <label class="authConsent" id="authConsentRow" style="display:none;">
@@ -92,6 +93,7 @@
         <span data-i18n="authConsentLabel">Saa käyttää hakujani ja klikkauksiani suositusten personointiin. Vapaaehtoista -- voit peruuttaa milloin vain poistamalla tilisi.</span>
       </label>
       <button class="authSubmit" id="authSubmitBtn" onclick="submitAuth()" data-i18n="authLoginButton">Kirjaudu</button>
+      <button class="authSubmit" id="authResendVerificationBtn" style="display:none;" onclick="resendVerificationEmail()" data-i18n="authResendVerificationBtn">Lähetä vahvistuslinkki uudelleen</button>
       <div class="authSwitch" id="authForgotLink" data-i18n="authForgotLink">Unohditko salasanan? <a onclick="setAuthMode('forgot')">Palauta se</a></div>
       <div class="authSwitch" id="authSwitchToRegister" data-i18n="authSwitchToRegister">Eikö sinulla ole tiliä? <a onclick="setAuthMode('register')">Rekisteröidy</a></div>
       <div class="authSwitch" id="authSwitchToLogin" style="display:none;" data-i18n="authSwitchToLogin">Onko sinulla jo tili? <a onclick="setAuthMode('login')">Kirjaudu</a></div>
