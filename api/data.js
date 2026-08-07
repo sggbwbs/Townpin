@@ -6,7 +6,7 @@ const { getNewsSection, getEventsSection } = require('./_localFeed');
 const { isAuthenticated } = require('./admin/_auth');
 const { getUserId, setUserSessionCookie, clearUserSessionCookie } = require('./_userAuth');
 const { getClientIp, isRateLimited, recordRequest, countUserToday } = require('./_rateLimit');
-const { sendPasswordResetEmail } = require('./_email');
+const { sendPasswordResetEmail, sendAccountVerificationEmail } = require('./_email');
 const { FREE_QUESTIONS_PER_DAY, CREDIT_BUNDLE_SIZE, CREDIT_BUNDLE_PRICE_EUR } = require('./_limits');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
@@ -171,6 +171,7 @@ async function handleUserRegister(req, res) {
   await recordRequest(supabase, 'user_auth_attempts', ip);
 
   const passwordHash = await bcrypt.hash(password, 10);
+  const verifyToken = crypto.randomBytes(24).toString('hex');
   const { data: user, error } = await supabase
     .from('users')
     .insert({
@@ -178,7 +179,8 @@ async function handleUserRegister(req, res) {
       password_hash: passwordHash,
       // Opt-in only -- an explicit true from the client, anything else
       // (missing, false, a stray truthy string) is treated as "no".
-      consent_personalization: consentPersonalization === true
+      consent_personalization: consentPersonalization === true,
+      verify_token: verifyToken
     })
     .select('id, email, credit_balance, premium_credit_balance, consent_personalization')
     .single();
@@ -190,6 +192,13 @@ async function handleUserRegister(req, res) {
     console.error(error);
     return res.status(500).json({ error: 'Could not create account.' });
   }
+
+  // Fire-and-forget -- doesn't block the response on the email actually
+  // sending. Login/access work the same either way (see the migration
+  // comment on why this doesn't gate anything); a failed send here
+  // shouldn't turn into a failed registration.
+  const verifyUrl = `${SITE_URL}/api/user/verify-email?token=${verifyToken}`;
+  sendAccountVerificationEmail(cleanEmail, verifyUrl).catch(() => {});
 
   setUserSessionCookie(res, user.id);
   res.status(200).json({ ok: true, user: publicUser(user) });
@@ -410,8 +419,32 @@ async function handleUser(req, res) {
     case 'buy-credits': return handleUserBuyCredits(req, res);
     case 'request-password-reset': return handleUserRequestPasswordReset(req, res);
     case 'reset-password': return handleUserResetPassword(req, res);
+    case 'verify-email': return handleUserVerifyEmail(req, res);
     default: return res.status(404).json({ error: 'Unknown action.' });
   }
+}
+
+// Reached by clicking the link in the verification email -- a plain GET
+// from an email client, not a fetch() call from the page, so this
+// redirects back to the homepage with a status flag rather than
+// returning JSON, the same pattern the digest confirm/unsubscribe
+// endpoints use.
+async function handleUserVerifyEmail(req, res) {
+  const { token } = req.query;
+  if (!token) {
+    res.writeHead(302, { Location: `${SITE_URL}/?accountVerify=invalid` });
+    return res.end();
+  }
+  const { data, error } = await supabase
+    .from('users')
+    .update({ email_verified: true, verify_token: null })
+    .eq('verify_token', token)
+    .select('id')
+    .maybeSingle();
+
+  const redirectTo = (error || !data) ? `${SITE_URL}/?accountVerify=invalid` : `${SITE_URL}/?accountVerify=confirmed`;
+  res.writeHead(302, { Location: redirectTo });
+  res.end();
 }
 
 // Thumbs up/down on a specific answer -- open to anyone, logged in or

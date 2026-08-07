@@ -48,7 +48,47 @@ async function sendPasswordResetEmail(toEmail, resetUrl) {
   }
 }
 
-module.exports = { sendPasswordResetEmail, sendDigestConfirmEmail, sendDigestEmail };
+module.exports = { sendPasswordResetEmail, sendDigestConfirmEmail, sendDigestEmail, sendAccountVerificationEmail };
+
+// Sent right after registration -- doesn't block login/access on
+// clicking this (a lower-friction choice for a small site; see the
+// migration comment), just confirms the email address is real and
+// belongs to whoever registered. Same graceful-skip pattern as every
+// other email function here if Resend isn't configured.
+async function sendAccountVerificationEmail(toEmail, verifyUrl) {
+  if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
+    console.error('Account verification email not sent -- RESEND_API_KEY or RESEND_FROM_EMAIL is not configured.');
+    return false;
+  }
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
+      body: JSON.stringify({
+        from: RESEND_FROM_EMAIL,
+        to: toEmail,
+        subject: 'Vahvista sähköpostiosoitteesi / Confirm your email -- PaikallisCanvas',
+        html: `
+          <p>Kiitos rekisteröitymisestä! Vahvista sähköpostiosoitteesi klikkaamalla alla olevaa linkkiä:</p>
+          <p><a href="${verifyUrl}">${verifyUrl}</a></p>
+          <p>Jos et luonut tätä tiliä, voit jättää tämän viestin huomiotta.</p>
+          <hr>
+          <p>Thanks for signing up! Confirm your email by clicking the link below:</p>
+          <p><a href="${verifyUrl}">${verifyUrl}</a></p>
+          <p>If you didn't create this account, you can ignore this email.</p>
+        `
+      })
+    });
+    if (!res.ok) {
+      console.error('Resend API error (account verification):', res.status, await res.text());
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Account verification email failed to send:', err);
+    return false;
+  }
+}
 
 // Double opt-in confirmation for the daily digest -- nobody starts
 // receiving digest emails until they click this. Same graceful-skip
@@ -109,7 +149,7 @@ async function sendDigestEmail(toEmail, { townName, news, events, favorites, uns
 
   const eventsHtml = (events || []).length
     ? `<h3>Tapahtumat tänään</h3><ul>${events.map(e =>
-        `<li><strong>${escapeHtml(e.title_fi || e.title)}</strong>${e.event_start_time ? ' — ' + escapeHtml(e.event_start_time) : ''}</li>`
+        `<li><a href="${escapeHtml(e.source_url || e.url)}"><strong>${escapeHtml(e.title_fi || e.title)}</strong></a>${e.event_start_time ? ' — ' + escapeHtml(e.event_start_time) : ''}</li>`
       ).join('')}</ul>`
     : '';
 

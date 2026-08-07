@@ -28,6 +28,7 @@ async function handleSubscribe(req, res) {
 
   const confirmToken = crypto.randomBytes(24).toString('hex');
   const unsubscribeToken = crypto.randomBytes(24).toString('hex');
+  const syncToken = crypto.randomBytes(24).toString('hex');
   // Capped at 50 -- a sanity limit, not a real product constraint;
   // nobody realistically favorites more than that, and it keeps a
   // malformed/hostile request from writing an unbounded array.
@@ -43,7 +44,8 @@ async function handleSubscribe(req, res) {
     favorite_business_ids: favIds,
     confirmed: false,
     confirm_token: confirmToken,
-    unsubscribe_token: unsubscribeToken
+    unsubscribe_token: unsubscribeToken,
+    sync_token: syncToken
   }, { onConflict: 'email,town_id' });
 
   if (error) {
@@ -53,6 +55,45 @@ async function handleSubscribe(req, res) {
 
   const confirmUrl = `${SITE_URL}/api/notifications/confirm?token=${confirmToken}`;
   await sendDigestConfirmEmail(cleanEmail, confirmUrl);
+  res.status(200).json({ ok: true, syncToken });
+}
+
+// Keeps a subscriber's favorited-businesses snapshot up to date after
+// the fact -- favorites are only ever stored in the browser's own
+// localStorage (see toggleBusinessFavorite in app-chat.js), with no
+// account system linking a person to their subscription, so there's no
+// way for the server to know favorites changed unless the browser that
+// originally subscribed tells it. syncToken (returned from subscribe,
+// stored in localStorage on the client) is what lets it do that --
+// narrowly scoped to just this one action, not usable to confirm or
+// unsubscribe someone else's subscription even if it leaked.
+async function handleSyncFavorites(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const { syncToken, favoriteBusinessIds } = req.body || {};
+  if (!syncToken) return res.status(400).json({ error: 'Missing syncToken.' });
+
+  const favIds = Array.isArray(favoriteBusinessIds) ? favoriteBusinessIds.slice(0, 50) : [];
+
+  const { data, error } = await supabase
+    .from('notification_subscribers')
+    .update({ favorite_business_ids: favIds })
+    .eq('sync_token', syncToken)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error('Favorites sync failed:', error);
+    return res.status(500).json({ error: 'Could not sync favorites.' });
+  }
+  if (!data) {
+    // Token doesn't match any subscriber -- e.g. they've since
+    // unsubscribed (deleting the row) or the token is stale/invalid.
+    // Not treated as a hard error: the caller (toggleBusinessFavorite)
+    // fires this in the background and doesn't need to do anything
+    // differently either way, so a 404 is informational, not something
+    // that needs handling client-side.
+    return res.status(404).json({ error: 'Unknown syncToken.' });
+  }
   res.status(200).json({ ok: true });
 }
 
@@ -190,6 +231,7 @@ module.exports = async (req, res) => {
   if (endpoint === 'subscribe') return handleSubscribe(req, res);
   if (endpoint === 'confirm') return handleConfirm(req, res);
   if (endpoint === 'unsubscribe') return handleUnsubscribe(req, res);
+  if (endpoint === 'sync-favorites') return handleSyncFavorites(req, res);
   if (endpoint === 'send-digest') return handleSendDigest(req, res);
   return res.status(404).json({ error: 'Unknown endpoint.' });
 };
