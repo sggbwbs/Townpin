@@ -336,6 +336,10 @@ create table if not exists users (
 );
 alter table users add column if not exists premium_credit_balance integer not null default 0;
 alter table users add column if not exists unlimited_searches boolean not null default false;
+-- ==== Email verification on registration ====
+alter table users add column if not exists email_verified boolean not null default false;
+alter table users add column if not exists verify_token text;
+create index if not exists idx_users_verify_token on users (verify_token);
 
 -- Atomic top-up -- same reasoning as increment_view_count above: a plain
 -- read-then-write update would risk under-counting if two purchases (or

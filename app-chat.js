@@ -886,6 +886,22 @@ function renderWeatherForecast(){
 
   panel.innerHTML = '';
 
+  // Mobile-only visually (see the CSS) -- on desktop the panel sits
+  // right under its own toggle button with nothing else nearby, so
+  // there's no real overlap risk there and this stays out of the way.
+  // On mobile the panel is position:fixed and can end up covering its
+  // own toggle button on some devices (different header heights,
+  // safe-area insets vary by phone), which previously meant there was
+  // no way to close it at all once that happened -- confirmed as a
+  // real, reported case of the panel getting stuck open.
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.id = 'weatherForecastCloseBtn';
+  closeBtn.setAttribute('aria-label', lang === 'fi' ? 'Sulje sää' : 'Close weather');
+  closeBtn.textContent = '✕';
+  closeBtn.onclick = () => { weatherExpanded = false; renderWeatherForecast(); };
+  panel.appendChild(closeBtn);
+
   // Rolling next-24-hours forecast, anchored on right now -- not fixed
   // calendar marks (00/03/06...) -- shown first, above the 7-day view.
   if (weatherHourlyData && weatherHourlyData.time){
@@ -969,6 +985,21 @@ function renderWeatherForecast(){
 // fetched data, no re-fetch needed).
 document.getElementById('weatherWidget').addEventListener('click', () => {
   weatherExpanded = !weatherExpanded;
+  renderWeatherForecast();
+});
+
+// Second safety net alongside the dedicated close button in
+// renderWeatherForecast -- tapping anywhere outside the panel (or its
+// own toggle button) closes it too, the same click-outside pattern
+// every modal in this codebase already uses. Belt and suspenders: the
+// close button alone should already be enough, but this doesn't rely
+// on the panel's own content being reachable/visible at all.
+document.addEventListener('click', (e) => {
+  if (!weatherExpanded) return;
+  const panel = document.getElementById('weatherForecast');
+  const widget = document.getElementById('weatherWidget');
+  if (panel.contains(e.target) || widget.contains(e.target)) return;
+  weatherExpanded = false;
   renderWeatherForecast();
 });
 

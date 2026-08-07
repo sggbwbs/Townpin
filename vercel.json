@@ -20,7 +20,8 @@
     { "source": "/api/user/:action", "destination": "/api/data?endpoint=user&action=:action" },
     { "source": "/api/notifications/subscribe", "destination": "/api/notifications?endpoint=subscribe" },
     { "source": "/api/notifications/confirm", "destination": "/api/notifications?endpoint=confirm" },
-    { "source": "/api/notifications/unsubscribe", "destination": "/api/notifications?endpoint=unsubscribe" }
+    { "source": "/api/notifications/unsubscribe", "destination": "/api/notifications?endpoint=unsubscribe" },
+    { "source": "/api/notifications/sync-favorites", "destination": "/api/notifications?endpoint=sync-favorites" }
   ],
   "crons": [
     { "path": "/api/maintenance", "schedule": "0 4 * * *" },

@@ -94,9 +94,27 @@
      header element at all) guarantees it always lands somewhere
      sensible and fully visible, regardless of how the header itself
      happens to be laid out on any given phone. */
+  #weatherForecastCloseBtn{display:none;}
   @media (max-width:900px){
     #weatherForecast{position:fixed;top:96px;left:12px;right:12px;
       max-height:70vh;overflow-y:auto;overscroll-behavior:contain;}
+    /* Only meaningfully needed on mobile (see the JS comment in
+       renderWeatherForecast) -- hidden by the base rule above by
+       default, shown only within this same mobile media query, so
+       desktop's inline dropdown (which sits right under its own toggle
+       button with no overlap risk) doesn't get an unnecessary close
+       button cluttering it. Declared *after* the base display:none
+       rule above on purpose: media queries don't add specificity, so
+       at equal specificity the later rule in source order always wins
+       regardless of viewport width -- placing this before the base
+       rule (as an earlier version of this fix did) would have made
+       the base rule silently win at every width, defeating this
+       entirely regardless of whether the media query matched. */
+    #weatherForecastCloseBtn{display:flex;position:absolute;top:10px;right:10px;
+      width:28px;height:28px;border-radius:50%;border:none;background:var(--panelT4);
+      color:var(--ink-dim);cursor:pointer;align-items:center;justify-content:center;
+      font-size:14px;z-index:1;}
+    #weatherForecastCloseBtn:hover{background:var(--panelT7);color:var(--ink);}
   }
   #brand{display:flex;align-items:center;gap:14px;cursor:pointer;}
   #brandMark{width:64px;height:76px;display:flex;align-items:center;justify-content:center;
@@ -395,7 +413,7 @@
   #feedbackModal .err{display:none;background:#fbe4e4;color:#8a2c2c;border-radius:8px;padding:8px 10px;
     font-size:12px;margin-bottom:10px;}
 
-  #nearbyOverlay, #favoritesOverlay, #digestOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
+  #nearbyOverlay, #favoritesOverlay, #digestOverlay, #accountVerifyOverlay{position:fixed;inset:0;background:rgba(4,9,16,0.72);z-index:3000;display:none;
     align-items:center;justify-content:center;padding:20px;}
   .simpleModal{position:relative;background:var(--paper);color:var(--ink);width:100%;max-width:480px;
     max-height:85vh;overflow-y:auto;overscroll-behavior:contain;
@@ -852,6 +870,19 @@
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:35px;}
   .eventCardMeta{font-size:12px;color:var(--ink-dim);}
   .eventCardAddress{font-size:11px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* 4 cards per row leaves only ~85-95px each on a true phone width --
+     too narrow for a readable title even with the 2-line clamp above,
+     confirmed producing exactly the single-word-per-line, premature
+     ellipsis look reported ("Somma Band...", cutting off
+     "Musikläger" entirely). 3 cards fits meaningfully more per title.
+     Matched by an equivalent change to EVENTS_PAGE_SIZE in app-board.js
+     so each pager page actually contains 3 events here, not 4 -- the
+     CSS alone would just leave an awkward gap for the 4th card's slot
+     otherwise. 24px = 2 gaps of 12px (one fewer gap than the 4-card
+     version's 36px = 3 gaps). */
+  @media (max-width:640px){
+    .eventCard{flex:0 0 calc((100% - 24px) / 3);}
+  }
 
   /* ---- Compact news rows ---- */
   .newsRow{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;

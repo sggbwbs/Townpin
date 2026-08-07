@@ -175,6 +175,28 @@ function toggleBusinessFavorite(id, navId){
   }
   saveFavoriteBusinesses(favorites);
   updateFavoriteButtonsUI();
+  syncFavoritesToDigestSubscription(favorites);
+}
+
+// Keeps the digest email's favorited-businesses section current --
+// previously favorites were only ever captured once, at the moment
+// someone subscribed, and never updated again even if they changed
+// their favorites afterward on the same device. Fires in the
+// background and deliberately doesn't surface errors to the person
+// favoriting something -- this is a nice-to-have sync, not something
+// that should ever block or visibly fail the favorite action itself.
+// A no-op with nothing sent if they were never a digest subscriber on
+// this browser in the first place (the common case).
+function syncFavoritesToDigestSubscription(favorites){
+  let syncToken;
+  try { syncToken = localStorage.getItem('paikallisCanvasDigestSyncToken'); } catch (e) { return; }
+  if (!syncToken) return;
+  const favoriteBusinessIds = favorites.map(f => f.navId !== undefined ? f.navId : f.id);
+  fetch(`${API_BASE}/notifications/sync-favorites`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ syncToken, favoriteBusinessIds })
+  }).catch(() => {}); // best-effort -- see comment above
 }
 
 // Keeps every rendered favorite button in sync at once -- the same
@@ -266,6 +288,10 @@ async function submitDigestSignup(){
       btn.disabled = false;
       return;
     }
+    const data = await res.json().catch(() => ({}));
+    if (data.syncToken){
+      try { localStorage.setItem('paikallisCanvasDigestSyncToken', data.syncToken); } catch (e) {}
+    }
     document.getElementById('digestFormView').style.display = 'none';
     document.getElementById('digestSuccessView').style.display = 'block';
   } catch (err) {
@@ -298,6 +324,34 @@ async function submitDigestSignup(){
   }
   // Clean the URL so refreshing/sharing it doesn't re-show the message.
   params.delete('digest');
+  const cleanUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+  window.history.replaceState({}, '', cleanUrl);
+})();
+
+function closeAccountVerifyModal(){
+  document.getElementById('accountVerifyOverlay').style.display = 'none';
+}
+document.getElementById('accountVerifyOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'accountVerifyOverlay') closeAccountVerifyModal();
+});
+
+// Same pattern as the digest confirm/unsubscribe toast above, for
+// landing back here after clicking the link in the account
+// verification email (see the redirect in api/data.js's
+// handleUserVerifyEmail).
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const verifyStatus = params.get('accountVerify');
+  if (!verifyStatus) return;
+  const messages = {
+    confirmed: t('accountVerifyConfirmed'),
+    invalid: t('accountVerifyInvalid')
+  };
+  if (messages[verifyStatus]){
+    document.getElementById('accountVerifyOverlay').style.display = 'flex';
+    document.getElementById('accountVerifyMsg').textContent = messages[verifyStatus];
+  }
+  params.delete('accountVerify');
   const cleanUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
   window.history.replaceState({}, '', cleanUrl);
 })();
