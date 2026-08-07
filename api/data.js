@@ -193,12 +193,26 @@ async function handleUserRegister(req, res) {
     return res.status(500).json({ error: 'Could not create account.' });
   }
 
-  // Fire-and-forget -- doesn't block the response on the email actually
-  // sending. A failed send here shouldn't turn into a failed
-  // registration; worst case, the person can use "resend verification"
-  // (see handleUserResendVerification) once they realize nothing arrived.
+  // Awaited, not fire-and-forget -- a previous version of this line
+  // didn't await the send, on the theory that registration should
+  // respond fast and a failed send shouldn't fail registration. That
+  // theory was wrong in a specific, serverless-platform way: Vercel can
+  // freeze a function's execution environment the instant its response
+  // is sent, pausing anything still in flight -- including an
+  // un-awaited request to Resend -- mid-request rather than completing
+  // it. It would only actually finish sending if a *later* request
+  // happened to reuse the same warm execution environment and wake the
+  // paused work back up, which matched a real, reported symptom exactly:
+  // the email only ever arrived after a login attempt shortly after
+  // registering, never on registration alone. Awaiting costs a couple
+  // hundred ms of extra latency on registration, well worth it for the
+  // email to reliably actually send. errors are still caught so a
+  // failed send doesn't fail registration itself -- that part of the
+  // original reasoning was correct.
   const verifyUrl = `${SITE_URL}/api/user/verify-email?token=${verifyToken}`;
-  sendAccountVerificationEmail(cleanEmail, verifyUrl).catch(() => {});
+  try {
+    await sendAccountVerificationEmail(cleanEmail, verifyUrl);
+  } catch (e) {}
 
   // Deliberately NOT logging the person in here anymore -- verification
   // is now required before login works at all (see handleUserLogin), so
