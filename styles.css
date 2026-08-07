@@ -832,7 +832,22 @@
      no touch-event JS needed; the arrow buttons just scroll by one page
      width for desktop/non-touch use. */
   .pagedItemsContainer{display:flex;align-items:flex-start;overflow-x:auto;scroll-snap-type:x mandatory;
-    scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;}
+    scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;padding:3px;}
+  /* padding gives the highlighted event card's box-shadow ring (see
+     .eventCard.highlighted below) room to render fully -- overflow-x:auto
+     here forces overflow-y to also compute as non-visible (a scroll
+     container can't have one axis clip and the other stay fully open),
+     so with zero padding the container was clipping tight against its
+     own edges, cutting off the ring's top/bottom and the edges nearest
+     wherever the horizontal scroll happened to be. Deliberately NOT
+     paired with a compensating negative margin to cancel the padding's
+     visual footprint back out -- tried that first, and a negative
+     margin directly on this flex container collapsed its own width
+     calculation to zero (confirmed: card width measured 0 with it,
+     restored to normal immediately on removing it). Plain padding
+     alone still fixes the actual clipping, just with a small, likely
+     imperceptible 3px of extra spacing around the widget as the
+     tradeoff, instead of risking that same collapse. */
   .pagedItemsContainer::-webkit-scrollbar{display:none;}
   .itemsPage{flex:0 0 100%;scroll-snap-align:start;display:flex;flex-direction:column;gap:12px;min-width:0;}
   /* Event pages lay their cards out in a horizontal row (matching the
