@@ -22,6 +22,14 @@ create table if not exists notification_subscribers (
   confirmed boolean not null default false,
   confirm_token text not null,
   unsubscribe_token text not null,
+  -- Separate from the two tokens above on purpose -- each token should
+  -- only be usable for the one action it was issued for. This one lets
+  -- the browser that originally subscribed keep favorite_business_ids
+  -- in sync going forward (see api/notifications.js's sync-favorites
+  -- endpoint), without also being usable to confirm or unsubscribe.
+  -- No column-level default -- always set explicitly in application
+  -- code (api/notifications.js), matching confirm_token/unsubscribe_token.
+  sync_token text not null,
   created_at timestamptz not null default now(),
   confirmed_at timestamptz,
   -- Prevents double-sending if the cron's polling window (see
