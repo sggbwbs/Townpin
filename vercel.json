@@ -6,6 +6,13 @@
       "maxDuration": 60
     }
   },
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/oulu",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/pin/:id", "destination": "/api/pin/:id" },
     { "source": "/board/:slug", "destination": "/" },
