@@ -183,7 +183,23 @@ async function handleSendDigest(req, res) {
         getNewsSection(supabase, townId, 'oulun-seutu', town.name),
         getEventsSection(supabase, townId, town.name)
       ]);
-      townContent[townId] = { news: (news || []).slice(0, 5), events: (events || []).slice(0, 4), townName: town.name };
+      // Same dedup key as the public site's own dedupeEvents() in
+      // app-board.js and the admin panel's server-side dedup in
+      // api/admin/[action].js -- getEventsSection itself returns raw
+      // rows with no deduplication (that only ever happened in
+      // frontend JS, which obviously never runs for a server-rendered
+      // email), so without this the digest could slice straight into
+      // several rows that are really the same event repeated -- a real,
+      // reported case of the same event appearing 3 of 4 times in a
+      // sent digest.
+      const seen = new Set();
+      const dedupedEvents = (events || []).filter(ev => {
+        const key = `${ev.title_fi}|${ev.event_date}|${ev.event_start_time}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      townContent[townId] = { news: (news || []).slice(0, 5), events: dedupedEvents.slice(0, 4), townName: town.name };
     } catch (err) {
       console.error(`Digest content fetch failed for town ${townId}:`, err);
     }

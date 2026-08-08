@@ -12,6 +12,7 @@
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL; // e.g. "PaikallisCanvas <no-reply@paikalliscanvas.fi>"
+const SITE_URL = process.env.SITE_URL;
 
 async function sendPasswordResetEmail(toEmail, resetUrl) {
   if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
@@ -147,10 +148,13 @@ async function sendDigestEmail(toEmail, { townName, news, events, favorites, uns
     return false;
   }
 
+  const townSlug = encodeURIComponent((townName || '').toLowerCase());
+  const townHomeUrl = `${SITE_URL}/${townSlug}`;
   const eventsHtml = (events || []).length
     ? `<h3>Tapahtumat tänään</h3><ul>${events.map(e =>
         `<li><a href="${escapeHtml(e.source_url || e.url)}"><strong>${escapeHtml(e.title_fi || e.title)}</strong></a>${e.event_start_time ? ' — ' + escapeHtml(e.event_start_time) : ''}</li>`
-      ).join('')}</ul>`
+      ).join('')}</ul>
+      ${events.length === 4 ? `<p style="font-size:13px;"><a href="${townHomeUrl}">Katso kaikki tämän päivän tapahtumat &rarr;</a></p>` : ''}`
     : '';
 
   const newsHtml = (news || []).length
