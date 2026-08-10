@@ -150,35 +150,91 @@ async function sendDigestEmail(toEmail, { townName, news, events, favorites, uns
 
   const townSlug = encodeURIComponent((townName || '').toLowerCase());
   const townHomeUrl = `${SITE_URL}/${townSlug}`;
-  const eventsHtml = (events || []).length
-    ? `<h3>Tapahtumat tänään</h3><ul>${events.map(e =>
-        `<li><a href="${escapeHtml(e.source_url || e.url)}"><strong>${escapeHtml(e.title_fi || e.title)}</strong></a>${e.event_start_time ? ' — ' + escapeHtml(e.event_start_time) : ''}</li>`
-      ).join('')}</ul>
-      ${events.length === 4 ? `<p style="font-size:13px;"><a href="${townHomeUrl}">Katso kaikki tämän päivän tapahtumat &rarr;</a></p>` : ''}`
-    : '';
+  // Table-based layout throughout, every style inline -- not a stylistic
+  // choice, a compatibility one. Email clients (Outlook above all, but
+  // Gmail too in places) have wildly inconsistent support for modern
+  // CSS -- flexbox/grid don't work reliably, and a <style> block gets
+  // stripped entirely by some clients -- so the html/css techniques the
+  // rest of this codebase uses freely don't carry over here. Tables +
+  // inline styles is the boring, unglamorous approach, but it's the one
+  // that actually renders consistently across Gmail, Outlook, and Apple
+  // Mail alike.
+  const ACCENT = '#5847c9';
+  const INK = '#211c38';
+  const INK_DIM = '#6b6488';
+  const LINE = '#e4e1f3';
+  const BG = '#f3f2fa';
 
-  const newsHtml = (news || []).length
-    ? `<h3>Tuoreimmat uutiset</h3><ul>${news.map(n =>
-        `<li><a href="${escapeHtml(n.source_url || n.url)}">${escapeHtml(n.title_fi || n.title)}</a></li>`
-      ).join('')}</ul>`
-    : '';
+  const eventItemsHtml = (events || []).map(e => `
+    <tr><td style="padding:10px 0;border-bottom:1px solid ${LINE};">
+      <a href="${escapeHtml(e.source_url || e.url)}" style="color:${INK};font-weight:600;font-size:14px;text-decoration:none;">${escapeHtml(e.title_fi || e.title)}</a>
+      ${e.event_start_time ? `<div style="color:${INK_DIM};font-size:12.5px;margin-top:2px;">${escapeHtml(e.event_start_time)}</div>` : ''}
+    </td></tr>`).join('');
+  const eventsSection = (events || []).length ? `
+    <tr><td style="padding:24px 28px 4px;">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${ACCENT};">Tapahtumat tänään</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tbody>${eventItemsHtml}</tbody></table>
+      ${events.length === 4 ? `<p style="margin:10px 0 0;font-size:13px;"><a href="${townHomeUrl}" style="color:${ACCENT};text-decoration:none;font-weight:600;">Katso kaikki tämän päivän tapahtumat &rarr;</a></p>` : ''}
+    </td></tr>` : '';
 
-  // Explicitly framed as their saved businesses, not "updates" --
-  // there's no business-posts feature yet for there to be real update
-  // content, so this only ever shows current info (name, tagline).
-  // Overselling this as "what's new" would be misleading with nothing
-  // behind it.
-  const favoritesHtml = (favorites || []).length
-    ? `<h3>Suosikkisi</h3><ul>${favorites.map(f =>
-        `<li><strong>${escapeHtml(f.company_name)}</strong>${f.tagline ? ' — ' + escapeHtml(f.tagline) : ''}</li>`
-      ).join('')}</ul>`
-    : '';
+  const newsItemsHtml = (news || []).map(n => `
+    <tr><td style="padding:9px 0;border-bottom:1px solid ${LINE};">
+      <a href="${escapeHtml(n.source_url || n.url)}" style="color:${INK};font-size:14px;text-decoration:none;">${escapeHtml(n.title_fi || n.title)}</a>
+    </td></tr>`).join('');
+  const newsSection = (news || []).length ? `
+    <tr><td style="padding:20px 28px 4px;">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${ACCENT};">Tuoreimmat uutiset</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tbody>${newsItemsHtml}</tbody></table>
+    </td></tr>` : '';
 
-  if (!eventsHtml && !newsHtml && !favoritesHtml) {
+  // Paused for now, not removed -- the content/framing here is being
+  // rethought. A likely real cause of stale favorites while this was
+  // live, worth keeping in mind whenever this comes back:
+  // favorite_business_ids only updates for a subscriber whose browser
+  // actually has a sync_token stored (see toggleBusinessFavorite in
+  // app-feed.js) -- anyone who subscribed *before* that sync mechanism
+  // existed never received a token, so every favorite change on their
+  // end has been silently a no-op since their original signup.
+  // Resubscribing (or a future "resend my sync link" flow) would be
+  // needed to actually fix an individual stuck subscriber, not just
+  // this content change.
+  const favoritesSection = '';
+
+  if (!eventsSection && !newsSection) {
     // Nothing worth sending today -- skip rather than send an empty
     // "here's your digest" email with nothing in it.
     return false;
   }
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:${BG};font-family:Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BG};padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;">
+        <tr><td style="padding:28px 28px 8px;text-align:center;">
+          <img src="${SITE_URL}/icons/icon-512.png" width="40" height="40" alt="PaikallisCanvas" style="display:block;margin:0 auto 10px;border-radius:9px;">
+          <p style="margin:0;font-size:16px;font-weight:700;color:${INK};letter-spacing:0.01em;">PAIKALLIS<span style="color:${ACCENT};">CANVAS</span></p>
+        </td></tr>
+        <tr><td style="padding:8px 28px 0;text-align:center;">
+          <p style="margin:0;color:${INK_DIM};font-size:13.5px;">Hyvää huomenta! Tässä tämän päivän koonti, ${escapeHtml(townName)}.</p>
+        </td></tr>
+        ${eventsSection}
+        ${newsSection}
+        ${favoritesSection}
+        <tr><td style="padding:28px 28px 24px;">
+          <hr style="border:none;border-top:1px solid ${LINE};margin:0 0 16px;">
+          <p style="margin:0;font-size:11.5px;color:${INK_DIM};line-height:1.6;">
+            Et halua enää näitä viestejä? <a href="${unsubscribeUrl}" style="color:${INK_DIM};">Peruuta tilaus</a>.<br>
+            Don't want these anymore? <a href="${unsubscribeUrl}" style="color:${INK_DIM};">Unsubscribe</a>.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
 
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -188,17 +244,7 @@ async function sendDigestEmail(toEmail, { townName, news, events, favorites, uns
         from: RESEND_FROM_EMAIL,
         to: toEmail,
         subject: `Tämän päivän koonti -- ${escapeHtml(townName)} | PaikallisCanvas`,
-        html: `
-          <p>Hyvää huomenta! Tässä tämän päivän koonti ${escapeHtml(townName)}.</p>
-          ${eventsHtml}
-          ${newsHtml}
-          ${favoritesHtml}
-          <hr>
-          <p style="font-size:12px;color:#666;">
-            Et halua enää näitä viestejä? <a href="${unsubscribeUrl}">Peruuta tilaus</a>.<br>
-            Don't want these anymore? <a href="${unsubscribeUrl}">Unsubscribe</a>.
-          </p>
-        `
+        html
       })
     });
     if (!res.ok) {
