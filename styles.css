@@ -1095,8 +1095,9 @@
     #mobileAskInput{flex:1;min-width:0;padding:11px 16px;border-radius:999px;border:1px solid var(--line);
       background:var(--panelT7);color:var(--ink);font-size:14px;font-family:'IBM Plex Sans',sans-serif;}
     #mobileAskInput::placeholder{color:var(--ink-dim);}
-    #mobileAskSendBtn{flex:none;width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;
-      background:linear-gradient(135deg,#7c5cff,#5847c9);color:#fff;font-size:16px;font-weight:700;
+    #mobileAskSendBtn{flex:none;width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;
+      background:linear-gradient(135deg,#7c5cff,#5847c9);color:#fff;font-size:19px;font-weight:700;
+      box-shadow:0 3px 10px rgba(88,71,201,0.28);
       display:flex;align-items:center;justify-content:center;}
     #mobileAskSendBtn:disabled{opacity:0.5;cursor:default;}
   }
@@ -1151,12 +1152,21 @@
        would have silently done nothing. Slides right (off toward the
        same edge the panel is docked to) rather than down, matching the
        direction it lives in. */
-    #askHeroResults.open.minimized{ transform:translateX(120%); }
+    #askHeroResults.open.minimized{ transform:translateX(150vw); }
+    /* Same reasoning and same fix as the mobile sheet's translateY
+       below -- 120% of the panel's own (shrinkable) width had the same
+       risk of not fully clearing the viewport once the panel shrinks
+       to just its header after clearing, even without a tab bar here
+       to visibly collide with the way mobile had. */
     #askDesktopChatHeader{display:flex;align-items:center;justify-content:space-between;
       padding:14px 16px;border-bottom:1px solid var(--line);flex:none;}
     #askChatToolbarTitle{display:block;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--ink);}
     #askNewChatBtn{display:flex;}
-    #askDesktopChatMinimizeBtn{display:flex;font-size:16px;line-height:1;}
+    /* Explicit safeguard, not just relying on the transform that slides
+       the whole sheet off-screen when minimized -- ensures Tyhjennä is
+       never visible/clickable while minimized regardless of how that
+       state was reached. */
+    #askHeroResults.open.minimized #askNewChatBtn{display:none;}
     #askResultsList{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:16px;display:flex;flex-direction:column;gap:10px;}
     /* Chat-bubble treatment: the question aligns right in the brand
        accent color (like a "sent" message), the answer aligns left in
@@ -1244,7 +1254,19 @@
     /* Minimized slides the sheet fully out of view (rather than removing
        .open / clearing its content) so the last answer is still there,
        ready to slide back up instantly, without re-asking the question. */
-    #askHeroResults.open.minimized{ transform:translateY(115%); }
+    #askHeroResults.open.minimized{ transform:translateY(150vh); }
+    /* 150vh, not a percentage of the sheet's own height (115% was here
+       before) -- a percentage-of-self only reliably clears the
+       viewport when the sheet is tall, which it usually is with a real
+       conversation in it, but badly fails right after clearing: the
+       sheet shrinks to just its ~55px header (no results, no followup
+       row left to give it height), and 115% of that tiny height is
+       only ~63px of movement -- not enough to escape the viewport when
+       it starts just above the mobile tab bar, confirmed by direct
+       measurement showing the "minimized" sheet still overlapping and
+       intercepting clicks meant for the tab bar's own send button.
+       viewport-relative units don't have this problem at any content
+       height. */
     /* flex:none (not part of the scrolling area) -- previously the whole
        #askHeroResults.open box itself was the one scrollable region,
        with the minimize button as just its first child, so a tall
@@ -1260,6 +1282,8 @@
       padding:8px 8px 4px;flex:none;}
     #askChatToolbarTitle{display:none;}
     #askNewChatBtn{display:flex;}
+    /* Same safeguard as the 901-1300px range above. */
+    #askHeroResults.open.minimized #askNewChatBtn{display:none;}
     #askSheetMinimizeBtn{display:flex;font-size:16px;line-height:1;}
     #askResultsList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 18px 14px;}
     #askFollowupRow{flex:none;padding:12px 18px calc(12px + env(safe-area-inset-bottom));

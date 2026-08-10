@@ -814,7 +814,17 @@ function startNewConversation(){
   document.getElementById('askResultsList').innerHTML = '';
   document.getElementById('askFollowupRow').style.display = 'none';
   try { localStorage.removeItem(ASK_HISTORY_STORAGE_KEY); } catch (e) {}
-  updateReopenButtonVisibility();
+  // Minimizes the sheet now that there's nothing left in it to show --
+  // previously this only cleared content and left .open in place, so
+  // the sheet stayed fully visible but shrunk to just its own header
+  // (no results, no followup row left to give it height), landing a
+  // few px above the permanent mobile tab bar with a visible gap
+  // showing through, and an easily-mistaken-for-broken leftover header
+  // sitting right on top of the tab bar's own, actually-functional ask
+  // input. Reuses the same minimize path the minimize button itself
+  // uses, so this correctly handles both the mobile sheet and the
+  // desktop docked panel the same way.
+  setAskSheetMinimized(true);
 }
 
 // A client-side reveal animation, not real token-by-token streaming
