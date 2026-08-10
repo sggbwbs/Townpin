@@ -1091,6 +1091,16 @@
     body{padding-bottom:64px;}
     #mobileTabBar{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:210;
       background:var(--panel);border-top:1px solid var(--line);padding:8px 12px calc(8px + env(safe-area-inset-bottom));}
+    /* Hidden while the chat sheet is genuinely open with a conversation
+       -- #askFollowupRow's own "Kysy jotain muuta..." input already
+       covers "ask something" in that state, so having this permanent
+       bar's identical-looking input still visible right underneath it
+       read as two broken, redundant ask boxes stacked on each other.
+       :not(.minimized) is the important part: this should still show
+       normally whenever the sheet is minimized or closed, only hidden
+       while there's an actual open conversation covering the same
+       need. */
+    body:has(#askHeroResults.open:not(.minimized)) #mobileTabBar{display:none;}
     #mobileAskForm{display:flex;align-items:center;gap:8px;width:100%;}
     #mobileAskInput{flex:1;min-width:0;padding:11px 16px;border-radius:999px;border:1px solid var(--line);
       background:var(--panelT7);color:var(--ink);font-size:14px;font-family:'IBM Plex Sans',sans-serif;}
@@ -1322,6 +1332,15 @@
      the 901-1300px range's plain 20px above. */
   @media (max-width:900px){
     #askHeroResults.open{ bottom:calc(64px + env(safe-area-inset-bottom)); }
+    /* Matches the exact same :not(.minimized) condition #mobileTabBar's
+       own hide rule uses -- the 64px above exists purely to clear the
+       tab bar, so once the tab bar hides itself (open, real
+       conversation, not minimized), that reserved space becomes stale
+       dead space at the bottom of the screen unless the sheet also
+       extends down to fill it. Higher specificity than the plain .open
+       rule above (an extra :not() pseudo-class), so this correctly
+       wins whenever both could apply. */
+    #askHeroResults.open:not(.minimized){ bottom:env(safe-area-inset-bottom); }
   }
   .askResultBlock{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-md);
     padding:16px 18px;margin-bottom:12px;font-size:14px;line-height:1.6;color:var(--ink);}

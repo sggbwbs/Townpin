@@ -1058,6 +1058,7 @@ function preventScrollChaining(el){
   }, { passive: false });
 }
 preventScrollChaining(document.getElementById('askResultsList'));
+preventScrollChaining(document.getElementById('askFollowupRow'));
 
 // See the CSS comment on #bizFeedScrollWindow.interacting -- :hover
 // alone (the original pause mechanism) doesn't exist on touch devices,
