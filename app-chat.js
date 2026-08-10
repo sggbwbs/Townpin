@@ -207,7 +207,10 @@ document.getElementById('mobileAskInput').addEventListener('keydown', (e)=>{
 // last answer or use the follow-up field inside it, rather than only
 // ever reopening via a brand new question.
 document.getElementById('mobileAskInput').addEventListener('focus', () => {
-  if (document.getElementById('askHeroResults').classList.contains('open')) setAskSheetMinimized(false);
+  const panel = document.getElementById('askHeroResults');
+  if (panel.classList.contains('open') && panel.classList.contains('minimized') && askHistory.length > 0){
+    setAskSheetMinimized(false);
+  }
 });
 // Same reopen-on-focus behavior for the top hero ask bar -- this one
 // matters even more than the mobile bar above: #mobileTabBar (and its
@@ -217,7 +220,10 @@ document.getElementById('mobileAskInput').addEventListener('focus', () => {
 // minimizing the sheet there had no way back whatsoever -- confirmed as
 // a real bug, not just a theoretical gap.
 document.getElementById('askHeroInput').addEventListener('focus', () => {
-  if (document.getElementById('askHeroResults').classList.contains('open')) setAskSheetMinimized(false);
+  const panel = document.getElementById('askHeroResults');
+  if (panel.classList.contains('open') && panel.classList.contains('minimized') && askHistory.length > 0){
+    setAskSheetMinimized(false);
+  }
 });
 
 // Escape dismisses the open chat -- minimize on the sheet (<=1300px, so
