@@ -565,14 +565,15 @@ async function loadFeed(){
 }
 
 const NEWS_PAGE_SIZE = 4;
-// 3 on narrow phone widths, 4 otherwise -- matches the CSS breakpoint
-// in styles.css exactly (@media max-width:640px), which switches
-// .eventCard from a 4-way to a 3-way split of the row. Kept as a
-// function (evaluated once per render, not reactively on resize) since
-// someone resizing their browser mid-session to straddle this
-// breakpoint is a rare enough edge case not to need live re-pagination.
+// 2 on narrow phone widths, 4 otherwise -- matches the CSS breakpoint
+// in styles.css exactly (@media max-width:640px). Was 3 initially, but
+// even that still cut titles too aggressively on real phones -- 2
+// gives noticeably more width per card. Kept as a function (evaluated
+// once per render, not reactively on resize) since someone resizing
+// their browser mid-session to straddle this breakpoint is a rare
+// enough edge case not to need live re-pagination.
 function getEventsPageSize(){
-  return window.innerWidth <= 640 ? 3 : 4;
+  return window.innerWidth <= 640 ? 2 : 4;
 }
 
 // Which card (if any) is currently expanded to full row width in place

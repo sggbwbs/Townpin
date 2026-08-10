@@ -377,6 +377,8 @@ const STRINGS = {
     askHeroButton: 'Kysy',
     askReopenChatBtn: 'Näytä keskustelu',
     askDesktopChatTitle: 'Kysy tekoälyoppaalta',
+    askClearChatBtn: 'Tyhjennä',
+    askClearChatBtnLabel: 'Tyhjennä keskustelu',
     nearbyTitle: 'Lähelläsi',
     nearbySub: 'Näytä paikalliset yritykset lähimmästä kauimpaan sijaintisi perusteella.',
     nearbyUseLocationBtn: 'Käytä sijaintiani',
@@ -601,6 +603,8 @@ const STRINGS = {
     askHeroButton: 'Ask',
     askReopenChatBtn: 'Show conversation',
     askDesktopChatTitle: 'Ask the AI guide',
+    askClearChatBtn: 'Clear',
+    askClearChatBtnLabel: 'Clear conversation',
     nearbyTitle: 'Near you',
     nearbySub: 'Show local businesses sorted from nearest to farthest based on your location.',
     nearbyUseLocationBtn: 'Use my location',
@@ -899,6 +903,14 @@ function setLang(l){
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
     el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
   });
+  // Single-instance need -- not worth a generic data-i18n-aria-label
+  // pattern for just this one button. data-i18n above already handles
+  // its visible text.
+  const clearChatBtn = document.getElementById('askNewChatBtn');
+  if (clearChatBtn){
+    clearChatBtn.setAttribute('aria-label', t('askClearChatBtnLabel'));
+    clearChatBtn.setAttribute('title', t('askClearChatBtnLabel'));
+  }
   sortSelectOptions('fIndustry', null);
   updateClaimedMeta();
   updateSelectionBar();
