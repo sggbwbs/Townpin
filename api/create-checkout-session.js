@@ -168,6 +168,16 @@ module.exports = async (req, res) => {
     const linkProblem = websiteUrl ? isSuspicious(websiteUrl) : null;
     if (linkProblem) return res.status(400).json({ error: linkProblem });
 
+    // Previously unvalidated -- websiteUrl went through this same check
+    // just above, but logoUrl was stored directly with nothing checking
+    // it at all. Not just a consistency gap: rejecting a non-URL or
+    // malicious-scheme value here is real defense in depth alongside
+    // the output-escaping fix (every place logo_url gets rendered now
+    // escapes it properly), catching things that escaping alone
+    // wouldn't, like a javascript: scheme.
+    const logoLinkProblem = logoUrl ? isSuspicious(logoUrl) : null;
+    if (logoLinkProblem) return res.status(400).json({ error: `Logo URL: ${logoLinkProblem}` });
+
     const modResult = await moderate({ companyName, websiteUrl });
     if (!modResult.allowed) {
       return res.status(403).json({ error: `We can't list this: ${modResult.reason}` });
