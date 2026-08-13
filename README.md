@@ -1,5 +1,10 @@
 # PaikallisCanvas — Oulu's local business board
 
+**Version 1.1** (in progress, not yet deployed — the live site is
+currently **v1.0**). See "v1.1 changes" near the end of the build
+history below for exactly what's new since v1.0; everything above that
+marker reflects what's actually live right now.
+
 Businesses buy one or more ad slots ("mainospaikka") on the board — a
 flat €29.90/month per slot regardless of quantity (no more per-square
 discounts or size tiers; every slot is now the same size), or a
@@ -1775,3 +1780,87 @@ own small widget (deliberately not merged into Tilannehuone — a bus
 delay is routine service status, not a safety incident), and a "next
 departures from a nearby stop" widget. See "Opening future cities" above
 for the bigger architectural gap this points at.
+
+## v1.0 wrap-up — several rounds of fixes not yet recorded above
+
+Quite a bit shipped after the entry above was written, before this
+versioning scheme started. Recorded concisely here rather than with the
+same level of detail as earlier entries, since these are all confirmed
+deployed and working, not open questions:
+
+- **Email verification** now genuinely blocks login until confirmed (not
+  just tracked), with a resend-verification flow. Its first version had
+  the same "fire and forget on Vercel" bug described below for the
+  digest email — fixed the same way, by awaiting the send.
+- **Digest email**: fixed a real duplicate-events bug (same event
+  appearing 3-4 times, root cause identical to the admin panel dedup bug
+  above — `getEventsSection()` returns raw, undeduped rows), added a
+  "see all events" link, and did a full visual rework — real table-based
+  HTML with the site's logo and brand colors, replacing plain
+  unstyled `<p>`/`<ul>` markup. The "Suosikkisi" section is currently
+  disabled (commented out, not deleted) while its content/framing gets
+  rethought — a related, real gap worth knowing: favorites only sync to
+  a subscriber's digest if their browser has a `sync_token`, which
+  anyone who subscribed before that mechanism existed never received.
+- **Three real, separate mobile chat-panel bugs**, found one at a time
+  as each fix surfaced the next: (1) clearing the chat left the sheet
+  "open" but empty, creating a visible gap above the mobile tab bar; (2)
+  fixing that with `.minimized` still failed because the slide-off
+  animation used `translateY(115%)` — a percentage of the sheet's *own*
+  height, which isn't nearly enough to clear the screen once the sheet
+  has shrunk to just its empty header (fixed with a viewport-relative
+  `150vh`); (3) a focus handler meant to bring back a genuinely
+  minimized conversation was checking only `.open` (which stays true
+  even while minimized), not `.minimized` itself, so tapping the tab
+  bar's input after clearing force-reopened an empty sheet. Also fixed:
+  the tab bar's own ask input and the sheet's followup input showing
+  simultaneously while a conversation was open (now the tab bar hides
+  itself in that state), and a scroll-bleed-through bug on the followup
+  row (missing the same touch-guard the message list already had).
+- **Google Search Console duplicate-canonical issue**: root and `/oulu`
+  served identical content via a silent rewrite, and — the more direct
+  cause — the sitemap itself listed both as separate pages with root
+  given *higher* priority than the actual canonical URL. Root now 301
+  redirects to `/oulu`; sitemap lists only the one real URL.
+- **Admin panel design pass**: fixed a real accessibility bug (15
+  separate `<h1>` tags on one page), added column icons, and gave every
+  card real shadow/depth/hover states matching the main site.
+- Mobile events settled at 2 per row (was 4, then 3, then 2, based on
+  direct feedback each time).
+
+## v1.1 changes (in progress, not yet deployed)
+
+- **Open Graph / Twitter Card / schema.org gaps filled on `/pin/{id}`
+  pages** — `og:url`, `og:type`, and Twitter Card tags were missing
+  entirely; `og:image` was silently omitted whenever a business had no
+  logo, meaning a shared link with no logo showed no preview image at
+  all. Added a proper fallback (`og-image.jpg`, a centered crop of the
+  existing hero photo at the standard 1200×630 OG ratio — the original
+  2048×618 photo would have been cropped unpredictably by social
+  platforms at their own preferred ratio).
+- **A real heading-hierarchy bug fixed on the main site**: the page's
+  only `<h1>` was inside the business-pitch modal (hidden until
+  clicked), while the actual homepage headline was just an `<h2>` —
+  backwards for both SEO and accessibility. Swapped them, and caught a
+  follow-on issue before shipping it: both headings had tag-specific
+  CSS (`#askHero h2`, `#companyInfoModal h1`) that would have silently
+  stopped applying once the tags changed. Fixed and verified with real
+  screenshots, not just computed-style checks.
+- **"Recently viewed" businesses** — pin pages now record a visit to
+  localStorage; a new tab inside the existing favorites modal shows
+  them. Display-only (no favorite-toggle from this view) since toggling
+  requires a business to be present in `currentSquares`, which a
+  business viewed on a past page load may not be. Caught a real XSS-
+  adjacent issue while building the tracking script: `JSON.stringify`
+  alone doesn't escape a literal `</script>` inside a string value
+  (business names are filled in by business owners themselves, not a
+  fully trusted input) — added a dedicated helper and verified it
+  neutralizes the exact attack string before shipping it.
+
+Still to come in v1.1: the share button itself (OG tags were the
+prerequisite), OG/schema coverage for anything beyond pin pages, and the
+"pulling in businesses" set (lower signup friction, analytics as a
+selling point, a referral incentive, social proof) — the last two of
+which touch pricing/billing directly and need explicit sign-off before
+being built, the same way pricing and routing changes have been handled
+throughout this project.

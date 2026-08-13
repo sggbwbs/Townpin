@@ -338,6 +338,7 @@ const STRINGS = {
     value1: 'murto-osa siitä, mitä somemainontaan yleensä kuluu kuukaudessa',
     value2b: 'Löydettävissä Googlesta', value2: 'yrityksesi saa oman esittelysivun, joka voi näkyä hakutuloksissa vaikka kukaan ei selaisi itse taulua',
     value3b: 'Peruutettavissa milloin vain', value3: 'ei sopimusaikaa eikä irtisanomisaikaa',
+    value4b: 'Näet oikeat kävijämäärät', value4: 'et vain lupausta -- joka kerta kun joku avaa sivusi, näet sen omalta hallintapaneeliltasi',
     volumeNote: '29,90 €/kk per mainospaikka. Jokainen mainospaikka on samankokoinen.',
     factsTitle: 'Miksi paikallinen näkyvyys kannattaa',
     fact1: 'kaikista Google-hauista koskee jotain paikallista',
@@ -404,6 +405,9 @@ const STRINGS = {
     accountVerifyInvalid: 'Vahvistuslinkki ei ole enää voimassa.',
     favoritesSub: 'Tallennetut yritykset yhdessä paikassa.',
     favoritesEmpty: 'Ei vielä tallennettuja suosikkeja. Paina sydäntä yrityksen kohdalla tallentaaksesi sen.',
+    favoritesTabFavorites: 'Suosikkisi',
+    favoritesTabRecent: 'Katsomasi äskettäin',
+    recentlyViewedEmpty: 'Ei vielä katsottuja yrityksiä. Käy yrityksen sivulla, niin se näkyy täällä.',
     favoriteToggleLabel: 'Tallenna suosikiksi',
     askAiDisclaimer: 'Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.',
     askFeedbackPrompt: 'Oliko tästä apua?',
@@ -564,6 +568,7 @@ const STRINGS = {
     value1: 'a fraction of a typical monthly social media ad budget',
     value2b: 'Findable on Google', value2: 'your business gets its own showcase page on our site that can appear in search results, even if nobody browses the board itself',
     value3b: 'Cancel anytime', value3: 'no contract period, no notice period',
+    value4b: 'See real visitor counts', value4: "not just a promise -- every time someone opens your page, you'll see it on your own dashboard",
     volumeNote: '€29.90/mo per slot. Every slot is the same size.',
     factsTitle: 'Why local visibility matters',
     fact1: 'of all Google searches are for something local',
@@ -630,6 +635,9 @@ const STRINGS = {
     accountVerifyInvalid: 'That verification link is no longer valid.',
     favoritesSub: 'Saved businesses, all in one place.',
     favoritesEmpty: 'No favorites saved yet. Tap the heart on a business to save it.',
+    favoritesTabFavorites: 'Favorites',
+    favoritesTabRecent: 'Recently viewed',
+    recentlyViewedEmpty: "No businesses viewed yet. Visit a business's page and it'll show up here.",
     favoriteToggleLabel: 'Save as favorite',
     askAiDisclaimer: 'Answers are AI-generated and may contain errors.',
     askFeedbackPrompt: 'Was this helpful?',
@@ -1023,6 +1031,14 @@ async function openBoard(name, country, population){
     if (!previewMode) {
       const canonicalEl = document.getElementById('canonicalLink');
       if (canonicalEl) canonicalEl.href = `https://www.paikalliscanvas.fi/${cleanSlug}`;
+      // Same reasoning, kept in sync with the canonical tag above --
+      // og:url was previously only ever the static Oulu default. Real
+      // limitation worth knowing: this is a client-side update, so it
+      // only helps crawlers that actually execute JS -- most social
+      // platforms still see whatever's in the raw HTML on first fetch,
+      // the same limitation the canonical tag itself already has.
+      const ogUrlEl = document.getElementById('ogUrlLink');
+      if (ogUrlEl) ogUrlEl.content = `https://www.paikalliscanvas.fi/${cleanSlug}`;
     }
     document.getElementById('boardTitle').textContent = currentTown.name;
     await loadBoard();

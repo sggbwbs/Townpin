@@ -6,6 +6,17 @@ function escapeHtml(str) {
   }[c]));
 }
 
+// JSON.stringify alone correctly escapes JS-syntax concerns (quotes,
+// backslashes) for embedding a value inside a <script> tag, but not a
+// literal "</script" substring that could appear inside a string value
+// -- the HTML parser looks for that exact sequence and would close the
+// tag early, before any JS runs, regardless of correct JS escaping.
+// Matters here specifically because company_name is filled in by
+// business owners themselves, not a fully trusted input.
+function jsStringLiteral(value) {
+  return JSON.stringify(value == null ? '' : value).replace(/<\/script/gi, '<\\/script');
+}
+
 const SITE_URL = process.env.SITE_URL;
 
 // Prefers an explicit ?lang= (the main site passes this along whenever it
@@ -27,6 +38,8 @@ const STRINGS = {
     backToHome: 'Takaisin PaikallisCanvasiin',
     back: '← Takaisin',
     visitWebsite: 'Käy verkkosivulla →',
+    share: 'Jaa',
+    linkCopied: 'Linkki kopioitu!',
     quickInfoLabel: '🔎 Tekoälyn löytämä tieto',
     source: 'Lähde ↗',
     disclaimer: 'Tekoälyn koostama, voi sisältää virheitä.',
@@ -39,6 +52,8 @@ const STRINGS = {
     backToHome: 'Back to PaikallisCanvas',
     back: '← Back',
     visitWebsite: 'Visit website →',
+    share: 'Share',
+    linkCopied: 'Link copied!',
     quickInfoLabel: '🔎 Automatically found information',
     source: 'Source ↗',
     disclaimer: 'AI-assembled, may be inaccurate.',
@@ -128,15 +143,33 @@ module.exports = async (req, res) => {
   // a single fixed-width card, not a multi-item banner.
   const logoSize = Math.round(Math.min(88 + (slotCount - 1) * 10, 140));
 
+  // Fills real gaps in the existing OG/Twitter/schema setup: og:url and
+  // og:type were missing entirely (og:url matters for social platforms
+  // to correctly attribute/dedupe a shared link), and there were no
+  // Twitter Card tags at all. @id ties the schema to one consistent
+  // identifier across repeated crawls of the same business. See the
+  // og-image comment below for the other real gap this fills.
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
+    ...(canonicalUrl ? { '@id': canonicalUrl } : {}),
     name: square.company_name,
     ...(square.website_url ? { url: square.website_url } : {}),
     ...(square.logo_url ? { image: square.logo_url } : {}),
     ...(square.tagline ? { description: square.tagline } : {}),
     address: { '@type': 'PostalAddress', addressLocality: townName, addressCountry: town ? town.country : 'FI' }
   };
+
+  // Falls back to a real, properly-sized (1200x630, the standard OG
+  // ratio) branded image whenever a business has no logo of its own --
+  // previously og:image was omitted entirely in that case, meaning a
+  // shared link with no logo showed no image at all in WhatsApp/
+  // iMessage/Facebook previews. og-image.jpg is a centered crop of the
+  // site's own hero photo, not the raw 2048x618 original -- that ratio
+  // is far enough from 1200x630 that social platforms would have
+  // cropped it unpredictably (often cutting off the sides) rather than
+  // showing the intended framing.
+  const ogImage = square.logo_url || (SITE_URL ? `${SITE_URL}/og-image.jpg` : null);
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600');
@@ -147,9 +180,17 @@ module.exports = async (req, res) => {
 <title>${title}</title>
 <meta name="description" content="${description}" />
 ${canonicalUrl ? `<link rel="canonical" href="${escapeHtml(canonicalUrl)}" />` : ''}
+<meta property="og:type" content="website" />
 <meta property="og:title" content="${title}" />
 <meta property="og:description" content="${description}" />
-${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo_url)}" />` : ''}
+${canonicalUrl ? `<meta property="og:url" content="${escapeHtml(canonicalUrl)}" />` : ''}
+${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}" />
+<meta property="og:image:width" content="${square.logo_url ? '512' : '1200'}" />
+<meta property="og:image:height" content="${square.logo_url ? '512' : '630'}" />` : ''}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="${title}" />
+<meta name="twitter:description" content="${description}" />
+${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : ''}
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -170,6 +211,13 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
   a.visit{display:inline-block;background:#5847c9;color:#fff;text-decoration:none;
     font-family:'Space Grotesk',sans-serif;font-weight:700;padding:12px 26px;border-radius:8px;
     box-shadow:0 8px 22px rgba(88,71,201,0.3);}
+  .shareBtn{display:inline-flex;align-items:center;background:#fff;color:#5847c9;
+    border:1px solid #ddd8ef;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;
+    padding:11px 20px;border-radius:8px;cursor:pointer;margin-left:8px;}
+  .shareBtn:hover{border-color:#5847c9;}
+  #shareFeedback{display:inline-block;margin-left:10px;font-size:12.5px;color:#3a7d3a;
+    opacity:0;transition:opacity 0.2s ease;}
+  #shareFeedback.visible{opacity:1;}
   a.visit:hover{background:#463699;}
   .foot{margin-top:26px;font-size:12px;color:#6b6488;}
   .quickInfo{margin-top:22px;padding:14px 16px;background:#f3f2fa;border:1px solid #ddd8ef;border-radius:9px;text-align:left;}
@@ -191,6 +239,10 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
     ${square.industry && INDUSTRY_LABELS[square.industry] ? `<div class="industryBadge">${escapeHtml(INDUSTRY_LABELS[square.industry])}</div>` : ''}
     <p class="tagline">${description}</p>
     ${square.website_url ? `<a class="visit" href="${escapeHtml(square.website_url)}" rel="nofollow">${t.visitWebsite}</a>` : ''}
+    <button type="button" class="shareBtn" id="shareBtn" onclick="sharePinPage()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="vertical-align:-2px;margin-right:4px;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>${t.share}
+    </button>
+    <span id="shareFeedback"></span>
     ${(() => {
       // Whichever language matches the page, falling back to the other
       // if that specific translation is missing rather than showing
@@ -208,6 +260,58 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
     })()}
     <p class="foot">${t.footText(`<a href="/board/${escapeHtml(townSlug)}">${escapeHtml(townName)}${lang === 'en' ? ' community board' : ''}</a>`)} ${t.poweredBy}</p>
   </div>
+  <script>
+    // Records this visit for the homepage's "recently viewed" feature
+    // (see renderRecentlyViewedList in app-feed.js) -- keyed by the same
+    // canonicalId this page itself resolved to, so a business with
+    // multiple squares dedupes the same way favorites already do.
+    (function(){
+      try {
+        var KEY = 'paikallisCanvasRecentlyViewed';
+        var MAX = 8;
+        var entry = {
+          id: ${JSON.stringify(canonicalId)},
+          company_name: ${jsStringLiteral(square.company_name)},
+          logo_url: ${jsStringLiteral(square.logo_url || '')},
+          industry: ${jsStringLiteral(square.industry || '')},
+          viewedAt: Date.now()
+        };
+        var existing = JSON.parse(localStorage.getItem(KEY) || '[]');
+        existing = existing.filter(function(e){ return String(e.id) !== String(entry.id); });
+        existing.unshift(entry);
+        if (existing.length > MAX) existing = existing.slice(0, MAX);
+        localStorage.setItem(KEY, JSON.stringify(existing));
+      } catch (e) {}
+    })();
+
+    // Web Share API where available (mobile browsers mostly) --
+    // brings up the device's native share sheet (Messages, WhatsApp,
+    // etc.) directly. Falls back to copying the link to the clipboard
+    // on browsers without it (most desktop browsers as of writing).
+    // Uses the server-resolved canonical URL, not window.location.href
+    // -- so sharing is consistent even if the visitor arrived via a
+    // non-canonical square id rather than the canonical one.
+    function sharePinPage(){
+      // Falls back to the page's own current URL if the server-side
+      // canonical URL wasn't available (canonicalUrl is null whenever
+      // SITE_URL isn't configured) -- without this, sharing would
+      // silently try to share/copy an empty string instead of a real link.
+      var url = ${jsStringLiteral(canonicalUrl || '')} || window.location.href;
+      var title = ${jsStringLiteral(square.company_name)};
+      var feedback = document.getElementById('shareFeedback');
+      if (navigator.share) {
+        navigator.share({ title: title, url: url }).catch(function(){});
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function(){
+          feedback.textContent = ${jsStringLiteral(t.linkCopied)};
+          feedback.classList.add('visible');
+          setTimeout(function(){ feedback.classList.remove('visible'); }, 2000);
+        }).catch(function(){});
+      }
+    }
+  </script>
 </body>
 </html>`);
 };

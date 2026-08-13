@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
   try {
     const {
       townId, indices, squareCount, additionalTowns, companyName, websiteUrl, email,
-      logoUrl, color, tagline, industry, planType, prepaidMonths, address
+      logoUrl, color, tagline, industry, planType, prepaidMonths, address, referralCode
     } = req.body;
 
     if (typeof townId !== 'number' && typeof townId !== 'string') {
@@ -259,6 +259,37 @@ module.exports = async (req, res) => {
     const perSquare = pricePerSquareEur(actualCount);
     const monthlyTotal = actualCount * perSquare;
 
+    // Validated here as an early, cheap check -- NOT the actual
+    // security boundary, which is entirely in the webhook (the only
+    // place a reward is ever actually granted). A bad/unknown/self-
+    // referred code should never block the purchase itself, just fail
+    // to attach a valid referral to it -- so any lookup failure here
+    // silently proceeds with no referral metadata rather than erroring.
+    let validReferralCode = null;
+    if (referralCode && typeof referralCode === 'string') {
+      try {
+        const { data: refRow } = await supabase
+          .from('referral_codes')
+          .select('code, edit_token')
+          .eq('code', referralCode.toUpperCase())
+          .maybeSingle();
+        if (refRow) {
+          const { data: referrerSquares } = await supabase
+            .from('squares')
+            .select('email')
+            .eq('edit_token', refRow.edit_token)
+            .limit(1);
+          const referrerEmail = referrerSquares && referrerSquares[0] && referrerSquares[0].email;
+          // Case-insensitive, trimmed comparison -- "Same@Email.com "
+          // and "same@email.com" are the same self-referral attempt.
+          const isSelfReferral = referrerEmail && referrerEmail.trim().toLowerCase() === email.trim().toLowerCase();
+          if (!isSelfReferral) validReferralCode = refRow.code;
+        }
+      } catch (refErr) {
+        console.error('Referral code validation failed (non-fatal, proceeding without it):', refErr);
+      }
+    }
+
     let session;
 
     if (isPrepaid) {
@@ -280,7 +311,7 @@ module.exports = async (req, res) => {
           },
           quantity: 1
         }],
-        metadata: { squareIds, activeUntil: activeUntil.toISOString() },
+        metadata: { squareIds, activeUntil: activeUntil.toISOString(), ...(validReferralCode ? { referralCode: validReferralCode } : {}) },
         success_url: `${SITE_URL}/?claimed=success&token=${editToken}`,
         cancel_url: `${SITE_URL}/?claimed=cancelled`
       });
@@ -304,8 +335,8 @@ module.exports = async (req, res) => {
           },
           quantity: actualCount
         }],
-        metadata: { squareIds },
-        subscription_data: { metadata: { squareIds } },
+        metadata: { squareIds, ...(validReferralCode ? { referralCode: validReferralCode } : {}) },
+        subscription_data: { metadata: { squareIds, ...(validReferralCode ? { referralCode: validReferralCode } : {}) } },
         ...(FOUNDING_COUPON_ID ? { discounts: [{ coupon: FOUNDING_COUPON_ID }] } : {}),
         success_url: `${SITE_URL}/?claimed=success&token=${editToken}`,
         cancel_url: `${SITE_URL}/?claimed=cancelled`

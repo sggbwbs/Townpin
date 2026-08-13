@@ -204,8 +204,8 @@
      everything inside it needs fixed colors, not the theme variables
      (--ink, --ink-dim, --panelT4, --line) used when this content used
      to live inline on the page and shared the page's own background. */
-  #companyInfoModal h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,4vw,34px);margin:8px 0 16px;line-height:1.15;color:var(--ink);}
-  #companyInfoModal h1 span{color:var(--amber-deep);}
+  #companyPitchTitle{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,4vw,34px);margin:8px 0 16px;line-height:1.15;color:var(--ink);}
+  #companyPitchTitle span{color:var(--amber-deep);}
   #companyInfoModal p.sub{color:var(--ink-dim);font-size:15px;max-width:640px;margin:0 auto 24px;line-height:1.6;}
   #companyInfoModal h2{color:var(--ink) !important;}
   #companyInfoModal .valueCard{color:var(--ink-dim);}
@@ -450,6 +450,11 @@
   .nearbyDistance{flex:none;font-size:12px;font-weight:700;color:var(--amber);white-space:nowrap;}
   .nearbyFavoriteBtn{position:static;flex:none;}
   .nearbyEmptyMsg{text-align:center;color:var(--ink-dim);font-size:13px;padding:20px 0;}
+  .favoritesTab{background:var(--bg-0);border:1px solid var(--line);color:var(--ink-dim);
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12.5px;padding:8px 14px;
+    border-radius:999px;cursor:pointer;transition:background 0.15s ease,color 0.15s ease,border-color 0.15s ease;}
+  .favoritesTab:hover{border-color:var(--amber);color:var(--amber);}
+  .favoritesTab.active{background:var(--amber);border-color:var(--amber);color:#fff;}
 
   #accountBtn{border:none;background:var(--panelT7);border:1px solid var(--line);border-radius:999px;
     padding:0 14px;height:34px;cursor:pointer;font-size:12.5px;color:var(--ink);font-family:'Space Grotesk',sans-serif;
@@ -1026,7 +1031,7 @@
     pointer-events:none;}
   #askHero{max-width:600px;width:100%;text-align:center;position:relative;z-index:1;
     padding-top:30px;}
-  #askHero h2{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(28px,5vw,44px);
+  #askHero h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(28px,5vw,44px);
     line-height:1.1;letter-spacing:-0.01em;margin:0 0 10px;color:#fff;text-shadow:0 2px 16px rgba(10,8,20,0.4);}
   #askHero .askHeroSub{color:#e8e4f7;font-size:14px;margin:0 0 20px;}
   #askHeroRow{display:flex;gap:10px;max-width:560px;margin:0 auto;background:rgba(255,255,255,0.97);
