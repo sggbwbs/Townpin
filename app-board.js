@@ -72,7 +72,7 @@ function logoTileHtml(b){
      data-company="${escapeAskText(b.rep.company_name || '')}" onclick="trackBusinessClick(${b.rep.id})"
      style="width:${b.size}px;height:${b.size}px;" title="${escapeAskText(b.rep.company_name || '')}">
     ${b.isLegendary ? '<span class="logoBannerCrown">👑</span>' : ''}
-    <img src="${b.rep.logo_url}" alt="${escapeAskText(b.rep.company_name || '')}" loading="lazy" />
+    <img src="${escapeAskText(b.rep.logo_url)}" alt="${escapeAskText(b.rep.company_name || '')}" loading="lazy" />
   </a>`;
 }
 
@@ -114,7 +114,7 @@ function renderBizFeedCard(){
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
     </button>
     <a class="bizFeedRowLink" href="/pin/${sq.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${sq.id})">
-      <img class="bizFeedLogo" src="${sq.logo_url}" alt="" loading="lazy" />
+      <img class="bizFeedLogo" src="${escapeAskText(sq.logo_url)}" alt="" loading="lazy" />
       <span class="bizFeedRowText">
         <b>${escapeAskText(sq.company_name)}</b>
         ${sq.industry ? `<span class="bizFeedRowIndustry">${escapeAskText(sq.industry)}</span>` : ''}

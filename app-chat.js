@@ -289,7 +289,7 @@ function updateSelectionBar(){
   const perSquare = pricePerSquareEur(n);
   const price = n * perSquare;
   const label = (n === 1 ? t('squareSelected') : t('squaresSelected'))
-    .replace('{n}', n).replace('{price}', price);
+    .replace('{n}', n).replace('{price}', formatPrice(price));
   document.getElementById('selectionCount').textContent = label;
 }
 document.getElementById('selectionGo').addEventListener('click', openClaimModal);
@@ -392,11 +392,11 @@ function updateModalPricing(){
 
   if (selectedPlanType === 'prepaid'){
     const totalCharge = calculatePrepaidTotalClient(monthlyTotal, selectedPrepaidMonths);
-    document.getElementById('priceDisplay').innerHTML = `${totalCharge}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;"> ${lang==='fi' ? `(${selectedPrepaidMonths} kk yhteensä)` : `(${selectedPrepaidMonths} months total)`}</span>`;
+    document.getElementById('priceDisplay').innerHTML = `${formatPrice(totalCharge)}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;"> ${lang==='fi' ? `(${selectedPrepaidMonths} kk yhteensä)` : `(${selectedPrepaidMonths} months total)`}</span>`;
     document.getElementById('priceNote').textContent = t('prepaidRenewNote');
     if (discountNoteEl) discountNoteEl.style.display = 'none'; // founding discount doesn't stack with prepaid
     document.getElementById('confirmText').textContent = t('prepaidConfirmText')
-      .replace('{price}', totalCharge).replace('{months}', selectedPrepaidMonths);
+      .replace('{price}', formatPrice(totalCharge)).replace('{months}', selectedPrepaidMonths);
     return;
   }
 
@@ -410,15 +410,15 @@ function updateModalPricing(){
   // step later at Stripe's own checkout.
   if (FOUNDING_DISCOUNT_ACTIVE){
     document.getElementById('priceDisplay').innerHTML =
-      `${halfPrice}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;"> (${t('thenPerMonth').replace('{price}', price)})</span>`;
+      `${formatPrice(halfPrice)}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;"> (${t('thenPerMonth').replace('{price}', formatPrice(price))})</span>`;
   } else {
-    document.getElementById('priceDisplay').innerHTML = `${price}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;">${t('perMonth')}</span>`;
+    document.getElementById('priceDisplay').innerHTML = `${formatPrice(price)}€<span style="font-size:14px;color:var(--ink-dim);font-weight:400;">${t('perMonth')}</span>`;
   }
   document.getElementById('priceNote').textContent = t('renewNote');
   if (discountNoteEl) discountNoteEl.style.display = FOUNDING_DISCOUNT_ACTIVE ? 'inline-block' : 'none';
   document.getElementById('confirmText').textContent = FOUNDING_DISCOUNT_ACTIVE
-    ? t('confirmText').replace('{price}', price).replace('{halfPrice}', halfPrice)
-    : t('confirmTextNoTrial').replace('{price}', price);
+    ? t('confirmText').replace('{price}', formatPrice(price)).replace('{halfPrice}', formatPrice(halfPrice))
+    : t('confirmTextNoTrial').replace('{price}', formatPrice(price));
 }
 document.getElementById('modalClose').addEventListener('click', ()=> document.getElementById('overlay').style.display='none');
 document.getElementById('overlay').addEventListener('click', (e)=>{ if (e.target.id==='overlay') e.currentTarget.style.display='none'; });

@@ -22,6 +22,21 @@ function pricePerSquareEur(count){
   return 29.90;
 }
 
+// Every dynamic price display in app-chat.js was interpolating a raw
+// JS number directly -- €{price} style. Two real problems with that:
+// (1) JS numbers silently drop trailing zeros, so 29.90 becomes the
+// number 29.9, which renders as the confirmed, reported bug "29.9€"
+// instead of "29,90€" -- looks unfinished/unprofessional, not what was
+// actually charged. (2) none of those were locale-aware either --
+// Finnish uses a comma as the decimal separator, not a period, but
+// every dynamic price showed a period regardless of language. This
+// fixes both at once, in one place, rather than patching each call site
+// with its own .toFixed().
+function formatPrice(amount){
+  const fixed = amount.toFixed(2);
+  return lang === 'fi' ? fixed.replace('.', ',') : fixed;
+}
+
 // Approximate populations, used only for autocomplete ranking and picking a
 // sensible board size for a new town — not authoritative figures.
 const FINNISH_CITIES = [
