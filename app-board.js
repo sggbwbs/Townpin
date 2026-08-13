@@ -586,16 +586,21 @@ let feedCardExpandedType = null; // null | 'events' | 'news'
 function expandFeedCard(type){
   feedCardExpandedType = type;
   const linkEl = document.getElementById('viewAllNewsLinkEl');
-  const bizEl = document.getElementById('bizFeedCard');
+  // #offersSection (Tilannehuone), not #bizFeedCard -- after the
+  // Tilannehuone/business-showcase grid swap, offersSection is the
+  // element that now shares news's row (row 2). bizFeedCard moved to
+  // row 1 with events and is no longer affected by news leaving grid
+  // flow at all.
+  const rowMateEl = document.getElementById('offersSection');
 
   // Must happen before adding .feedCardExpanded below: once news is
   // pulled out of grid flow (position:absolute), its row is sized by
-  // the business card's own natural height alone -- freezing that
-  // height right now, while news is still occupying its normal spot,
-  // keeps the business card exactly where it was instead of visibly
-  // resizing as soon as news stops contributing to the row.
+  // its row-mate's own natural height alone -- freezing that height
+  // right now, while news is still occupying its normal spot, keeps
+  // the row-mate exactly where it was instead of visibly resizing as
+  // soon as news stops contributing to the row.
   if (window.matchMedia('(min-width:1000px)').matches){
-    bizEl.style.minHeight = bizEl.getBoundingClientRect().height + 'px';
+    rowMateEl.style.minHeight = rowMateEl.getBoundingClientRect().height + 'px';
   }
 
   document.getElementById('newsCollapsedView').style.display = 'none';
@@ -639,7 +644,7 @@ function collapseFeedCard(){
     document.getElementById('newsCollapsedView').style.display = 'block';
     document.getElementById('newsExpandedView').style.display = 'none';
     document.getElementById('newsSection').classList.remove('feedCardExpanded');
-    document.getElementById('bizFeedCard').style.minHeight = ''; // release the freeze from expandFeedCard
+    document.getElementById('offersSection').style.minHeight = ''; // release the freeze from expandFeedCard (Tilannehuone is the row-2 row-mate now, see comment there)
     expandedView.style.opacity = '';
     expandedView.style.transform = '';
 
@@ -665,9 +670,9 @@ const EXPANDED_NEWS_SOURCES = [
   { group: 'yle', label: 'Yle', color: '#00b4d8',
     options: [['yle-tuoreimmat','Tuoreimmat'], ['yle-pohjois-pohjanmaa','Pohjois-Pohjanmaa'], ['yle-kotimaa','Kotimaa']] },
   { group: 'kaupunki', label: 'Oulun kaupunki', color: 'var(--lilac, #5847c9)',
-    options: [['oulu-business','BusinessOulun uutiset'], ['oulu-mun-oulu','Mun Oulun uutiset'],
-              ['oulu-kaupunki','Oulun kaupungin uutiset'], ['oulu-museo','Oulun museo- ja tiedekeskuksen uutiset'],
-              ['oulu-liikenne','Oulun seudun liikenteen uutiset']] }
+    options: [['oulu-liikenne','Oulun seudun liikenteen uutiset'], ['oulu-business','BusinessOulun uutiset'],
+              ['oulu-mun-oulu','Mun Oulun uutiset'], ['oulu-kaupunki','Oulun kaupungin uutiset'],
+              ['oulu-museo','Oulun museo- ja tiedekeskuksen uutiset']] }
 ];
 
 async function loadExpandedNewsColumn(columnBodyEl, category){
@@ -866,7 +871,14 @@ function makeFeedItemEl(item, index){
   body.appendChild(titleEl);
   const metaEl = document.createElement('span');
   metaEl.className = 'newsRowMeta';
-  metaEl.textContent = formatFreshness([item]); // reuses the existing "X min/h/pv sitten" formatter for a single item
+  // Previously formatFreshness([item]), a "X min/h/pv sitten" style
+  // display based on created_at -- but created_at is the database
+  // row's own insertion/cache-refresh timestamp, not the article's
+  // real publish time, so it always read as "Juuri nyt"/"Just now"
+  // regardless of how old the story actually was. Source name is both
+  // simpler and more genuinely useful than a freshness indicator that
+  // was never actually correct.
+  metaEl.textContent = item.source_name || '';
   body.appendChild(metaEl);
   el.appendChild(body);
 
