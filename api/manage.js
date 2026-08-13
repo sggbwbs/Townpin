@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const Stripe = require('stripe');
 const { supabase } = require('./_db');
 const { isSuspicious } = require('./_linkCheck');
@@ -37,7 +38,51 @@ module.exports = async (req, res) => {
     // mislabeled if this purchase covers more than one town.
     const townIds = [...new Set(squares.map(s => s.town_id))];
     const { data: towns } = await supabase.from('towns').select('id, name, slug, grid_size').in('id', townIds);
-    return res.status(200).json({ squares, towns: towns || [] });
+
+    // Referral code: lazily generated on first request for this
+    // edit_token, not at purchase time -- keeps the purchase flow
+    // itself untouched. Unguessable by construction: 8 characters drawn
+    // from a 32-character alphabet (no ambiguous 0/O/1/I, easier to
+    // read aloud or type correctly) is over 10^12 possible codes, not
+    // practically brute-forceable, and generated via crypto.randomBytes
+    // rather than anything sequential or derived from the business's
+    // own id/name.
+    let { data: referralRow } = await supabase
+      .from('referral_codes')
+      .select('code')
+      .eq('edit_token', token)
+      .maybeSingle();
+    if (!referralRow) {
+      const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code;
+      let inserted = false;
+      // Retries on the extremely unlikely event of a collision (unique
+      // constraint on the code itself) rather than trusting randomness
+      // alone -- cheap insurance for something that gates real money.
+      for (let attempt = 0; attempt < 5 && !inserted; attempt++) {
+        code = Array.from(crypto.randomBytes(8)).map(b => ALPHABET[b % ALPHABET.length]).join('');
+        const { error: insertErr } = await supabase.from('referral_codes').insert({ code, edit_token: token });
+        if (!insertErr) inserted = true;
+        else if (insertErr.code !== '23505') { console.error('Referral code generation failed:', insertErr); break; }
+      }
+      referralRow = { code };
+    }
+
+    // Stats are informational only for the business owner -- shows them
+    // what's actually happened with their referrals, not used for
+    // anything security-relevant (the webhook is the sole source of
+    // truth for granting/reversing rewards, never this read path).
+    const { data: referralRows } = await supabase
+      .from('referrals')
+      .select('status, reward_type, reward_amount_cents')
+      .eq('referrer_edit_token', token);
+    const referralStats = {
+      totalReferred: (referralRows || []).length,
+      rewarded: (referralRows || []).filter(r => r.status === 'rewarded').length,
+      reversed: (referralRows || []).filter(r => r.status === 'reversed').length
+    };
+
+    return res.status(200).json({ squares, towns: towns || [], referralCode: referralRow.code, referralStats });
   }
 
   if (req.method === 'POST') {
