@@ -656,6 +656,11 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
     errBox.style.display = 'block';
     return;
   }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    errBox.textContent = t('invalidEmailErr');
+    errBox.style.display = 'block';
+    return;
+  }
   if (!address){
     errBox.textContent = t('addressRequiredErr');
     errBox.style.display = 'block';
