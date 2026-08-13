@@ -694,7 +694,8 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
         color: null,
         tagline: tagline || null,
         address,
-        industry: industry || null
+        industry: industry || null,
+        referralCode: getStoredReferralCode()
       })
     });
     const data = await res.json();
@@ -758,6 +759,35 @@ async function init(){
     banner.textContent = '🔒 Preview mode — this town is not open to the public yet. Only visible to you, logged in as admin.';
     document.body.prepend(banner);
   }
+
+  // Referral capture -- someone might click a referral link, browse
+  // around, and only actually start a purchase later, so this needs to
+  // survive beyond just this one page load (sessionStorage would lose
+  // it on a fresh tab/return visit). Deliberately doesn't overwrite an
+  // already-stored code with a blank/missing ?ref= on a later, unrelated
+  // page load -- only a new *explicit* ?ref= value replaces a previous
+  // one, so navigating around the site afterward doesn't silently drop
+  // the original referral. 30-day expiry keeps a years-old cached value
+  // from attributing some unrelated future purchase to a stale referral.
+  (() => {
+    const refCode = new URLSearchParams(window.location.search).get('ref');
+    if (refCode && /^[A-Z0-9]{4,16}$/i.test(refCode)) {
+      try {
+        localStorage.setItem('paikallisCanvasReferralCode', JSON.stringify({ code: refCode.toUpperCase(), savedAt: Date.now() }));
+      } catch (e) {}
+    }
+  })();
+
+function getStoredReferralCode(){
+  try {
+    const raw = localStorage.getItem('paikallisCanvasReferralCode');
+    if (!raw) return null;
+    const stored = JSON.parse(raw);
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    if (Date.now() - stored.savedAt > THIRTY_DAYS_MS) return null;
+    return stored.code || null;
+  } catch (e) { return null; }
+}
 
   await applyContentOverrides();
   setLang(lang);

@@ -63,13 +63,28 @@ async function load(){
       app.innerHTML = `<div class="card"><h1>Link not found</h1><p>${data.error || 'This edit link is no longer valid.'}</p></div>`;
       return;
     }
-    render(data.squares, data.towns);
+    render(data.squares, data.towns, data.referralCode, data.referralStats);
   }catch(e){
     app.innerHTML = '<div class="card"><h1>Network error</h1><p>Please try refreshing.</p></div>';
   }
 }
 
-function render(squares, towns){
+function copyReferralLink(){
+  const input = document.getElementById('referralUrlInput');
+  const btn = document.getElementById('copyReferralBtn');
+  navigator.clipboard.writeText(input.value).then(() => {
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = original; }, 2000);
+  }).catch(() => {
+    // Clipboard permission denied or unavailable -- select the text so
+    // the person can still copy it manually (Ctrl/Cmd+C) rather than
+    // leaving them with a button that silently did nothing.
+    input.select();
+  });
+}
+
+function render(squares, towns, referralCode, referralStats){
   const s = squares[0]; // cosmetic fields (logo/tagline/color) are shared across all squares in one purchase
   const townsById = {};
   (towns || []).forEach(t => { townsById[t.id] = t; });
@@ -82,6 +97,11 @@ function render(squares, towns){
   });
   const townSummary = Object.entries(countsByTown).map(([name, n]) => `${n} in ${name}`).join(', ');
   const totalViews = squares.reduce((sum, sq) => sum + (sq.view_count || 0), 0);
+  // First square's town for the referral link -- a business spanning
+  // multiple towns only needs one concrete URL to share, and there's no
+  // more "primary" a town to pick than whichever one they bought first.
+  const referralTownSlug = townsById[squares[0].town_id] ? townsById[squares[0].town_id].slug : 'oulu';
+  const referralUrl = referralCode ? `https://www.paikalliscanvas.fi/${referralTownSlug}?ref=${referralCode}` : '';
 
   app.innerHTML = `
     <h1>Manage your listing</h1>
@@ -92,6 +112,15 @@ function render(squares, towns){
       <div style="font-size:34px;font-weight:700;font-family:'Space Grotesk',sans-serif;color:#3a331d;">${totalViews.toLocaleString()}</div>
       <p class="sub" style="margin-top:6px;">Every time someone opens your square's page, it counts here — real proof people are actually looking, not just a promise.</p>
     </div>
+
+    ${referralCode ? `
+    <div class="card">
+      <h2>Refer a business, get 50% off</h2>
+      <p class="sub" style="margin:-4px 0 12px;">Share your link below. When a business signs up through it and their first payment goes through, you get half off (€14.95) your next bill — no limit on how many times.</p>
+      <input type="text" readonly value="${referralUrl}" id="referralUrlInput" onclick="this.select();" style="width:100%;padding:10px 12px;border:1px solid #e5ddc8;border-radius:6px;font-size:13px;background:#fbf9f2;color:#3a331d;margin-bottom:8px;" />
+      <button type="button" onclick="copyReferralLink()" id="copyReferralBtn" style="width:100%;">Copy link</button>
+      <p class="sub" style="margin-top:12px;font-size:12px;">${(referralStats && referralStats.totalReferred) || 0} business${((referralStats && referralStats.totalReferred) || 0) === 1 ? '' : 'es'} referred so far — ${(referralStats && referralStats.rewarded) || 0} rewarded.</p>
+    </div>` : ''}
 
     <div class="card">
       <h2>Appearance</h2>
