@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { supabase } = require('./_db');
+const { getClientIp, isRateLimited, recordRequest } = require('./_rateLimit');
 
 const ALLOWED_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 const MAX_BYTES = 3 * 1024 * 1024; // 3MB -- images are pre-resized client-side before this ever gets called
@@ -63,6 +64,17 @@ async function fetchAndStore(imageUrl) {
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Previously unprotected -- this endpoint accepts either a direct
+  // 3MB upload or a server-side fetch of an arbitrary URL, with
+  // nothing stopping repeated scripted calls from running up real
+  // storage/bandwidth costs, or from abusing the imageUrl path as a
+  // free URL-fetching relay. 15/hour is generous for genuine signup
+  // use (retrying a crop a few times) while closing off scripted abuse.
+  const ip = getClientIp(req);
+  if (await isRateLimited(supabase, 'logo_upload_attempts', ip, 15, 1)) {
+    return res.status(429).json({ error: 'Too many upload attempts -- please try again later.' });
+  }
+
   try {
     const { imageBase64, contentType, imageUrl } = req.body || {};
 
@@ -77,6 +89,7 @@ module.exports = async (req, res) => {
     }
 
     if (result.error) return res.status(400).json({ error: result.error });
+    await recordRequest(supabase, 'logo_upload_attempts', ip);
     res.status(200).json({ url: result.url });
   } catch (err) {
     console.error(err);
