@@ -135,6 +135,17 @@ module.exports = async (req, res) => {
     if (!companyName || !email) {
       return res.status(400).json({ error: 'Company name and email are required.' });
     }
+    // The real validation boundary -- the frontend check is just for
+    // immediate feedback and can be bypassed by anyone calling this
+    // endpoint directly. Previously this only checked non-empty, so
+    // something like "asdf" (no @ at all) would pass straight through
+    // to a real Stripe checkout and get permanently stored as the
+    // business's contact email -- they'd never receive their manage-
+    // listing link, and a malformed email could also subtly affect the
+    // referral system's email-based self-referral comparison.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ error: 'Please provide a valid email address.' });
+    }
     if (!address || !address.trim()) {
       return res.status(400).json({ error: 'A business address is required.' });
     }
