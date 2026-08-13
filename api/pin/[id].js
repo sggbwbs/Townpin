@@ -6,6 +6,17 @@ function escapeHtml(str) {
   }[c]));
 }
 
+// JSON.stringify alone correctly escapes JS-syntax concerns (quotes,
+// backslashes) for embedding a value inside a <script> tag, but not a
+// literal "</script" substring that could appear inside a string value
+// -- the HTML parser looks for that exact sequence and would close the
+// tag early, before any JS runs, regardless of correct JS escaping.
+// Matters here specifically because company_name is filled in by
+// business owners themselves, not a fully trusted input.
+function jsStringLiteral(value) {
+  return JSON.stringify(value == null ? '' : value).replace(/<\/script/gi, '<\\/script');
+}
+
 const SITE_URL = process.env.SITE_URL;
 
 // Prefers an explicit ?lang= (the main site passes this along whenever it
@@ -128,15 +139,33 @@ module.exports = async (req, res) => {
   // a single fixed-width card, not a multi-item banner.
   const logoSize = Math.round(Math.min(88 + (slotCount - 1) * 10, 140));
 
+  // Fills real gaps in the existing OG/Twitter/schema setup: og:url and
+  // og:type were missing entirely (og:url matters for social platforms
+  // to correctly attribute/dedupe a shared link), and there were no
+  // Twitter Card tags at all. @id ties the schema to one consistent
+  // identifier across repeated crawls of the same business. See the
+  // og-image comment below for the other real gap this fills.
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
+    ...(canonicalUrl ? { '@id': canonicalUrl } : {}),
     name: square.company_name,
     ...(square.website_url ? { url: square.website_url } : {}),
     ...(square.logo_url ? { image: square.logo_url } : {}),
     ...(square.tagline ? { description: square.tagline } : {}),
     address: { '@type': 'PostalAddress', addressLocality: townName, addressCountry: town ? town.country : 'FI' }
   };
+
+  // Falls back to a real, properly-sized (1200x630, the standard OG
+  // ratio) branded image whenever a business has no logo of its own --
+  // previously og:image was omitted entirely in that case, meaning a
+  // shared link with no logo showed no image at all in WhatsApp/
+  // iMessage/Facebook previews. og-image.jpg is a centered crop of the
+  // site's own hero photo, not the raw 2048x618 original -- that ratio
+  // is far enough from 1200x630 that social platforms would have
+  // cropped it unpredictably (often cutting off the sides) rather than
+  // showing the intended framing.
+  const ogImage = square.logo_url || (SITE_URL ? `${SITE_URL}/og-image.jpg` : null);
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600');
@@ -147,9 +176,17 @@ module.exports = async (req, res) => {
 <title>${title}</title>
 <meta name="description" content="${description}" />
 ${canonicalUrl ? `<link rel="canonical" href="${escapeHtml(canonicalUrl)}" />` : ''}
+<meta property="og:type" content="website" />
 <meta property="og:title" content="${title}" />
 <meta property="og:description" content="${description}" />
-${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo_url)}" />` : ''}
+${canonicalUrl ? `<meta property="og:url" content="${escapeHtml(canonicalUrl)}" />` : ''}
+${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}" />
+<meta property="og:image:width" content="${square.logo_url ? '512' : '1200'}" />
+<meta property="og:image:height" content="${square.logo_url ? '512' : '630'}" />` : ''}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="${title}" />
+<meta name="twitter:description" content="${description}" />
+${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : ''}
 <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -208,6 +245,30 @@ ${square.logo_url ? `<meta property="og:image" content="${escapeHtml(square.logo
     })()}
     <p class="foot">${t.footText(`<a href="/board/${escapeHtml(townSlug)}">${escapeHtml(townName)}${lang === 'en' ? ' community board' : ''}</a>`)} ${t.poweredBy}</p>
   </div>
+  <script>
+    // Records this visit for the homepage's "recently viewed" feature
+    // (see renderRecentlyViewedList in app-feed.js) -- keyed by the same
+    // canonicalId this page itself resolved to, so a business with
+    // multiple squares dedupes the same way favorites already do.
+    (function(){
+      try {
+        var KEY = 'paikallisCanvasRecentlyViewed';
+        var MAX = 8;
+        var entry = {
+          id: ${JSON.stringify(canonicalId)},
+          company_name: ${jsStringLiteral(square.company_name)},
+          logo_url: ${jsStringLiteral(square.logo_url || '')},
+          industry: ${jsStringLiteral(square.industry || '')},
+          viewedAt: Date.now()
+        };
+        var existing = JSON.parse(localStorage.getItem(KEY) || '[]');
+        existing = existing.filter(function(e){ return String(e.id) !== String(entry.id); });
+        existing.unshift(entry);
+        if (existing.length > MAX) existing = existing.slice(0, MAX);
+        localStorage.setItem(KEY, JSON.stringify(existing));
+      } catch (e) {}
+    })();
+  </script>
 </body>
 </html>`);
 };

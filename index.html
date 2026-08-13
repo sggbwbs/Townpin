@@ -152,7 +152,12 @@
     <button class="close" onclick="closeFavoritesModal()">✕</button>
     <h2 data-i18n="favoritesTitle">Suosikkisi</h2>
     <p class="authSub" data-i18n="favoritesSub">Tallennetut yritykset yhdessä paikassa.</p>
+    <div id="favoritesTabRow" style="display:flex;gap:8px;margin-bottom:16px;">
+      <button type="button" id="favoritesTabBtn" class="favoritesTab active" onclick="setFavoritesModalTab('favorites')" data-i18n="favoritesTabFavorites">Suosikkisi</button>
+      <button type="button" id="recentlyViewedTabBtn" class="favoritesTab" onclick="setFavoritesModalTab('recent')" data-i18n="favoritesTabRecent">Katsomasi äskettäin</button>
+    </div>
     <div id="favoritesList"></div>
+    <div id="recentlyViewedList" style="display:none;"></div>
   </div>
 </div>
 
@@ -199,7 +204,7 @@
 
   <div id="heroPhotoWrap">
   <div id="askHero">
-    <h2 data-i18n="askHeroTitle">Kaikki Oulussa<br>yhdestä paikasta</h2>
+    <h1 data-i18n="askHeroTitle">Kaikki Oulussa<br>yhdestä paikasta</h1>
     <p class="askHeroSub" data-i18n="askHeroSub">Löydä tapahtumat, yritykset, uutiset, tarjoukset ja paikalliset palvelut helposti.</p>
     <div id="askHeroRow">
       <input type="text" id="askHeroInput" autocomplete="off" data-i18n-placeholder="askHeroPlaceholder" placeholder="Mitä haluaisit tehdä tänään?" />
@@ -491,7 +496,7 @@
     <button class="close" id="companyInfoClose">✕</button>
 
     <span class="pitchEyebrow" data-i18n="pitchEyebrow">Oma yrityksesi tähän?</span>
-    <h1 data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h1>
+    <h2 id="companyPitchTitle" data-i18n="heroTitle">Näytä yrityksesi <span>koko Oululle.</span></h2>
     <p class="sub" data-i18n="heroSub">PaikallisCanvas on Oulun yritysten yhteinen ilmoitustaulu verkossa — jokainen mainospaikka taulussa on eri yritys. Näkyvyyttä syntyy kahdella tavalla: oikeat oululaiset selaavat taulua katsomassa päivän uutisia, tapahtumia ja säätä, ja samalla yrityksesi saa oman esittelysivun, joka voi löytyä Google-hausta täysin itsekseen — vaikka kukaan ei koskaan avaisi itse taulua. Kumpaakaan emme voi taata: taulun kävijämäärä riippuu sivuston käytöstä ja Google-näkyvyys hakukoneen omista säännöistä. Mainospaikka maksaa 29,90€/kk, lisäät logosi ja linkkisi itse, etkä sido itseäsi mihinkään määräaikaan.</p>
 
     <div class="valueRow">

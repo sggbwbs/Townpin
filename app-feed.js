@@ -229,6 +229,7 @@ function updateFavoritesTileBadge(){
 
 function openFavoritesModal(){
   document.getElementById('favoritesOverlay').style.display = 'flex';
+  setFavoritesModalTab('favorites');
   renderFavoritesList();
 }
 function closeFavoritesModal(){
@@ -355,6 +356,51 @@ document.getElementById('accountVerifyOverlay').addEventListener('click', (e) =>
   const cleanUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
   window.history.replaceState({}, '', cleanUrl);
 })();
+
+const RECENTLY_VIEWED_STORAGE_KEY = 'paikallisCanvasRecentlyViewed';
+const RECENTLY_VIEWED_MAX = 8;
+
+function getRecentlyViewedBusinesses(){
+  try {
+    const raw = localStorage.getItem(RECENTLY_VIEWED_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+
+function renderRecentlyViewedList(){
+  const recent = getRecentlyViewedBusinesses(); // already stored most-recent-first, see api/pin/[id].js
+  const list = document.getElementById('recentlyViewedList');
+  if (recent.length === 0){
+    list.innerHTML = `<p class="nearbyEmptyMsg">${escapeAskText(t('recentlyViewedEmpty'))}</p>`;
+    return;
+  }
+  // Display-only, unlike renderFavoritesList -- no favorite-toggle
+  // button here. Toggling a favorite needs the business looked up in
+  // currentSquares (see toggleBusinessFavorite), which a business
+  // viewed on a past page load, or from another town's board, may not
+  // be present in on this page load. Keeping this list display-only
+  // avoids that whole class of edge case while still delivering the
+  // actual point of it: a quick way back to something recently looked at.
+  list.innerHTML = recent.map(r => `
+    <div class="nearbyListItem">
+      <a class="nearbyListItemLink" href="/pin/${r.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${r.id})">
+        <img src="${r.logo_url}" alt="" loading="lazy" />
+        <div class="nearbyListItemText">
+          <b>${escapeAskText(r.company_name)}</b>
+          <span>${escapeAskText(r.industry || '')}</span>
+        </div>
+      </a>
+    </div>`).join('');
+}
+
+function setFavoritesModalTab(tab){
+  const showFavorites = tab === 'favorites';
+  document.getElementById('favoritesTabBtn').classList.toggle('active', showFavorites);
+  document.getElementById('recentlyViewedTabBtn').classList.toggle('active', !showFavorites);
+  document.getElementById('favoritesList').style.display = showFavorites ? 'block' : 'none';
+  document.getElementById('recentlyViewedList').style.display = showFavorites ? 'none' : 'block';
+  if (!showFavorites) renderRecentlyViewedList();
+}
 
 function renderFavoritesList(){
   const favorites = getFavoriteBusinesses().sort((a, b) => b.savedAt - a.savedAt); // most recently saved first
