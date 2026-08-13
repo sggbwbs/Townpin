@@ -1029,6 +1029,14 @@ async function openBoard(name, country, population){
     if (!previewMode) {
       const canonicalEl = document.getElementById('canonicalLink');
       if (canonicalEl) canonicalEl.href = `https://www.paikalliscanvas.fi/${cleanSlug}`;
+      // Same reasoning, kept in sync with the canonical tag above --
+      // og:url was previously only ever the static Oulu default. Real
+      // limitation worth knowing: this is a client-side update, so it
+      // only helps crawlers that actually execute JS -- most social
+      // platforms still see whatever's in the raw HTML on first fetch,
+      // the same limitation the canonical tag itself already has.
+      const ogUrlEl = document.getElementById('ogUrlLink');
+      if (ogUrlEl) ogUrlEl.content = `https://www.paikalliscanvas.fi/${cleanSlug}`;
     }
     document.getElementById('boardTitle').textContent = currentTown.name;
     await loadBoard();
