@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { supabase } = require('./_db');
 const { getNewsSection, getEventsSection } = require('./_localFeed');
 const { sendDigestConfirmEmail, sendDigestEmail } = require('./_email');
+const { getClientIp, isRateLimited, recordRequest } = require('./_rateLimit');
 
 const SITE_URL = process.env.SITE_URL;
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -17,6 +18,19 @@ const CRON_SECRET = process.env.CRON_SECRET;
 
 async function handleSubscribe(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
+  const ip = getClientIp(req);
+  // Previously unprotected -- this sends a real email on every request,
+  // meaning it could be used to repeatedly spam confirmation emails to
+  // any address typed into the form, regardless of whether that person
+  // ever asked for any of it. 5/hour allows genuine retries (a typo'd
+  // email, wanting a fresh link) without allowing rapid-fire abuse.
+  // Recorded further down, only once the request has actually passed
+  // validation and will really trigger a send -- not here, so a request
+  // rejected for a malformed email doesn't also eat into the quota.
+  if (await isRateLimited(supabase, 'digest_subscribe_attempts', ip, 5, 1)) {
+    return res.status(429).json({ error: 'Too many attempts -- please try again later.' });
+  }
+
   const { email, townId, favoriteBusinessIds } = req.body || {};
   if (!email || !String(email).trim() || !townId) {
     return res.status(400).json({ error: 'Missing email or townId.' });
@@ -54,6 +68,7 @@ async function handleSubscribe(req, res) {
   }
 
   const confirmUrl = `${SITE_URL}/api/notifications/confirm?token=${confirmToken}`;
+  await recordRequest(supabase, 'digest_subscribe_attempts', ip);
   await sendDigestConfirmEmail(cleanEmail, confirmUrl);
   res.status(200).json({ ok: true, syncToken });
 }

@@ -105,12 +105,12 @@ function render(squares, towns, referralCode, referralStats){
 
   app.innerHTML = `
     <h1>Manage your listing</h1>
-    <p class="sub">${s.company_name} — ${squares.length} square${squares.length>1?'s':''} (${townSummary})</p>
+    <p class="sub">${s.company_name} — ${squares.length} slot${squares.length>1?'s':''} (${townSummary})</p>
 
     <div class="card" style="text-align:center;">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:#8a8168;margin-bottom:4px;">Total page views</div>
       <div style="font-size:34px;font-weight:700;font-family:'Space Grotesk',sans-serif;color:#3a331d;">${totalViews.toLocaleString()}</div>
-      <p class="sub" style="margin-top:6px;">Every time someone opens your square's page, it counts here — real proof people are actually looking, not just a promise.</p>
+      <p class="sub" style="margin-top:6px;">Every time someone opens your listing's page, it counts here — real proof people are actually looking, not just a promise.</p>
     </div>
 
     ${referralCode ? `
@@ -125,7 +125,7 @@ function render(squares, towns, referralCode, referralStats){
     <div class="card">
       <h2>Appearance</h2>
       <label>Tagline (shown on your page)</label>
-      <p class="note" style="margin:-4px 0 8px;">This is shared across all your squares, even if they're in different towns.</p>
+      <p class="note" style="margin:-4px 0 8px;">This is shared across all your slots, even if they're in different towns.</p>
       <input type="text" id="tagline" value="${(s.tagline||'').replace(/"/g,'&quot;')}" placeholder="A short line about your business" maxlength="120" />
       <label>Logo</label>
       <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp" style="display:none;" />
@@ -134,7 +134,7 @@ function render(squares, towns, referralCode, referralStats){
         <div style="max-height:280px;overflow:hidden;border-radius:8px;background:#e4dcc4;">
           <img id="cropperImg" style="display:block;max-width:100%;" />
         </div>
-        <p class="note">Drag and zoom to fit your square(s)' shape.</p>
+        <p class="note">Drag and zoom to fit your slot(s)' shape.</p>
         <button type="button" class="primary" id="cropConfirmBtn" style="width:auto;">✓ Use this crop</button>
       </div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
@@ -142,7 +142,7 @@ function render(squares, towns, referralCode, referralStats){
         <span class="note" id="currentLogoNote" style="margin:0;">${s.logo_url ? 'Current logo shown above.' : 'No logo set yet.'}</span>
       </div>
       <input type="url" id="logoUrl" value="${(s.logo_url||'').replace(/"/g,'&quot;')}" style="display:none;" />
-      <label>Square color (used if no logo)</label>
+      <label>Slot color (used if no logo)</label>
       <div class="row" id="colorRow"></div>
       <button class="primary" onclick="saveAppearance()">Save appearance</button>
       <span class="saved" id="savedAppearance">✓ Saved</span>
@@ -171,7 +171,7 @@ function render(squares, towns, referralCode, referralStats){
     <div class="card">
       <h2>Buy more slots</h2>
       <p class="sub" style="margin-bottom:12px;">
-        More slots means a bigger logo on the board and your page. Buying 4 or more total drops the price to €4/slot for all of them, not just the new ones.
+        More slots means a bigger logo on the board and your page. Every slot is €29.90/month, same price regardless of how many you have.
       </p>
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
         <button type="button" id="addSlotsMinus" style="width:36px;height:36px;border-radius:50%;border:1px solid #d8cfb4;background:#fffdf8;font-size:18px;font-weight:700;cursor:pointer;">−</button>
@@ -217,12 +217,21 @@ function render(squares, towns, referralCode, referralStats){
 
   if (s.subscription_id){
     let addSlotsQty = 1;
+    // Mirrors the current flat rate in api/_pricing.js and app-core.js
+    // -- this page is standalone and doesn't load app-core.js, so the
+    // price is duplicated here rather than shared. Previously this was
+    // newTotal >= 4 ? 4 : 5, the old volume-discount pricing that was
+    // removed when the site moved to a flat rate -- meaning this
+    // preview was showing roughly a sixth of what customers would
+    // actually be charged, confirmed against api/manage.js's own
+    // addSlots handler, which already correctly uses the real flat rate.
+    const PRICE_PER_SLOT = 29.90;
+    const formatSlotPrice = (n) => n.toFixed(2); // always two decimals -- a bare ${n} would drop a trailing zero (29.90 -> "29.9")
     const updateAddSlotsPreview = () => {
       document.getElementById('addSlotsQty').textContent = addSlotsQty;
       const newTotal = squares.length + addSlotsQty;
-      const newPerSquare = newTotal >= 4 ? 4 : 5;
       document.getElementById('addSlotsPreview').textContent =
-        `→ ${newTotal} total, €${newPerSquare}/slot (€${newTotal * newPerSquare}/mo)`;
+        `→ ${newTotal} total, €${formatSlotPrice(PRICE_PER_SLOT)}/slot (€${formatSlotPrice(newTotal * PRICE_PER_SLOT)}/mo)`;
     };
     updateAddSlotsPreview();
     document.getElementById('addSlotsMinus').addEventListener('click', () => {
@@ -382,7 +391,7 @@ async function addSlots(){
     const data = await post({ action: 'add_slots', additionalCount: qty });
     flash('savedAddSlots');
     errBox.style.color = '#4a7a5c';
-    errBox.textContent = `Done — you now have ${data.newTotal} slots at €${data.newPerSquare}/slot.`;
+    errBox.textContent = `Done — you now have ${data.newTotal} slots at €${Number(data.newPerSquare).toFixed(2)}/slot.`;
     setTimeout(load, 2500); // let the success message actually be seen before load() re-renders the whole page and replaces it
   }catch(e){ errBox.textContent = e.message; }
 }

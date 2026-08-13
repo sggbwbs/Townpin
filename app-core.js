@@ -22,6 +22,21 @@ function pricePerSquareEur(count){
   return 29.90;
 }
 
+// Every dynamic price display in app-chat.js was interpolating a raw
+// JS number directly -- €{price} style. Two real problems with that:
+// (1) JS numbers silently drop trailing zeros, so 29.90 becomes the
+// number 29.9, which renders as the confirmed, reported bug "29.9€"
+// instead of "29,90€" -- looks unfinished/unprofessional, not what was
+// actually charged. (2) none of those were locale-aware either --
+// Finnish uses a comma as the decimal separator, not a period, but
+// every dynamic price showed a period regardless of language. This
+// fixes both at once, in one place, rather than patching each call site
+// with its own .toFixed().
+function formatPrice(amount){
+  const fixed = amount.toFixed(2);
+  return lang === 'fi' ? fixed.replace('.', ',') : fixed;
+}
+
 // Approximate populations, used only for autocomplete ranking and picking a
 // sensible board size for a new town — not authoritative figures.
 const FINNISH_CITIES = [
@@ -533,6 +548,7 @@ const STRINGS = {
     continueBtn: 'Jatka maksuun →',
     footerText: 'paikallinen tekoälyopas',
     fillRequired: 'Täytä yrityksen nimi, verkkosivu ja sähköposti.',
+    invalidEmailErr: 'Tarkista sähköpostiosoite -- se ei näytä oikealta.',
     addressRequiredErr: 'Yrityksen osoite on pakollinen — se näkyy kartalla.',
     confirmRequired: 'Vahvista, että tämä on yritystilaus, ennen kuin jatkat.',
     invalidUrl: 'Verkkosivun osoite vaikuttaa virheelliseltä — muista https://',
@@ -763,6 +779,7 @@ const STRINGS = {
     continueBtn: 'Continue to payment →',
     footerText: 'your local AI guide',
     fillRequired: 'Please fill in company name, website and email.',
+    invalidEmailErr: "Please check your email address -- it doesn't look right.",
     addressRequiredErr: 'A business address is required — it will be shown on the map.',
     confirmRequired: 'Please confirm this is a business subscription before continuing.',
     invalidUrl: 'Website URL looks invalid — include https://',

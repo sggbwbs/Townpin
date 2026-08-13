@@ -384,7 +384,7 @@ function renderRecentlyViewedList(){
   list.innerHTML = recent.map(r => `
     <div class="nearbyListItem">
       <a class="nearbyListItemLink" href="/pin/${r.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${r.id})">
-        <img src="${r.logo_url}" alt="" loading="lazy" />
+        <img src="${escapeAskText(r.logo_url)}" alt="" loading="lazy" />
         <div class="nearbyListItemText">
           <b>${escapeAskText(r.company_name)}</b>
           <span>${escapeAskText(r.industry || '')}</span>
@@ -421,7 +421,7 @@ function renderFavoritesList(){
     return `
     <div class="nearbyListItem">
       <a class="nearbyListItemLink" href="/pin/${navId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${navId})">
-        <img src="${f.logo_url}" alt="" loading="lazy" />
+        <img src="${escapeAskText(f.logo_url)}" alt="" loading="lazy" />
         <div class="nearbyListItemText">
           <b>${escapeAskText(f.company_name)}</b>
           <span>${escapeAskText(f.industry || '')}</span>
@@ -531,7 +531,7 @@ function renderNearbyResults(userLat, userLng){
       return `
       <div class="nearbyListItem">
         <a class="nearbyListItemLink" href="/pin/${b.id}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${b.id})">
-          <img src="${b.logo_url}" alt="" loading="lazy" />
+          <img src="${escapeAskText(b.logo_url)}" alt="" loading="lazy" />
           <div class="nearbyListItemText">
             <b>${escapeAskText(b.company_name)}</b>
             <span>${escapeAskText(b.industry || '')}</span>

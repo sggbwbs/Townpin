@@ -135,6 +135,17 @@ module.exports = async (req, res) => {
     if (!companyName || !email) {
       return res.status(400).json({ error: 'Company name and email are required.' });
     }
+    // The real validation boundary -- the frontend check is just for
+    // immediate feedback and can be bypassed by anyone calling this
+    // endpoint directly. Previously this only checked non-empty, so
+    // something like "asdf" (no @ at all) would pass straight through
+    // to a real Stripe checkout and get permanently stored as the
+    // business's contact email -- they'd never receive their manage-
+    // listing link, and a malformed email could also subtly affect the
+    // referral system's email-based self-referral comparison.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ error: 'Please provide a valid email address.' });
+    }
     if (!address || !address.trim()) {
       return res.status(400).json({ error: 'A business address is required.' });
     }
@@ -167,6 +178,16 @@ module.exports = async (req, res) => {
 
     const linkProblem = websiteUrl ? isSuspicious(websiteUrl) : null;
     if (linkProblem) return res.status(400).json({ error: linkProblem });
+
+    // Previously unvalidated -- websiteUrl went through this same check
+    // just above, but logoUrl was stored directly with nothing checking
+    // it at all. Not just a consistency gap: rejecting a non-URL or
+    // malicious-scheme value here is real defense in depth alongside
+    // the output-escaping fix (every place logo_url gets rendered now
+    // escapes it properly), catching things that escaping alone
+    // wouldn't, like a javascript: scheme.
+    const logoLinkProblem = logoUrl ? isSuspicious(logoUrl) : null;
+    if (logoLinkProblem) return res.status(400).json({ error: `Logo URL: ${logoLinkProblem}` });
 
     const modResult = await moderate({ companyName, websiteUrl });
     if (!modResult.allowed) {

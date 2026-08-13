@@ -5,6 +5,7 @@ const { isSuspicious } = require('./_linkCheck');
 const { generateCompanyBlurb } = require('./_companyInfo');
 const { pricePerSquareEur } = require('./_pricing');
 const { insertSquaresWithRetry } = require('./_squares');
+const { getClientIp, isRateLimited, recordRequest } = require('./_rateLimit');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -212,6 +213,16 @@ module.exports = async (req, res) => {
       update.ai_blurb_en = null;
       update.ai_blurb_source = null;
     } else if (action === 'regenerate_blurb') {
+      // Previously unprotected -- a real, paid Anthropic API call gated
+      // only by possession of the edit_token, with nothing stopping a
+      // single token holder from scripting repeated calls and running
+      // up unbounded costs. 10/day is generous for genuine "search
+      // again" use while closing off scripted abuse.
+      const ip = getClientIp(req);
+      if (await isRateLimited(supabase, 'blurb_regenerate_attempts', ip, 10, 24)) {
+        return res.status(429).json({ error: 'Too many regeneration attempts today -- please try again tomorrow.' });
+      }
+      await recordRequest(supabase, 'blurb_regenerate_attempts', ip);
       const blurb = await generateCompanyBlurb({
         companyName: squares[0].company_name,
         websiteUrl: squares[0].website_url
