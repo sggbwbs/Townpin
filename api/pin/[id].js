@@ -38,6 +38,8 @@ const STRINGS = {
     backToHome: 'Takaisin PaikallisCanvasiin',
     back: '← Takaisin',
     visitWebsite: 'Käy verkkosivulla →',
+    share: 'Jaa',
+    linkCopied: 'Linkki kopioitu!',
     quickInfoLabel: '🔎 Tekoälyn löytämä tieto',
     source: 'Lähde ↗',
     disclaimer: 'Tekoälyn koostama, voi sisältää virheitä.',
@@ -50,6 +52,8 @@ const STRINGS = {
     backToHome: 'Back to PaikallisCanvas',
     back: '← Back',
     visitWebsite: 'Visit website →',
+    share: 'Share',
+    linkCopied: 'Link copied!',
     quickInfoLabel: '🔎 Automatically found information',
     source: 'Source ↗',
     disclaimer: 'AI-assembled, may be inaccurate.',
@@ -207,6 +211,13 @@ ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : '
   a.visit{display:inline-block;background:#5847c9;color:#fff;text-decoration:none;
     font-family:'Space Grotesk',sans-serif;font-weight:700;padding:12px 26px;border-radius:8px;
     box-shadow:0 8px 22px rgba(88,71,201,0.3);}
+  .shareBtn{display:inline-flex;align-items:center;background:#fff;color:#5847c9;
+    border:1px solid #ddd8ef;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;
+    padding:11px 20px;border-radius:8px;cursor:pointer;margin-left:8px;}
+  .shareBtn:hover{border-color:#5847c9;}
+  #shareFeedback{display:inline-block;margin-left:10px;font-size:12.5px;color:#3a7d3a;
+    opacity:0;transition:opacity 0.2s ease;}
+  #shareFeedback.visible{opacity:1;}
   a.visit:hover{background:#463699;}
   .foot{margin-top:26px;font-size:12px;color:#6b6488;}
   .quickInfo{margin-top:22px;padding:14px 16px;background:#f3f2fa;border:1px solid #ddd8ef;border-radius:9px;text-align:left;}
@@ -228,6 +239,10 @@ ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : '
     ${square.industry && INDUSTRY_LABELS[square.industry] ? `<div class="industryBadge">${escapeHtml(INDUSTRY_LABELS[square.industry])}</div>` : ''}
     <p class="tagline">${description}</p>
     ${square.website_url ? `<a class="visit" href="${escapeHtml(square.website_url)}" rel="nofollow">${t.visitWebsite}</a>` : ''}
+    <button type="button" class="shareBtn" id="shareBtn" onclick="sharePinPage()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="vertical-align:-2px;margin-right:4px;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>${t.share}
+    </button>
+    <span id="shareFeedback"></span>
     ${(() => {
       // Whichever language matches the page, falling back to the other
       // if that specific translation is missing rather than showing
@@ -268,6 +283,34 @@ ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : '
         localStorage.setItem(KEY, JSON.stringify(existing));
       } catch (e) {}
     })();
+
+    // Web Share API where available (mobile browsers mostly) --
+    // brings up the device's native share sheet (Messages, WhatsApp,
+    // etc.) directly. Falls back to copying the link to the clipboard
+    // on browsers without it (most desktop browsers as of writing).
+    // Uses the server-resolved canonical URL, not window.location.href
+    // -- so sharing is consistent even if the visitor arrived via a
+    // non-canonical square id rather than the canonical one.
+    function sharePinPage(){
+      // Falls back to the page's own current URL if the server-side
+      // canonical URL wasn't available (canonicalUrl is null whenever
+      // SITE_URL isn't configured) -- without this, sharing would
+      // silently try to share/copy an empty string instead of a real link.
+      var url = ${jsStringLiteral(canonicalUrl || '')} || window.location.href;
+      var title = ${jsStringLiteral(square.company_name)};
+      var feedback = document.getElementById('shareFeedback');
+      if (navigator.share) {
+        navigator.share({ title: title, url: url }).catch(function(){});
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function(){
+          feedback.textContent = ${jsStringLiteral(t.linkCopied)};
+          feedback.classList.add('visible');
+          setTimeout(function(){ feedback.classList.remove('visible'); }, 2000);
+        }).catch(function(){});
+      }
+    }
   </script>
 </body>
 </html>`);
