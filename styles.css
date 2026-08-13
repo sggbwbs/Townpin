@@ -642,9 +642,9 @@
        news's now-vacated cell instead of staying in column 2 -- exactly
        what was happening, confirmed by testing this in isolation. */
     #eventsSection{grid-column:1;grid-row:1;}
-    #offersSection{grid-column:2;grid-row:1;}
+    #bizFeedCard{grid-column:2;grid-row:1;}
     #newsSection{grid-column:1;grid-row:2;}
-    #bizFeedCard{grid-column:2;grid-row:2;}
+    #offersSection{grid-column:2;grid-row:2;}
   }
   /* A quiet, one-time entrance for the four homepage cards on load --
      each staggered slightly by its DOM position so they settle in
@@ -682,15 +682,17 @@
     padding:20px;box-shadow:var(--shadow-md), inset 0 3px 0 0 var(--danger);transition:box-shadow 0.2s ease;
     display:flex;flex-direction:column;}
   #offersSection .feedSubhead svg{color:var(--danger);}
-  /* flex:1 lets this grow to fill whatever height syncColumnHeights sets
-     on #offersSection (matched to eventsSection's real height) instead of
-     staying only as tall as its own 1-2 page content -- align-items:center
-     re-centers the (now possibly much shorter) itemsPage content vertically
-     in that extra space, rather than leaving it stranded at the top with
-     blank space below. Only overrides align-items (an ID rule beats the
-     .pagedItemsContainer class rule regardless of source order); the
-     class's own display:flex/row-direction/overflow-x, which is what
-     actually makes the horizontal swipe pagination work, is untouched. */
+  /* flex:1 lets this grow to fill whatever height the grid's own
+     align-items:stretch gives #offersSection (matched to its row-mate's
+     real height -- #newsSection, since the Tilannehuone/business-
+     showcase swap) instead of staying only as tall as its own 1-2 page
+     content -- align-items:center re-centers the (now possibly much
+     shorter) itemsPage content vertically in that extra space, rather
+     than leaving it stranded at the top with blank space below. Only
+     overrides align-items (an ID rule beats the .pagedItemsContainer
+     class rule regardless of source order); the class's own
+     display:flex/row-direction/overflow-x, which is what actually makes
+     the horizontal swipe pagination work, is untouched. */
   #tilannehuoneItems{flex:1;align-items:center;}
   [data-theme="light"] #offersSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10), inset 0 3px 0 0 var(--danger);}
   .tilannehuoneMeta{font-size:11.5px !important;color:var(--ink-dim);margin:2px 0 6px !important;}
