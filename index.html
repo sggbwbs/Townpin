@@ -168,11 +168,21 @@
   </div>
 </div>
 
+<div id="transitStopMapOverlay">
+  <div id="transitStopMapModal" class="simpleModal">
+    <button class="close" onclick="closeTransitStopMap()">✕</button>
+    <h2 id="transitStopMapTitle">–</h2>
+    <p class="authSub" id="transitStopMapSub"></p>
+    <div id="transitStopMap"></div>
+  </div>
+</div>
+
 <div id="favoritesOverlay">
   <div id="favoritesModal" class="simpleModal">
     <button class="close" onclick="closeFavoritesModal()">✕</button>
     <h2 data-i18n="favoritesTitle">Suosikkisi</h2>
     <p class="authSub" data-i18n="favoritesSub">Tallennetut yritykset yhdessä paikassa.</p>
+
     <div id="favoritesTabRow" style="display:flex;gap:8px;margin-bottom:16px;">
       <button type="button" id="favoritesTabBtn" class="favoritesTab active" onclick="setFavoritesModalTab('favorites')" data-i18n="favoritesTabFavorites">Suosikkisi</button>
       <button type="button" id="recentlyViewedTabBtn" class="favoritesTab" onclick="setFavoritesModalTab('recent')" data-i18n="favoritesTabRecent">Katsomasi äskettäin</button>

@@ -413,11 +413,13 @@ function formatMinutesUntil(min){
 
 function makeTransitStopEl(stop){
   const el = document.createElement('div');
-  el.className = 'feedItem feedItemCompact';
+  el.className = 'feedItem feedItemCompact transitStopRow';
+  el.title = t('transitShowOnMap');
+  el.addEventListener('click', () => openTransitStopMap(stop));
   const body = document.createElement('div');
   body.className = 'feedBody';
   const titleEl = document.createElement('b');
-  titleEl.textContent = `${stop.name} · ${formatDistanceKm(stop.distanceMeters / 1000)}`;
+  titleEl.textContent = `📍 ${stop.name} · ${formatDistanceKm(stop.distanceMeters / 1000)}`;
   body.appendChild(titleEl);
 
   const depsEl = document.createElement('p');
@@ -431,6 +433,13 @@ function makeTransitStopEl(stop){
   return el;
 }
 
+// Tracks whichever lat/lng last populated the card -- either the town
+// center default or the visitor's real location from "use my location"
+// -- so the stop map modal can show "you are here" relative to
+// whatever the visitor was actually just looking at, not always the
+// town center regardless of what they'd switched to.
+let lastTransitUserLocation = null;
+
 // Defaults to the town's own center coordinates (currentTown.lat/lng,
 // already loaded as part of the normal town data) so there's always a
 // useful result on page load -- geolocation is opt-in via the "use my
@@ -440,6 +449,7 @@ function makeTransitStopEl(stop){
 // initiated context is exactly the kind of thing that makes people
 // distrust a site.
 async function loadTransit(lat, lng){
+  lastTransitUserLocation = { lat, lng };
   const box = document.getElementById('transitItems');
   const emptyNote = document.getElementById('transitEmptyNote');
   const notConfiguredNote = document.getElementById('transitNotConfiguredNote');
@@ -496,6 +506,55 @@ document.getElementById('transitUseLocationBtn').addEventListener('click', () =>
     },
     { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
   );
+});
+
+let transitStopMapInstance = null;
+function openTransitStopMap(stop){
+  document.getElementById('transitStopMapOverlay').style.display = 'flex';
+  document.getElementById('transitStopMapTitle').textContent = stop.name;
+  document.getElementById('transitStopMapSub').textContent =
+    stop.departures.map(d => `${d.route} ${d.headsign} ${formatMinutesUntil(d.minutesUntil)}`).join('  ·  ');
+
+  if (typeof L === 'undefined') return; // Leaflet failed to load (e.g. offline) -- title/departures above still show without the map
+  ensureLeafletIcons();
+  // Reopening the modal re-renders the map -- Leaflet errors if you
+  // call L.map() on a container that already has one attached, so the
+  // previous instance needs tearing down first. Same pattern as
+  // renderNearbyMap.
+  if (transitStopMapInstance){ transitStopMapInstance.remove(); transitStopMapInstance = null; }
+
+  const map = L.map('transitStopMap', { scrollWheelZoom: false });
+  transitStopMapInstance = map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  const stopMarker = L.marker([stop.lat, stop.lng]).bindPopup(escapeAskText(stop.name));
+  stopMarker.addTo(map);
+  const markers = [stopMarker];
+
+  // lastTransitUserLocation is always set by this point -- loadTransit
+  // sets it before this modal can ever be reachable (a stop row only
+  // exists once a load has already completed), but the null check
+  // still costs nothing and avoids trusting that ordering blindly.
+  if (lastTransitUserLocation){
+    const userMarker = L.circleMarker([lastTransitUserLocation.lat, lastTransitUserLocation.lng],
+      { radius: 8, color: '#fff', weight: 2, fillColor: '#5847c9', fillOpacity: 1 }).addTo(map);
+    markers.push(userMarker);
+  }
+
+  if (markers.length === 1){
+    map.setView([stop.lat, stop.lng], 16);
+  } else {
+    map.fitBounds(L.featureGroup(markers).getBounds().pad(0.25));
+  }
+}
+function closeTransitStopMap(){
+  document.getElementById('transitStopMapOverlay').style.display = 'none';
+}
+document.getElementById('transitStopMapOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'transitStopMapOverlay') closeTransitStopMap();
 });
 
 
