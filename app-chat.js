@@ -643,6 +643,7 @@ document.getElementById('fWebsite').addEventListener('blur', async ()=>{
 
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
   const company = document.getElementById('fCompany').value.trim();
+  const businessId = document.getElementById('fBusinessId').value.trim();
   const website = document.getElementById('fWebsite').value.trim();
   const email = document.getElementById('fEmail').value.trim();
   const logo = uploadedLogoUrl || document.getElementById('fLogo').value.trim();
@@ -650,19 +651,26 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
   const address = document.getElementById('fAddress').value.trim();
   const industry = document.getElementById('fIndustry').value;
   const errBox = document.getElementById('formErr');
+  const businessIdErrBox = document.getElementById('businessIdErr');
+  businessIdErrBox.style.display = 'none';
 
   if (!company || !email){
     errBox.textContent = t('fillRequired');
     errBox.style.display = 'block';
     return;
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    errBox.textContent = t('invalidEmailErr');
-    errBox.style.display = 'block';
+  if (!businessId){
+    businessIdErrBox.textContent = t('businessIdRequiredErr');
+    businessIdErrBox.style.display = 'block';
     return;
   }
-  if (!address){
-    errBox.textContent = t('addressRequiredErr');
+  if (!isValidBusinessIdChecksum(businessId)){
+    businessIdErrBox.textContent = t('businessIdInvalidErr');
+    businessIdErrBox.style.display = 'block';
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    errBox.textContent = t('invalidEmailErr');
     errBox.style.display = 'block';
     return;
   }
@@ -693,6 +701,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
         planType: selectedPlanType,
         prepaidMonths: selectedPlanType === 'prepaid' ? selectedPrepaidMonths : null,
         companyName: company,
+        businessId,
         websiteUrl: website,
         email,
         logoUrl: logo || null,

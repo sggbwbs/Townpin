@@ -22,6 +22,26 @@ function pricePerSquareEur(count){
   return 29.90;
 }
 
+// Client-side mirror of api/_businessId.js's isValidChecksum -- can't
+// require() that server module directly in the browser, so this is a
+// separately-maintained but identical implementation, verified against
+// the same known-good examples (see api/_businessId.js's own comment
+// for the sourcing). Used only for immediate feedback here; the real,
+// authoritative check (checksum + live PRH registry lookup) happens
+// server-side in create-checkout-session.js.
+function isValidBusinessIdChecksum(businessId){
+  const match = /^(\d{6,7})-(\d)$/.exec((businessId || '').trim());
+  if (!match) return false;
+  const digits = match[1].padStart(7, '0').split('').map(Number);
+  const checkDigit = Number(match[2]);
+  const weights = [7, 9, 10, 5, 8, 4, 2];
+  const sum = digits.reduce((acc, d, i) => acc + d * weights[i], 0);
+  const remainder = sum % 11;
+  if (remainder === 1) return false;
+  const expected = remainder === 0 ? 0 : 11 - remainder;
+  return expected === checkDigit;
+}
+
 // Every dynamic price display in app-chat.js was interpolating a raw
 // JS number directly -- €{price} style. Two real problems with that:
 // (1) JS numbers silently drop trailing zeros, so 29.90 becomes the
@@ -498,6 +518,10 @@ const STRINGS = {
     claimedOf: '{n} / {t} mainospaikkaa varattu',
     modalTitle: 'Varaa banneripaikat',
     lCompany: 'Yrityksen nimi', lWebsite: 'Verkkosivun osoite <span style="font-weight:400;color:var(--ink-dim);">(valinnainen, jos ei vielä ole)</span>',
+    lBusinessId: 'Y-tunnus',
+    businessIdNote: 'Vahvistamme Y-tunnuksen Patentti- ja rekisterihallituksen avoimesta rekisteristä.',
+    businessIdRequiredErr: 'Y-tunnus vaaditaan.',
+    businessIdInvalidErr: 'Tarkista Y-tunnus -- se ei näytä oikealta (muoto: 1234567-8).',
     lEmail: 'Sähköposti — kuittia ja tilauksen hallintaa varten',
     lLogo: 'Logo <span style="font-weight:400;color:var(--ink-dim);">(valinnainen)</span>',
     chooseFile: '📁 Valitse kuva puhelimesta/koneelta',
@@ -510,7 +534,7 @@ const STRINGS = {
     lLogoUrl: 'Tai liitä kuvan osoite <span style="font-weight:400;color:var(--ink-dim);">(jos et lataa tiedostoa)</span>',
     uploading: 'Ladataan…',
     lTagline: 'Lyhyt iskulause <span style="font-weight:400;color:var(--ink-dim);">(valinnainen, näkyy sivullasi)</span>',
-    lAddress: 'Yrityksen osoite <span style="font-weight:400;color:var(--ink-dim);">(pakollinen, näkyy kartalla)</span>',
+    lAddress: 'Yrityksen osoite <span style="font-weight:400;color:var(--ink-dim);">(valinnainen, näkyy kartalla jos annettu)</span>',
     addressPlaceholder: 'Katuosoite, kaupunki',
     lPlanType: 'Maksutapa',
     planMonthly: 'Kuukausitilaus',
@@ -735,6 +759,10 @@ const STRINGS = {
     claimedOf: '{n} / {t} slots claimed',
     modalTitle: 'Claim your ad slots',
     lCompany: 'Company name', lWebsite: 'Website URL <span style="font-weight:400;color:var(--ink-dim);">(optional, if you don\'t have one yet)</span>',
+    lBusinessId: 'Business ID (Y-tunnus)',
+    businessIdNote: "We verify this against Finland's official business registry (PRH).",
+    businessIdRequiredErr: 'Business ID is required.',
+    businessIdInvalidErr: "Please check the business ID -- it doesn't look right (format: 1234567-8).",
     lEmail: 'Contact email — for your receipt & managing the subscription',
     lLogo: 'Logo <span style="font-weight:400;color:var(--ink-dim);">(optional)</span>',
     chooseFile: '📁 Choose an image from your phone/computer',
@@ -747,7 +775,7 @@ const STRINGS = {
     lLogoUrl: 'Or paste an image URL <span style="font-weight:400;color:var(--ink-dim);">(if you don\'t upload a file)</span>',
     uploading: 'Uploading…',
     lTagline: 'Short tagline <span style="font-weight:400;color:var(--ink-dim);">(optional, shown on your page)</span>',
-    lAddress: 'Business address <span style="font-weight:400;color:var(--ink-dim);">(required, shown on the map)</span>',
+    lAddress: 'Business address <span style="font-weight:400;color:var(--ink-dim);">(optional, shown on the map if provided)</span>',
     addressPlaceholder: 'Street address, city',
     lPlanType: 'Payment plan',
     planMonthly: 'Monthly subscription',

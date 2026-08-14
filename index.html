@@ -415,6 +415,11 @@
     <label data-i18n="lCompany">Yrityksen nimi</label>
     <input type="text" id="fCompany" placeholder="Oulun Kahvipaahtimo" required />
 
+    <label data-i18n="lBusinessId">Y-tunnus</label>
+    <input type="text" id="fBusinessId" placeholder="1234567-8" required />
+    <div id="businessIdErr" class="err" style="display:none;"></div>
+    <p class="note" style="margin-top:-6px;margin-bottom:12px;" data-i18n="businessIdNote">Vahvistamme Y-tunnuksen Patentti- ja rekisterihallituksen avoimesta rekisteristä.</p>
+
     <label data-i18n="lWebsite">Verkkosivun osoite <span style="font-weight:400;color:var(--ink-dim);">(valinnainen, jos ei vielä ole)</span></label>
     <input type="url" id="fWebsite" placeholder="https://yrityksesi.fi" />
     <div id="autofillHint" style="font-size:11.5px;color:var(--ink-dim);margin-top:5px;display:none;"></div>
