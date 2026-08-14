@@ -751,6 +751,23 @@ async function applyContentOverrides(townId){
   }
 }
 
+// Reads back the referral code captured by the IIFE inside init()
+// below. Deliberately at the top level (not nested inside init(), which
+// is where this used to live -- a real bug, since a function declared
+// inside another function is only callable from within that function,
+// not from the submitBtn click handler registered separately at this
+// same top level, where this actually needs to be called from).
+function getStoredReferralCode(){
+  try {
+    const raw = localStorage.getItem('paikallisCanvasReferralCode');
+    if (!raw) return null;
+    const stored = JSON.parse(raw);
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    if (Date.now() - stored.savedAt > THIRTY_DAYS_MS) return null;
+    return stored.code || null;
+  } catch (e) { return null; }
+}
+
 async function init(){
   const underMaintenance = await checkMaintenanceMode();
   if (underMaintenance) return; // page replaced entirely -- nothing else should run
@@ -791,17 +808,6 @@ async function init(){
       } catch (e) {}
     }
   })();
-
-function getStoredReferralCode(){
-  try {
-    const raw = localStorage.getItem('paikallisCanvasReferralCode');
-    if (!raw) return null;
-    const stored = JSON.parse(raw);
-    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-    if (Date.now() - stored.savedAt > THIRTY_DAYS_MS) return null;
-    return stored.code || null;
-  } catch (e) { return null; }
-}
 
   await applyContentOverrides();
   setLang(lang);
