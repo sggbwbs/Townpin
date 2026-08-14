@@ -26,7 +26,16 @@ async function loadBoard(){
   currentNewsCategory = 'rss-uusimmat';
   document.getElementById('newsCategoryFilter').value = 'rss-uusimmat';
   loadFeed().then(checkExpandFromUrl);
-  loadTilannehuone();
+  if (Number.isFinite(currentTown.lat) && Number.isFinite(currentTown.lng)){
+    loadTransit(currentTown.lat, currentTown.lng);
+  } else {
+    // No town-center coordinates set yet for this town -- shows the
+    // same empty state a zero-results area would, rather than
+    // attempting a request that would fail backend validation and
+    // (misleadingly) look like "feature not configured yet".
+    document.getElementById('transitItems').innerHTML = '';
+    document.getElementById('transitEmptyNote').style.display = 'block';
+  }
 }
 
 // tapahtumat.html and uutiset.html were removed once their functionality
@@ -396,58 +405,99 @@ window.addEventListener('resize', () => {
   }, 250);
 });
 
-function makeTilannehuoneItemEl(item){
+function formatMinutesUntil(min){
+  if (min <= 0) return lang === 'fi' ? 'Nyt' : 'Now';
+  if (min === 1) return lang === 'fi' ? '1 min' : '1 min';
+  return `${min} min`;
+}
+
+function makeTransitStopEl(stop){
   const el = document.createElement('div');
   el.className = 'feedItem feedItemCompact';
   const body = document.createElement('div');
   body.className = 'feedBody';
   const titleEl = document.createElement('b');
-  titleEl.textContent = item.title_fi;
+  titleEl.textContent = `${stop.name} · ${formatDistanceKm(stop.distanceMeters / 1000)}`;
   body.appendChild(titleEl);
 
-  const metaEl = document.createElement('p');
-  metaEl.className = 'tilannehuoneMeta';
-  metaEl.textContent = [item.location, item.display_date].filter(Boolean).join(' · ');
-  body.appendChild(metaEl);
+  const depsEl = document.createElement('p');
+  depsEl.className = 'tilannehuoneMeta';
+  depsEl.textContent = stop.departures
+    .map(d => `${d.route} ${d.headsign} ${formatMinutesUntil(d.minutesUntil)}`)
+    .join('  ·  ');
+  body.appendChild(depsEl);
 
-  if (item.source_url && /^https?:\/\//i.test(item.source_url)){
-    const link = document.createElement('a');
-    link.href = item.source_url;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.textContent = 'Tilannehuone ↗';
-    body.appendChild(link);
-  }
   el.appendChild(body);
   return el;
 }
 
-const TILANNEHUONE_PAGE_SIZE = 2;
-
-async function loadTilannehuone(){
-  const box = document.getElementById('tilannehuoneItems');
-  const emptyNote = document.getElementById('offersEmptyNote');
-  const loadErr = document.getElementById('offersLoadErr');
+// Defaults to the town's own center coordinates (currentTown.lat/lng,
+// already loaded as part of the normal town data) so there's always a
+// useful result on page load -- geolocation is opt-in via the "use my
+// location" button below, matching the exact same click-triggered
+// pattern Lähelläsi already uses. Never auto-prompts for location
+// permission; a random permission popup on page load with no user-
+// initiated context is exactly the kind of thing that makes people
+// distrust a site.
+async function loadTransit(lat, lng){
+  const box = document.getElementById('transitItems');
+  const emptyNote = document.getElementById('transitEmptyNote');
+  const notConfiguredNote = document.getElementById('transitNotConfiguredNote');
+  const loadErr = document.getElementById('transitLoadErr');
   loadErr.style.display = 'none';
   emptyNote.style.display = 'none';
+  notConfiguredNote.style.display = 'none';
   try {
-    const res = await fetch(`${API_BASE}/tilannehuone`);
+    const res = await fetch(`${API_BASE}/transit?lat=${lat}&lng=${lng}`);
+    if (!res.ok) throw new Error(`Transit API returned ${res.status}`);
     const data = await res.json();
-    const items = data.items || [];
-    const statFreshnessEl = document.getElementById('statFreshness');
-    if (statFreshnessEl) statFreshnessEl.textContent = formatFreshness(items);
-    if (items.length === 0){
+    if (!data.configured){
       box.innerHTML = '';
-      document.getElementById('tilannehuonePagerControls').style.display = 'none';
+      notConfiguredNote.style.display = 'block';
+      return;
+    }
+    const stops = data.stops || [];
+    if (stops.length === 0){
+      box.innerHTML = '';
       emptyNote.style.display = 'block';
       return;
     }
-    renderPagedList(box, items, 'tilannehuone', TILANNEHUONE_PAGE_SIZE, makeTilannehuoneItemEl);
+    box.innerHTML = '';
+    stops.forEach(stop => box.appendChild(makeTransitStopEl(stop)));
   } catch (err) {
-    console.error('Tilannehuone load failed:', err);
+    console.error('Transit load failed:', err);
     loadErr.style.display = 'block';
   }
 }
+
+document.getElementById('transitUseLocationBtn').addEventListener('click', () => {
+  const btn = document.getElementById('transitUseLocationBtn');
+  const errEl = document.getElementById('transitLocationErr');
+  errEl.style.display = 'none';
+  if (!navigator.geolocation){
+    errEl.textContent = t('nearbyErrorUnsupported');
+    errEl.style.display = 'block';
+    return;
+  }
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = t('nearbyLocating');
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      loadTransit(pos.coords.latitude, pos.coords.longitude);
+    },
+    (err) => {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      errEl.textContent = err.code === err.PERMISSION_DENIED ? t('nearbyErrorDenied') : t('nearbyErrorFailed');
+      errEl.style.display = 'block';
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+  );
+});
+
 
 // The Kaleva events feed sometimes lists the exact same event more than
 // once (seen with identical title + date + time appearing 2-4 times in
