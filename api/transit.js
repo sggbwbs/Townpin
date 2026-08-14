@@ -36,6 +36,8 @@ async function queryDigitransit(lat, lng) {
             stop {
               gtfsId
               name
+              lat
+              lon
               stoptimesWithoutPatterns(numberOfDepartures: 3) {
                 scheduledDeparture
                 realtimeDeparture
@@ -107,6 +109,8 @@ function shapeStopsResponse(data) {
       return {
         stopId: node.stop.gtfsId,
         name: node.stop.name,
+        lat: node.stop.lat,
+        lng: node.stop.lon,
         distanceMeters: Math.round(node.distance),
         departures
       };
