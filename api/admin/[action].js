@@ -154,9 +154,6 @@ async function handleGrant(req, res) {
   if (!companyName) {
     return res.status(400).json({ error: 'Company name is required.' });
   }
-  if (!address || !address.trim()) {
-    return res.status(400).json({ error: 'An address is required.' });
-  }
   const linkProblem = websiteUrl ? isSuspicious(websiteUrl) : null;
   if (linkProblem) return res.status(400).json({ error: linkProblem });
 
@@ -690,9 +687,6 @@ async function handleEditCompany(req, res) {
   if (!groupId) return res.status(400).json({ error: 'Missing groupId.' });
   if (!companyName) {
     return res.status(400).json({ error: 'Company name is required.' });
-  }
-  if (!address || !address.trim()) {
-    return res.status(400).json({ error: 'An address is required.' });
   }
   const linkProblem = websiteUrl ? isSuspicious(websiteUrl) : null;
   if (linkProblem) return res.status(400).json({ error: linkProblem });
