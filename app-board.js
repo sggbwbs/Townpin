@@ -660,11 +660,11 @@ async function loadFeed(){
         if (kalevaSorted[i]) mergedNews.push(kalevaSorted[i]);
         if (yleSorted[i]) mergedNews.push(yleSorted[i]);
       }
-      currentFeedItems = { news: mergedNews.slice(0, 3), events: dedupeEvents(kalevaData.events || []) };
+      currentFeedItems = { news: mergedNews.slice(0, 4), events: dedupeEvents(kalevaData.events || []) };
     } else {
       const res = await fetch(`${API_BASE}/feed?townId=${currentTown.id}&newsCategory=${currentNewsCategory}${previewMode ? '&admin=1' : ''}`);
       const data = await res.json();
-      currentFeedItems = { news: (data.news || []).slice(0, 3), events: dedupeEvents(data.events || []) };
+      currentFeedItems = { news: (data.news || []).slice(0, 4), events: dedupeEvents(data.events || []) };
     }
   } catch (e) {
     currentFeedItems = { news: [], events: [] };
