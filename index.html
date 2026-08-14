@@ -293,20 +293,17 @@
 
     <div id="offersSection">
       <div class="cardHeadRow">
-        <h3 class="feedSubhead"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <span>Tilannehuone</span></h3>
-        <span><a class="cardHeadLink" href="https://www.tilannehuone.fi/" target="_blank" rel="noopener">Näytä kaikki →</a></span>
+        <h3 class="feedSubhead"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="14" rx="2"/><path d="M4 11h16"/><path d="M8 19l-2 2"/><path d="M16 19l2 2"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></svg> <span data-i18n="transitTitle">Seuraavat lähdöt</span></h3>
+        <span><button type="button" class="cardHeadLink transitLocationBtn" id="transitUseLocationBtn" data-i18n="transitUseLocation">📍 Käytä sijaintiani</button></span>
       </div>
-      <div id="tilannehuoneItems">
+      <div id="transitItems">
         <div class="feedItem feedItemCompact skelCard"><div class="skel skelLine" style="width:65%;"></div><div class="skel skelLine" style="width:45%;height:10px;margin-top:6px;"></div></div>
         <div class="feedItem feedItemCompact skelCard"><div class="skel skelLine" style="width:50%;"></div><div class="skel skelLine" style="width:38%;height:10px;margin-top:6px;"></div></div>
       </div>
-      <div class="note" id="offersEmptyNote" style="display:none;"><div class="emptyState"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><p>Ei tilannehuoneen ilmoituksia juuri nyt.</p></div></div>
-      <p class="note" id="offersLoadErr" style="display:none;">Ilmoituksia ei juuri nyt saatu ladattua. Yritä hetken kuluttua uudelleen.</p>
-      <div class="pagerControls" id="tilannehuonePagerControls" style="display:none;">
-        <button class="pagerArrow" id="tilannehuonePagerPrev" type="button" aria-label="Edelliset">‹</button>
-        <div class="pagerDots" id="tilannehuonePagerDots"></div>
-        <button class="pagerArrow" id="tilannehuonePagerNext" type="button" aria-label="Seuraavat">›</button>
-      </div>
+      <div class="note" id="transitEmptyNote" style="display:none;"><div class="emptyState"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="14" rx="2"/><path d="M4 11h16"/><path d="M8 19l-2 2"/><path d="M16 19l2 2"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></svg><p data-i18n="transitEmpty">Ei lähtöjä juuri nyt lähistöltä.</p></div></div>
+      <div class="note" id="transitNotConfiguredNote" style="display:none;"><div class="emptyState"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="14" rx="2"/><path d="M4 11h16"/><path d="M8 19l-2 2"/><path d="M16 19l2 2"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></svg><p data-i18n="transitNotConfigured">Tulossa pian.</p></div></div>
+      <p class="note" id="transitLoadErr" style="display:none;" data-i18n="transitLoadErr">Lähtöjä ei juuri nyt saatu ladattua. Yritä hetken kuluttua uudelleen.</p>
+      <p class="note" id="transitLocationErr" style="display:none;"></p>
     </div>
 
     <div id="newsSection" style="display:none;">
