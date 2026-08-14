@@ -1,6 +1,7 @@
 const Stripe = require('stripe');
 const { supabase } = require('./_db');
 const { isSuspicious } = require('./_linkCheck');
+const { isValidChecksum, verifyAgainstRegistry } = require('./_businessId');
 const { moderate } = require('./_moderate');
 const { pickRandomEmptySquares } = require('./_squares');
 const { geocodeAddress } = require('./_geocode');
@@ -66,7 +67,7 @@ module.exports = async (req, res) => {
   try {
     const {
       townId, indices, squareCount, additionalTowns, companyName, websiteUrl, email,
-      logoUrl, color, tagline, industry, planType, prepaidMonths, address, referralCode
+      logoUrl, color, tagline, industry, planType, prepaidMonths, address, referralCode, businessId
     } = req.body;
 
     if (typeof townId !== 'number' && typeof townId !== 'string') {
@@ -146,15 +147,36 @@ module.exports = async (req, res) => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return res.status(400).json({ error: 'Please provide a valid email address.' });
     }
-    if (!address || !address.trim()) {
-      return res.status(400).json({ error: 'A business address is required.' });
+    // Checksum is a hard gate -- free, instant, no network call, so
+    // there's no reason not to enforce it strictly. This is what
+    // actually makes the "confirm this is a registered business"
+    // checkbox mean something, rather than being a purely unverified
+    // self-declaration.
+    if (!businessId || !isValidChecksum(businessId)) {
+      return res.status(400).json({ error: 'Please provide a valid Finnish business ID (Y-tunnus).' });
     }
+    // Live registry check against Finland's real, official, free
+    // business registry (PRH/YTJ open data, no key required) --
+    // deliberately best-effort, not a hard gate: a registry outage or a
+    // business registered too recently to be indexed yet shouldn't
+    // block a legitimate sale. The result is stored on the square
+    // itself (business_id_verified) so an admin can see which
+    // purchases the live registry didn't confirm, without blocking
+    // anyone at checkout time over it.
+    const registryCheck = await verifyAgainstRegistry(businessId);
+    if (registryCheck.checked && registryCheck.found === false) {
+      console.error(`Business ID ${businessId} passed checksum but was not found in the PRH registry -- proceeding, flagged for review.`);
+    } else if (!registryCheck.checked) {
+      console.error(`PRH registry check could not complete for business ID ${businessId}: ${registryCheck.error} -- proceeding, not blocking on a third-party outage.`);
+    }
+    // Optional -- not every business has a public storefront address
+    // (e.g. online-only, home-based). geocodeAddress already safely
+    // handles an empty string (returns null before any network call),
+    // so a business that skips this just doesn't get a map pin, same
+    // as if Nominatim couldn't resolve a real address.
     if (industry && !ALLOWED_INDUSTRIES.includes(industry)) {
       return res.status(400).json({ error: 'Invalid industry value.' });
     }
-    // Geocoding failure is never fatal to the purchase itself -- a
-    // business whose address Nominatim can't resolve just doesn't get a
-    // map pin, same as if they'd left it blank.
     const geocoded = await geocodeAddress(address);
     const isPrepaid = planType === 'prepaid';
     if (isPrepaid && !PREPAID_TERMS[prepaidMonths]) {
@@ -222,11 +244,13 @@ module.exports = async (req, res) => {
       company_name: companyName,
       website_url: websiteUrl || null,
       email,
+      business_id: businessId,
+      business_id_verified: registryCheck.checked ? registryCheck.found : null,
       logo_url: logoUrl || null,
       color: color || '#f2a65a',
       tagline: tagline || null,
       industry: industry || null,
-      address: address.trim(),
+      address: address ? address.trim() : null,
       lat: geocoded ? geocoded.lat : null,
       lng: geocoded ? geocoded.lng : null,
       status: 'pending',
@@ -251,6 +275,8 @@ module.exports = async (req, res) => {
           company_name: companyName,
           website_url: websiteUrl || null,
           email,
+          business_id: businessId,
+          business_id_verified: registryCheck.checked ? registryCheck.found : null,
           logo_url: logoUrl || null,
           color: color || '#f2a65a',
           tagline: tagline || null,
