@@ -661,8 +661,8 @@
     #bizFeedCard{animation-delay:0.16s;}
   }
   @keyframes cardEntrance{
-    from{opacity:0;transform:translateY(10px);}
-    to{opacity:1;transform:translateY(0);}
+    from{opacity:0;}
+    to{opacity:1;}
   }
   /* Mobile-only stacking order: events, news, businesses, Tilannehuone --
      different from the DOM order (events, Tilannehuone, news, businesses)

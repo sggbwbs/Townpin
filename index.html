@@ -290,12 +290,11 @@
 
     <div id="offersSection">
       <div class="cardHeadRow">
-        <h3 class="feedSubhead"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="14" rx="2"/><path d="M4 11h16"/><path d="M8 19l-2 2"/><path d="M16 19l2 2"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></svg> <span data-i18n="transitTitle">Seuraavat bussilähdöt</span></h3>
+        <h3 class="feedSubhead"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="14" rx="2"/><path d="M4 11h16"/><path d="M8 19l-2 2"/><path d="M16 19l2 2"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></svg> <span data-i18n="transitTitle">Bussilähdöt lähelläsi</span></h3>
         <span><button type="button" class="cardHeadLink transitLocationBtn" id="transitUseLocationBtn" data-i18n="transitUseLocation">📍 Käytä sijaintiani</button></span>
       </div>
       <div id="transitItems">
-        <div class="feedItem feedItemCompact skelCard"><div class="skel skelLine" style="width:65%;"></div><div class="skel skelLine" style="width:45%;height:10px;margin-top:6px;"></div></div>
-        <div class="feedItem feedItemCompact skelCard"><div class="skel skelLine" style="width:50%;"></div><div class="skel skelLine" style="width:38%;height:10px;margin-top:6px;"></div></div>
+        <div class="thinkingDotsCard"><div class="thinkingDots" aria-label="Ladataan…"><span></span><span></span><span></span></div></div>
       </div>
       <div class="note" id="transitEmptyNote" style="display:none;"><div class="emptyState"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="14" rx="2"/><path d="M4 11h16"/><path d="M8 19l-2 2"/><path d="M16 19l2 2"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></svg><p data-i18n="transitEmpty">Ei lähtöjä juuri nyt lähistöltä.</p></div></div>
       <div class="note" id="transitNotConfiguredNote" style="display:none;"><div class="emptyState"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="14" rx="2"/><path d="M4 11h16"/><path d="M8 19l-2 2"/><path d="M16 19l2 2"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></svg><p data-i18n="transitNotConfigured">Tulossa pian.</p></div></div>
@@ -340,10 +339,8 @@
         <button id="bizFeedCta">Yrityksesi tähän? →</button>
       </div>
       <div id="bizFeedScrollWindow">
-        <p id="bizFeedLoading" style="display:flex;gap:14px;padding:16px 18px;margin:0;">
-          <span class="skel" style="width:56px;height:56px;border-radius:14px;flex:none;"></span>
-          <span class="skel" style="width:56px;height:56px;border-radius:14px;flex:none;"></span>
-          <span class="skel" style="width:56px;height:56px;border-radius:14px;flex:none;"></span>
+        <p id="bizFeedLoading" class="thinkingDotsCard" style="margin:0;">
+          <div class="thinkingDots" aria-label="Ladataan…"><span></span><span></span><span></span></div>
         </p>
         <div id="bizFeedScrollTrack"></div>
       </div>
@@ -366,7 +363,7 @@
     <button type="button" class="featureTile" onclick="openDigestModal()">
       <span class="featureTileIcon" style="background:#2f9e44;"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
       <b>Älä missaa mitään</b>
-      <span>Tilaa ilmoitukset tapahtumista, tarjouksista ja uutisista.</span>
+      <span>Tilaa ilmoitukset tapahtumista ja uutisista sähköpostiisi.</span>
     </button>
     <button type="button" class="featureTile" onclick="openNearbyModal()">
       <span class="featureTileIcon" style="background:#1c7ed6;"><svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
