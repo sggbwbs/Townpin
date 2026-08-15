@@ -5,7 +5,6 @@ async function loadBoard(){
   updateClaimedMeta();
   updateSelectionBar();
   renderLogoBanner();
-  renderBizFeedCard();
   syncColumnHeights();
 
   // Admin-configured site-wide default theme -- only applied when the
@@ -22,10 +21,19 @@ async function loadBoard(){
 
   // Loaded separately, after the grid is already visible -- this can
   // take a few seconds on a cache miss, but it should never make someone
-  // wait to see and use the board itself.
+  // wait to see and use the board itself. Deliberately sequential, not
+  // concurrent with the other sections below -- previously events/news,
+  // businesses, and transit all fired at once and each populated
+  // whenever its own request happened to finish, which didn't match the
+  // page's actual visual order at all (businesses in particular has no
+  // network call of its own, so it would always "win" and appear first
+  // regardless of layout position). This chain now mirrors the real
+  // on-page order: events/news, then businesses, then transit.
   currentNewsCategory = 'rss-uusimmat';
   document.getElementById('newsCategoryFilter').value = 'rss-uusimmat';
-  loadFeed().then(checkExpandFromUrl);
+  await loadFeed();
+  checkExpandFromUrl();
+  renderBizFeedCard();
   if (Number.isFinite(currentTown.lat) && Number.isFinite(currentTown.lng)){
     loadTransit(currentTown.lat, currentTown.lng);
   } else {

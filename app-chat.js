@@ -18,7 +18,7 @@ async function askAsk(question, sendBtn){
   // not elsewhere -- it should read as one consistent chat window
   // regardless of viewport width, the same way the docked panel already does.
   askAppendResult(escapeAskText(question), 'askQuestionEcho');
-  const pendingEl = askAppendResult(escapeAskText(t('askThinking')), 'pending');
+  const pendingEl = askAppendResult(`<div class="askThinkingDots" aria-label="${escapeAskText(t('askThinking'))}"><span></span><span></span><span></span></div>`, 'pending');
   document.getElementById('askFollowupRow').style.display = 'flex';
 
   // A hard ceiling on how long "Mietitään..." can sit there -- without
