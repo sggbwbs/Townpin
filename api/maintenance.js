@@ -45,6 +45,48 @@ async function runCleanup() {
     .lt('created_at', activityCutoff);
   if (activityErr) console.error('Activity log pruning failed (non-fatal):', activityErr);
 
+  // Old news/event rows and their re-hosted images -- previously
+  // nothing ever deleted these, so every image ever fetched for a news
+  // article or event since the site went live has been accumulating in
+  // Supabase Storage indefinitely, well past the point the item stops
+  // being shown anywhere on the site (news/events are inherently
+  // short-lived; nothing here is ever displayed more than a day or two
+  // after being fetched). 30 days is a generous cutoff given that.
+  // Storage files are deleted first, then the rows -- if storage
+  // deletion fails partway through, the rows stay around to be retried
+  // on the next run rather than silently losing the reference to an
+  // orphaned file that would then never get cleaned up at all.
+  const feedCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: staleFeedItems, error: staleFeedSelectErr } = await supabase
+    .from('local_feed_items')
+    .select('id, image_url')
+    .lt('created_at', feedCutoff);
+  if (staleFeedSelectErr) {
+    console.error('Stale feed item lookup failed (non-fatal):', staleFeedSelectErr);
+  } else if (staleFeedItems && staleFeedItems.length > 0) {
+    // Only ever targets files with the "feed-" prefix (see
+    // fetchAndUploadImage in _localFeed.js) -- business logos are
+    // uploaded with no prefix at all (see upload-logo.js), so this can
+    // never touch a real, paying business's logo even in principle.
+    const filenames = staleFeedItems
+      .filter(item => item.image_url)
+      .map(item => {
+        const parts = item.image_url.split('/');
+        return parts[parts.length - 1];
+      })
+      .filter(name => name.startsWith('feed-'));
+    if (filenames.length > 0) {
+      const { error: storageErr } = await supabase.storage.from('logos').remove(filenames);
+      if (storageErr) console.error('Stale feed image storage cleanup failed (non-fatal, rows kept for retry):', storageErr);
+    }
+    const { error: feedDeleteErr } = await supabase
+      .from('local_feed_items')
+      .delete()
+      .lt('created_at', feedCutoff);
+    if (feedDeleteErr) console.error('Stale feed item row cleanup failed (non-fatal):', feedDeleteErr);
+    else console.log(`Cleaned up ${staleFeedItems.length} stale feed item(s) older than 30 days.`);
+  }
+
   return { ok: true };
 }
 
