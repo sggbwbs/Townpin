@@ -6,6 +6,7 @@ const { moderate } = require('./_moderate');
 const { pickRandomEmptySlots } = require('./_slots');
 const { geocodeAddress } = require('./_geocode');
 const { pricePerSlotEur } = require('./_pricing');
+const { getTownConfig } = require('./_townConfig');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
@@ -188,12 +189,12 @@ module.exports = async (req, res) => {
     // the "pilot one town first" restriction. Checking only in the
     // frontend/UI would be trivial to bypass with a direct API call.
     const allTownIds = [...new Set([townId, ...extraTowns.map(a => a.townId)])];
-    const { data: townRows, error: townCheckErr } = await supabase
-      .from('towns')
-      .select('id, enabled')
-      .in('id', allTownIds);
-    if (townCheckErr) throw townCheckErr;
-    const disabledTown = allTownIds.find(id => !townRows.some(t => t.id === id && t.enabled));
+    // One Edge Config read per town rather than a single batched
+    // Supabase query -- worth it here since this is almost always 1-3
+    // towns, and each individual read still avoids a Supabase round
+    // trip when Edge Config is configured (see api/_townConfig.js).
+    const townConfigs = await Promise.all(allTownIds.map(id => getTownConfig(id)));
+    const disabledTown = allTownIds.find((id, i) => !townConfigs[i] || !townConfigs[i].enabled);
     if (disabledTown !== undefined) {
       return res.status(400).json({ error: 'One of the selected towns is not currently open to new listings.' });
     }

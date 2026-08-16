@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const Stripe = require('stripe');
 const { supabase } = require('./_db');
+const { getTownConfig } = require('./_townConfig');
 const { getNewsSection, getEventsSection } = require('./_localFeed');
 const { isAuthenticated } = require('./admin/_auth');
 const { getUserId, setUserSessionCookie, clearUserSessionCookie } = require('./_userAuth');
@@ -33,8 +34,10 @@ async function handleBoard(req, res) {
   // Same gate as api/town.js -- a closed town's board is only reachable
   // by a genuinely authenticated admin (see the preview feature),
   // regardless of what townId a request happens to guess or already know.
-  const { data: town, error: townErr } = await supabase.from('towns').select('enabled').eq('id', townId).maybeSingle();
-  if (townErr) { console.error(townErr); return res.status(500).json({ error: 'Could not load board.' }); }
+  // Reads through Edge Config when configured (see api/_townConfig.js) --
+  // this runs on every single board load, so avoiding a Supabase round
+  // trip here matters more than almost anywhere else in the app.
+  const town = await getTownConfig(townId);
   if (!town) return res.status(404).json({ error: 'not_available' });
   const isAdminRequest = admin === '1' && isAuthenticated(req);
   if (!town.enabled && !isAdminRequest) return res.status(404).json({ error: 'not_available' });
@@ -82,7 +85,7 @@ async function handleFeed(req, res) {
   let news = [];
   let events = [];
   try {
-    const { data: town } = await supabase.from('towns').select('name, enabled').eq('id', townId).maybeSingle();
+    const town = await getTownConfig(townId);
     if (town) {
       // Same gate as api/town.js and handleBoard above -- this is the one
       // that actually costs real money if skipped: a closed town reached

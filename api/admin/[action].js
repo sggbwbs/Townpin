@@ -9,6 +9,7 @@ const { isAuthenticated, getAdminSession, setSessionCookie, clearSessionCookie, 
 const { pickRandomEmptySlots, insertSlotsWithRetry } = require('../_slots');
 const { geocodeAddress } = require('../_geocode');
 const { recordKeywordSelections } = require('../_eventLearning');
+const { syncTownToEdgeConfig } = require('../_townConfig');
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -868,7 +869,9 @@ async function handleEnableTown(req, res) {
   if (existing) {
     const { error: updateErr } = await supabase.from('towns').update({ enabled: true }).eq('id', existing.id);
     if (updateErr) { console.error(updateErr); return res.status(500).json({ error: 'Could not enable town.' }); }
-    return res.status(200).json({ ok: true, town: { ...existing, enabled: true } });
+    const enabledTown = { ...existing, enabled: true };
+    await syncTownToEdgeConfig(enabledTown);
+    return res.status(200).json({ ok: true, town: enabledTown });
   }
 
   const { data: created, error: insertErr } = await supabase
@@ -877,6 +880,7 @@ async function handleEnableTown(req, res) {
     .select()
     .single();
   if (insertErr) { console.error(insertErr); return res.status(500).json({ error: 'Could not create town.' }); }
+  await syncTownToEdgeConfig(created);
   res.status(200).json({ ok: true, town: created });
 }
 
@@ -885,8 +889,9 @@ async function handleDisableTown(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
   const { townId } = req.body || {};
   if (!townId) return res.status(400).json({ error: 'Missing townId.' });
-  const { error } = await supabase.from('towns').update({ enabled: false }).eq('id', townId);
+  const { data: town, error } = await supabase.from('towns').update({ enabled: false }).eq('id', townId).select().maybeSingle();
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not disable town.' }); }
+  if (town) await syncTownToEdgeConfig(town);
   res.status(200).json({ ok: true });
 }
 
@@ -908,7 +913,7 @@ async function handleDeleteTown(req, res) {
   const { townId } = req.body || {};
   if (!townId) return res.status(400).json({ error: 'Missing townId.' });
 
-  const { data: town, error: fetchErr } = await supabase.from('towns').select('enabled').eq('id', townId).maybeSingle();
+  const { data: town, error: fetchErr } = await supabase.from('towns').select('slug, enabled').eq('id', townId).maybeSingle();
   if (fetchErr) { console.error(fetchErr); return res.status(500).json({ error: 'Could not look up town.' }); }
   if (!town) return res.status(404).json({ error: 'Town not found.' });
   if (town.enabled) return res.status(400).json({ error: 'Close this town to the public before deleting it.' });
@@ -921,6 +926,7 @@ async function handleDeleteTown(req, res) {
     console.error(error);
     return res.status(500).json({ error: 'Could not delete town.' });
   }
+  await syncTownToEdgeConfig(town, { deleted: true });
   res.status(200).json({ ok: true });
 }
 
