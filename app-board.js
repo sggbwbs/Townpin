@@ -21,19 +21,17 @@ async function loadBoard(){
 
   // Loaded separately, after the grid is already visible -- this can
   // take a few seconds on a cache miss, but it should never make someone
-  // wait to see and use the board itself. Deliberately sequential, not
-  // concurrent with the other sections below -- previously events/news,
-  // businesses, and transit all fired at once and each populated
-  // whenever its own request happened to finish, which didn't match the
-  // page's actual visual order at all (businesses in particular has no
-  // network call of its own, so it would always "win" and appear first
-  // regardless of layout position). This chain now mirrors the real
-  // on-page order: events/news, then businesses, then transit.
+  // wait to see and use the board itself. Businesses renders immediately
+  // -- its data (currentSquares) is already in memory with zero network
+  // cost, so there's no reason to make it wait on an unrelated fetch;
+  // doing so previously just meant its loading dots sat there for
+  // however long the news/events request happened to take, which read
+  // as "stuck loading" rather than the intended visual-order fix.
+  renderBizFeedCard();
   currentNewsCategory = 'rss-uusimmat';
   document.getElementById('newsCategoryFilter').value = 'rss-uusimmat';
   await loadFeed();
   checkExpandFromUrl();
-  renderBizFeedCard();
   if (Number.isFinite(currentTown.lat) && Number.isFinite(currentTown.lng)){
     loadTransit(currentTown.lat, currentTown.lng);
   } else {

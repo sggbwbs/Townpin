@@ -1346,7 +1346,8 @@ async function loadEventsPicker(){
       const dateStr = ev.event_date ? new Date(ev.event_date + 'T00:00:00').toLocaleDateString('fi-FI') : '';
       const textWrap = document.createElement('span');
       const titleSafe = (ev.title_fi || '').replace(/</g, '&lt;');
-      textWrap.innerHTML = `<b style="display:block;">${titleSafe}</b><span class="sub">${dateStr}${ev.event_start_time ? ' · ' + ev.event_start_time : ''}</span>`;
+      const autoBadge = ev.auto_selected ? ' <span style="font-size:10.5px;font-weight:600;color:#5847c9;background:#5847c91a;padding:2px 6px;border-radius:5px;">🤖 auto-picked</span>' : '';
+      textWrap.innerHTML = `<b style="display:block;">${titleSafe}${autoBadge}</b><span class="sub">${dateStr}${ev.event_start_time ? ' · ' + ev.event_start_time : ''}</span>`;
       left.appendChild(cb);
       left.appendChild(textWrap);
 
