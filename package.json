@@ -2,6 +2,9 @@
   "name": "townpin",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "test": "node --test"
+  },
   "dependencies": {
     "stripe": "^16.0.0",
     "@supabase/supabase-js": "^2.45.0",
