@@ -8,3 +8,4 @@
     "@vercel/edge-config": "^1.4.0",
     "bcryptjs": "^2.4.3"
   }
+}
