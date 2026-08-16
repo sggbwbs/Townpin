@@ -764,7 +764,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 });
 
 let grantTown = null;
-let grantSquares = [];
+let grantSlots = [];
 let grantQty = 1;
 
 document.getElementById('grantLoadBtn').addEventListener('click', async () => {
@@ -780,13 +780,13 @@ document.getElementById('grantLoadBtn').addEventListener('click', async () => {
 
     const boardRes = await fetch(`/api/board?townId=${grantTown.id}`);
     const boardData = await boardRes.json();
-    grantSquares = boardData.squares || [];
+    grantSlots = boardData.slots || [];
     grantQty = 1;
     updateGrantQtyDisplay();
 
     const total = grantTown.capacity;
     document.getElementById('grantTownStatus').textContent =
-      `${grantTown.name}: ${grantSquares.length} / ${total} ad slots claimed, ${total - grantSquares.length} free.`;
+      `${grantTown.name}: ${grantSlots.length} / ${total} ad slots claimed, ${total - grantSlots.length} free.`;
     document.getElementById('grantGridWrap').style.display = 'block';
   } catch (e) {
     showErr(errBox, 'Network error.');
@@ -823,7 +823,7 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         townId: grantTown.id,
-        squareCount: grantQty,
+        slotCount: grantQty,
         companyName, websiteUrl, logoUrl, address,
         tagline: document.getElementById('grantTagline').value.trim() || null,
         industry: document.getElementById('grantIndustry').value || null
@@ -1406,7 +1406,7 @@ async function loadCompedList(){
     const data = await res.json();
     if (!res.ok) { box.innerHTML = `<p class="sub">${data.error || 'Could not load.'}</p>`; return; }
     const groups = {};
-    (data.squares || []).forEach(s => {
+    (data.slots || []).forEach(s => {
       if (!groups[s.group_id]) groups[s.group_id] = { company: s.company_name, town: s.towns ? s.towns.name : '', count: 0 };
       groups[s.group_id].count++;
     });
@@ -1566,7 +1566,7 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
         companyName, websiteUrl, logoUrl, address,
         tagline: document.getElementById('editTagline').value.trim() || null,
         industry: document.getElementById('editIndustry').value || null,
-        squareCount: editQty
+        slotCount: editQty
       })
     });
     const data = await res.json();
@@ -1599,7 +1599,7 @@ document.getElementById('moveDestLoadBtn').addEventListener('click', async () =>
     const boardRes = await fetch(`/api/board?townId=${moveDestTown.id}`);
     const boardData = await boardRes.json();
     const total = moveDestTown.capacity;
-    const free = total - (boardData.squares || []).length;
+    const free = total - (boardData.slots || []).length;
     document.getElementById('movePickCount').textContent =
       `${moveDestTown.name}: ${free} free ad slot${free === 1 ? '' : 's'} — need ${moveSelectedGroup.count}.`;
     document.getElementById('moveGridWrap').style.display = 'block';
@@ -1701,7 +1701,7 @@ async function loadTownsList(){
 
       // Only offered for closed towns -- an open one has to be closed
       // first (see handleDeleteTown), and the database itself refuses
-      // the delete outright if the town has any squares at all, even
+      // the delete outright if the town has any slots at all, even
       // old expired ones, so this can't accidentally destroy real data.
       if (!town.enabled) {
         const delBtn = document.createElement('button');

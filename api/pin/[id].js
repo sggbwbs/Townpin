@@ -81,13 +81,13 @@ module.exports = async (req, res) => {
   const lang = detectLang(req);
   const t = STRINGS[lang];
 
-  const { data: square, error } = await supabase
-    .from('squares')
+  const { data: slot, error } = await supabase
+    .from('slots')
     .select('company_name, website_url, logo_url, tagline, status, flagged, town_id, ai_blurb_fi, ai_blurb_en, ai_blurb_source, industry, group_id')
     .eq('id', id)
     .maybeSingle();
 
-  if (error || !square || square.status !== 'active' || square.flagged) {
+  if (error || !slot || slot.status !== 'active' || slot.flagged) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.status(404).send(`<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8"><title>${lang === 'fi' ? 'Ei löytynyt' : 'Not found'} — PaikallisCanvas</title></head>
       <body style="font-family:'IBM Plex Sans',sans-serif;text-align:center;padding:80px 20px;color:#211c38;background:#f3f2fa;">
@@ -98,7 +98,7 @@ module.exports = async (req, res) => {
   }
 
   // best-effort view tracking -- never let a tracking failure break the actual page
-  supabase.rpc('increment_view_count', { square_id: id }).then(null, () => {});
+  supabase.rpc('increment_view_count', { slot_id: id }).then(null, () => {});
 
   // A business renting several ad slots previously got one near-identical
   // page PER slot (same content, different URL) -- real duplicate
@@ -111,15 +111,15 @@ module.exports = async (req, res) => {
   // and that page's own logo scales with slot count, same as the banner.
   let slotCount = 1;
   let canonicalId = id;
-  if (square.group_id) {
-    const { data: groupSquares } = await supabase
-      .from('squares')
+  if (slot.group_id) {
+    const { data: groupSlots } = await supabase
+      .from('slots')
       .select('id')
-      .eq('group_id', square.group_id)
+      .eq('group_id', slot.group_id)
       .eq('status', 'active');
-    if (groupSquares && groupSquares.length > 0) {
-      slotCount = groupSquares.length;
-      canonicalId = Math.min(...groupSquares.map(s => Number(s.id)));
+    if (groupSlots && groupSlots.length > 0) {
+      slotCount = groupSlots.length;
+      canonicalId = Math.min(...groupSlots.map(s => Number(s.id)));
     }
   }
   const canonicalUrl = SITE_URL ? `${SITE_URL}/pin/${canonicalId}` : null;
@@ -127,15 +127,15 @@ module.exports = async (req, res) => {
   const { data: town } = await supabase
     .from('towns')
     .select('name, slug, country')
-    .eq('id', square.town_id)
+    .eq('id', slot.town_id)
     .maybeSingle();
 
   const townName = town ? town.name : 'this town';
   const townSlug = town ? town.slug : '';
-  const title = `${escapeHtml(square.company_name)} — ${escapeHtml(townName)} | PaikallisCanvas`;
-  const description = square.tagline
-    ? escapeHtml(square.tagline)
-    : t.defaultDescription(escapeHtml(square.company_name), escapeHtml(townName));
+  const title = `${escapeHtml(slot.company_name)} — ${escapeHtml(townName)} | PaikallisCanvas`;
+  const description = slot.tagline
+    ? escapeHtml(slot.tagline)
+    : t.defaultDescription(escapeHtml(slot.company_name), escapeHtml(townName));
 
   // Same linear scale as the banner (halved base/step, same shape) so a
   // business's own page reflects the same "more slots, more visual
@@ -153,10 +153,10 @@ module.exports = async (req, res) => {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
     ...(canonicalUrl ? { '@id': canonicalUrl } : {}),
-    name: square.company_name,
-    ...(square.website_url ? { url: square.website_url } : {}),
-    ...(square.logo_url ? { image: square.logo_url } : {}),
-    ...(square.tagline ? { description: square.tagline } : {}),
+    name: slot.company_name,
+    ...(slot.website_url ? { url: slot.website_url } : {}),
+    ...(slot.logo_url ? { image: slot.logo_url } : {}),
+    ...(slot.tagline ? { description: slot.tagline } : {}),
     address: { '@type': 'PostalAddress', addressLocality: townName, addressCountry: town ? town.country : 'FI' }
   };
 
@@ -169,7 +169,7 @@ module.exports = async (req, res) => {
   // is far enough from 1200x630 that social platforms would have
   // cropped it unpredictably (often cutting off the sides) rather than
   // showing the intended framing.
-  const ogImage = square.logo_url || (SITE_URL ? `${SITE_URL}/og-image.jpg` : null);
+  const ogImage = slot.logo_url || (SITE_URL ? `${SITE_URL}/og-image.jpg` : null);
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600');
@@ -185,8 +185,8 @@ ${canonicalUrl ? `<link rel="canonical" href="${escapeHtml(canonicalUrl)}" />` :
 <meta property="og:description" content="${description}" />
 ${canonicalUrl ? `<meta property="og:url" content="${escapeHtml(canonicalUrl)}" />` : ''}
 ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}" />
-<meta property="og:image:width" content="${square.logo_url ? '512' : '1200'}" />
-<meta property="og:image:height" content="${square.logo_url ? '512' : '630'}" />` : ''}
+<meta property="og:image:width" content="${slot.logo_url ? '512' : '1200'}" />
+<meta property="og:image:height" content="${slot.logo_url ? '512' : '630'}" />` : ''}
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${title}" />
 <meta name="twitter:description" content="${description}" />
@@ -234,11 +234,11 @@ ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : '
 <body>
   <div class="card">
     <a class="backLink" href="/board/${escapeHtml(townSlug)}">${t.back}</a>
-    ${square.logo_url ? `<div class="logoWrap"><img class="logo" src="${escapeHtml(square.logo_url)}" alt="${escapeHtml(square.company_name)} logo" /></div>` : ''}
-    <h1>${escapeHtml(square.company_name)}</h1>
-    ${square.industry && INDUSTRY_LABELS[square.industry] ? `<div class="industryBadge">${escapeHtml(INDUSTRY_LABELS[square.industry])}</div>` : ''}
+    ${slot.logo_url ? `<div class="logoWrap"><img class="logo" src="${escapeHtml(slot.logo_url)}" alt="${escapeHtml(slot.company_name)} logo" /></div>` : ''}
+    <h1>${escapeHtml(slot.company_name)}</h1>
+    ${slot.industry && INDUSTRY_LABELS[slot.industry] ? `<div class="industryBadge">${escapeHtml(INDUSTRY_LABELS[slot.industry])}</div>` : ''}
     <p class="tagline">${description}</p>
-    ${square.website_url ? `<a class="visit" href="${escapeHtml(square.website_url)}" rel="nofollow">${t.visitWebsite}</a>` : ''}
+    ${slot.website_url ? `<a class="visit" href="${escapeHtml(slot.website_url)}" rel="nofollow">${t.visitWebsite}</a>` : ''}
     <button type="button" class="shareBtn" id="shareBtn" onclick="sharePinPage()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="vertical-align:-2px;margin-right:4px;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>${t.share}
     </button>
@@ -248,13 +248,13 @@ ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : '
       // if that specific translation is missing rather than showing
       // nothing -- better to show a business's info in the "wrong"
       // language than not at all.
-      const blurb = lang === 'fi' ? (square.ai_blurb_fi || square.ai_blurb_en) : (square.ai_blurb_en || square.ai_blurb_fi);
+      const blurb = lang === 'fi' ? (slot.ai_blurb_fi || slot.ai_blurb_en) : (slot.ai_blurb_en || slot.ai_blurb_fi);
       if (!blurb) return '';
       return `
     <div class="quickInfo">
       <div class="quickInfoLabel">${t.quickInfoLabel}</div>
       <p class="quickInfoText">${escapeHtml(blurb)}</p>
-      ${square.ai_blurb_source ? `<a class="quickInfoSource" href="${escapeHtml(square.ai_blurb_source)}" rel="nofollow noopener">${t.source}</a>` : ''}
+      ${slot.ai_blurb_source ? `<a class="quickInfoSource" href="${escapeHtml(slot.ai_blurb_source)}" rel="nofollow noopener">${t.source}</a>` : ''}
       <p class="quickInfoDisclaimer">${t.disclaimer}</p>
     </div>`;
     })()}
@@ -264,16 +264,16 @@ ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : '
     // Records this visit for the homepage's "recently viewed" feature
     // (see renderRecentlyViewedList in app-feed.js) -- keyed by the same
     // canonicalId this page itself resolved to, so a business with
-    // multiple squares dedupes the same way favorites already do.
+    // multiple slots dedupes the same way favorites already do.
     (function(){
       try {
         var KEY = 'paikallisCanvasRecentlyViewed';
         var MAX = 8;
         var entry = {
           id: ${JSON.stringify(canonicalId)},
-          company_name: ${jsStringLiteral(square.company_name)},
-          logo_url: ${jsStringLiteral(square.logo_url || '')},
-          industry: ${jsStringLiteral(square.industry || '')},
+          company_name: ${jsStringLiteral(slot.company_name)},
+          logo_url: ${jsStringLiteral(slot.logo_url || '')},
+          industry: ${jsStringLiteral(slot.industry || '')},
           viewedAt: Date.now()
         };
         var existing = JSON.parse(localStorage.getItem(KEY) || '[]');
@@ -290,14 +290,14 @@ ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : '
     // on browsers without it (most desktop browsers as of writing).
     // Uses the server-resolved canonical URL, not window.location.href
     // -- so sharing is consistent even if the visitor arrived via a
-    // non-canonical square id rather than the canonical one.
+    // non-canonical slot id rather than the canonical one.
     function sharePinPage(){
       // Falls back to the page's own current URL if the server-side
       // canonical URL wasn't available (canonicalUrl is null whenever
       // SITE_URL isn't configured) -- without this, sharing would
       // silently try to share/copy an empty string instead of a real link.
       var url = ${jsStringLiteral(canonicalUrl || '')} || window.location.href;
-      var title = ${jsStringLiteral(square.company_name)};
+      var title = ${jsStringLiteral(slot.company_name)};
       var feedback = document.getElementById('shareFeedback');
       if (navigator.share) {
         navigator.share({ title: title, url: url }).catch(function(){});

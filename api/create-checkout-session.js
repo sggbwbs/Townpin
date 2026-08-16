@@ -3,13 +3,13 @@ const { supabase } = require('./_db');
 const { isSuspicious } = require('./_linkCheck');
 const { isValidChecksum, verifyAgainstRegistry } = require('./_businessId');
 const { moderate } = require('./_moderate');
-const { pickRandomEmptySquares } = require('./_squares');
+const { pickRandomEmptySlots } = require('./_slots');
 const { geocodeAddress } = require('./_geocode');
-const { pricePerSquareEur } = require('./_pricing');
+const { pricePerSlotEur } = require('./_pricing');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
-const MAX_SQUARES_PER_PURCHASE = 40; // safety cap against fat-finger selections, across all towns combined
+const MAX_SLOTS_PER_PURCHASE = 40; // safety cap against fat-finger selections, across all towns combined
 const MAX_PENDING_PER_IP = 40; // cumulative cap across all of one IP's current unfinished reservations -- stops someone from repeatedly starting-and-abandoning checkouts to tie up the whole board
 
 // Kept in sync with the <select> options in index.html -- server-side
@@ -37,11 +37,11 @@ const ALLOWED_INDUSTRIES = [
 // its own clear incentive.
 const FOUNDING_COUPON_ID = process.env.STRIPE_FOUNDING_COUPON_ID;
 
-// pricePerSquareEur now lives in ./_pricing.js, shared with manage.js's
+// pricePerSlotEur now lives in ./_pricing.js, shared with manage.js's
 // self-service "add more slots" feature.
 
 // Prepaid multi-month terms: pay once upfront instead of an ongoing
-// subscription. Discount is layered on top of the per-square rate above.
+// subscription. Discount is layered on top of the per-slot rate above.
 // Kept as a lookup table (not a formula) so the exact numbers are easy to
 // see and change in one place, and to keep the 12-month tier framed as
 // "2 months free" (clean, easy to explain) rather than an odd percentage.
@@ -58,7 +58,7 @@ function calculatePrepaidTotal(monthlyTotal, months) {
   return Math.round(monthlyTotal * months * (1 - term.discountPct) * 100) / 100;
 }
 
-// pickRandomEmptySquares now lives in ./_squares.js, shared with the
+// pickRandomEmptySlots now lives in ./_slots.js, shared with the
 // admin grant/move flows -- see that file for the implementation.
 
 module.exports = async (req, res) => {
@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
 
   try {
     const {
-      townId, indices, squareCount, additionalTowns, companyName, websiteUrl, email,
+      townId, indices, slotCount, additionalTowns, companyName, websiteUrl, email,
       logoUrl, color, tagline, industry, planType, prepaidMonths, address, referralCode, businessId
     } = req.body;
 
@@ -78,13 +78,13 @@ module.exports = async (req, res) => {
     // sends a plain quantity instead (the board is a scrolling logo
     // banner now, not a clickable grid). Positions are auto-assigned
     // here, the same way "post to additional towns" already worked
-    // (see pickRandomEmptySquares below) -- `indices` is still accepted
+    // (see pickRandomEmptySlots below) -- `indices` is still accepted
     // too, in case anything else ever calls this endpoint directly.
     let finalIndices = indices;
     if (!Array.isArray(finalIndices) || finalIndices.length === 0) {
-      const wanted = typeof squareCount === 'number' ? Math.floor(squareCount) : 0;
+      const wanted = typeof slotCount === 'number' ? Math.floor(slotCount) : 0;
       if (wanted > 0) {
-        const picked = await pickRandomEmptySquares(townId, Math.min(wanted, MAX_SQUARES_PER_PURCHASE));
+        const picked = await pickRandomEmptySlots(townId, Math.min(wanted, MAX_SLOTS_PER_PURCHASE));
         // Unlike the "additional towns" best-effort case, the primary
         // purchase must get exactly what was requested (and priced) --
         // failing cleanly here is much better than silently charging
@@ -101,29 +101,29 @@ module.exports = async (req, res) => {
     }
 
     if (!Array.isArray(finalIndices) || finalIndices.length === 0) {
-      return res.status(400).json({ error: 'Select at least one square.' });
+      return res.status(400).json({ error: 'Select at least one slot.' });
     }
     if (finalIndices.some(i => typeof i !== 'number' || i < 0)) {
-      return res.status(400).json({ error: 'Invalid square selection.' });
+      return res.status(400).json({ error: 'Invalid slot selection.' });
     }
     const extraTowns = Array.isArray(additionalTowns)
       ? additionalTowns.filter(a => a.townId !== townId && typeof a.count === 'number' && a.count > 0)
       : [];
     const extraCount = extraTowns.reduce((sum, a) => sum + Math.min(a.count, 20), 0);
     const totalCount = finalIndices.length + extraCount;
-    if (totalCount > MAX_SQUARES_PER_PURCHASE) {
-      return res.status(400).json({ error: `Max ${MAX_SQUARES_PER_PURCHASE} squares per purchase — split larger campaigns into a few buys.` });
+    if (totalCount > MAX_SLOTS_PER_PURCHASE) {
+      return res.status(400).json({ error: `Max ${MAX_SLOTS_PER_PURCHASE} slots per purchase — split larger campaigns into a few buys.` });
     }
 
     // Real, low-effort abuse case worth closing: starting a checkout costs
-    // nothing and reserves squares immediately -- someone could repeatedly
+    // nothing and reserves slots immediately -- someone could repeatedly
     // start-and-abandon checkouts (never actually paying) to keep the
-    // whole board looking full. Cap how many *pending* squares a single IP
+    // whole board looking full. Cap how many *pending* slots a single IP
     // can hold at once, across every attempt, not just this one.
     const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
     if (clientIp !== 'unknown') {
       const { count: pendingCount, error: pendingErr } = await supabase
-        .from('squares')
+        .from('slots')
         .select('id', { count: 'exact', head: true })
         .eq('reserving_ip', clientIp)
         .eq('status', 'pending')
@@ -159,7 +159,7 @@ module.exports = async (req, res) => {
     // business registry (PRH/YTJ open data, no key required) --
     // deliberately best-effort, not a hard gate: a registry outage or a
     // business registered too recently to be indexed yet shouldn't
-    // block a legitimate sale. The result is stored on the square
+    // block a legitimate sale. The result is stored on the slot
     // itself (business_id_verified) so an admin can see which
     // purchases the live registry didn't confirm, without blocking
     // anyone at checkout time over it.
@@ -216,15 +216,15 @@ module.exports = async (req, res) => {
       return res.status(403).json({ error: `We can't list this: ${modResult.reason}` });
     }
 
-    // clear stale reservations so abandoned checkouts free their squares back up
+    // clear stale reservations so abandoned checkouts free their slots back up
     await supabase
-      .from('squares')
+      .from('slots')
       .update({ status: 'expired' })
       .lt('reserved_until', new Date().toISOString())
       .eq('status', 'pending');
 
     const { data: existing, error: existingErr } = await supabase
-      .from('squares')
+      .from('slots')
       .select('idx')
       .eq('town_id', townId)
       .in('idx', finalIndices)
@@ -260,12 +260,12 @@ module.exports = async (req, res) => {
       group_id: groupId
     }));
 
-    // N auto-placed squares per additional town -- picked server-side
+    // N auto-placed slots per additional town -- picked server-side
     // since the client never saw that town's board, just typed its name
     // and chose a quantity
     for (const extra of extraTowns) {
       const wantCount = Math.min(extra.count, 20);
-      const randomIndices = await pickRandomEmptySquares(extra.townId, wantCount);
+      const randomIndices = await pickRandomEmptySlots(extra.townId, wantCount);
       // if the town doesn't have enough room left, place as many as are
       // actually available rather than failing the whole purchase
       randomIndices.forEach(idx => {
@@ -291,7 +291,7 @@ module.exports = async (req, res) => {
     }
 
     const { data: inserted, error: insertErr } = await supabase
-      .from('squares')
+      .from('slots')
       .insert(rows)
       .select();
     if (insertErr) {
@@ -301,10 +301,10 @@ module.exports = async (req, res) => {
       throw insertErr;
     }
 
-    const squareIds = inserted.map(r => r.id).join(',');
+    const slotIds = inserted.map(r => r.id).join(',');
     const actualCount = inserted.length; // may be slightly less than requested if a full additional town got skipped
-    const perSquare = pricePerSquareEur(actualCount);
-    const monthlyTotal = actualCount * perSquare;
+    const perSlot = pricePerSlotEur(actualCount);
+    const monthlyTotal = actualCount * perSlot;
 
     // Validated here as an early, cheap check -- NOT the actual
     // security boundary, which is entirely in the webhook (the only
@@ -321,12 +321,12 @@ module.exports = async (req, res) => {
           .eq('code', referralCode.toUpperCase())
           .maybeSingle();
         if (refRow) {
-          const { data: referrerSquares } = await supabase
-            .from('squares')
+          const { data: referrerSlots } = await supabase
+            .from('slots')
             .select('email')
             .eq('edit_token', refRow.edit_token)
             .limit(1);
-          const referrerEmail = referrerSquares && referrerSquares[0] && referrerSquares[0].email;
+          const referrerEmail = referrerSlots && referrerSlots[0] && referrerSlots[0].email;
           // Case-insensitive, trimmed comparison -- "Same@Email.com "
           // and "same@email.com" are the same self-referral attempt.
           const isSelfReferral = referrerEmail && referrerEmail.trim().toLowerCase() === email.trim().toLowerCase();
@@ -352,13 +352,13 @@ module.exports = async (req, res) => {
             currency: 'eur',
             unit_amount: Math.round(totalCharge * 100),
             product_data: {
-              name: `PaikallisCanvas — ${actualCount} square(s), ${prepaidMonths}-month prepaid term — ${companyName}`,
+              name: `PaikallisCanvas — ${actualCount} slot(s), ${prepaidMonths}-month prepaid term — ${companyName}`,
               description: `Prepaid for ${prepaidMonths} months, ends ${activeUntil.toISOString().slice(0, 10)}. Does not auto-renew.`
             }
           },
           quantity: 1
         }],
-        metadata: { squareIds, activeUntil: activeUntil.toISOString(), ...(validReferralCode ? { referralCode: validReferralCode } : {}) },
+        metadata: { slotIds, activeUntil: activeUntil.toISOString(), ...(validReferralCode ? { referralCode: validReferralCode } : {}) },
         success_url: `${SITE_URL}/?claimed=success&token=${editToken}`,
         cancel_url: `${SITE_URL}/?claimed=cancelled`
       });
@@ -369,28 +369,28 @@ module.exports = async (req, res) => {
         line_items: [{
           price_data: {
             currency: 'eur',
-            unit_amount: perSquare * 100,
+            unit_amount: perSlot * 100,
             recurring: { interval: 'month' },
             product_data: {
               name: extraTowns.length > 0
-                ? `PaikallisCanvas squares (x${actualCount} across multiple towns) — ${companyName}`
+                ? `PaikallisCanvas slots (x${actualCount} across multiple towns) — ${companyName}`
                 : (actualCount === 1
-                  ? `PaikallisCanvas square — ${companyName}`
-                  : `PaikallisCanvas squares (x${actualCount}, €${perSquare}/square) — ${companyName}`),
-              description: 'Square(s) on your town\'s community board, renewed monthly.'
+                  ? `PaikallisCanvas slot — ${companyName}`
+                  : `PaikallisCanvas slots (x${actualCount}, €${perSlot}/slot) — ${companyName}`),
+              description: 'Slot(s) on your town\'s community board, renewed monthly.'
             }
           },
           quantity: actualCount
         }],
-        metadata: { squareIds, ...(validReferralCode ? { referralCode: validReferralCode } : {}) },
-        subscription_data: { metadata: { squareIds, ...(validReferralCode ? { referralCode: validReferralCode } : {}) } },
+        metadata: { slotIds, ...(validReferralCode ? { referralCode: validReferralCode } : {}) },
+        subscription_data: { metadata: { slotIds, ...(validReferralCode ? { referralCode: validReferralCode } : {}) } },
         ...(FOUNDING_COUPON_ID ? { discounts: [{ coupon: FOUNDING_COUPON_ID }] } : {}),
         success_url: `${SITE_URL}/?claimed=success&token=${editToken}`,
         cancel_url: `${SITE_URL}/?claimed=cancelled`
       });
     }
 
-    await supabase.from('squares').update({ stripe_session_id: session.id }).in('id', inserted.map(r => r.id));
+    await supabase.from('slots').update({ stripe_session_id: session.id }).in('id', inserted.map(r => r.id));
 
     res.status(200).json({ url: session.url });
   } catch (err) {

@@ -15,7 +15,7 @@ const REFERRAL_CLAWBACK_WINDOW_DAYS = 14; // how long after their first payment 
 // earlier check was just a cheap filter to avoid attaching obviously-
 // invalid referral metadata to a session in the first place. Re-verifies
 // everything independently here rather than trusting it.
-async function grantReferralReward(session, referralCode, squareIds) {
+async function grantReferralReward(session, referralCode, slotIds) {
   const { data: refRow } = await supabase
     .from('referral_codes')
     .select('code, edit_token')
@@ -46,22 +46,22 @@ async function grantReferralReward(session, referralCode, squareIds) {
     return; // 23505 = already processed this exact session, or a genuine constraint issue either way -- don't proceed
   }
 
-  const { data: referrerSquares } = await supabase
-    .from('squares')
+  const { data: referrerSlots } = await supabase
+    .from('slots')
     .select('email, subscription_id, active_until, stripe_customer_id')
     .eq('edit_token', refRow.edit_token)
     .eq('status', 'active');
 
-  if (!referrerSquares || referrerSquares.length === 0) {
-    // Referrer has no active squares of their own (expired, or the
+  if (!referrerSlots || referrerSlots.length === 0) {
+    // Referrer has no active slots of their own (expired, or the
     // edit_token is somehow stale) -- not eligible for a reward. Real
     // failure mode this guards against: someone using an old referral
     // link from a business that's since cancelled entirely.
-    await supabase.from('referrals').update({ status: 'rejected_self_referral', rejection_reason: 'referrer has no active squares' }).eq('stripe_session_id', session.id);
+    await supabase.from('referrals').update({ status: 'rejected_self_referral', rejection_reason: 'referrer has no active slots' }).eq('stripe_session_id', session.id);
     return;
   }
 
-  const referrerEmail = referrerSquares[0].email || '';
+  const referrerEmail = referrerSlots[0].email || '';
   if (referrerEmail.trim().toLowerCase() === referredEmail.trim().toLowerCase()) {
     // Re-verified independently here, not trusted from the earlier
     // check in create-checkout-session.js -- this webhook is the real
@@ -71,8 +71,8 @@ async function grantReferralReward(session, referralCode, squareIds) {
     return;
   }
 
-  const referrerSubscriptionId = referrerSquares.find(s => s.subscription_id) && referrerSquares.find(s => s.subscription_id).subscription_id;
-  const referrerStripeCustomerId = referrerSquares.find(s => s.stripe_customer_id) && referrerSquares.find(s => s.stripe_customer_id).stripe_customer_id;
+  const referrerSubscriptionId = referrerSlots.find(s => s.subscription_id) && referrerSlots.find(s => s.subscription_id).subscription_id;
+  const referrerStripeCustomerId = referrerSlots.find(s => s.stripe_customer_id) && referrerSlots.find(s => s.stripe_customer_id).stripe_customer_id;
 
   if (referrerSubscriptionId && referrerStripeCustomerId) {
     // Monthly referrer -- a real Stripe customer balance credit,
@@ -90,14 +90,14 @@ async function grantReferralReward(session, referralCode, squareIds) {
   } else {
     // Prepaid referrer -- no "next bill" for a cash credit to apply
     // to, so the equivalent value is delivered as more time live
-    // instead. Extends every one of their active squares (a referrer
-    // with several squares from one purchase gets all of them
+    // instead. Extends every one of their active slots (a referrer
+    // with several slots from one purchase gets all of them
     // extended together, not just one).
-    const referrerSquareIds = referrerSquares.map(s => s.id);
-    for (const sq of referrerSquares) {
+    const referrerSlotIds = referrerSlots.map(s => s.id);
+    for (const sq of referrerSlots) {
       const currentUntil = sq.active_until ? new Date(sq.active_until) : new Date();
       const extended = new Date(currentUntil.getTime() + REFERRAL_PREPAID_EXTENSION_DAYS * 24 * 60 * 60 * 1000);
-      await supabase.from('squares').update({ active_until: extended.toISOString() }).eq('id', sq.id);
+      await supabase.from('slots').update({ active_until: extended.toISOString() }).eq('id', sq.id);
     }
     await supabase.from('referrals').update({
       status: 'rewarded', reward_type: 'prepaid_extension', reward_amount_cents: REFERRAL_REWARD_CENTS, rewarded_at: new Date().toISOString()
@@ -129,13 +129,13 @@ async function reverseReferralRewardIfWithinWindow(subscription) {
   if (daysSinceReward > REFERRAL_CLAWBACK_WINDOW_DAYS) return; // outside the window -- a genuine cancellation, not clawed back
 
   if (referral.reward_type === 'stripe_credit') {
-    const { data: referrerSquares } = await supabase
-      .from('squares')
+    const { data: referrerSlots } = await supabase
+      .from('slots')
       .select('stripe_customer_id')
       .eq('edit_token', referral.referrer_edit_token)
       .not('stripe_customer_id', 'is', null)
       .limit(1);
-    const referrerCustomerId = referrerSquares && referrerSquares[0] && referrerSquares[0].stripe_customer_id;
+    const referrerCustomerId = referrerSlots && referrerSlots[0] && referrerSlots[0].stripe_customer_id;
     if (referrerCustomerId) {
       // Positive amount this time -- a debit, cancelling out the
       // earlier negative (credit) transaction. If the referrer already
@@ -149,15 +149,15 @@ async function reverseReferralRewardIfWithinWindow(subscription) {
       });
     }
   } else if (referral.reward_type === 'prepaid_extension') {
-    const { data: referrerSquares } = await supabase
-      .from('squares')
+    const { data: referrerSlots } = await supabase
+      .from('slots')
       .select('id, active_until')
       .eq('edit_token', referral.referrer_edit_token)
       .eq('status', 'active');
-    for (const sq of (referrerSquares || [])) {
+    for (const sq of (referrerSlots || [])) {
       if (!sq.active_until) continue;
       const reverted = new Date(new Date(sq.active_until).getTime() - REFERRAL_PREPAID_EXTENSION_DAYS * 24 * 60 * 60 * 1000);
-      await supabase.from('squares').update({ active_until: reverted.toISOString() }).eq('id', sq.id);
+      await supabase.from('slots').update({ active_until: reverted.toISOString() }).eq('id', sq.id);
     }
   }
 
@@ -194,7 +194,7 @@ module.exports = async (req, res) => {
         const session = event.data.object;
 
         // AI-chat credit top-up (see handleUserBuyCredits in api/data.js)
-        // -- distinguished from a square purchase by its own metadata key,
+        // -- distinguished from a slot purchase by its own metadata key,
         // so the two flows can never be confused with each other even
         // though they share this same webhook event type.
         const creditUserId = session.metadata && session.metadata.creditUserId;
@@ -218,17 +218,17 @@ module.exports = async (req, res) => {
           break;
         }
 
-        const squareIdsRaw = session.metadata && session.metadata.squareIds;
-        if (squareIdsRaw) {
-          const squareIds = squareIdsRaw.split(',').map(s => s.trim()).filter(Boolean);
+        const slotIdsRaw = session.metadata && session.metadata.slotIds;
+        if (slotIdsRaw) {
+          const slotIds = slotIdsRaw.split(',').map(s => s.trim()).filter(Boolean);
           const activeUntil = session.metadata && session.metadata.activeUntil;
-          await supabase.from('squares').update({
+          await supabase.from('slots').update({
             status: 'active',
             reserved_until: null,
             stripe_customer_id: session.customer || null,
             subscription_id: session.subscription || null,
             active_until: activeUntil || null // prepaid terms only -- null for ongoing subscriptions
-          }).in('id', squareIds);
+          }).in('id', slotIds);
 
           // Wrapped the same way the company-blurb lookup below is --
           // a referral-processing failure must never risk the actual
@@ -236,7 +236,7 @@ module.exports = async (req, res) => {
           const referralCode = session.metadata && session.metadata.referralCode;
           if (referralCode) {
             try {
-              await grantReferralReward(session, referralCode, squareIds);
+              await grantReferralReward(session, referralCode, slotIds);
             } catch (referralErr) {
               console.error('Referral reward processing failed (non-fatal):', referralErr);
             }
@@ -249,9 +249,9 @@ module.exports = async (req, res) => {
           // off to, and it's wrapped so any failure is silently swallowed.
           try {
             const { data: rows } = await supabase
-              .from('squares')
+              .from('slots')
               .select('company_name, website_url')
-              .in('id', squareIds)
+              .in('id', slotIds)
               .limit(1);
             if (rows && rows[0] && rows[0].website_url) {
               const blurb = await generateCompanyBlurb({
@@ -259,11 +259,11 @@ module.exports = async (req, res) => {
                 websiteUrl: rows[0].website_url
               });
               if (blurb.found) {
-                await supabase.from('squares').update({
+                await supabase.from('slots').update({
                   ai_blurb_fi: blurb.fi,
                   ai_blurb_en: blurb.en,
                   ai_blurb_source: blurb.source_url
-                }).in('id', squareIds);
+                }).in('id', slotIds);
               }
             }
           } catch (blurbErr) {
@@ -274,11 +274,11 @@ module.exports = async (req, res) => {
       }
 
       // subscription lapses, is cancelled, or payment fails repeatedly -> all
-      // squares tied to it go back on the market together
+      // slots tied to it go back on the market together
       case 'customer.subscription.deleted': {
         const sub = event.data.object;
-        await supabase.from('squares').update({ status: 'expired' }).eq('subscription_id', sub.id);
-        // Wrapped so a failure here never risks the square-expiration
+        await supabase.from('slots').update({ status: 'expired' }).eq('subscription_id', sub.id);
+        // Wrapped so a failure here never risks the slot-expiration
         // above, which is the actually load-bearing part of this event.
         try {
           await reverseReferralRewardIfWithinWindow(sub);
@@ -290,7 +290,7 @@ module.exports = async (req, res) => {
       case 'customer.subscription.updated': {
         const sub = event.data.object;
         if (sub.status !== 'active' && sub.status !== 'trialing') {
-          await supabase.from('squares').update({ status: 'expired' }).eq('subscription_id', sub.id);
+          await supabase.from('slots').update({ status: 'expired' }).eq('subscription_id', sub.id);
         }
         break;
       }

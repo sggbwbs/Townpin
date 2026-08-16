@@ -1,7 +1,7 @@
 async function loadBoard(){
   const res = await fetch(`${API_BASE}/board?townId=${currentTown.id}${previewMode ? '&admin=1' : ''}`);
   const data = await res.json();
-  currentSquares = data.squares || [];
+  currentSlots = data.slots || [];
   updateClaimedMeta();
   updateSelectionBar();
   renderLogoBanner();
@@ -22,7 +22,7 @@ async function loadBoard(){
   // Loaded separately, after the grid is already visible -- this can
   // take a few seconds on a cache miss, but it should never make someone
   // wait to see and use the board itself. Businesses renders immediately
-  // -- its data (currentSquares) is already in memory with zero network
+  // -- its data (currentSlots) is already in memory with zero network
   // cost, so there's no reason to make it wait on an unrelated fetch;
   // doing so previously just meant its loading dots sat there for
   // however long the news/events request happened to take, which read
@@ -60,8 +60,8 @@ function checkExpandFromUrl(){
 
 // Populates the vertically-scrolling logo banner (between the header and
 // the AI search box) from the same board data already fetched above --
-// no separate API call needed. Deduplicates by group_id so a multi-square
-// block (one business spanning several squares) shows one logo, not
+// no separate API call needed. Deduplicates by group_id so a multi-slot
+// block (one business spanning several slots) shows one logo, not
 // several copies of the same one.
 let logoBannerPages = [];
 let logoBannerPageIndex = 0;
@@ -71,13 +71,13 @@ const LOGO_BANNER_ADVANCE_MS = 5000;
 // Fire-and-forget, same pattern as the page-view tracker -- never
 // blocks or interferes with the actual link navigation (both call
 // sites use a plain <a> tag with a real href, this just fires
-// alongside it). squareId is always the same representative id already
+// alongside it). slotId is always the same representative id already
 // used for pin pages and AI-chat linking, so business_clicks lines up
 // directly with business_mentions for the admin dashboard.
-function trackBusinessClick(squareId){
+function trackBusinessClick(slotId){
   fetch(`${API_BASE}/track-click`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ squareId })
+    body: JSON.stringify({ slotId })
   }).catch(() => {});
 }
 
@@ -91,7 +91,7 @@ function logoTileHtml(b){
   </a>`;
 }
 
-// Real business data, same source as the logo banner above (currentSquares,
+// Real business data, same source as the logo banner above (currentSlots,
 // deduped by group_id so a business with several slots appears once, not
 // several times) -- just rendered as a vertical scrolling list instead of
 // a horizontal banner, for the "Mainostetut yritykset" card.
@@ -104,7 +104,7 @@ function renderBizFeedCard(){
 
   const seen = new Set();
   const businesses = [];
-  currentSquares.forEach(sq => {
+  currentSlots.forEach(sq => {
     if (!sq.logo_url || !sq.company_name) return;
     const key = sq.group_id || `solo-${sq.id}`;
     if (seen.has(key)) return;
@@ -171,7 +171,7 @@ function renderLogoBanner(){
   // more is priced per-slot (same tiers as before), and the visual payoff
   // for that is a bigger logo, not more repeated copies of the same one.
   const groups = {};
-  currentSquares.forEach(sq => {
+  currentSlots.forEach(sq => {
     if (!sq.logo_url) return;
     const key = sq.group_id || `solo-${sq.id}`;
     if (!groups[key]) groups[key] = { rep: sq, count: 0 };
@@ -245,7 +245,7 @@ function renderLogoBanner(){
   });
 
   // On wide screens there's room to just show the whole board -- no cap,
-  // no pagination, matching "the card fills up as squares sell out."
+  // no pagination, matching "the card fills up as slots sell out."
   // Mobile keeps the fixed 2-row cap with pagination, since there
   // generally isn't screen room for everyone there regardless of how
   // full the board actually is.
@@ -406,7 +406,7 @@ window.addEventListener('resize', () => {
     const isDesktopNow = window.innerWidth >= 1000;
     if (isDesktopNow !== logoBannerWasDesktop){
       logoBannerWasDesktop = isDesktopNow;
-      if (currentSquares.length > 0) renderLogoBanner();
+      if (currentSlots.length > 0) renderLogoBanner();
     }
   }, 250);
 });

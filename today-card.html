@@ -530,7 +530,7 @@ function drawCard(selectedEvents){
     ctx.font = "700 14px 'IBM Plex Sans'";
     ctx.fillText('MAINOS', slotX + 16, slotY + 20);
 
-    // Logo, square, left side of the slot -- fit within its box without
+    // Logo, slot, left side of the slot -- fit within its box without
     // distorting aspect ratio, matching how logos render everywhere else on the site.
     const logoBox = 56, logoX = slotX + 16, logoY = slotY + 32;
     const scale = Math.min(logoBox / cachedSponsor.logoImg.width, logoBox / cachedSponsor.logoImg.height);

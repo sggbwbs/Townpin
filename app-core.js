@@ -18,7 +18,7 @@ const FOUNDING_DISCOUNT_ACTIVE = true;
 // display the right price before checkout -- the server always
 // recalculates and charges the real amount itself, this is never trusted
 // as the actual charge. Flat 29.90€/slot, no volume discount.
-function pricePerSquareEur(count){
+function pricePerSlotEur(count){
   return 29.90;
 }
 
@@ -359,7 +359,7 @@ const FINNISH_CITIES = [
 
 let currentTown = null;
 let previewMode = false; // set from the ?preview=1 URL param in init() -- see there for what this actually unlocks and why it's safe
-let currentSquares = [];
+let currentSlots = [];
 
 let lang = 'fi';
 
@@ -589,8 +589,8 @@ const STRINGS = {
     takenErr: 'Yksi valituista banneripaikoista vietiin juuri — yritä uudelleen.',
     networkErr: 'Verkkovirhe — yritä uudelleen.',
     townNotAvailable: 'Tätä kaupunkia ei ole vielä avattu. Aloitamme Oulusta ja laajennamme pian.',
-    squareTitle: '{n} paikkaa — {town}',
-    squareTitleOne: '1 paikka — {town}',
+    slotTitle: '{n} paikkaa — {town}',
+    slotTitleOne: '1 paikka — {town}',
     qtyLabel: 'Kuinka ison mainospaikan haluat?',
     qtySizePreviewNote: 'Näin logosi näkyy taulussa (suuntaa antava). Jokainen mainospaikka on samankokoinen.',
     todayCardMockupLabel: 'Näin näyttäisit koko "Tänään"-kortilla, jonka moni jakaa somessa:',
@@ -604,8 +604,8 @@ const STRINGS = {
     claimTitle: 'Varaa mainospaikka — 29,90€/kk',
     cancelSelection: 'Peruuta',
     continueSelection: 'Jatka →',
-    squaresSelected: '{n} paikkaa · {price}€/kk',
-    squareSelected: '1 paikka · {price}€/kk',
+    slotsSelected: '{n} paikkaa · {price}€/kk',
+    slotSelected: '1 paikka · {price}€/kk',
     noSuggestion: 'Kaupunkia ei löytynyt tietokannasta — voit silti hakea sitä, taulu luodaan automaattisesti.'
   },
   en: {
@@ -833,8 +833,8 @@ const STRINGS = {
     takenErr: 'One of the auto-assigned slots was just taken — please try again.',
     networkErr: 'Network error — please try again.',
     townNotAvailable: "This town isn't open yet. We're starting with Oulu and will expand soon.",
-    squareTitle: '{n} slots — {town}',
-    squareTitleOne: '1 slot — {town}',
+    slotTitle: '{n} slots — {town}',
+    slotTitleOne: '1 slot — {town}',
     qtyLabel: 'How big an ad slot would you like?',
     qtySizePreviewNote: 'How your logo will show on the board (approximate). Every slot is the same size.',
     todayCardMockupLabel: 'How you\'d look on the whole "Today" card, which a lot of people share on social media:',
@@ -848,8 +848,8 @@ const STRINGS = {
     claimTitle: 'Claim an ad slot — €29.90/month',
     cancelSelection: 'Cancel',
     continueSelection: 'Continue →',
-    squaresSelected: '{n} slots · €{price}/mo',
-    squareSelected: '1 slot · €{price}/mo',
+    slotsSelected: '{n} slots · €{price}/mo',
+    slotSelected: '1 slot · €{price}/mo',
     noSuggestion: "Town not in our list — you can still search it, the board is created automatically."
   }
 };
@@ -1006,7 +1006,7 @@ function sortSelectOptions(selectId, keepFirstValue){
 }
 
 // The {n}/{t} display this used to update is gone -- capacity auto-grows
-// server-side (see api/_squares.js) rather than being a real cap, so
+// server-side (see api/_slots.js) rather than being a real cap, so
 // showing "X / 100 claimed" was misleading rather than informative.
 // Kept as a no-op function rather than removing the call sites entirely,
 // since capacity might become worth surfacing again later in an honest way.

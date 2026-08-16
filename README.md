@@ -18,10 +18,12 @@ enabled (enforced both in the UI and at the checkout backend itself).
 
 Finnish-first, with an English toggle.
 
-*(Naming note: the database table and most internal code still say
-"squares" — `squares` table, `pricePerSquareEur()`, etc. Left as-is;
-there's no actual visual grid of clickable squares anymore, purely
-internal naming.)*
+*(Naming note: the database table and internal code used to say
+"squares" — `squares` table, `pricePerSquareEur()`, etc. — a leftover
+from when the board was a literal grid of clickable squares. Renamed
+to "slots" throughout (`slots` table, `pricePerSlotEur()`, etc.) to
+match the product language; see `migrations/rename_squares_to_slots.sql`
+for the corresponding database migration.)*
 
 ## What's on the site
 

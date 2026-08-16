@@ -232,12 +232,12 @@ async function handleSendDigest(req, res) {
     // though the *set* of favorited IDs itself can go stale.
     let favBusinesses = [];
     if (Array.isArray(sub.favorite_business_ids) && sub.favorite_business_ids.length > 0) {
-      const { data: squares } = await supabase
-        .from('squares')
+      const { data: slots } = await supabase
+        .from('slots')
         .select('id, company_name, tagline, logo_url, status')
         .in('id', sub.favorite_business_ids)
         .eq('status', 'active');
-      favBusinesses = squares || [];
+      favBusinesses = slots || [];
     }
 
     const unsubscribeUrl = `${SITE_URL}/api/notifications/unsubscribe?token=${sub.unsubscribe_token}`;

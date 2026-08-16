@@ -38,7 +38,7 @@ async function moderate({ companyName, websiteUrl }) {
   // company name alone rather than calling fetch() with an empty/missing URL.
   const pageText = websiteUrl ? await fetchPageSnippet(websiteUrl) : null;
 
-  const prompt = `You are a content-safety screen for a local advertising marketplace ("PaikallisCanvas") where small businesses claim a square on their town's community board, linking to their website. Decide if this submission should be BLOCKED.
+  const prompt = `You are a content-safety screen for a local advertising marketplace ("PaikallisCanvas") where small businesses claim a slot on their town's community board, linking to their website. Decide if this submission should be BLOCKED.
 
 Block only on clear evidence of: illegal goods/services, scams or fraud, malware/phishing, hate speech or harassment, sexual content, or anything facilitating harm to minors. Do NOT block merely because a site is unfinished, under construction, a placeholder/parked domain, or unreachable — treat those as ALLOW, since real businesses often haven't finished their site yet. Some businesses genuinely have no website at all — that is normal and NOT itself a reason to block; judge on the company name alone in that case. Be conservative: block on clear evidence, not vague suspicion.
 

@@ -40,7 +40,7 @@ async function handleBoard(req, res) {
   if (!town.enabled && !isAdminRequest) return res.status(404).json({ error: 'not_available' });
 
   const { data, error } = await supabase
-    .from('squares')
+    .from('slots')
     .select('idx, company_name, website_url, logo_url, tagline, color, id, group_id, industry')
     .eq('town_id', townId)
     .eq('status', 'active')
@@ -54,7 +54,7 @@ async function handleBoard(req, res) {
   const colorTheme = (themeRow && themeRow.value === 'light') ? 'light' : 'dark';
 
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
-  res.status(200).json({ squares: data, colorTheme });
+  res.status(200).json({ slots: data, colorTheme });
 }
 
 // News + events only -- offers deliberately removed. Offers were the
@@ -561,9 +561,9 @@ async function handleSiteFeedback(req, res) {
 // this is purely for the admin analytics dashboard.
 async function handleTrackBusinessClick(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
-  const { squareId } = req.body || {};
-  if (!squareId) return res.status(400).json({ error: 'Missing squareId.' });
-  const { error } = await supabase.from('business_clicks').insert({ square_id: squareId });
+  const { slotId } = req.body || {};
+  if (!slotId) return res.status(400).json({ error: 'Missing slotId.' });
+  const { error } = await supabase.from('business_clicks').insert({ slot_id: slotId });
   if (error) { console.error('Business click tracking failed:', error); return res.status(500).json({ error: 'Could not record click.' }); }
   res.status(204).end();
 }

@@ -15,5 +15,5 @@
 -- which purchases the live registry didn't confirm, without having
 -- blocked anyone at checkout time over a third-party outage.
 
-alter table squares add column if not exists business_id text;
-alter table squares add column if not exists business_id_verified boolean;
+alter table slots add column if not exists business_id text;
+alter table slots add column if not exists business_id_verified boolean;

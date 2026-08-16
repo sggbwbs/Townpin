@@ -5,11 +5,11 @@ create table if not exists towns (
   slug text not null unique,        -- e.g. "tampere-fi"
   name text not null,                -- e.g. "Tampere"
   country text not null default 'FI',
-  grid_size int not null default 20, -- 20x20 = 400 squares
+  grid_size int not null default 20, -- 20x20 = 400 slots
   created_at timestamptz not null default now()
 );
 
-create table if not exists squares (
+create table if not exists slots (
   id bigserial primary key,
   town_id bigint not null references towns(id),
   idx int not null,                  -- 0..(grid_size*grid_size - 1)
@@ -31,12 +31,12 @@ create table if not exists squares (
   unique (town_id, idx)
 );
 
-create index if not exists squares_town_idx on squares (town_id, idx);
-create index if not exists squares_subscription_idx on squares (subscription_id);
+create index if not exists slots_town_idx on slots (town_id, idx);
+create index if not exists slots_subscription_idx on slots (subscription_id);
 create index if not exists towns_slug_idx on towns (slug);
 
 -- Seed Oulu so the board exists from the very first deploy, matching the
--- single-market launch (see README). 15x15 = 225 squares -- sized for a
+-- single-market launch (see README). 15x15 = 225 slots -- sized for a
 -- ~217,000-person city that's just starting out, not maxed at 400 from day
 -- one. Safe to run more than once.
 insert into towns (slug, name, country, grid_size)
@@ -89,22 +89,22 @@ create table if not exists admin_login_attempts (
 create index if not exists admin_login_attempts_ip_idx on admin_login_attempts (ip, created_at);
 
 -- ==== AI-generated "quick info" about the business, found via web search ====
-alter table squares add column if not exists ai_blurb_fi text;
-alter table squares add column if not exists ai_blurb_en text;
-alter table squares add column if not exists ai_blurb_source text;
+alter table slots add column if not exists ai_blurb_fi text;
+alter table slots add column if not exists ai_blurb_en text;
+alter table slots add column if not exists ai_blurb_source text;
 
--- ==== Self-service edit link for the business that claimed the square(s) ====
-alter table squares add column if not exists edit_token text;
-create index if not exists squares_edit_token_idx on squares (edit_token);
+-- ==== Self-service edit link for the business that claimed the slot(s) ====
+alter table slots add column if not exists edit_token text;
+create index if not exists slots_edit_token_idx on slots (edit_token);
 
--- ==== Admin-granted free squares (no payment involved) ====
-alter table squares add column if not exists is_comped boolean not null default false;
+-- ==== Admin-granted free slots (no payment involved) ====
+alter table slots add column if not exists is_comped boolean not null default false;
 
--- ==== Grouping ID for multi-square purchases, so the board can render one
+-- ==== Grouping ID for multi-slot purchases, so the board can render one
 -- Deliberately a *different* value from edit_token -- this one is safe to
 -- expose publicly (it grants no edit access), edit_token is not.
-alter table squares add column if not exists group_id text;
-create index if not exists squares_group_id_idx on squares (group_id);
+alter table slots add column if not exists group_id text;
+create index if not exists slots_group_id_idx on slots (group_id);
 
 -- ==== Storage bucket for directly-uploaded logo images ====
 -- "public" here just means uploaded images can be viewed via their URL by
@@ -116,25 +116,25 @@ values ('logos', 'logos', true)
 on conflict (id) do nothing;
 
 -- ==== Business industry/category, for filtering the board and for context on pin pages ====
-alter table squares add column if not exists industry text;
-create index if not exists squares_industry_idx on squares (town_id, industry);
+alter table slots add column if not exists industry text;
+create index if not exists slots_industry_idx on slots (town_id, industry);
 
 -- ==== Prepaid multi-month terms (one-time payment, no subscription) ====
--- Null = normal ongoing monthly subscription. Non-null = this square was
+-- Null = normal ongoing monthly subscription. Non-null = this slot was
 -- paid upfront for a fixed term and should auto-expire on this date.
-alter table squares add column if not exists active_until timestamptz;
+alter table slots add column if not exists active_until timestamptz;
 
--- ==== View tracking, so business owners can see proof their square is
+-- ==== View tracking, so business owners can see proof their slot is
 -- actually getting looked at (directly addresses feedback that businesses
 -- need to see concrete value, not just trust it blindly) ====
-alter table squares add column if not exists view_count integer not null default 0;
+alter table slots add column if not exists view_count integer not null default 0;
 
 -- Atomic increment (not a plain read-then-write update) so concurrent
 -- visitors never silently undercount each other's views.
-create or replace function increment_view_count(square_id bigint)
+create or replace function increment_view_count(slot_id bigint)
 returns void as $$
 begin
-  update squares set view_count = view_count + 1 where id = square_id;
+  update slots set view_count = view_count + 1 where id = slot_id;
 end;
 $$ language plpgsql;
 
@@ -155,7 +155,7 @@ create index if not exists local_feed_items_town_idx on local_feed_items (town_i
 -- ==== Public town availability toggle ====
 -- Only "enabled" towns can be found/created via the public search -- this
 -- is the "pilot one town first" restriction. Admins can still work with
--- any town (grant/move squares) regardless of this flag, and can enable a
+-- any town (grant/move slots) regardless of this flag, and can enable a
 -- new town explicitly via /admin when ready to expand.
 alter table towns add column if not exists enabled boolean not null default false;
 update towns set enabled = true where slug = 'oulu-fi';
@@ -176,8 +176,8 @@ alter table local_feed_items add column if not exists source_name text;
 alter table local_feed_items add column if not exists image_url text;
 
 -- ==== IP-based reservation rate limiting (troll/abuse prevention) ====
-alter table squares add column if not exists reserving_ip text;
-create index if not exists squares_reserving_ip_idx on squares (reserving_ip, status, reserved_until);
+alter table slots add column if not exists reserving_ip text;
+create index if not exists slots_reserving_ip_idx on slots (reserving_ip, status, reserved_until);
 
 -- ==== AI local-guide chat widget: per-IP daily rate limiting ====
 -- Same shape/pattern as admin_login_attempts -- one row per accepted
@@ -243,9 +243,9 @@ create index if not exists ai_agent_hints_town_idx on ai_agent_hints (town_id);
 -- computed once via OpenStreetMap's Nominatim geocoder whenever the
 -- address is set or changed (see api/_geocode.js). Nullable since
 -- existing businesses (from before this) don't have one yet.
-alter table squares add column if not exists address text;
-alter table squares add column if not exists lat double precision;
-alter table squares add column if not exists lng double precision;
+alter table slots add column if not exists address text;
+alter table slots add column if not exists lat double precision;
+alter table slots add column if not exists lng double precision;
 
 -- ==== Admin curation of which events show on the public site ====
 -- When at least one event has admin_selected = true for a town, the
@@ -289,7 +289,7 @@ create index if not exists event_picks_lookup_idx on event_picks (town_id, pick_
 -- ==== Auto-expanding capacity ====
 -- grid_size*grid_size (100) used to be the hard cap on how many slots a
 -- town could ever sell. capacity is a genuinely separate, plain number
--- of sellable slots -- when demand exceeds it, api/_squares.js grows it
+-- of sellable slots -- when demand exceeds it, api/_slots.js grows it
 -- by another 100 automatically instead of turning buyers away. Existing
 -- towns get 100 to start, matching their current effective cap.
 alter table towns add column if not exists capacity integer not null default 100;
@@ -426,7 +426,7 @@ create index if not exists user_activity_user_idx on user_activity (user_id, cre
 
 -- ==== Password reset ====
 -- A single-use token + expiry stored directly on the user row -- same
--- lightweight pattern as squares.edit_token, no separate table needed.
+-- lightweight pattern as slots.edit_token, no separate table needed.
 -- reset_token is only ever set right when a reset is requested and
 -- cleared the moment it's used (or naturally stops working once
 -- reset_token_expires has passed) -- see the 'request-password-reset'
@@ -510,8 +510,8 @@ create table if not exists site_feedback (
 create index if not exists site_feedback_created_idx on site_feedback (created_at desc);
 
 -- ==== Per-business engagement tracking ====
--- Two separate events, both keyed by square_id (the same representative
--- square id used everywhere else -- pin pages, mentioned/webResults
+-- Two separate events, both keyed by slot_id (the same representative
+-- slot id used everywhere else -- pin pages, mentioned/webResults
 -- linking): a click (logo banner, a mentioned chip in the AI chat) and
 -- an AI mention (this business appeared in mentioned for a real
 -- answer, whether or not anyone clicked it). Kept as raw event rows,
@@ -519,17 +519,17 @@ create index if not exists site_feedback_created_idx on site_feedback (created_a
 -- over time later, not just a lifetime total.
 create table if not exists business_clicks (
   id bigserial primary key,
-  square_id bigint not null references squares(id) on delete cascade,
+  slot_id bigint not null references slots(id) on delete cascade,
   created_at timestamptz not null default now()
 );
-create index if not exists business_clicks_square_idx on business_clicks (square_id, created_at desc);
+create index if not exists business_clicks_slot_idx on business_clicks (slot_id, created_at desc);
 
 create table if not exists business_mentions (
   id bigserial primary key,
-  square_id bigint not null references squares(id) on delete cascade,
+  slot_id bigint not null references slots(id) on delete cascade,
   created_at timestamptz not null default now()
 );
-create index if not exists business_mentions_square_idx on business_mentions (square_id, created_at desc);
+create index if not exists business_mentions_slot_idx on business_mentions (slot_id, created_at desc);
 
 -- ==== Today-card sponsor slot ====
 -- One sponsor at a time per town, shown bottom-right on the daily

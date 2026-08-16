@@ -97,7 +97,7 @@ function extractLogoUrl(html, pageUrl) {
     }
   }
 
-  // 3. apple-touch-icon -- a dedicated square icon graphic most sites
+  // 3. apple-touch-icon -- a dedicated slot icon graphic most sites
   // configure deliberately, usually a decent simplified logomark.
   const touchIcon = html.match(/<link[^>]+rel=["']apple-touch-icon["'][^>]+href=["']([^"']+)["']/i);
   if (touchIcon) return touchIcon[1];

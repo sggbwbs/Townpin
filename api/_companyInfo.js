@@ -1,4 +1,4 @@
-// Best-effort: after a business claims a square, search for public
+// Best-effort: after a business claims a slot, search for public
 // information about them and generate a short "quick info" blurb shown on
 // their pin page. Costs ~$0.01 per search (Anthropic's web search tool)
 // plus a small amount of token usage -- a few cents at most per listing.

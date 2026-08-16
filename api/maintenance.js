@@ -2,7 +2,7 @@ const { supabase } = require('./_db');
 const { moderate } = require('./_moderate');
 
 // Combines what used to be two separate cron-only endpoints
-// (cleanup.js + recheck-squares.js) into one file. Each /api/*.js file
+// (cleanup.js + recheck-slots.js) into one file. Each /api/*.js file
 // counts as one Vercel Serverless Function regardless of how much logic
 // is inside it -- this exists purely to stay under the Hobby plan's
 // 12-function limit, not for any functional reason. Both jobs are only
@@ -19,7 +19,7 @@ async function runCleanup() {
   const now = new Date().toISOString();
 
   const { error: reservationErr } = await supabase
-    .from('squares')
+    .from('slots')
     .update({ status: 'expired' })
     .lt('reserved_until', now)
     .eq('status', 'pending');
@@ -28,7 +28,7 @@ async function runCleanup() {
   // prepaid multi-month terms that have run out -- these have no
   // subscription to cancel, so nothing else expires them automatically
   const { error: prepaidErr } = await supabase
-    .from('squares')
+    .from('slots')
     .update({ status: 'expired' })
     .lt('active_until', now)
     .eq('status', 'active');
@@ -90,34 +90,34 @@ async function runCleanup() {
   return { ok: true };
 }
 
-async function runRecheckSquares() {
-  const { data: squares, error } = await supabase
-    .from('squares')
+async function runRecheckSlots() {
+  const { data: slots, error } = await supabase
+    .from('slots')
     .select('id, company_name, website_url')
     .eq('status', 'active')
     .eq('flagged', false);
-  if (error) { console.error(error); throw new Error('Could not load squares.'); }
+  if (error) { console.error(error); throw new Error('Could not load slots.'); }
 
   let flaggedCount = 0;
-  for (const s of squares) {
+  for (const s of slots) {
     const result = await moderate({ companyName: s.company_name, websiteUrl: s.website_url });
     if (!result.allowed) {
       flaggedCount++;
-      await supabase.from('squares').update({ flagged: true, flag_reason: result.reason }).eq('id', s.id);
+      await supabase.from('slots').update({ flagged: true, flag_reason: result.reason }).eq('id', s.id);
     }
   }
-  return { checked: squares.length, flagged: flaggedCount };
+  return { checked: slots.length, flagged: flaggedCount };
 }
 
-// Weekly recheck-squares schedule, exactly as it was in the old
-// recheck-squares.js / vercel.json entry -- matched against the header
+// Weekly recheck-slots schedule, exactly as it was in the old
+// recheck-slots.js / vercel.json entry -- matched against the header
 // Vercel sends, not a query param.
 const RECHECK_SCHEDULE = '0 3 * * 0';
 
 module.exports = async (req, res) => {
   try {
     const schedule = req.headers['x-vercel-cron-schedule'];
-    const result = schedule === RECHECK_SCHEDULE ? await runRecheckSquares() : await runCleanup();
+    const result = schedule === RECHECK_SCHEDULE ? await runRecheckSlots() : await runCleanup();
     res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ error: err.message || 'Job failed.' });

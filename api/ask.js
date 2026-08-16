@@ -221,8 +221,8 @@ module.exports = async (req, res) => {
     const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
     if (!town) return res.status(404).json({ error: 'Unknown town.' });
 
-    const [{ data: rawSquares }, events, news, { data: aiHints }] = await Promise.all([
-      supabase.from('squares')
+    const [{ data: rawSlots }, events, news, { data: aiHints }] = await Promise.all([
+      supabase.from('slots')
         .select('id, group_id, company_name, industry, tagline, website_url, ai_blurb_fi, lat, lng')
         .eq('town_id', townId).eq('status', 'active').eq('flagged', false)
         .limit(MAX_BUSINESSES_IN_CONTEXT),
@@ -232,12 +232,12 @@ module.exports = async (req, res) => {
     ]);
 
     // A business can own several slots (see the banner's per-slot pricing
-    // model) -- squares is one row per slot, so dedupe by business here,
+    // model) -- slots is one row per slot, so dedupe by business here,
     // once, rather than once per representation downstream. Otherwise a
     // business with N slots would be sent to the model N times over, and
     // later show up as N duplicate "mentioned" chips in the chat UI.
     const seenBusinesses = new Set();
-    const businesses = (rawSquares || []).filter(b => {
+    const businesses = (rawSlots || []).filter(b => {
       const key = b.group_id || b.id;
       if (seenBusinesses.has(key)) return false;
       seenBusinesses.add(key);
@@ -739,7 +739,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
       .filter(b => mentionedNames.has(b.company_name))
       .map(b => ({
         name: b.company_name,
-        squareId: b.id,
+        slotId: b.id,
         // Real, stored coordinates -- never AI-supplied for board
         // businesses, so there's no hallucination risk here specifically.
         lat: typeof b.lat === 'number' ? b.lat : null,
@@ -753,7 +753,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     // tracking for the admin analytics dashboard.
     if (mentioned.length > 0) {
       supabase.from('business_mentions')
-        .insert(mentioned.map(m => ({ square_id: m.squareId })))
+        .insert(mentioned.map(m => ({ slot_id: m.slotId })))
         .then(() => {}, (err) => console.error('Business mention tracking failed (non-fatal):', err));
     }
 

@@ -106,7 +106,7 @@ document.getElementById('feedbackOverlay').addEventListener('click', (e)=>{
 });
 
 // ---- Lähelläsi (near-you) ----
-// Reuses currentSquares (the same business data already loaded for the
+// Reuses currentSlots (the same business data already loaded for the
 // homepage banner/card, deduped by group_id the same way) rather than a
 // separate fetch -- businesses already have real lat/lng in the
 // database (see api/ask.js's own use of them for the AI's answer maps),
@@ -157,8 +157,8 @@ function isBusinessFavorited(id){
 // particular page load just didn't include it).
 // navId is stored separately from id -- id (group_id when present) is
 // the right thing to dedup/toggle on, since one business can own
-// several board squares and shouldn't get favorited multiple times,
-// but api/pin/[id].js only ever looks up by the numeric squares.id
+// several board slots and shouldn't get favorited multiple times,
+// but api/pin/[id].js only ever looks up by the numeric slots.id
 // column, never group_id. Storing just one shared value for both
 // purposes meant a group_id-based favorite's own link pointed at a URL
 // the backend can't resolve -- navId keeps navigation always using the
@@ -169,7 +169,7 @@ function toggleBusinessFavorite(id, navId){
   if (idx >= 0){
     favorites.splice(idx, 1);
   } else {
-    const sq = (currentSquares || []).find(s => String(s.group_id || s.id) === String(id));
+    const sq = (currentSlots || []).find(s => String(s.group_id || s.id) === String(id));
     if (!sq) return;
     favorites.push({ id, navId: navId !== undefined ? navId : sq.id, company_name: sq.company_name, logo_url: sq.logo_url, industry: sq.industry || '', savedAt: Date.now() });
   }
@@ -270,8 +270,8 @@ async function submitDigestSignup(){
   const btn = document.getElementById('digestSubmitBtn');
   btn.disabled = true;
 
-  // navId (the numeric square ID), not the group_id dedup key -- the
-  // digest backend looks businesses up against squares.id (see
+  // navId (the numeric slot ID), not the group_id dedup key -- the
+  // digest backend looks businesses up against slots.id (see
   // api/notifications.js), same reasoning as everywhere else favorites
   // touch navigation: group_id isn't a valid lookup key there.
   const favoriteBusinessIds = getFavoriteBusinesses().map(f => f.navId !== undefined ? f.navId : f.id);
@@ -376,7 +376,7 @@ function renderRecentlyViewedList(){
   }
   // Display-only, unlike renderFavoritesList -- no favorite-toggle
   // button here. Toggling a favorite needs the business looked up in
-  // currentSquares (see toggleBusinessFavorite), which a business
+  // currentSlots (see toggleBusinessFavorite), which a business
   // viewed on a past page load, or from another town's board, may not
   // be present in on this page load. Keeping this list display-only
   // avoids that whole class of edge case while still delivering the
@@ -413,7 +413,7 @@ function renderFavoritesList(){
     // navId is only present on favorites saved after this fix -- older
     // saved favorites (from before navId existed) fall back to f.id,
     // which is correct for the common case (a business with only one
-    // square, where id and the dedup key were always the same numeric
+    // slot, where id and the dedup key were always the same numeric
     // value anyway) and only wrong for the specific group_id case this
     // fix addresses, which simply won't have a working link until
     // re-favorited. Not worth a migration for what's a one-click fix.
@@ -509,7 +509,7 @@ function renderNearbyResults(userLat, userLng){
   // with several purchased slots should still only appear once here.
   const seen = new Set();
   const businesses = [];
-  (currentSquares || []).forEach(sq => {
+  (currentSlots || []).forEach(sq => {
     if (!sq.logo_url || !sq.company_name || typeof sq.lat !== 'number' || typeof sq.lng !== 'number') return;
     const key = sq.group_id || `solo-${sq.id}`;
     if (seen.has(key)) return;
@@ -746,7 +746,7 @@ async function deleteAccountPrompt(){
 // Also called directly from the AI-chat "buy more" prompt (see askAsk
 // below), not just from the account panel -- either way lands the
 // visitor back on a real Stripe Checkout page, same pattern as buying a
-// board square.
+// board slot.
 async function buyCredits(){
   try {
     const res = await fetch(`${API_BASE}/user/buy-credits`, {
@@ -789,7 +789,7 @@ function buildMentionsHtml(mentioned){
   const pinIconSvg = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
   let html = '<p class="askMentionsNote">' + pinIconSvg + ' = ' + t('askMentionsNote') + '</p>';
   html += '<div class="askMentions">' + mentioned.map(m =>
-    `<a class="askMentionChip" href="/pin/${m.squareId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${m.squareId})">${pinIconSvg} ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`
+    `<a class="askMentionChip" href="/pin/${m.slotId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${m.slotId})">${pinIconSvg} ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`
   ).join('') + '</div>';
   return html;
 }

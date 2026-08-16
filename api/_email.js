@@ -49,7 +49,49 @@ async function sendPasswordResetEmail(toEmail, resetUrl) {
   }
 }
 
-module.exports = { sendPasswordResetEmail, sendDigestConfirmEmail, sendDigestEmail, sendAccountVerificationEmail };
+module.exports = { sendPasswordResetEmail, sendDigestConfirmEmail, sendDigestEmail, sendAccountVerificationEmail, sendManageLinkEmail };
+
+// Sent by two different flows in api/manage.js: the "I lost my link"
+// recovery request (looked up by email, may cover more than one past
+// purchase under the same address) and the "rotate my link" action (a
+// single fresh link, sent as a backup alongside the one already shown
+// in-browser). `listings` is always an array so both callers share one
+// code path -- one row per distinct edit_token/purchase.
+async function sendManageLinkEmail(toEmail, listings) {
+  if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
+    console.error('Manage link email not sent -- RESEND_API_KEY or RESEND_FROM_EMAIL is not configured.');
+    return false;
+  }
+  const rows = listings.map(l => `<p><b>${l.companyName}</b>${l.towns ? ` (${l.towns})` : ''}<br><a href="${l.url}">${l.url}</a></p>`).join('');
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
+      body: JSON.stringify({
+        from: RESEND_FROM_EMAIL,
+        to: toEmail,
+        subject: 'Hallintalinkkisi / Your management link -- PaikallisCanvas',
+        html: `
+          <p>Tässä on hallintalinkkisi PaikallisCanvas-ilmoitukse(si)lle. Tallenna tämä sähköposti tai kirjanmerkki -- linkki on ainoa tapa muokata tietojasi.</p>
+          ${rows}
+          <p>Jos et pyytänyt tätä, voit jättää tämän viestin huomiotta -- kukaan ei pääse muokkaamaan ilmoitustasi pelkällä tällä viestillä.</p>
+          <hr>
+          <p>Here's the management link for your PaikallisCanvas listing(s). Save this email or bookmark it -- the link is the only way to edit your details.</p>
+          ${rows}
+          <p>If you didn't request this, you can ignore this email -- nobody can edit your listing from this message alone.</p>
+        `
+      })
+    });
+    if (!res.ok) {
+      console.error('Resend API error:', res.status, await res.text());
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Manage link email failed to send:', err);
+    return false;
+  }
+}
 
 // Sent right after registration -- doesn't block login/access on
 // clicking this (a lower-friction choice for a small site; see the

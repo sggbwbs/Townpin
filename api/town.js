@@ -9,8 +9,8 @@ function slugify(name, country) {
   return `${base}-${(country || 'fi').toLowerCase()}`;
 }
 
-// Every board is capped at 10x10 (100 squares), regardless of town size --
-// keeps individual squares large and legible rather than shrinking as a
+// Every board is capped at 10x10 (100 slots), regardless of town size --
+// keeps individual slots large and legible rather than shrinking as a
 // city grows. Only applies to newly-created towns; existing boards are
 // never resized automatically by this.
 const GRID_SIZE = 10;
@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
   const { name, country, admin } = req.query;
   if (!name) return res.status(400).json({ error: 'Missing town name.' });
 
-  // The admin bypass (used by /admin's grant-squares and move-squares
+  // The admin bypass (used by /admin's grant-slots and move-slots
   // tools, which need to work with any town regardless of public
   // availability) requires a real, verified admin session -- not just the
   // presence of the query param, which anyone could add to a request.

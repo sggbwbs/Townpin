@@ -6,7 +6,7 @@
 const bcrypt = require('bcryptjs');
 const { supabase } = require('../_db');
 const { isAuthenticated, getAdminSession, setSessionCookie, clearSessionCookie, getClientIp } = require('./_auth');
-const { pickRandomEmptySquares, insertSquaresWithRetry } = require('../_squares');
+const { pickRandomEmptySlots, insertSlotsWithRetry } = require('../_slots');
 const { geocodeAddress } = require('../_geocode');
 const { recordKeywordSelections } = require('../_eventLearning');
 
@@ -144,13 +144,13 @@ async function handleGrant(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
 
-  const { townId, squareCount, companyName, websiteUrl, logoUrl, tagline, industry, address } = req.body || {};
+  const { townId, slotCount, companyName, websiteUrl, logoUrl, tagline, industry, address } = req.body || {};
   if (typeof townId !== 'number' && typeof townId !== 'string') {
     return res.status(400).json({ error: 'Missing town.' });
   }
-  const wanted = typeof squareCount === 'number' ? Math.floor(squareCount) : 0;
+  const wanted = typeof slotCount === 'number' ? Math.floor(slotCount) : 0;
   if (wanted < 1) {
-    return res.status(400).json({ error: 'Grant at least one square.' });
+    return res.status(400).json({ error: 'Grant at least one slot.' });
   }
   if (!companyName) {
     return res.status(400).json({ error: 'Company name is required.' });
@@ -168,7 +168,7 @@ async function handleGrant(req, res) {
   // retries with a fresh pick if a concurrent request (or a double-click)
   // grabbed one of the same positions in the meantime.
   const groupId = crypto.randomUUID();
-  const { error: grantErr, rows: insertedRows } = await insertSquaresWithRetry(townId, wanted, (indices) =>
+  const { error: grantErr, rows: insertedRows } = await insertSlotsWithRetry(townId, wanted, (indices) =>
     indices.map(idx => ({
       town_id: townId,
       idx,
@@ -197,7 +197,7 @@ async function handleRevoke(req, res) {
   if (!groupId) return res.status(400).json({ error: 'Missing groupId.' });
 
   const { error } = await supabase
-    .from('squares')
+    .from('slots')
     .update({ status: 'expired' })
     .eq('group_id', groupId)
     .eq('is_comped', true);
@@ -208,12 +208,12 @@ async function handleRevoke(req, res) {
 async function handleCompedList(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
   const { data, error } = await supabase
-    .from('squares')
+    .from('slots')
     .select('id, idx, company_name, website_url, group_id, town_id, towns(name)')
     .eq('is_comped', true)
     .eq('status', 'active');
   if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }
-  res.status(200).json({ squares: data });
+  res.status(200).json({ slots: data });
 }
 
 // "Teach" the AI agent -- admin-given freeform instructions injected
@@ -631,7 +631,7 @@ async function handleFindCompany(req, res) {
   if (!query) return res.status(400).json({ error: 'Missing search query.' });
 
   const { data, error } = await supabase
-    .from('squares')
+    .from('slots')
     .select('id, idx, company_name, email, group_id, town_id, status, towns(name)')
     .eq('status', 'active')
     .or(`company_name.ilike.%${query}%,email.ilike.%${query}%`);
@@ -663,12 +663,12 @@ async function handleCompanyDetails(req, res) {
   if (!groupId) return res.status(400).json({ error: 'Missing groupId.' });
 
   const { data, error } = await supabase
-    .from('squares')
+    .from('slots')
     .select('group_id, company_name, email, website_url, logo_url, tagline, color, industry, address, is_comped, town_id, towns(name)')
     .eq('group_id', groupId)
     .eq('status', 'active');
   if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }
-  if (!data || data.length === 0) return res.status(404).json({ error: 'No active squares found for that group.' });
+  if (!data || data.length === 0) return res.status(404).json({ error: 'No active slots found for that group.' });
 
   const rep = data[0];
   res.status(200).json({
@@ -688,14 +688,14 @@ async function handleCompanyDetails(req, res) {
   });
 }
 
-// Updates every active square in the group at once -- a business with
+// Updates every active slot in the group at once -- a business with
 // several slots is still one edit, not one per slot. Works the same for
-// both paid and comped (granted) squares.
+// both paid and comped (granted) slots.
 async function handleEditCompany(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
 
-  const { groupId, companyName, websiteUrl, logoUrl, tagline, industry, squareCount, address } = req.body || {};
+  const { groupId, companyName, websiteUrl, logoUrl, tagline, industry, slotCount, address } = req.body || {};
   if (!groupId) return res.status(400).json({ error: 'Missing groupId.' });
   if (!companyName) {
     return res.status(400).json({ error: 'Company name is required.' });
@@ -704,19 +704,19 @@ async function handleEditCompany(req, res) {
   if (linkProblem) return res.status(400).json({ error: linkProblem });
 
   const { data: existing, error: existingErr } = await supabase
-    .from('squares')
+    .from('slots')
     .select('id, town_id, is_comped, address')
     .eq('group_id', groupId)
     .eq('status', 'active');
   if (existingErr) { console.error(existingErr); return res.status(500).json({ error: 'Lookup failed.' }); }
   if (!existing || existing.length === 0) {
-    return res.status(404).json({ error: 'No active squares found for that group.' });
+    return res.status(404).json({ error: 'No active slots found for that group.' });
   }
 
   const townId = existing[0].town_id;
   const isComped = existing[0].is_comped; // preserve the group's existing paid-vs-free status for any newly added slots
   const currentCount = existing.length;
-  const wanted = typeof squareCount === 'number' && squareCount > 0 ? Math.floor(squareCount) : currentCount;
+  const wanted = typeof slotCount === 'number' && slotCount > 0 ? Math.floor(slotCount) : currentCount;
   const trimmedAddress = address.trim();
 
   // Only hit the geocoder if the address actually changed -- no reason
@@ -727,7 +727,7 @@ async function handleEditCompany(req, res) {
 
   if (wanted > currentCount){
     const toAdd = wanted - currentCount;
-    const { error: addErr } = await insertSquaresWithRetry(townId, toAdd, (indices) =>
+    const { error: addErr } = await insertSlotsWithRetry(townId, toAdd, (indices) =>
       indices.map(idx => ({
         town_id: townId,
         idx,
@@ -749,7 +749,7 @@ async function handleEditCompany(req, res) {
     const toRemove = currentCount - wanted;
     const idsToExpire = existing.slice(0, toRemove).map(r => r.id);
     const { error: expireErr } = await supabase
-      .from('squares').update({ status: 'expired' }).in('id', idsToExpire);
+      .from('slots').update({ status: 'expired' }).in('id', idsToExpire);
     if (expireErr) { console.error(expireErr); return res.status(500).json({ error: 'Could not remove excess slots.' }); }
   }
 
@@ -767,14 +767,14 @@ async function handleEditCompany(req, res) {
   }
 
   const { data: updatedRows, error } = await supabase
-    .from('squares')
+    .from('slots')
     .update(updatePayload)
     .eq('group_id', groupId)
     .eq('status', 'active')
     .select();
   if (error) { console.error(error); return res.status(500).json({ error: 'Could not save changes.' }); }
   if (!updatedRows || updatedRows.length === 0) {
-    return res.status(404).json({ error: 'No active squares found for that group.' });
+    return res.status(404).json({ error: 'No active slots found for that group.' });
   }
 
   res.status(200).json({ ok: true, updated: updatedRows.length });
@@ -790,14 +790,14 @@ async function handleMove(req, res) {
   }
 
   const { data: existing, error: existingErr } = await supabase
-    .from('squares')
+    .from('slots')
     .select('id, idx')
     .eq('group_id', groupId)
     .eq('status', 'active')
     .order('idx', { ascending: true });
   if (existingErr) { console.error(existingErr); return res.status(500).json({ error: 'Lookup failed.' }); }
   if (!existing || existing.length === 0) {
-    return res.status(404).json({ error: 'No active squares found for that group.' });
+    return res.status(404).json({ error: 'No active slots found for that group.' });
   }
 
   // The board is a scrolling logo banner now, not a clickable grid -- no
@@ -811,17 +811,17 @@ async function handleMove(req, res) {
   let moved = false;
   let lastErr = null;
   for (let attempt = 0; attempt < 4 && !moved; attempt++) {
-    const newIndices = await pickRandomEmptySquares(destinationTownId, existing.length);
+    const newIndices = await pickRandomEmptySlots(destinationTownId, existing.length);
     if (newIndices.length < existing.length) {
       return res.status(409).json({
-        error: `This company has ${existing.length} square(s), but the destination town only has ${newIndices.length} free right now.`
+        error: `This company has ${existing.length} slot(s), but the destination town only has ${newIndices.length} free right now.`
       });
     }
 
     let collided = false;
     for (let i = 0; i < existing.length; i++) {
       const { error: updateErr } = await supabase
-        .from('squares')
+        .from('slots')
         .update({ town_id: destinationTownId, idx: newIndices[i] })
         .eq('id', existing[i].id);
       if (updateErr) {
@@ -834,7 +834,7 @@ async function handleMove(req, res) {
   }
   if (!moved) {
     console.error(lastErr);
-    return res.status(409).json({ error: 'Could not find available destination squares after several attempts — please try again.' });
+    return res.status(409).json({ error: 'Could not find available destination slots after several attempts — please try again.' });
   }
 
   res.status(200).json({ ok: true, moved: existing.length });
@@ -897,9 +897,9 @@ async function handleDisableTown(req, res) {
 // - Never allowed on a currently-open town, even an empty one -- close
 //   it first, as a deliberate extra step before something this
 //   permanent.
-// - The real backstop is the database itself: squares.town_id has no
+// - The real backstop is the database itself: slots.town_id has no
 //   cascade, so Postgres will simply refuse (a foreign-key violation,
-//   code 23503) to delete a town that has ANY squares at all, even old
+//   code 23503) to delete a town that has ANY slots at all, even old
 //   expired ones -- this just turns that into a clear message instead
 //   of a raw DB error reaching the admin.
 async function handleDeleteTown(req, res) {
@@ -916,7 +916,7 @@ async function handleDeleteTown(req, res) {
   const { error } = await supabase.from('towns').delete().eq('id', townId);
   if (error) {
     if (error.code === '23503') {
-      return res.status(400).json({ error: "This town has squares on it (even old or expired ones) and can't be deleted." });
+      return res.status(400).json({ error: "This town has slots on it (even old or expired ones) and can't be deleted." });
     }
     console.error(error);
     return res.status(500).json({ error: 'Could not delete town.' });
@@ -1013,41 +1013,41 @@ async function handleVisitorStats(req, res) {
 }
 
 // Aggregates business_clicks and business_mentions by company name
-// (not raw square_id, since a business owner cares about "my business's
+// (not raw slot_id, since a business owner cares about "my business's
 // total numbers", not an internal id) -- scoped to whichever town is
 // currently selected in the admin panel. Small-scale aggregation done
 // here rather than a database RPC, which is fine at this pilot's size;
-// worth moving to real SQL aggregation if the squares/click volume
+// worth moving to real SQL aggregation if the slots/click volume
 // grows enough for this to matter.
 async function handleBusinessEngagement(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
   const { townId } = req.query;
   try {
-    let squaresQuery = supabase.from('squares').select('id, company_name').eq('status', 'active');
-    if (townId) squaresQuery = squaresQuery.eq('town_id', townId);
-    const { data: squares, error: squaresErr } = await squaresQuery;
-    if (squaresErr) throw squaresErr;
+    let slotsQuery = supabase.from('slots').select('id, company_name').eq('status', 'active');
+    if (townId) slotsQuery = slotsQuery.eq('town_id', townId);
+    const { data: slots, error: slotsErr } = await slotsQuery;
+    if (slotsErr) throw slotsErr;
 
-    const squareToCompany = new Map(squares.map(s => [s.id, s.company_name]));
-    const squareIds = squares.map(s => s.id);
-    if (squareIds.length === 0) return res.status(200).json({ businesses: [] });
+    const slotToCompany = new Map(slots.map(s => [s.id, s.company_name]));
+    const slotIds = slots.map(s => s.id);
+    if (slotIds.length === 0) return res.status(200).json({ businesses: [] });
 
     const [{ data: clicks, error: clicksErr }, { data: mentions, error: mentionsErr }] = await Promise.all([
-      supabase.from('business_clicks').select('square_id').in('square_id', squareIds),
-      supabase.from('business_mentions').select('square_id').in('square_id', squareIds)
+      supabase.from('business_clicks').select('slot_id').in('slot_id', slotIds),
+      supabase.from('business_mentions').select('slot_id').in('slot_id', slotIds)
     ]);
     if (clicksErr) throw clicksErr;
     if (mentionsErr) throw mentionsErr;
 
     const counts = new Map(); // company_name -> { clicks, mentions }
     for (const c of (clicks || [])) {
-      const name = squareToCompany.get(c.square_id);
+      const name = slotToCompany.get(c.slot_id);
       if (!name) continue;
       if (!counts.has(name)) counts.set(name, { clicks: 0, mentions: 0 });
       counts.get(name).clicks++;
     }
     for (const m of (mentions || [])) {
-      const name = squareToCompany.get(m.square_id);
+      const name = slotToCompany.get(m.slot_id);
       if (!name) continue;
       if (!counts.has(name)) counts.set(name, { clicks: 0, mentions: 0 });
       counts.get(name).mentions++;

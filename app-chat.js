@@ -246,8 +246,8 @@ document.addEventListener('keydown', (e) => {
 
 // The board itself is no longer a clickable grid -- purchasing is now a
 // simple quantity picker (how many ad slots), with the exact same
-// pricing tiers as before (see pricePerSquareEur). The server still
-// tracks each purchase as discrete "squares" internally (unchanged
+// pricing tiers as before (see pricePerSlotEur). The server still
+// tracks each purchase as discrete "slots" internally (unchanged
 // Quantity picker removed from the UI (every listing is now the same
 // fixed size at the same flat price, no more "buy more slots for a
 // bigger logo"), but selectedCount stays as a variable since checkout
@@ -286,9 +286,9 @@ function showSelectionError(msg){
 
 function updateSelectionBar(){
   const n = selectedCount;
-  const perSquare = pricePerSquareEur(n);
-  const price = n * perSquare;
-  const label = (n === 1 ? t('squareSelected') : t('squaresSelected'))
+  const perSlot = pricePerSlotEur(n);
+  const price = n * perSlot;
+  const label = (n === 1 ? t('slotSelected') : t('slotsSelected'))
     .replace('{n}', n).replace('{price}', formatPrice(price));
   document.getElementById('selectionCount').textContent = label;
 }
@@ -335,8 +335,8 @@ function openClaimModal(){
 function updateModalSummary(){
   const n = selectedCount;
   let summary = n === 1
-    ? t('squareTitleOne').replace('{town}', currentTown.name)
-    : t('squareTitle').replace('{n}', n).replace('{town}', currentTown.name);
+    ? t('slotTitleOne').replace('{town}', currentTown.name)
+    : t('slotTitle').replace('{n}', n).replace('{town}', currentTown.name);
   if (additionalTowns.length > 0){
     const parts = additionalTowns.map(a => `${a.name} (${a.count})`).join(', ');
     summary += (lang === 'fi' ? ` + myös: ${parts}` : ` + also in: ${parts}`);
@@ -386,8 +386,8 @@ document.querySelector('.termOpt[data-months="3"]').classList.add('selected');
 
 function updateModalPricing(){
   const totalCount = selectedCount + additionalTowns.reduce((sum, a) => sum + a.count, 0);
-  const perSquare = pricePerSquareEur(totalCount);
-  const monthlyTotal = totalCount * perSquare;
+  const perSlot = pricePerSlotEur(totalCount);
+  const monthlyTotal = totalCount * perSlot;
   const discountNoteEl = document.getElementById('trialNote');
 
   if (selectedPlanType === 'prepaid'){
@@ -423,7 +423,7 @@ function updateModalPricing(){
 document.getElementById('modalClose').addEventListener('click', ()=> document.getElementById('overlay').style.display='none');
 document.getElementById('overlay').addEventListener('click', (e)=>{ if (e.target.id==='overlay') e.currentTarget.style.display='none'; });
 
-/* ---- "post to additional towns" (one auto-placed square each) ---- */
+/* ---- "post to additional towns" (one auto-placed slot each) ---- */
 let additionalTowns = []; // {id, name}
 const addlInput = document.getElementById('additionalTownInput');
 const addlSuggestions = document.getElementById('additionalTownSuggestions');
@@ -507,7 +507,7 @@ function renderAdditionalTownsList(){
 let cropper = null;
 let uploadedLogoUrl = null;
 
-// Banner tiles are uniform squares now (no more variable-shaped grid
+// Banner tiles are uniform slots now (no more variable-shaped grid
 // blocks) -- the crop is always 1:1 regardless of how many slots were
 // purchased.
 function getSelectionAspectRatio(){
@@ -696,7 +696,7 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         townId: currentTown.id,
-        squareCount: selectedCount,
+        slotCount: selectedCount,
         additionalTowns: additionalTowns.map(a => ({ townId: a.id, count: a.count })),
         planType: selectedPlanType,
         prepaidMonths: selectedPlanType === 'prepaid' ? selectedPrepaidMonths : null,
