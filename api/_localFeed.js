@@ -1039,10 +1039,16 @@ async function getNewsSection(supabase, townId, category, townName) {
   const itemType = (!isOulu || validCategory === DEFAULT_NEWS_CATEGORY) ? 'news' : `news:${validCategory}`;
 
   try {
+    // Secondary .order('id') below: same reasoning as the events query
+    // in getEventsSection -- rows inserted in the same refresh batch can
+    // share a created_at close enough to tie, and this list feeds
+    // straight into api/ask.js's cache key (via newsContext), so an
+    // unstable order here silently caused cache misses too.
     const { data: existingNews } = await supabase
       .from('local_feed_items').select('*')
       .eq('town_id', townId).eq('item_type', itemType)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: true });
     const newsAgeHours = existingNews && existingNews.length > 0
       ? (Date.now() - new Date(existingNews[0].created_at).getTime()) / 3600000 : Infinity;
     // 2 hours is fine for Oulu/Helsinki -- free RSS, cheap to refresh
@@ -1153,10 +1159,21 @@ function applyAdminEventCuration(rawEvents) {
 
 async function getEventsSection(supabase, townId, townName) {
   try {
+    // Secondary .order('id') below: event_date alone ties for every
+    // event happening today, which is the common case for "today's
+    // events" -- without a tiebreaker, Postgres doesn't guarantee the
+    // same relative order for tied rows across repeated identical
+    // queries. That mattered beyond just display order: this list feeds
+    // directly into api/ask.js's answer cache key (via eventContext), so
+    // an unstable order here silently defeated caching for any question
+    // touching events -- the exact same question, seconds apart, hashing
+    // to a different key purely because tied rows came back reordered,
+    // never because anything about the real data changed.
     const { data: existingRaw } = await supabase
       .from('local_feed_items').select('*')
       .eq('town_id', townId).eq('item_type', 'event')
-      .order('event_date', { ascending: true });
+      .order('event_date', { ascending: true })
+      .order('id', { ascending: true });
 
     // Real bug this fixes: events are scoped to "still relevant" (ongoing
     // or upcoming today), but a cache that's merely "less than 20 hours

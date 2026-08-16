@@ -271,6 +271,16 @@ module.exports = async (req, res) => {
     const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
     if (!town) return res.status(404).json({ error: 'Unknown town.' });
 
+    // Every query below has an explicit, fully deterministic sort order
+    // (including a secondary tiebreaker beyond the natural one, where
+    // ties are actually likely -- e.g. today's events all sharing one
+    // event_date) -- not just for a stable UI, but because the exact
+    // arrays built from these results feed directly into buildAskCacheKey
+    // further down. An unstable row order silently defeated the answer
+    // cache for the exact same question asked seconds apart: a real,
+    // confirmed bug (not just a theoretical risk) found via a live A/B
+    // comparison producing two genuinely different answers for one
+    // identical question a minute apart, well inside the 10-minute TTL.
     const [{ data: rawSlots }, events, news, { data: aiHints }] = await Promise.all([
       supabase.from('slots')
         .select('id, group_id, company_name, industry, tagline, website_url, ai_blurb_fi, lat, lng')
@@ -279,7 +289,7 @@ module.exports = async (req, res) => {
         .limit(MAX_BUSINESSES_IN_CONTEXT),
       getEventsSection(supabase, townId, town.name),
       getNewsSection(supabase, townId, undefined, town.name),
-      supabase.from('ai_agent_hints').select('hint_text').or(`town_id.eq.${townId},town_id.is.null`).order('created_at', { ascending: false })
+      supabase.from('ai_agent_hints').select('hint_text').or(`town_id.eq.${townId},town_id.is.null`).order('created_at', { ascending: false }).order('id', { ascending: true })
     ]);
 
     // A business can own several slots (see the banner's per-slot pricing
