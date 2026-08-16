@@ -275,6 +275,7 @@ module.exports = async (req, res) => {
       supabase.from('slots')
         .select('id, group_id, company_name, industry, tagline, website_url, ai_blurb_fi, lat, lng')
         .eq('town_id', townId).eq('status', 'active').eq('flagged', false)
+        .order('id', { ascending: true })
         .limit(MAX_BUSINESSES_IN_CONTEXT),
       getEventsSection(supabase, townId, town.name),
       getNewsSection(supabase, townId, undefined, town.name),
