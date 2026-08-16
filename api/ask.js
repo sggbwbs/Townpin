@@ -418,12 +418,22 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
 
     if (cacheKey) {
       const cutoff = new Date(Date.now() - ASK_CACHE_TTL_MINUTES * 60 * 1000).toISOString();
-      const { data: cached } = await supabase
+      const { data: cached, error: cacheReadErr } = await supabase
         .from('ask_answer_cache')
         .select('response')
         .eq('cache_key', cacheKey)
         .gt('created_at', cutoff)
         .maybeSingle();
+      // Logged, not swallowed -- a failure here (e.g. the table not
+      // existing yet, a missing migration, an RLS policy blocking reads)
+      // was previously indistinguishable from a normal cache miss: same
+      // code path, same real paid API call, zero trace in the logs. That
+      // silence is exactly the shape of bug this codebase has been bitten
+      // by before (see the events-pipeline entry in CHANGELOG.md) --
+      // surfacing it here means a 100%-miss-rate cache shows up as a
+      // repeated, obvious error instead of just looking like the cache
+      // "isn't helping much".
+      if (cacheReadErr) console.error('[ask cache] read failed (falling through to a real API call):', cacheReadErr);
       if (cached && cached.response) {
         // Recorded exactly the same way a normally-answered question is
         // -- from the visitor's side this genuinely answered their
