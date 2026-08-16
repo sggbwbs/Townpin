@@ -1059,7 +1059,7 @@ function setAskSheetMinimized(minimized){
 function updateReopenButtonVisibility(){
   const panel = document.getElementById('askHeroResults');
   const hasHistory = document.getElementById('askResultsList').children.length > 0;
-  const isHidden = !panel.classList.contains('open') || panel.classList.contains('minimized');
+  const isHidden = isAskSheetHidden(panel.classList.contains('open'), panel.classList.contains('minimized'));
   document.getElementById('askReopenChatBtn').classList.toggle('visible', hasHistory && isHidden);
 }
 
@@ -1188,12 +1188,21 @@ function renderAskMarkdown(rawText){
 // screenshot someone happened to send in. Thumbs up submits right away;
 // thumbs down reveals an optional comment box first, since that's the
 // genuinely useful case to get real detail on.
-function wireAskFeedback(container, question, answer){
+//
+// cacheKey (from api/ask.js's response, null for a follow-up question
+// that was never cache-eligible in the first place -- see
+// ASK_CACHE_TTL_MINUTES in api/ask.js) lets a downvote delete that
+// EXACT cached entry server-side, so a bad answer stops being served to
+// the next person asking the same thing immediately, rather than
+// sitting there for the rest of its 10-minute TTL. Deliberately not
+// wired to the upvote path -- there's nothing to delete on a good
+// answer, and leaving it cached is the whole point.
+function wireAskFeedback(container, question, answer, cacheKey){
   if (!container) return;
   const upBtn = container.querySelector('[data-rating="up"]');
   const downBtn = container.querySelector('[data-rating="down"]');
 
-  upBtn.addEventListener('click', () => submitAskFeedback(container, question, answer, 'up', null));
+  upBtn.addEventListener('click', () => submitAskFeedback(container, question, answer, 'up', null, cacheKey));
 
   downBtn.addEventListener('click', () => {
     if (container.querySelector('.askFeedbackCommentBox')) return; // already shown, don't duplicate on a second click
@@ -1206,12 +1215,12 @@ function wireAskFeedback(container, question, answer){
     container.appendChild(box);
     box.querySelector('.askFeedbackSendBtn').addEventListener('click', () => {
       const comment = box.querySelector('.askFeedbackTextarea').value.trim();
-      submitAskFeedback(container, question, answer, 'down', comment || null);
+      submitAskFeedback(container, question, answer, 'down', comment || null, cacheKey);
     });
   });
 }
 
-async function submitAskFeedback(container, question, answer, rating, comment){
+async function submitAskFeedback(container, question, answer, rating, comment, cacheKey){
   // Confirms immediately rather than waiting on the network round trip
   // -- the visitor's part is done the moment they click, whether or not
   // the request itself has resolved yet.
@@ -1219,7 +1228,7 @@ async function submitAskFeedback(container, question, answer, rating, comment){
   try {
     await fetch(`${API_BASE}/feedback`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ townId: currentTown.id, question, answer, rating, comment })
+      body: JSON.stringify({ townId: currentTown.id, question, answer, rating, comment, cacheKey })
     });
   } catch (e) {
     // best-effort -- the visitor already saw their thanks message either way

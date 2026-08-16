@@ -125,7 +125,7 @@ async function askAsk(question, sendBtn){
     const typingEl = resultEl.querySelector('.askTypingText');
     typeReveal(typingEl, answer, () => {
       resultEl.innerHTML = html;
-      wireAskFeedback(resultEl.querySelector('#' + feedbackId), question, answer);
+      wireAskFeedback(resultEl.querySelector('#' + feedbackId), question, answer, data.cacheKey || null);
       if (mapId) renderAskMap(mapId, mapPoints);
       resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
@@ -208,7 +208,7 @@ document.getElementById('mobileAskInput').addEventListener('keydown', (e)=>{
 // ever reopening via a brand new question.
 document.getElementById('mobileAskInput').addEventListener('focus', () => {
   const panel = document.getElementById('askHeroResults');
-  if (panel.classList.contains('open') && panel.classList.contains('minimized') && askHistory.length > 0){
+  if (shouldReopenAskSheetOnFocus(panel.classList.contains('open'), panel.classList.contains('minimized'), askHistory.length)){
     setAskSheetMinimized(false);
   }
 });
@@ -221,7 +221,7 @@ document.getElementById('mobileAskInput').addEventListener('focus', () => {
 // a real bug, not just a theoretical gap.
 document.getElementById('askHeroInput').addEventListener('focus', () => {
   const panel = document.getElementById('askHeroResults');
-  if (panel.classList.contains('open') && panel.classList.contains('minimized') && askHistory.length > 0){
+  if (shouldReopenAskSheetOnFocus(panel.classList.contains('open'), panel.classList.contains('minimized'), askHistory.length)){
     setAskSheetMinimized(false);
   }
 });
@@ -239,7 +239,7 @@ document.getElementById('askHeroInput').addEventListener('focus', () => {
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   const panel = document.getElementById('askHeroResults');
-  if (!panel.classList.contains('open') || panel.classList.contains('minimized')) return;
+  if (!shouldMinimizeOnEscape(panel.classList.contains('open'), panel.classList.contains('minimized'))) return;
   setAskSheetMinimized(true);
   document.getElementById('askHeroInput').focus();
 });
