@@ -18,6 +18,8 @@
 // the company "quick info" blurb) -- genuinely a harder, less reliable
 // category than the other two, and expected to find less.
 
+const { applyLearnedAutoSelection } = require('./_eventLearning');
+
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-haiku-4-5-20251001';
 const NEWS_REFRESH_AFTER_HOURS = 2;   // cheap to refresh often -- just an XML fetch, no AI cost
@@ -1138,6 +1140,7 @@ async function getEventsSection(supabase, townId, townName) {
     const eventsAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
 
     if (existingEvents.length > 0 && eventsAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
+      await applyLearnedAutoSelection(supabase, existingEvents);
       return applyAdminEventCuration(existingEvents);
     }
     const fresh = await generateEventItems(townName);
@@ -1151,6 +1154,7 @@ async function getEventsSection(supabase, townId, townName) {
       .or(`event_end_date.lt.${helsinkiToday},and(event_end_date.is.null,event_date.lt.${helsinkiToday})`);
 
     if (fresh.length === 0) {
+      await applyLearnedAutoSelection(supabase, existingEvents);
       return applyAdminEventCuration(existingEvents); // still useless if this is also empty, but never worse than what we had
     }
 
@@ -1191,6 +1195,7 @@ async function getEventsSection(supabase, townId, townName) {
     }
 
     if (genuinelyNew.length === 0) {
+      await applyLearnedAutoSelection(supabase, existingEvents);
       return applyAdminEventCuration(existingEvents); // nothing new to add, what we had is still complete
     }
 
@@ -1212,7 +1217,9 @@ async function getEventsSection(supabase, townId, townName) {
       // table's real schema.
       console.error(`Event insert failed: ${insertErr.message}. Sample row: ${JSON.stringify(rows[0]).slice(0, 1000)}`);
     }
-    return applyAdminEventCuration([...existingEvents, ...(inserted || [])]);
+    const mergedEvents = [...existingEvents, ...(inserted || [])];
+    await applyLearnedAutoSelection(supabase, mergedEvents);
+    return applyAdminEventCuration(mergedEvents);
   } catch (err) {
     console.error('Events feed lookup failed:', err);
     return [];
