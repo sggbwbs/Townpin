@@ -99,8 +99,6 @@ function renderBizFeedCard(){
   const track = document.getElementById('bizFeedScrollTrack');
   const empty = document.getElementById('bizFeedEmpty');
   const scrollWindow = document.getElementById('bizFeedScrollWindow');
-  const loading = document.getElementById('bizFeedLoading');
-  if (loading) loading.style.display = 'none';
 
   const seen = new Set();
   const businesses = [];
