@@ -211,7 +211,7 @@ module.exports = async (req, res) => {
     const logoLinkProblem = logoUrl ? isSuspicious(logoUrl) : null;
     if (logoLinkProblem) return res.status(400).json({ error: `Logo URL: ${logoLinkProblem}` });
 
-    const modResult = await moderate({ companyName, websiteUrl });
+    const modResult = await moderate({ companyName, websiteUrl, logoUrl });
     if (!modResult.allowed) {
       return res.status(403).json({ error: `We can't list this: ${modResult.reason}` });
     }

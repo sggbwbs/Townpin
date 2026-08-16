@@ -57,6 +57,17 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" defer></script>
 
+<!-- Hero photo is a CSS background-image (see #heroPhotoWrap in
+     styles.css), which the browser would otherwise only discover after
+     parsing and applying the stylesheet -- this preload starts the
+     fetch in parallel with that instead, since it's the page's LCP
+     element. imagesrcset/imagesizes mirrors the same width-based
+     choice as the CSS image-set()+media-query pair, so the browser
+     preloads the same file it's about to actually use. -->
+<link rel="preload" as="image" href="/hero-oulu.webp"
+      imagesrcset="/hero-oulu-mobile.webp 900w, /hero-oulu.webp 2048w"
+      imagesizes="100vw" fetchpriority="high" />
+
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>

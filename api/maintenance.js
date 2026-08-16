@@ -93,14 +93,14 @@ async function runCleanup() {
 async function runRecheckSlots() {
   const { data: slots, error } = await supabase
     .from('slots')
-    .select('id, company_name, website_url')
+    .select('id, company_name, website_url, logo_url')
     .eq('status', 'active')
     .eq('flagged', false);
   if (error) { console.error(error); throw new Error('Could not load slots.'); }
 
   let flaggedCount = 0;
   for (const s of slots) {
-    const result = await moderate({ companyName: s.company_name, websiteUrl: s.website_url });
+    const result = await moderate({ companyName: s.company_name, websiteUrl: s.website_url, logoUrl: s.logo_url });
     if (!result.allowed) {
       flaggedCount++;
       await supabase.from('slots').update({ flagged: true, flag_reason: result.reason }).eq('id', s.id);

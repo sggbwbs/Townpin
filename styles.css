@@ -1029,7 +1029,19 @@
      together resolve to "exactly as tall as the parent actually is". */
   #heroPhotoWrap::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;
     background:linear-gradient(180deg,rgba(10,8,20,0.55) 0%,rgba(10,8,20,0.32) 40%,rgba(10,8,20,0.55) 100%),
-      url('/hero-oulu.jpg') center/cover;}
+      image-set(url('/hero-oulu.webp') type('image/webp'), url('/hero-oulu.jpg') type('image/jpeg'));
+    background-size:cover;background-position:center;}
+  @media (max-width:900px){
+    /* Same photo, downscaled to the width this breakpoint actually
+       displays -- background-size:cover was already cropping the full
+       2048px-wide desktop image down on every phone, so a phone-sized
+       source here is the same visible result for a fraction of the
+       bytes, not a quality trade-off. */
+    #heroPhotoWrap::before{
+      background:linear-gradient(180deg,rgba(10,8,20,0.55) 0%,rgba(10,8,20,0.32) 40%,rgba(10,8,20,0.55) 100%),
+        image-set(url('/hero-oulu-mobile.webp') type('image/webp'), url('/hero-oulu-mobile.jpg') type('image/jpeg'));
+      background-size:cover;background-position:center;}
+  }
   #heroPhotoWrap::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;
     background:radial-gradient(600px 320px at 50% 40%, rgba(124,92,255,0.22), transparent 70%);
     pointer-events:none;}
