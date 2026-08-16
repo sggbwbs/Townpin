@@ -524,7 +524,7 @@ async function handleUserVerifyEmail(req, res) {
 // bother to use it at all.
 async function handleFeedback(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
-  const { townId, question, answer, rating, comment } = req.body || {};
+  const { townId, question, answer, rating, comment, cacheKey } = req.body || {};
   if (!townId || !question || !answer) return res.status(400).json({ error: 'Missing required fields.' });
   if (rating !== 'up' && rating !== 'down') return res.status(400).json({ error: 'Invalid rating.' });
 
@@ -536,6 +536,23 @@ async function handleFeedback(req, res) {
     comment: comment ? String(comment).slice(0, 1000) : null
   });
   if (error) { console.error('Feedback insert failed:', error); return res.status(500).json({ error: 'Could not save feedback.' }); }
+
+  // A downvote deletes this exact cached answer right away, rather than
+  // leaving it to serve identically to the next person asking the same
+  // question until its 10-minute TTL naturally expires (see
+  // ASK_CACHE_TTL_MINUTES in api/ask.js). cacheKey is whatever api/ask.js
+  // itself used to store the entry -- never recomputed or guessed here,
+  // so this can only ever delete the one specific entry that produced
+  // this exact flagged answer, nothing broader. Absent (null) for a
+  // follow-up question in a conversation, since those were never
+  // cache-eligible to begin with -- nothing to delete in that case.
+  // Best-effort: a failed delete here shouldn't turn a successfully
+  // saved piece of feedback into an error response.
+  if (rating === 'down' && cacheKey && typeof cacheKey === 'string') {
+    const { error: cacheDeleteErr } = await supabase.from('ask_answer_cache').delete().eq('cache_key', cacheKey);
+    if (cacheDeleteErr) console.error('Downvoted cache entry deletion failed (non-fatal):', cacheDeleteErr);
+  }
+
   res.status(200).json({ ok: true });
 }
 

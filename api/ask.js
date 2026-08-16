@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { supabase } = require('./_db');
 const { getNewsSection, getEventsSection } = require('./_localFeed');
 const { getClientIp, recordRequest, recordUserRequest, countIpToday, countUserToday } = require('./_rateLimit');
@@ -41,6 +42,55 @@ const MODEL_STANDARD = 'claude-haiku-4-5-20251001';
 const MAX_HISTORY_TURNS = 6; // trailing turns only -- keeps a long-running chat's cost bounded
 const MAX_QUESTION_LENGTH = 500;
 const MAX_BUSINESSES_IN_CONTEXT = 200; // defensive cap even for a hypothetical fully-booked board
+
+// Answer cache: a real question ("kesätapahtumat", "sushi lähellä") gets
+// asked by many different visitors verbatim, especially right after
+// being surfaced by a suggestion chip -- serving the same real,
+// grounded answer back to the second and third person asking it costs
+// nothing (no AI call at all) instead of a full ~$0.02-0.03 search-
+// grounded call every time.
+//
+// Deliberately conservative given how much of this file's own prompt
+// exists specifically to get time-sensitive reasoning right (today's
+// events ending, "still open right now", a multi-day festival's real
+// end date) -- caching the wrong thing here would reintroduce exactly
+// the class of bug the prompt comments above document fighting:
+// - Only ever applied to a FRESH question (no conversation history).
+//   A multi-turn exchange is inherently closer to unique than repeated,
+//   and caching a mid-conversation answer risks it resurfacing out of
+//   its original context for someone else entirely.
+// - The cache key includes the full business/events/news/hints context
+//   sent to the model, not just the question text -- so the moment a
+//   business joins/leaves, an event's data changes, or an admin hint is
+//   added, the key changes and the next matching question is a fresh
+//   call again. Stale board/event data being served from cache is
+//   structurally impossible by construction, not just unlikely.
+// - The key includes today's calendar date (so "tomorrow" naturally
+//   re-resolves on a new day) but NOT the current time-of-day -- doing
+//   that would make the key different on almost every request and
+//   defeat caching entirely. The short TTL below is what actually
+//   bounds time-of-day staleness instead.
+// - A short TTL (10 minutes), not "for the rest of the day" -- small
+//   enough that "is this still running right now" staying accurate
+//   matters more than maximizing cache hits.
+const ASK_CACHE_TTL_MINUTES = 10;
+
+function normalizeQuestionForCache(q) {
+  return q.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function buildAskCacheKey({ townId, question, businessContext, eventContext, newsContext, aiHints, todayLabel }) {
+  const raw = JSON.stringify({
+    townId,
+    q: normalizeQuestionForCache(question),
+    day: todayLabel,
+    businesses: businessContext,
+    events: eventContext,
+    news: newsContext,
+    hints: aiHints
+  });
+  return crypto.createHash('sha256').update(raw).digest('hex');
+}
 
 // Web-search-grounded responses can include inline citation markup like
 // <cite index="1-4">...</cite> as part of how the model attributes
@@ -345,6 +395,59 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
           .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
       : [];
     const messages = [...trimmedHistory, { role: 'user', content: question.trim() }];
+
+    // Only a fresh (no-history) question is eligible -- see the cache
+    // design comment above ASK_CACHE_TTL_MINUTES for the full reasoning.
+    const cacheKey = trimmedHistory.length === 0
+      ? buildAskCacheKey({
+          townId, question: question.trim(), businessContext, eventContext, newsContext,
+          aiHints: aiHints || [], todayLabel: getHelsinkiTodayLabel()
+        })
+      : null;
+
+    if (cacheKey) {
+      const cutoff = new Date(Date.now() - ASK_CACHE_TTL_MINUTES * 60 * 1000).toISOString();
+      const { data: cached } = await supabase
+        .from('ask_answer_cache')
+        .select('response')
+        .eq('cache_key', cacheKey)
+        .gt('created_at', cutoff)
+        .maybeSingle();
+      if (cached && cached.response) {
+        // Recorded exactly the same way a normally-answered question is
+        // -- from the visitor's side this genuinely answered their
+        // question, so it counts against their daily allowance/credits
+        // the same way, even though no AI call actually ran this time.
+        if (usageMode === 'anon') {
+          await recordRequest(supabase, 'ask_agent_log', ip);
+        } else if (usageMode === 'user_free') {
+          await recordUserRequest(supabase, 'user_ai_usage', user.id);
+        } else if (usageMode === 'user_paid') {
+          await supabase.rpc('increment_credit_balance', { p_user_id: user.id, p_amount: -1 });
+        }
+        if (user && user.consent_personalization) {
+          try {
+            await supabase.from('user_activity').insert({
+              user_id: user.id, activity_type: 'search', detail: question.trim().slice(0, 200)
+            });
+          } catch (activityErr) {
+            console.error('Activity logging failed (non-fatal):', activityErr);
+          }
+        }
+        const cachedMentioned = Array.isArray(cached.response.mentioned) ? cached.response.mentioned : [];
+        if (cachedMentioned.length > 0) {
+          supabase.from('business_mentions')
+            .insert(cachedMentioned.map(m => ({ slot_id: m.slotId })))
+            .then(() => {}, (err) => console.error('Business mention tracking failed (non-fatal):', err));
+        }
+        console.log('[ask cache] hit | usageMode:', usageMode, '| townId:', townId);
+        return res.status(200).json({
+          ...cached.response,
+          cacheKey,
+          usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined }
+        });
+      }
+    }
 
     // Rough size (characters, not exact tokens, but proportional enough
     // to see which section actually dominates) of each context section
@@ -855,8 +958,21 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
 
     const linkedNames = [...mentioned.map(m => m.name), ...webResults.map(w => w.name)];
     const finalAnswer = boldLinkedNames(cleanAnswerText(typeof parsed.answer === 'string' ? parsed.answer : ''), linkedNames);
+
+    if (cacheKey) {
+      // Fire-and-forget, same as the business_mentions tracking above --
+      // a failed cache write should never affect the answer the visitor
+      // actually gets. Deliberately NOT reached from the JSON-parse-
+      // failure salvage branch further up -- that's already a degraded
+      // answer, and caching it would spread that same degraded quality
+      // to every visitor who asks the same thing within the TTL.
+      supabase.from('ask_answer_cache')
+        .upsert({ cache_key: cacheKey, response: { answer: finalAnswer, mentioned, webResults }, created_at: new Date().toISOString() }, { onConflict: 'cache_key' })
+        .then(() => {}, (err) => console.error('Ask cache write failed (non-fatal):', err));
+    }
+
     res.status(200).json({
-      answer: finalAnswer, mentioned, webResults,
+      answer: finalAnswer, mentioned, webResults, cacheKey,
       usage: { mode: usageMode, creditBalance: usageMode === 'user_paid' ? user.credit_balance - 1 : undefined }
     });
   } catch (err) {
