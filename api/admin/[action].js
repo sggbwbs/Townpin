@@ -8,6 +8,7 @@ const { supabase } = require('../_db');
 const { isAuthenticated, getAdminSession, setSessionCookie, clearSessionCookie, getClientIp } = require('./_auth');
 const { pickRandomEmptySquares, insertSquaresWithRetry } = require('../_squares');
 const { geocodeAddress } = require('../_geocode');
+const { recordKeywordSelections } = require('../_eventLearning');
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -548,7 +549,7 @@ async function handleListEventsForAdmin(req, res) {
   const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
   const { data, error } = await supabase
     .from('local_feed_items')
-    .select('id, title_fi, title_en, summary_fi, event_date, event_end_date, event_start_time, source_url, admin_selected, admin_highlighted')
+    .select('id, title_fi, title_en, summary_fi, event_date, event_end_date, event_start_time, source_url, admin_selected, admin_highlighted, auto_selected')
     .eq('town_id', townId).eq('item_type', 'event')
     .or(`event_end_date.gte.${helsinkiToday},and(event_end_date.is.null,event_date.gte.${helsinkiToday})`)
     .order('event_date', { ascending: true });
@@ -603,6 +604,17 @@ async function handleSelectEvents(req, res) {
       .from('local_feed_items').update({ admin_selected: true })
       .eq('town_id', townId).eq('item_type', 'event').in('id', selected);
     if (selErr) { console.error(selErr); return res.status(500).json({ error: 'Could not update selection.' }); }
+
+    // Learn from this pick -- doesn't block the response, and a failure
+    // here shouldn't turn a successful selection into an error for the
+    // admin, so this is deliberately fire-and-forget rather than awaited.
+    supabase
+      .from('local_feed_items').select('title_fi').in('id', selected)
+      .then(({ data: selectedRows, error: titleErr }) => {
+        if (titleErr) { console.error('Could not fetch titles for keyword learning (non-fatal):', titleErr); return; }
+        return recordKeywordSelections(supabase, (selectedRows || []).map(r => r.title_fi));
+      })
+      .catch(err => console.error('Keyword learning failed (non-fatal):', err));
   }
   if (highlighted.length > 0) {
     const { error: hlErr } = await supabase
