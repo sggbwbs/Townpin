@@ -1092,6 +1092,37 @@ async function getNewsSection(supabase, townId, category, townName) {
 // and made "Show more" disappear entirely. Otherwise (nothing picked for
 // today), falls through to whatever was passed in unchanged. Applied at
 // every return point below so a hand-picked selection sticks regardless
+// Multiple rows can legitimately exist in local_feed_items for what's
+// really the same event -- most commonly a multi-day event appearing
+// once per occurrence in Kaleva's own upstream API. Previously left
+// entirely to each CALLER to dedupe (app-board.js client-side, the
+// admin panel's own server-side copy, notifications.js's own server-
+// side copy) -- a real, reported bug traced to exactly this: the
+// digest email had its own copy of this filter added later than the
+// other two, so until that landed, the same event could appear 3-4
+// times in a sent email. Deduping once here instead, at the actual
+// source, means no current or future caller (a fourth one, api/ask.js's
+// own event context for the AI chat, was ALSO never deduping) can miss
+// it again -- this is the one place that structurally can't be
+// forgotten. The admin panel and notifications.js keep their own
+// copies too rather than being refactored to depend on this -- cheap
+// insurance, not redundant risk, since a no-op dedupe on already-clean
+// data costs nothing.
+//
+// Same key as those other copies, kept in sync deliberately: title +
+// start date + start time. Not source_url (an admin-curated event may
+// have none) and not id (that's the whole problem -- different ids for
+// what's really one event).
+function dedupeEvents(events) {
+  const seen = new Set();
+  return (events || []).filter(ev => {
+    const key = `${ev.title_fi}|${ev.event_date}|${ev.event_start_time}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // of which branch (cache hit, merge, etc.) produced the final list.
 //
 // If an admin has hand-picked events for this town (admin_selected = true
@@ -1106,10 +1137,12 @@ async function getNewsSection(supabase, townId, category, townName) {
 // shown ("4 events today") wrong whenever more than 4 real events existed
 // for the day, and made "Show more" disappear entirely. Otherwise
 // (nothing picked at all), falls through to whatever was passed in
-// unchanged. Applied at every return point below so a hand-picked
-// selection sticks regardless of which branch (cache hit, merge, etc.)
+// unchanged. Applied at every return point below (deduped first -- see
+// dedupeEvents above) so a hand-picked selection sticks, and duplicates
+// never resurface, regardless of which branch (cache hit, merge, etc.)
 // produced the final list.
-function applyAdminEventCuration(events) {
+function applyAdminEventCuration(rawEvents) {
+  const events = dedupeEvents(rawEvents);
   const selected = events.filter(e => e.admin_selected);
   if (selected.length === 0) return events;
   const highlighted = selected.filter(e => e.admin_highlighted);
@@ -1269,4 +1302,4 @@ async function getLocalFeed(supabase, townId, townName, newsCategory) {
   return { news, events, offers };
 }
 
-module.exports = { getLocalFeed, getNewsSection, getEventsSection, NEWS_RSS_FEEDS, DEFAULT_NEWS_CATEGORY, getHelsinkiDayBounds, fetchAndUploadImage, fetchTilannehuoneItems };
+module.exports = { getLocalFeed, getNewsSection, getEventsSection, dedupeEvents, applyAdminEventCuration, NEWS_RSS_FEEDS, DEFAULT_NEWS_CATEGORY, getHelsinkiDayBounds, fetchAndUploadImage, fetchTilannehuoneItems };
