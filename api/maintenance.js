@@ -87,6 +87,19 @@ async function runCleanup() {
     else console.log(`Cleaned up ${staleFeedItems.length} stale feed item(s) older than 30 days.`);
   }
 
+  // Answer cache for api/ask.js -- rows past their own 10-minute TTL
+  // are already functionally dead (never matched by a read again), this
+  // just reclaims the storage. A day's cushion past that TTL is plenty;
+  // this only needs to run often enough to keep the table from growing
+  // forever, not to enforce the TTL itself (the read-time check in
+  // ask.js already does that).
+  const askCacheCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { error: askCacheErr } = await supabase
+    .from('ask_answer_cache')
+    .delete()
+    .lt('created_at', askCacheCutoff);
+  if (askCacheErr) console.error('Ask answer cache pruning failed (non-fatal):', askCacheErr);
+
   return { ok: true };
 }
 
