@@ -108,6 +108,21 @@ async function fetchAndStoreOgImage(pageUrl, supabase) {
 // hosting doesn't send the necessary CORS headers. Re-hosting through
 // our own Supabase storage (which does send them) sidesteps this
 // regardless of the original source's own CORS configuration.
+//
+// Resized/recompressed before upload (max 800px longest side, same cap
+// the logo-upload pipeline already uses for business logos -- see
+// upload-logo.js -- for consistency, and because both real display
+// contexts here are small: a feed thumbnail, or a 56x56px sponsor logo
+// box on today-card.html's canvas). This isn't just a size optimization
+// -- a real Supabase storage-quota warning was traced directly to
+// this: news/event images (the "feed-" prefix) were being stored at
+// full original resolution (several MB each, no cap beyond a generic
+// 3MB reject) with only a 30-day age-based cleanup to bound the
+// damage. A storage audit found nearly ALL usage was feed images well
+// under 30 days old -- meaning even a perfectly-working cleanup cron
+// can't keep pace with that raw accumulation rate. Storing smaller
+// files from the start is the actual fix; the 30-day cleanup remains
+// valuable as a second layer, not a substitute for this.
 async function fetchAndUploadImage(imageUrl, supabase, prefix) {
   try {
     const controller = new AbortController();
@@ -121,11 +136,30 @@ async function fetchAndUploadImage(imageUrl, supabase, prefix) {
     const ext = allowed[contentType];
     if (!ext) return null;
 
-    const buffer = Buffer.from(await imgRes.arrayBuffer());
-    if (buffer.length > 3 * 1024 * 1024) return null;
+    const rawBuffer = Buffer.from(await imgRes.arrayBuffer());
+    if (rawBuffer.length > 3 * 1024 * 1024) return null;
 
-    const filename = `${prefix}-${require('crypto').randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from('logos').upload(filename, buffer, { contentType, upsert: false });
+    // PNG kept as PNG (resized only, not recompressed to a lossy format)
+    // to preserve transparency -- the one real reason anything here
+    // would deliberately be a PNG in the first place, e.g. a sponsor
+    // logo with a transparent background. Everything else (JPEG/WebP,
+    // and PNG source photos with no transparency need) is normalized to
+    // JPEG at a quality that's visually fine at these small display
+    // sizes -- this is where nearly all the real byte savings come
+    // from, since JPEG source photos were the dominant contributor to
+    // the actual storage-quota problem.
+    const sharp = require('sharp');
+    let outBuffer, outExt, outContentType;
+    if (ext === 'png') {
+      outBuffer = await sharp(rawBuffer).resize(800, 800, { fit: 'inside', withoutEnlargement: true }).png({ compressionLevel: 9 }).toBuffer();
+      outExt = 'png'; outContentType = 'image/png';
+    } else {
+      outBuffer = await sharp(rawBuffer).resize(800, 800, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 78, mozjpeg: true }).toBuffer();
+      outExt = 'jpg'; outContentType = 'image/jpeg';
+    }
+
+    const filename = `${prefix}-${require('crypto').randomUUID()}.${outExt}`;
+    const { error } = await supabase.storage.from('logos').upload(filename, outBuffer, { contentType: outContentType, upsert: false });
     if (error) return null;
 
     const { data } = supabase.storage.from('logos').getPublicUrl(filename);
