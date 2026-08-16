@@ -45,25 +45,55 @@ async function runCleanup() {
     .lt('created_at', activityCutoff);
   if (activityErr) console.error('Activity log pruning failed (non-fatal):', activityErr);
 
-  // Old news/event rows and their re-hosted images -- previously
-  // nothing ever deleted these, so every image ever fetched for a news
-  // article or event since the site went live has been accumulating in
-  // Supabase Storage indefinitely, well past the point the item stops
-  // being shown anywhere on the site (news/events are inherently
-  // short-lived; nothing here is ever displayed more than a day or two
-  // after being fetched). 30 days is a generous cutoff given that.
-  // Storage files are deleted first, then the rows -- if storage
-  // deletion fails partway through, the rows stay around to be retried
-  // on the next run rather than silently losing the reference to an
-  // orphaned file that would then never get cleaned up at all.
-  const feedCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: staleFeedItems, error: staleFeedSelectErr } = await supabase
+  // Old news/event/offer rows and their re-hosted images -- previously
+  // nothing ever deleted these at all, which (combined with feed images
+  // being stored at full original resolution -- since fixed, see
+  // fetchAndUploadImage in _localFeed.js) is what actually drove a real
+  // Supabase storage-quota warning.
+  //
+  // Two DIFFERENT rules below, deliberately not one blind age cutoff for
+  // everything:
+  //
+  // News and offers -- pure age-based cutoff, and a short one. Neither
+  // has any "still valid until X" concept: news refreshes every couple
+  // hours (see NEWS_REFRESH_AFTER_HOURS) and there's no "browse older
+  // news" feature anywhere on the site, so a row that's a few days old
+  // is never displayed again regardless of what's in it.
+  //
+  // Events -- NOT a blind age cutoff. A multi-day festival or a
+  // week-long exhibition can genuinely still be running well past a
+  // short fixed "created X days ago" window, and deleting its image
+  // while it's still being shown on the board would be a real
+  // regression, not a cleanup. This instead mirrors the exact same
+  // event_end_date-aware check getEventsSection already runs on every
+  // refresh cycle (see the delete call inside that function) -- this
+  // cron is a backstop for a town that hasn't had a board load (and
+  // therefore no getEventsSection refresh) in a while, not the primary
+  // mechanism. A couple of days' grace past the real end date, not
+  // instant removal, in case a "recently ended" view is ever added.
+  const NON_EVENT_FEED_RETENTION_DAYS = 3;
+  const EVENT_GRACE_DAYS_AFTER_END = 2;
+
+  const nonEventCutoff = new Date(Date.now() - NON_EVENT_FEED_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const eventGraceCutoff = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' })
+    .format(new Date(Date.now() - EVENT_GRACE_DAYS_AFTER_END * 24 * 60 * 60 * 1000));
+
+  const { data: staleNonEvents, error: staleNonEventsErr } = await supabase
     .from('local_feed_items')
     .select('id, image_url')
-    .lt('created_at', feedCutoff);
-  if (staleFeedSelectErr) {
-    console.error('Stale feed item lookup failed (non-fatal):', staleFeedSelectErr);
-  } else if (staleFeedItems && staleFeedItems.length > 0) {
+    .neq('item_type', 'event')
+    .lt('created_at', nonEventCutoff);
+  if (staleNonEventsErr) console.error('Stale news/offer lookup failed (non-fatal):', staleNonEventsErr);
+
+  const { data: staleEvents, error: staleEventsErr } = await supabase
+    .from('local_feed_items')
+    .select('id, image_url')
+    .eq('item_type', 'event')
+    .or(`event_end_date.lt.${eventGraceCutoff},and(event_end_date.is.null,event_date.lt.${eventGraceCutoff})`);
+  if (staleEventsErr) console.error('Stale event lookup failed (non-fatal):', staleEventsErr);
+
+  const staleFeedItems = [...(staleNonEvents || []), ...(staleEvents || [])];
+  if (staleFeedItems.length > 0) {
     // Only ever targets files with the "feed-" prefix (see
     // fetchAndUploadImage in _localFeed.js) -- business logos are
     // uploaded with no prefix at all (see upload-logo.js), so this can
@@ -79,12 +109,18 @@ async function runCleanup() {
       const { error: storageErr } = await supabase.storage.from('logos').remove(filenames);
       if (storageErr) console.error('Stale feed image storage cleanup failed (non-fatal, rows kept for retry):', storageErr);
     }
+    // Deletes by exact id, not a repeated date-filter delete -- so this
+    // only ever removes precisely the rows already looked up and
+    // storage-cleaned above, not a second, independently-evaluated
+    // query that could in principle match a slightly different set if
+    // anything changed between the select and the delete.
+    const idsToDelete = staleFeedItems.map(item => item.id);
     const { error: feedDeleteErr } = await supabase
       .from('local_feed_items')
       .delete()
-      .lt('created_at', feedCutoff);
+      .in('id', idsToDelete);
     if (feedDeleteErr) console.error('Stale feed item row cleanup failed (non-fatal):', feedDeleteErr);
-    else console.log(`Cleaned up ${staleFeedItems.length} stale feed item(s) older than 30 days.`);
+    else console.log(`Cleaned up ${staleFeedItems.length} stale feed item(s) -- ${(staleNonEvents || []).length} news/offer, ${(staleEvents || []).length} ended event(s).`);
   }
 
   // Answer cache for api/ask.js -- rows past their own 10-minute TTL
