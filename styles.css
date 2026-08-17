@@ -958,6 +958,13 @@
   .newsRowBadge{flex:none;width:42px;height:42px;border-radius:50%;color:#fff;object-fit:cover;
     display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;
     font-size:16px;font-weight:700;}
+  /* Real source logos (Kaleva/Yle) are wide wordmarks, not square icons
+     -- force-cropping one into the circular photo badge above would cut
+     off most of it and make it unrecognizable. A white rounded-rect
+     chip with contain-fit (never cropped) is the standard, sane way to
+     show an arbitrary-shaped brand logo at a small fixed size. */
+  .newsRowBadgeLogo{border-radius:9px;background:#fff;object-fit:contain;padding:6px;box-sizing:border-box;}
+  .newsRow.newsRowLead .newsRowBadgeLogo{border-radius:12px;padding:8px;}
   .newsRowBody{flex:none;width:fit-content;max-width:calc(100% - 60px);min-width:0;display:flex;flex-direction:column;gap:2px;}
   .newsRow b{font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--ink);line-height:1.35;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}

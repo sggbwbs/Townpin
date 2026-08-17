@@ -1037,19 +1037,48 @@ function makeFeedItemEl(item, index){
   // The circular icon is the real photo when one's available -- showing
   // both a generic colored letter AND the real photo separately (the
   // previous design) was redundant; the photo is strictly more useful
-  // once it exists. Falls back to the colored source-letter only when
-  // there's genuinely no photo for that item.
+  // once it exists. Falls back to the source's own real logo when
+  // there's genuinely no article photo -- Kaleva and Yle logos used
+  // with their explicit permission (same permission that covers pulling
+  // their headlines at all -- see the email thread). Logo files expected
+  // at /source-logos/kaleva.png and /source-logos/yle.png; if either is
+  // ever missing (not yet uploaded, a typo, whatever), onerror below
+  // swaps back to the plain colored-letter badge rather than showing a
+  // broken image icon.
+  // Real source logos used with explicit permission -- see the email
+  // threads for Kaleva and Yle. City of Oulu's logo is deliberately
+  // scoped to its OWN source_name ('Oulun kaupunki') specifically, not
+  // every item from the wider Oulu-news feed category -- that category
+  // actually bundles five distinct real organizations (BusinessOulu,
+  // Mun Oulu, the city government itself, the science centre, the
+  // regional transit authority), and using the city's own logo to
+  // attribute, say, a transit-authority article would misattribute it
+  // to the wrong organization, not just an imprecise one.
   const isKaleva = item.source_name === 'Kaleva';
   const isYle = item.source_name === 'Yle';
-  const badge = document.createElement(item.image_url ? 'img' : 'span');
+  const isOuluCity = item.source_name === 'Oulun kaupunki';
+  const sourceLogoSrc = isKaleva ? '/source-logos/kaleva.png' : isYle ? '/source-logos/yle.png' : isOuluCity ? '/source-logos/oulun-kaupunki.png' : null;
+  const badge = document.createElement(item.image_url || sourceLogoSrc ? 'img' : 'span');
   badge.className = 'newsRowBadge';
   if (item.image_url){
     badge.src = item.image_url;
     badge.alt = '';
     badge.loading = 'lazy';
+  } else if (sourceLogoSrc){
+    badge.src = sourceLogoSrc;
+    badge.alt = item.source_name;
+    badge.loading = 'lazy';
+    badge.classList.add('newsRowBadgeLogo'); // a real logo shouldn't be cropped/filled edge-to-edge the way a photo is -- see the CSS
+    badge.onerror = function(){
+      const fallback = document.createElement('span');
+      fallback.className = 'newsRowBadge';
+      fallback.style.background = isKaleva ? '#f7941d' : isYle ? '#00b4d8' : '#003c78';
+      fallback.textContent = isKaleva ? 'K' : isYle ? 'Y' : 'O';
+      this.replaceWith(fallback);
+    };
   } else {
-    badge.style.background = isKaleva ? '#f7941d' : isYle ? '#00b4d8' : 'var(--amber)';
-    badge.textContent = isKaleva ? 'K' : isYle ? 'Y' : (item.source_name ? item.source_name[0] : '•');
+    badge.style.background = 'var(--amber)';
+    badge.textContent = item.source_name ? item.source_name[0] : '•';
   }
   el.appendChild(badge);
 
