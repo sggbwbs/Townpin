@@ -12,12 +12,45 @@
 // them to.
 function openAskPanel(){
   const panel = document.getElementById('askHeroResults');
+  const resultsList = document.getElementById('askResultsList');
   panel.classList.add('open');
   panel.classList.remove('minimized');
   document.body.classList.add('desktopChatOpen'); // only visually matters above 1301px (see the CSS), harmless elsewhere
   updateReopenButtonVisibility();
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  document.getElementById('askHeroInput').focus();
+
+  // No scrollIntoView here -- the panel is position:fixed once open (see
+  // the CSS), so it's already visible regardless of the page's current
+  // scroll position. Calling scrollIntoView anyway was the actual cause
+  // of a real, reported bug: with zero prior messages, the panel's
+  // fixed-positioning CSS hadn't visually "settled" yet at the moment
+  // scrollIntoView ran, so the browser fell back to scrolling toward
+  // wherever the panel sits in the normal document flow -- right after
+  // the hero input near the top of the page -- which looked exactly
+  // like "clicking the tile just scrolls up to the hero input", the
+  // original bug this function was written to fix in the first place.
+
+  // A genuinely empty panel (never asked anything yet) rendered as a
+  // cramped little box with nothing but the Tyhjennä/minimize buttons in
+  // it -- confirmed as confusing on its own, separate from the scroll
+  // bug above. A friendly placeholder makes "the chat" visibly look
+  // like a real, substantial chat window the moment it opens, not just
+  // an empty header bar.
+  if (resultsList.children.length === 0) {
+    resultsList.innerHTML = `<p class="askEmptyPlaceholder">${escapeAskText(t('askEmptyPlaceholder'))}</p>`;
+  }
+
+  // Skipped on mobile widths on purpose -- focusing an input immediately
+  // opens the on-screen keyboard, which shrinks the visible viewport
+  // AFTER the sheet's height was already calculated against the full
+  // viewport, pushing the actual input area down below the now-visible
+  // keyboard. A real, reported bug: the chat visibly opened, but the
+  // one thing you'd actually want to tap (the input) was hidden by the
+  // keyboard that opening it had just triggered. Desktop has no
+  // on-screen keyboard to worry about, so focusing there is still safe
+  // and still the better default (cursor ready to type immediately).
+  if (window.innerWidth > 900) {
+    document.getElementById('askHeroInput').focus();
+  }
 }
 
 async function askAsk(question, sendBtn){

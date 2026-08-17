@@ -1035,6 +1035,13 @@ function escapeAskText(str){
 function askAppendResult(html, extraClass, openPanel){
   if (openPanel === undefined) openPanel = true;
   const list = document.getElementById('askResultsList');
+  // openAskPanel() may have shown this as a "type something" placeholder
+  // for a genuinely empty panel -- a real question being asked replaces
+  // it, rather than appending below it (which would look like the
+  // placeholder text was still relevant advice sitting above a real
+  // answer).
+  const placeholder = list.querySelector('.askEmptyPlaceholder');
+  if (placeholder) placeholder.remove();
   const el = document.createElement('div');
   el.className = `askResultBlock${extraClass ? ' ' + extraClass : ''}`;
   el.innerHTML = html;

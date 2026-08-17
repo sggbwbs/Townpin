@@ -1093,6 +1093,17 @@
   }
 
   #askHeroResults{max-width:640px;margin:0 auto;text-align:left;display:none;}
+  /* Fills the empty space with real visible substance the moment the
+     panel opens with nothing asked yet -- without this, the sheet
+     breakpoint's max-height:60vh (see further down) is a CEILING, not a
+     forced height, so an empty #askResultsList collapses toward zero
+     height and the panel reads as "just a tiny bar with buttons on it",
+     a real, reported point of confusion distinct from (but related to)
+     the scroll-jump bug openAskPanel's own comment explains. min-height
+     guarantees a substantial, obviously-a-chat-window size regardless
+     of breakpoint, without needing separate per-breakpoint overrides. */
+  .askEmptyPlaceholder{min-height:140px;display:flex;align-items:center;justify-content:center;
+    text-align:center;color:var(--ink-dim);font-size:13.5px;line-height:1.5;padding:24px;margin:0;}
   #askSheetMinimizeBtn{display:none;}
   #askDesktopChatMinimizeBtn{display:none;}
   #askNewChatBtn{display:none;}
