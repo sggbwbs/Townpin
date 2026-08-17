@@ -916,6 +916,21 @@
     background:linear-gradient(135deg,var(--panelT7),var(--panelT4));}
   .eventCardBadge{position:absolute;top:10px;right:10px;background:var(--amber);color:#fff;
     font-family:'Space Grotesk',sans-serif;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:6px;}
+  /* Top-LEFT specifically, not top-right like .bizFeedFavoriteBtn it's
+     modeled on -- .eventCardBadge above already occupies top-right, and
+     a highlighted event can have both at once. Same visual language
+     (filled-on-active, brief pop) as the business favorite button for
+     consistency, just sized down slightly to fit this card's smaller
+     130px-max photo area. */
+  .eventInterestBtn{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:50%;
+    border:none;background:var(--panelT7);color:#fff;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;z-index:5;
+    transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease;}
+  .eventInterestBtn svg{width:16px;height:16px;}
+  .eventInterestBtn:hover{background:var(--panelT4);transform:scale(1.1);}
+  .eventInterestBtn.interested{color:#d6336c;background:#fce4ec;}
+  .eventInterestBtn.interested svg{fill:currentColor;}
+  .eventInterestBtn.interested{animation:favoritePop 0.3s ease;}
   .eventCardBody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px;}
   .eventCard b{font-family:'Space Grotesk',sans-serif;font-size:13.5px;color:var(--ink);line-height:1.3;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:35px;}
@@ -1193,6 +1208,21 @@
       padding:14px 16px;border-bottom:1px solid var(--line);flex:none;}
     #askChatToolbarTitle{display:block;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--ink);}
     #askNewChatBtn{display:flex;}
+    #askDesktopChatMinimizeBtn{display:flex;}
+    /* The hero photo's full-bleed trick (width:100vw + left:50% +
+       margin-left:-50vw, see #heroPhotoWrap above) assumes a
+       symmetric page -- it silently mis-centers once
+       body.desktopChatOpen adds right-side-only padding to reserve
+       space for the docked panel, since "50vw" (true viewport) and
+       "50%" (now-asymmetric parent) stop referring to the same
+       physical point on the page. Visible result: a blank gap on the
+       left, roughly half the panel's width. Simplest correct fix
+       isn't re-deriving the exact compensating offset (fragile, since
+       the panel's own width is a clamp(), not a fixed number) -- it's
+       just having the hero fill its parent's already-correctly-narrowed
+       width directly instead of independently trying to full-bleed
+       past it. */
+    body.desktopChatOpen #heroPhotoWrap{width:100%;left:0;margin-left:0;}
     /* Explicit safeguard, not just relying on the transform that slides
        the whole sheet off-screen when minimized -- ensures Tyhjennä is
        never visible/clickable while minimized regardless of how that

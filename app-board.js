@@ -876,6 +876,19 @@ function makeEventCardEl(item){
     badge.textContent = t('featuredBadge');
     photoWrap.appendChild(badge);
   }
+  // Top-LEFT specifically -- the featured badge above already occupies
+  // top-right, and a highlighted event can genuinely have both at once.
+  const interestBtn = document.createElement('button');
+  interestBtn.type = 'button';
+  interestBtn.className = `eventInterestBtn${isEventInterested(item.id) ? ' interested' : ''}`;
+  interestBtn.setAttribute('aria-label', t('eventInterestToggleLabel'));
+  interestBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>';
+  // Both needed, not just one -- el can be a real <a> when the event has
+  // a source_url (see hasLink above), so without these this click would
+  // also navigate away to that link the same way clicking anywhere else
+  // on the card does.
+  interestBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); toggleEventInterest(item.id, item.title_fi, interestBtn); };
+  photoWrap.appendChild(interestBtn);
   el.appendChild(photoWrap);
 
   const body = document.createElement('div');
@@ -941,6 +954,69 @@ function makeEventCardEl(item){
 
   el.appendChild(body);
   return el;
+}
+
+// ---- Event interest ("Kiinnostaa") ----
+// Deliberately NOT the same long-term pattern as business favorites
+// above -- see that comment's own reasoning for why events were
+// excluded from it (they rotate daily, so a durable "save" would just
+// point at something gone by the next visit). Scoping this to TODAY
+// specifically sidesteps that: the visual "interested" state is only
+// ever checked against today's date, so it naturally stops mattering
+// the moment that day's events are gone, without needing any cleanup
+// logic of its own.
+//
+// This local state is purely visual/instant-feedback and works for
+// every visitor, logged in or not. The signal that actually feeds
+// future personalized ordering is separate -- a logged-in, consented
+// click also POSTs to /api/user/record-interest (see
+// handleRecordEventInterest in api/data.js), which is what
+// personalizationKeywords (app-feed.js) is later built from.
+const EVENT_INTEREST_STORAGE_KEY = 'paikallisCanvasEventInterestToday';
+
+function getInterestedEventIds(){
+  try {
+    const raw = localStorage.getItem(EVENT_INTEREST_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (parsed.date !== todayStr) return new Set(); // yesterday's picks -- treat as empty, don't bother clearing it out here, tomorrow's write just overwrites it anyway
+    return new Set(parsed.ids || []);
+  } catch (e) {
+    return new Set();
+  }
+}
+function isEventInterested(id){
+  return getInterestedEventIds().has(String(id));
+}
+function toggleEventInterest(id, titleFi, btnEl){
+  const ids = getInterestedEventIds();
+  const idStr = String(id);
+  const nowInterested = !ids.has(idStr);
+  if (nowInterested) ids.add(idStr); else ids.delete(idStr);
+  try {
+    localStorage.setItem(EVENT_INTEREST_STORAGE_KEY, JSON.stringify({ date: new Date().toISOString().slice(0, 10), ids: [...ids] }));
+  } catch (e) {}
+
+  // Toggles just the button that was actually clicked -- simpler and
+  // more direct than re-rendering the whole events list on every click,
+  // and this is purely a visual state flip (the ordering itself only
+  // needs to reflect interest on the NEXT board load anyway, via
+  // personalizationKeywords, not instantly re-sort mid-browse).
+  if (btnEl) btnEl.classList.toggle('interested', nowInterested);
+
+  // Best-effort, fire-and-forget -- same pattern as
+  // syncFavoritesToDigestSubscription above. Silently a no-op
+  // server-side for a logged-out visitor or one who hasn't enabled
+  // personalization (see handleRecordEventInterest) -- only fired when
+  // marking as interested, not when un-marking, since there's nothing
+  // meaningful to un-record from an append-only activity log.
+  if (nowInterested && titleFi) {
+    fetch(`${API_BASE}/user/record-interest`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventTitle: titleFi })
+    }).catch(() => {});
+  }
 }
 
 function makeFeedItemEl(item, index){
@@ -1152,7 +1228,27 @@ function renderEventsList(events){
     // within the "ended" group, the existing order -- highlighted picks
     // first, then the rest, per applyAdminEventCuration on the backend --
     // is left exactly as it was; only the ended/not-ended split changes.
-    const sorted = events.slice().sort((a, b) => (hasEventEnded(a) ? 1 : 0) - (hasEventEnded(b) ? 1 : 0));
+    // Ended/not-ended is still the primary split (see above). Within
+    // "not ended", a keyword match against personalizationKeywords
+    // (app-feed.js -- empty for a logged-out visitor or one without
+    // personalization enabled, in which case this is a pure no-op) now
+    // also boosts a match toward the top, ahead of a non-match -- but
+    // still AFTER the ended split and BEFORE falling back to the
+    // existing stable admin-curation order, so a logged-in visitor's
+    // own interests can surface a genuinely relevant concert or match
+    // without ever displacing an ended event back into view, and without
+    // silently overriding a paid/curated highlight's relative position
+    // among other matches or other non-matches.
+    const matchesInterest = (item) => {
+      if (personalizationKeywords.length === 0) return false;
+      const haystack = `${item.title_fi || ''} ${item.summary_fi || ''}`.toLowerCase();
+      return personalizationKeywords.some(kw => haystack.includes(kw));
+    };
+    const sorted = events.slice().sort((a, b) => {
+      const endedDiff = (hasEventEnded(a) ? 1 : 0) - (hasEventEnded(b) ? 1 : 0);
+      if (endedDiff !== 0) return endedDiff;
+      return (matchesInterest(b) ? 1 : 0) - (matchesInterest(a) ? 1 : 0);
+    });
     renderPagedList(eventsBox, sorted, 'events', getEventsPageSize(), makeEventCardEl);
   }
   syncColumnHeights();

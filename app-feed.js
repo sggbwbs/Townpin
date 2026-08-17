@@ -33,6 +33,12 @@ async function checkAdminSession(){
   updateAccountButton();
 }
 
+// Populated after checkUserAuth resolves (empty for a logged-out
+// visitor, or a logged-in one who hasn't turned on personalization --
+// either way, an empty array is a safe no-op for the sort in
+// renderEventsList below, not a special case it needs to handle).
+let personalizationKeywords = [];
+
 async function checkUserAuth(){
   try {
     const res = await fetch(`${API_BASE}/user/check`);
@@ -42,6 +48,18 @@ async function checkUserAuth(){
     currentUser = null;
   }
   updateAccountButton();
+  if (currentUser) {
+    // Separate, uncached request -- deliberately not folded into the
+    // shared, edge-cached board/feed response (see handlePersonalizationKeywords
+    // in api/data.js for the full reasoning on why that split matters).
+    try {
+      const res = await fetch(`${API_BASE}/user/personalization-keywords`);
+      const data = await res.json();
+      personalizationKeywords = Array.isArray(data.keywords) ? data.keywords : [];
+    } catch (e) {
+      personalizationKeywords = []; // fail quietly -- a missing personalization signal should never break the events list
+    }
+  }
 }
 
 function updateAccountButton(){

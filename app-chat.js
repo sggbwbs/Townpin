@@ -1,3 +1,25 @@
+// Opens the chat panel itself (not just scrolling to and focusing an
+// empty input the way the "Kysy tekoälyoppaalta" feature tile used to)
+// -- for entry points that should visibly open "the chat", not just
+// place the cursor somewhere. Real, reported confusion this fixes: on a
+// first visit (no existing history), the tile's old onclick only
+// scrolled to and focused askHeroInput -- nothing that looked like a
+// chat window ever appeared, since the panel only becomes visible as a
+// side effect of askAppendResult actually adding content to it (see
+// that function), which only happens once a question is submitted.
+// Mirrors the same three state changes askAppendResult makes when it
+// opens the panel, just without requiring a question/answer to attach
+// them to.
+function openAskPanel(){
+  const panel = document.getElementById('askHeroResults');
+  panel.classList.add('open');
+  panel.classList.remove('minimized');
+  document.body.classList.add('desktopChatOpen'); // only visually matters above 1301px (see the CSS), harmless elsewhere
+  updateReopenButtonVisibility();
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.getElementById('askHeroInput').focus();
+}
+
 async function askAsk(question, sendBtn){
   if (!question || askPending) return;
   if (!currentTown){
