@@ -29,6 +29,19 @@ function openAskPanel(){
   // like "clicking the tile just scrolls up to the hero input", the
   // original bug this function was written to fix in the first place.
 
+  // #askFollowupRow (the actual "type here" input inside the sheet)
+  // previously only appeared once a question had already been asked --
+  // fine in the old flow, where the sheet only ever opened as a result
+  // of typing into the tab bar or hero input first. Opening an empty
+  // sheet via this function broke that assumption: the tab bar gets
+  // hidden the moment the sheet opens (see body:has(#askHeroResults...)
+  // in the CSS), but the in-sheet input hadn't shown itself yet either
+  // -- a real, reported bug where the open sheet had genuinely nothing
+  // visible to type into at all. Showing it here too closes that gap;
+  // it already works as a general-purpose ask input regardless of
+  // whether it's the first question or a follow-up (see askAsk).
+  document.getElementById('askFollowupRow').style.display = 'flex';
+
   // A genuinely empty panel (never asked anything yet) rendered as a
   // cramped little box with nothing but the Tyhjennä/minimize buttons in
   // it -- confirmed as confusing on its own, separate from the scroll
@@ -39,17 +52,21 @@ function openAskPanel(){
     resultsList.innerHTML = `<p class="askEmptyPlaceholder">${escapeAskText(t('askEmptyPlaceholder'))}</p>`;
   }
 
-  // Skipped on mobile widths on purpose -- focusing an input immediately
-  // opens the on-screen keyboard, which shrinks the visible viewport
-  // AFTER the sheet's height was already calculated against the full
-  // viewport, pushing the actual input area down below the now-visible
-  // keyboard. A real, reported bug: the chat visibly opened, but the
-  // one thing you'd actually want to tap (the input) was hidden by the
-  // keyboard that opening it had just triggered. Desktop has no
-  // on-screen keyboard to worry about, so focusing there is still safe
-  // and still the better default (cursor ready to type immediately).
+  // Focuses the input actually inside the now-open panel, not
+  // askHeroInput -- once the panel is open (especially the fixed-
+  // position desktop dock), askHeroInput sits underneath/behind it in
+  // the normal page flow and is no longer the visually relevant input;
+  // askFollowupInput is the one actually visible inside the chat that
+  // just opened. Skipped on mobile widths on purpose -- focusing an
+  // input immediately opens the on-screen keyboard, which shrinks the
+  // visible viewport AFTER the sheet's height was already calculated,
+  // pushing the input area down below the now-visible keyboard. A real,
+  // reported bug: the chat visibly opened, but the one thing you'd
+  // actually want to tap was hidden by the keyboard that opening it had
+  // just triggered. Desktop has no on-screen keyboard to worry about,
+  // so focusing there is still safe and still the better default.
   if (window.innerWidth > 900) {
-    document.getElementById('askHeroInput').focus();
+    document.getElementById('askFollowupInput').focus();
   }
 }
 
