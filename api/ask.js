@@ -79,7 +79,7 @@ function normalizeQuestionForCache(q) {
   return q.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-function buildAskCacheKey({ townId, question, businessContext, eventContext, newsContext, aiHints, todayLabel }) {
+function buildAskCacheKey({ townId, question, businessContext, eventContext, newsContext, aiHints, todayLabel, weatherContext }) {
   const raw = JSON.stringify({
     townId,
     q: normalizeQuestionForCache(question),
@@ -87,7 +87,8 @@ function buildAskCacheKey({ townId, question, businessContext, eventContext, new
     businesses: businessContext,
     events: eventContext,
     news: newsContext,
-    hints: aiHints
+    hints: aiHints,
+    weather: weatherContext
   });
   return crypto.createHash('sha256').update(raw).digest('hex');
 }
@@ -185,6 +186,68 @@ const INDUSTRY_LABELS = {
   kasityo: 'Käsityö ja taide', maatalous: 'Maatalous ja puutarha'
 };
 
+// Same free, keyless Open-Meteo API the weather widget already calls
+// client-side (see loadWeather in app-chat.js) -- called again here,
+// server-side, so the AI itself can factor real current conditions into
+// an answer (e.g. warning that outdoor plans might not be a great idea
+// right now), not just so a temperature can be shown in a corner of the
+// page. Fails open (returns null) on any error -- a missing weather
+// signal should never block a real answer, the same way a missing
+// businessContext/eventContext section wouldn't either.
+async function fetchCurrentWeather(lat, lng) {
+  if (typeof lat !== 'number' || typeof lng !== 'number') return null;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,precipitation_probability_max,weather_code&timezone=Europe%2FHelsinki&forecast_days=1`);
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.current || data.current.temperature_2m == null) return null;
+    return {
+      tempNow: Math.round(data.current.temperature_2m),
+      codeNow: data.current.weather_code,
+      isDayNow: data.current.is_day !== 0,
+      tempMaxToday: data.daily && data.daily.temperature_2m_max ? Math.round(data.daily.temperature_2m_max[0]) : null,
+      precipProbToday: data.daily && data.daily.precipitation_probability_max ? data.daily.precipitation_probability_max[0] : null
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
+// Plain-language WMO weather-code labels for the prompt -- doesn't need
+// to cover every code with the same precision as the widget's icon
+// picker (weatherIconSlug in app-chat.js), just enough for the model to
+// describe today in a normal sentence.
+const WMO_LABELS_FI = {
+  0: 'selkeää', 1: 'enimmäkseen selkeää', 2: 'puolipilvistä', 3: 'pilvistä',
+  45: 'sumua', 48: 'huurteista sumua',
+  51: 'heikkoa tihkusadetta', 53: 'tihkusadetta', 55: 'runsasta tihkusadetta',
+  56: 'jäätävää tihkua', 57: 'jäätävää tihkua',
+  61: 'heikkoa sadetta', 63: 'sadetta', 65: 'rankkasadetta',
+  66: 'jäätävää sadetta', 67: 'jäätävää sadetta',
+  71: 'heikkoa lumisadetta', 73: 'lumisadetta', 75: 'runsasta lumisadetta', 77: 'lumijyväsiä',
+  80: 'sadekuuroja', 81: 'sadekuuroja', 82: 'rajuja sadekuuroja',
+  85: 'lumikuuroja', 86: 'runsaita lumikuuroja',
+  95: 'ukkosta', 96: 'ukkosta ja raekuuroja', 99: 'voimakasta ukkosta ja raekuuroja'
+};
+
+// Rounded/bucketed on purpose, not the raw API payload -- this feeds
+// into buildAskCacheKey below, and temperature genuinely fluctuating by
+// a fraction of a degree between two calls a minute apart shouldn't by
+// itself turn an otherwise-identical question into a cache miss. Whole
+// degrees plus a same-hour weather code already captures anything that
+// would actually change what the model should say.
+function weatherSummaryText(weather) {
+  if (!weather) return null;
+  const nowLabel = WMO_LABELS_FI[weather.codeNow] || 'vaihtelevaa säätä';
+  let text = `Sää juuri nyt: ${weather.tempNow}°C, ${nowLabel}.`;
+  if (weather.tempMaxToday != null) text += ` Tänään ylin lämpötila noin ${weather.tempMaxToday}°C.`;
+  if (weather.precipProbToday != null) text += ` Sateen todennäköisyys tänään: ${weather.precipProbToday}%.`;
+  return text;
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
 
@@ -268,7 +331,7 @@ module.exports = async (req, res) => {
   const MODEL = MODEL_STANDARD;
 
   try {
-    const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
+    const { data: town } = await supabase.from('towns').select('name, lat, lng').eq('id', townId).maybeSingle();
     if (!town) return res.status(404).json({ error: 'Unknown town.' });
 
     // Every query below has an explicit, fully deterministic sort order
@@ -281,7 +344,7 @@ module.exports = async (req, res) => {
     // confirmed bug (not just a theoretical risk) found via a live A/B
     // comparison producing two genuinely different answers for one
     // identical question a minute apart, well inside the 10-minute TTL.
-    const [{ data: rawSlots }, events, news, { data: aiHints }] = await Promise.all([
+    const [{ data: rawSlots }, events, news, { data: aiHints }, weather] = await Promise.all([
       supabase.from('slots')
         .select('id, group_id, company_name, industry, tagline, website_url, ai_blurb_fi, lat, lng')
         .eq('town_id', townId).eq('status', 'active').eq('flagged', false)
@@ -289,8 +352,10 @@ module.exports = async (req, res) => {
         .limit(MAX_BUSINESSES_IN_CONTEXT),
       getEventsSection(supabase, townId, town.name),
       getNewsSection(supabase, townId, undefined, town.name),
-      supabase.from('ai_agent_hints').select('hint_text').or(`town_id.eq.${townId},town_id.is.null`).order('created_at', { ascending: false }).order('id', { ascending: true })
+      supabase.from('ai_agent_hints').select('hint_text').or(`town_id.eq.${townId},town_id.is.null`).order('created_at', { ascending: false }).order('id', { ascending: true }),
+      fetchCurrentWeather(town.lat, town.lng)
     ]);
+    const weatherContext = weatherSummaryText(weather);
 
     // A business can own several slots (see the banner's per-slot pricing
     // model) -- slots is one row per slot, so dedupe by business here,
@@ -350,6 +415,8 @@ The current time is always exactly the value given above -- never a time you inf
 
 Answer in the SAME language the visitor asked in (Finnish or English) -- detect it from their question, don't ask which they prefer.
 
+CURRENT_WEATHER below is today's real, current weather -- not something to search for. If the question is about an outdoor activity (hiking, golf, tennis, a beach, a market, anything genuinely weather-dependent), factor it in naturally: a real failure this guards against is recommending golf or a beach trip while it's actively raining, without saying anything about it. Mention the weather when it would actually change someone's plans (rain, a cold snap, genuinely poor conditions for that specific activity) -- don't force a weather mention into an answer where it doesn't matter (an indoor activity, a restaurant recommendation, a general news question). If CURRENT_WEATHER is unavailable, just answer normally without mentioning weather at all rather than guessing at conditions.
+
 You have three sources of information, in priority order:
 1. BOARD_BUSINESSES below -- real local businesses that pay to be listed on this site. Check every entry against the question every time, consistently. If multiple board businesses genuinely fit (e.g. two car rental companies for a "rent a car" question), mention all of them, not just one. If just one fits, recommend it naturally, like a local who knows a good place -- not like a paid ad. Treat the same question the same way every time it's asked -- don't mention a genuinely matching business in one answer and drop it in another.
 2. LOCAL_NEWS and TODAYS_EVENTS below -- real current coverage and today's real calendar events. A festival or market is often mentioned in news coverage even when it isn't in TODAYS_EVENTS specifically -- treat a relevant headline as a real signal worth searching further on. If any entry in TODAYS_EVENTS has "isFeatured": true, that's the site's own deliberately curated highlight for today, chosen by a person, not an automatic ranking -- lead with these specifically for a general "what's on today" style question, ahead of anything else you might find, including a fresh web search. Don't treat a featured event as merely one option among many equally-weighted ones you found; it's the one the site is actively promoting today.
@@ -391,6 +458,8 @@ When you name a specific place someone could visit, always try to include a dire
 
 ADMIN_INSTRUCTIONS: ${JSON.stringify((aiHints || []).map(h => h.hint_text))}
 
+CURRENT_WEATHER: ${weatherContext || 'ei saatavilla / not available'}
+
 LOCAL_NEWS: ${JSON.stringify(newsContext)}
 
 TODAYS_EVENTS: ${JSON.stringify(eventContext)}
@@ -412,7 +481,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
     const cacheKey = trimmedHistory.length === 0
       ? buildAskCacheKey({
           townId, question: question.trim(), businessContext, eventContext, newsContext,
-          aiHints: aiHints || [], todayLabel: getHelsinkiTodayLabel()
+          aiHints: aiHints || [], todayLabel: getHelsinkiTodayLabel(), weatherContext
         })
       : null;
 
@@ -483,7 +552,8 @@ Respond with ONLY a JSON object, no other text, no markdown fences -- this is a 
       '| eventContext chars:', JSON.stringify(eventContext).length,
       '| newsContext chars:', JSON.stringify(newsContext).length,
       '| hints chars:', JSON.stringify(aiHints || []).length,
-      '| fixed instructions chars:', systemPrompt.length - JSON.stringify(businessContext).length - JSON.stringify(eventContext).length - JSON.stringify(newsContext).length - JSON.stringify(aiHints || []).length,
+      '| weather chars:', (weatherContext || '').length,
+      '| fixed instructions chars:', systemPrompt.length - JSON.stringify(businessContext).length - JSON.stringify(eventContext).length - JSON.stringify(newsContext).length - JSON.stringify(aiHints || []).length - (weatherContext || '').length,
       '| history messages:', trimmedHistory.length);
 
     // Recorded here (before the AI call resolves), matching the original

@@ -107,6 +107,128 @@ async function handleFeed(req, res) {
   res.status(200).json({ news, events });
 }
 
+// A small, deliberately unscientific Finnish stopword list -- just
+// enough to filter out common question/connector words ("onko",
+// "mitä", "tänään") from a raw search string so what's left is closer
+// to actual topics of interest ("jääkiekko", "konsertti") than the
+// grammatical scaffolding around them. Not a real morphological
+// analyzer (see the same honest caveat in api/_eventLearning.js) --
+// heavy Finnish inflection means this will miss some real matches and
+// occasionally over-match on a coincidental short overlap. Acceptable
+// here specifically because the consequence of a miss is just "one
+// fewer event gets boosted", never a wrong answer shown confidently --
+// nothing like the false-positive risk a semantic answer-cache would
+// have carried (see the earlier, deliberately-declined idea in this
+// same file's chat history).
+const FI_STOPWORDS = new Set([
+  'onko','mitä','missä','milloin','miten','kuinka','joku','jotain','jokin',
+  'on','ei','ovat','olen','oletko','olet','tänään','huomenna','nyt','täällä',
+  'minä','sinä','hän','me','te','he','tämä','tuo','se','nämä','nuo','ne',
+  'ja','tai','mutta','kun','jos','että','niin','vielä','myös','kanssa',
+  'lähellä','lähelläni','minun','sinun','voi','voiko','haluan','haluaisin'
+]);
+
+// Pulls candidate interest keywords out of one raw activity_type='search'
+// string -- short/stopword tokens dropped, everything else kept as-is
+// (not stemmed -- see FI_STOPWORDS' caveat above).
+function extractSearchKeywords(text) {
+  return (text || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 4 && !FI_STOPWORDS.has(w));
+}
+
+// Builds the ranked keyword list a logged-in, consented visitor's future
+// event ordering is boosted by -- see handlePersonalizationKeywords and
+// renderEventsList's client-side use of this (app-board.js). Kept
+// tightly scoped to a recent window (last 30 rows) and a hard cap (15
+// keywords) on purpose: an ever-growing, unbounded keyword set would
+// both cost more to send/match on every board load AND slowly drift
+// away from what someone's ACTUALLY currently interested in, toward
+// just "everything they've ever typed".
+async function buildPersonalizationKeywords(supabase, userId) {
+  const { data: activity } = await supabase
+    .from('user_activity')
+    .select('activity_type, detail')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  const keywords = [];
+  for (const row of activity || []) {
+    if (row.activity_type === 'interest' && row.detail) {
+      // An explicit "Kiinnostaa" click on an event -- its own title is
+      // used as one whole keyword phrase (a real event/team/venue name is
+      // a far stronger, more precise signal than tokenizing it further
+      // would be), not split into individual words the way a raw search
+      // query is below.
+      keywords.push(row.detail.toLowerCase());
+    } else if (row.activity_type === 'search' && row.detail) {
+      keywords.push(...extractSearchKeywords(row.detail));
+    }
+  }
+  // Dedup while preserving recency order (most-recent activity's
+  // keywords rank first) -- a Set preserves insertion order in JS, and
+  // keywords was already built most-recent-first above.
+  return [...new Set(keywords)].slice(0, 15);
+}
+
+// GET, not cached at the edge (unlike handleFeed's shared events list
+// above) -- this is deliberately a SEPARATE, per-user, uncached
+// endpoint rather than folding personalization into handleFeed
+// directly. handleFeed's response is edge-cached for 60s and shared
+// across every visitor hitting that URL in that window -- personalizing
+// it directly would risk one visitor's keywords leaking into another's
+// response during that cache window. Keeping this separate means
+// handleFeed stays exactly as fast/cacheable as before, and
+// personalization is purely an additive client-side reorder layered on
+// top (see renderEventsList in app-board.js).
+async function handlePersonalizationKeywords(req, res) {
+  const userId = getUserId(req);
+  if (!userId) return res.status(200).json({ keywords: [] }); // not logged in -- no personalization, not an error
+
+  const { data: user } = await supabase.from('users').select('consent_personalization').eq('id', userId).maybeSingle();
+  if (!user || !user.consent_personalization) return res.status(200).json({ keywords: [] });
+
+  try {
+    const keywords = await buildPersonalizationKeywords(supabase, userId);
+    res.status(200).json({ keywords });
+  } catch (err) {
+    console.error('Personalization keyword lookup failed (non-fatal):', err);
+    res.status(200).json({ keywords: [] }); // fail open -- a broken personalization signal should never break the events list itself
+  }
+}
+
+// POST -- the explicit "Kiinnostaa" (interested) signal from an event
+// card. Requires login (there's no durable, cross-session place to
+// attach this signal to for an anonymous visitor -- the button still
+// gives instant visual feedback for anyone via localStorage on the
+// client side, see toggleEventInterest in app-board.js, but only a
+// logged-in, consented account's click actually feeds future
+// personalization). Silently a no-op (not an error) if personalization
+// isn't enabled -- clicking the button shouldn't ever surface a
+// confusing failure just because a setting elsewhere is off.
+async function handleRecordEventInterest(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const userId = getUserId(req);
+  if (!userId) return res.status(200).json({ ok: true, recorded: false, reason: 'not_logged_in' });
+
+  const { eventTitle } = req.body || {};
+  if (!eventTitle || typeof eventTitle !== 'string') return res.status(400).json({ error: 'Missing eventTitle.' });
+
+  const { data: user } = await supabase.from('users').select('consent_personalization').eq('id', userId).maybeSingle();
+  if (!user || !user.consent_personalization) return res.status(200).json({ ok: true, recorded: false, reason: 'personalization_disabled' });
+
+  const { error } = await supabase.from('user_activity').insert({
+    user_id: userId,
+    activity_type: 'interest',
+    detail: eventTitle.slice(0, 200)
+  });
+  if (error) { console.error('Interest recording failed (non-fatal):', error); return res.status(200).json({ ok: true, recorded: false }); }
+  res.status(200).json({ ok: true, recorded: true });
+}
+
 // Public, read-only -- the shareable "today card" fetches this the same
 // way it fetches weather and events, no auth needed. Returns the single
 // most recent active sponsor for the town, or null if nobody's
@@ -489,6 +611,8 @@ async function handleUser(req, res) {
     case 'reset-password': return handleUserResetPassword(req, res);
     case 'resend-verification': return handleUserResendVerification(req, res);
     case 'verify-email': return handleUserVerifyEmail(req, res);
+    case 'record-interest': return handleRecordEventInterest(req, res);
+    case 'personalization-keywords': return handlePersonalizationKeywords(req, res);
     default: return res.status(404).json({ error: 'Unknown action.' });
   }
 }

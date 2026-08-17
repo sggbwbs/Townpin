@@ -29,7 +29,7 @@ function cacheKey(lat, lng) {
 async function queryDigitransit(lat, lng) {
   const query = `
     {
-      stopsByRadius(lat: ${lat}, lon: ${lng}, radius: 600) {
+      stopsByRadius(lat: ${lat}, lon: ${lng}, radius: 1000) {
         edges {
           node {
             distance
