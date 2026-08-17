@@ -409,7 +409,7 @@ const STRINGS = {
     newsCatUlkomaat: 'Ulkomaat',
     askHeroTitle: 'Kaikki Oulussa<br>yhdestä paikasta',
     askHeroSub: 'Löydä tapahtumat, yritykset, uutiset, tarjoukset ja paikalliset palvelut helposti.',
-    askHeroPlaceholder: 'Mitä haluaisit tehdä tänään?',
+    askHeroPlaceholder: 'Kysy tekoälyoppaalta mitä vain',
     askHeroButton: 'Kysy',
     askReopenChatBtn: 'Näytä keskustelu',
     askDesktopChatTitle: 'Kysy tekoälyoppaalta',
@@ -463,6 +463,7 @@ const STRINGS = {
     askMentionsNote: 'maksanut mainostaja tällä alustalla -- ei tavallinen hakutulos',
     askAdvertiserTag: 'Mainostaja',
     askFollowupPlaceholder: 'Kysy jotain muuta…',
+    askFirstPlaceholder: 'Kysy jotain',
     installBannerTextChrome: 'Asenna PaikallisCanvas puhelimeesi nopeampaa käyttöä varten.',
     installBannerButton: 'Asenna',
     installBannerTextIOS: 'Lisää PaikallisCanvas kotinäytöllesi: napauta jakamispainiketta ja valitse "Lisää Koti-valikkoon".',
@@ -655,7 +656,7 @@ const STRINGS = {
     newsCatUlkomaat: 'World',
     askHeroTitle: 'Everything in Oulu<br>in one place',
     askHeroSub: 'Find events, businesses, news, deals, and local services with ease.',
-    askHeroPlaceholder: 'What would you like to do today?',
+    askHeroPlaceholder: 'Ask the AI guide anything',
     askHeroButton: 'Ask',
     askReopenChatBtn: 'Show conversation',
     askDesktopChatTitle: 'Ask the AI guide',
@@ -709,6 +710,7 @@ const STRINGS = {
     askMentionsNote: 'a paying advertiser on this platform -- not an ordinary search result',
     askAdvertiserTag: 'Advertiser',
     askFollowupPlaceholder: 'Ask something else…',
+    askFirstPlaceholder: 'Ask something',
     installBannerTextChrome: 'Install PaikallisCanvas on your phone for faster access.',
     installBannerButton: 'Install',
     installBannerTextIOS: 'Add PaikallisCanvas to your home screen: tap the share button, then choose "Add to Home Screen".',
@@ -978,6 +980,12 @@ function setLang(l){
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
     el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
   });
+  // Overrides the generic loop above for this one input specifically --
+  // that loop always applies askFollowupPlaceholder regardless of
+  // conversation state, so a language toggle mid-conversation (or with
+  // an empty one) would otherwise silently revert it to the wrong
+  // variant every time.
+  updateAskFollowupPlaceholder();
   // Single-instance need -- not worth a generic data-i18n-aria-label
   // pattern for just this one button. data-i18n above already handles
   // its visible text.

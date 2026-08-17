@@ -791,6 +791,22 @@ let askHistory = [];   // {role:'user'|'assistant', content:string}[] sent to /a
 // on the same objects.
 let askMentionsByTurn = [];
 
+// The follow-up input's placeholder reads differently depending on
+// whether there's an actual conversation already going -- "Kysy
+// jotain" (Ask something) for a genuinely first question, "Kysy jotain
+// muuta…" (Ask something else…) once there's real history to be a
+// follow-up TO. Needs to be called from three places, not just set
+// once: openAskPanel (app-chat.js, when opening with zero history),
+// askAsk (app-chat.js, the moment history goes from zero to one real
+// exchange), and setLang below (a language toggle would otherwise
+// blindly reset this back to the generic data-i18n-placeholder default
+// regardless of which variant was actually correct for the current
+// conversation state).
+function updateAskFollowupPlaceholder(){
+  const input = document.getElementById('askFollowupInput');
+  if (input) input.placeholder = t(askHistory.length === 0 ? 'askFirstPlaceholder' : 'askFollowupPlaceholder');
+}
+
 // ---- Chat history persistence (localStorage) ----
 // Keeps the conversation across reloads instead of losing it the
 // moment the tab refreshes -- previously askHistory lived in memory
@@ -865,6 +881,7 @@ function restoreAskHistoryFromStorage(){
     askAppendResult(html, null, false);
   }
   document.getElementById('askFollowupRow').style.display = 'flex';
+  updateAskFollowupPlaceholder();
   updateReopenButtonVisibility();
 }
 

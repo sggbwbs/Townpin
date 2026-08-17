@@ -41,6 +41,7 @@ function openAskPanel(){
   // it already works as a general-purpose ask input regardless of
   // whether it's the first question or a follow-up (see askAsk).
   document.getElementById('askFollowupRow').style.display = 'flex';
+  updateAskFollowupPlaceholder();
 
   // A genuinely empty panel (never asked anything yet) rendered as a
   // cramped little box with nothing but the Tyhjennä/minimize buttons in
@@ -212,6 +213,7 @@ async function askAsk(question, sendBtn){
     askHistory = askHistory.slice(-6);
     askMentionsByTurn = askMentionsByTurn.slice(-6);
     saveAskHistoryToStorage();
+    updateAskFollowupPlaceholder();
   } catch (err) {
     clearTimeout(timeoutId);
     pendingEl.remove();
