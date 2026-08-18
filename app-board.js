@@ -1120,6 +1120,20 @@ function makeFeedItemEl(item, index){
   body.appendChild(metaEl);
   el.appendChild(body);
 
+  // A small external-link arrow, pinned to the row's far right via
+  // margin-left:auto -- real content genuinely worth the space (a
+  // real, honest affordance -- "this opens elsewhere" -- not just
+  // decorative filler), and unlike a per-item timestamp (see the
+  // comment on formatFreshness above for why that was already tried
+  // and reverted as actively misleading) this doesn't claim anything
+  // about the article that isn't true.
+  if (hasLink) {
+    const arrow = document.createElement('span');
+    arrow.className = 'newsRowArrow';
+    arrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>';
+    el.appendChild(arrow);
+  }
+
   return el;
 }
 
