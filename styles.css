@@ -990,16 +990,19 @@
   .newsRow:hover{background:var(--panelT4);box-shadow:0 2px 10px rgba(88,71,201,0.10);}
   /* Three tonal shades of the site's own purple, not each outlet's real
      external brand color -- see the comment above where these classes
-     get assigned in app-board.js for why. Distinct enough to tell
-     sources apart at a glance in the mixed/all-sources view, but still
-     reads as one cohesive card rather than three competing colors.
-     Background tint added alongside the existing left border -- the
-     border alone read as too subtle on its own (real feedback: it was
-     barely registering as color at a glance), so each row now also
-     gets a faint wash of its source's tone, not just a 3px hairline. */
-  .newsRow--kaleva{border-left-color:var(--amber-deep);background:color-mix(in srgb, var(--amber-deep) 6%, transparent);}
-  .newsRow--yle{border-left-color:var(--amber);background:color-mix(in srgb, var(--amber) 6%, transparent);}
-  .newsRow--oulu{border-left-color:var(--amber-bright);background:color-mix(in srgb, var(--amber-bright) 6%, transparent);}
+     get assigned in app-board.js for why. Left border only, not a
+     full-row background tint -- a low-opacity color-mix background was
+     tried here and reverted: at a low enough opacity to not look
+     garish, it didn't read as "color" at all, just as a slightly dirty
+     off-white, and combined with the row's own rounded corners made
+     each row look like its own separate gray box rather than one clean
+     scannable list -- exactly the "something's off, boxes within a
+     box" feeling reported. The badge and, where available, the real
+     article photo already carry plenty of color on their own -- this
+     doesn't need the row background doing it too. */
+  .newsRow--kaleva{border-left-color:var(--amber-deep);}
+  .newsRow--yle{border-left-color:var(--amber);}
+  .newsRow--oulu{border-left-color:var(--amber-bright);}
   /* Bigger and rounded-square rather than a small circle -- the single
      biggest driver of the news card reading as flatter than the
      photo-forward events card right above it on the homepage. Still
