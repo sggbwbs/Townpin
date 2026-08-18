@@ -67,7 +67,7 @@ if (!token) {
   app.innerHTML = `
     <div class="card">
       <h1>Puuttuva linkki</h1>
-      <p class="sub" style="margin-bottom:16px;">Tämä sivu tarvitsee muokkauslinkin ostovahvistuksestasi — tarkista onnistumissivu, jonka näit heti maksun jälkeen. Hukassa? Anna sähköpostisi alla, niin lähetämme tuoreen kopion kaikkiin sillä oleviin aktiivisiin ilmoituksiin.</p>
+      <p class="sub" style="margin-bottom:16px;">Tämä sivu vaatii muokkauslinkin, jonka näit ostovahvistuksen yhteydessä heti maksun jälkeen. Jos linkki on hukassa, syötä sähköpostiosoitteesi alle — lähetämme sille tuoreen linkin, jos sillä löytyy aktiivisia ilmoituksia.</p>
       <label>Sähköposti</label>
       <input type="text" id="recoverEmail" placeholder="sina@yrityksesi.fi" />
       <button class="primary" id="recoverBtn" onclick="requestManageLink()">Lähetä linkkini sähköpostiin</button>
@@ -157,7 +157,7 @@ function render(slots, towns, referralCode, referralStats){
     ${referralCode ? `
     <div class="card">
       <h2>Suosittele yritystä, saat 50% alennuksen</h2>
-      <p class="sub" style="margin:-4px 0 12px;">Jaa linkkisi alla. Kun yritys rekisteröityy sen kautta ja heidän ensimmäinen maksunsa menee läpi, saat puolet pois (14,95 €) seuraavasta laskustasi — ei rajaa sille, kuinka monta kertaa.</p>
+      <p class="sub" style="margin:-4px 0 12px;">Jaa alla oleva linkkisi. Kun yritys rekisteröityy sen kautta ja heidän ensimmäinen maksunsa menee läpi, saat 50 % alennuksen (14,95 €) seuraavasta laskustasi — ei rajaa sille, kuinka monta kertaa.</p>
       <input type="text" readonly value="${referralUrl}" id="referralUrlInput" onclick="this.select();" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg-0);color:var(--ink);margin-bottom:8px;" />
       <button type="button" onclick="copyReferralLink()" id="copyReferralBtn" style="width:100%;">Kopioi linkki</button>
       <p class="sub" style="margin-top:12px;font-size:12px;">${(referralStats && referralStats.totalReferred) || 0} yritystä suositeltu tähän mennessä — ${(referralStats && referralStats.rewarded) || 0} palkittu.</p>
@@ -175,7 +175,7 @@ function render(slots, towns, referralCode, referralStats){
         <div style="max-height:280px;overflow:hidden;border-radius:8px;background:var(--bg-1);">
           <img id="cropperImg" style="display:block;max-width:100%;" />
         </div>
-        <p class="note">Vedä ja zoomaa sopimaan mainospaikkasi/-paikkojesi muotoon.</p>
+        <p class="note">Vedä ja zoomaa niin että kuva sopii mainospaikkojesi muotoon.</p>
         <button type="button" class="primary" id="cropConfirmBtn" style="width:auto;">✓ Käytä tätä rajausta</button>
       </div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
@@ -457,7 +457,7 @@ async function addSlots(){
   const errBox = document.getElementById('errAddSlots');
   errBox.textContent = '';
   const qty = window._getAddSlotsQty ? window._getAddSlotsQty() : 1;
-  if (!confirm(`Lisää ${qty} mainospaikka${qty===1?'':'a'} lisää? Tilauksesi päivitetään ja suhteutetaan tämän laskutuskauden loppuosalle.`)) return;
+  if (!confirm(`Haluatko lisätä ${qty} mainospaikka${qty===1?'':'a'}? Tilauksesi päivitetään ja suhteutetaan tämän laskutuskauden loppuosalle.`)) return;
   try{
     const data = await post({ action: 'add_slots', additionalCount: qty });
     flash('savedAddSlots');

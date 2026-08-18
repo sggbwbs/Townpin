@@ -833,6 +833,17 @@ document.getElementById('grantSubmitBtn').addEventListener('click', async () => 
     if (!res.ok) { showErr(errBox, data.error || 'Grant failed.'); return; }
     const msg = document.getElementById('grantSavedMsg');
     msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2500);
+    // No checkout success page exists for a comped grant (unlike a real
+    // purchase) to naturally show this link, and a comped business is
+    // frequently not attached to any email either -- a free slot is
+    // often arranged in person or by phone, not through a web form that
+    // collects one -- so this moment right here is the one guaranteed
+    // chance to hand it off before needing to dig it back up later via
+    // the comped list's own "Copy manage link" button.
+    if (data.manageUrl) {
+      try { await navigator.clipboard.writeText(data.manageUrl); } catch (e) {}
+      prompt(`Anna tämä muokkauslinkki yritykselle (kopioitu jo leikepöydälle):`, data.manageUrl);
+    }
     grantQty = 1;
     document.getElementById('grantCompany').value = '';
     document.getElementById('grantWebsite').value = '';
@@ -1440,7 +1451,30 @@ async function loadCompedList(){
         loadCompedList();
         if (grantTown) document.getElementById('grantLoadBtn').click();
       });
+      const linkBtn = document.createElement('button');
+      linkBtn.textContent = 'Copy manage link';
+      linkBtn.style.padding = '6px 12px';
+      linkBtn.style.fontSize = '12px';
+      linkBtn.addEventListener('click', async () => {
+        const original = linkBtn.textContent;
+        linkBtn.disabled = true;
+        try {
+          const res = await fetch(`${API}/get-manage-link`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId })
+          });
+          const linkData = await res.json();
+          if (!res.ok) { alert(linkData.error || 'Could not get link.'); return; }
+          try { await navigator.clipboard.writeText(linkData.manageUrl); } catch (e) {}
+          prompt(`Anna tämä muokkauslinkki yritykselle (kopioitu jo leikepöydälle):`, linkData.manageUrl);
+        } catch (e) {
+          alert('Network error.');
+        } finally {
+          linkBtn.disabled = false;
+        }
+      });
       btnWrap.appendChild(editBtn);
+      btnWrap.appendChild(linkBtn);
       btnWrap.appendChild(btn);
       row.appendChild(btnWrap);
       box.appendChild(row);
