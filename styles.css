@@ -709,6 +709,24 @@
   .feedItem.feedItemCompact b{font-size:13.5px;-webkit-line-clamp:2;}
   .transitStopRow{cursor:pointer;transition:background 0.15s ease;}
   .transitStopRow:hover{background:var(--panelT4);}
+  /* Replaces the old single run-on text line (see the comment above
+     makeTransitStopEl in app-board.js) with distinct per-departure
+     chips -- wraps naturally onto a second line on narrow cards rather
+     than truncating or overflowing. */
+  .transitDepartures{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+  .transitDepartureChip{display:inline-flex;align-items:center;gap:5px;
+    background:var(--panelT4);border:1px solid var(--line);border-radius:8px;
+    padding:3px 8px 3px 3px;}
+  /* Solid, confident color -- a real route-number badge, the same
+     scannable pattern actual transit apps (HSL, Google Maps) already
+     use, not a decorative wash. Reuses this card's own accent color
+     (matches the card's top border) rather than introducing a fourth
+     unrelated color just for this. */
+  .transitRouteBadge{display:inline-flex;align-items:center;justify-content:center;
+    min-width:20px;height:20px;padding:0 5px;border-radius:6px;
+    background:var(--tilannehuone-accent);color:#fff;
+    font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;}
+  .transitDepartureRest{font-size:11.5px;color:var(--ink-dim);white-space:nowrap;}
   #featureTiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:8px;}
   @media (max-width:480px){
     .featureTile{padding:12px;gap:5px;}

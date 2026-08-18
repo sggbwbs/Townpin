@@ -426,11 +426,30 @@ function makeTransitStopEl(stop){
   titleEl.textContent = `📍 ${stop.name} · ${formatDistanceKm(stop.distanceMeters / 1000)}`;
   body.appendChild(titleEl);
 
-  const depsEl = document.createElement('p');
-  depsEl.className = 'tilannehuoneMeta';
-  depsEl.textContent = stop.departures
-    .map(d => `${d.route} ${d.headsign} ${formatMinutesUntil(d.minutesUntil)}`)
-    .join('  ·  ');
+  // Each departure as its own distinct chip (route badge + destination +
+  // time) rather than one run-on string joined with middle dots --
+  // previously all three departures per stop read as one undifferentiated
+  // wall of text with nothing to tell them apart at a glance. The route
+  // badge specifically uses a solid, confident color (not a low-opacity
+  // wash -- see the news card's own back-and-forth on that same
+  // question) since a real route-number badge is exactly the kind of
+  // scannable pattern actual transit apps (HSL, Google Maps) already use,
+  // not decoration for its own sake.
+  const depsEl = document.createElement('div');
+  depsEl.className = 'transitDepartures';
+  stop.departures.forEach(d => {
+    const chip = document.createElement('span');
+    chip.className = 'transitDepartureChip';
+    const routeEl = document.createElement('span');
+    routeEl.className = 'transitRouteBadge';
+    routeEl.textContent = d.route;
+    const restEl = document.createElement('span');
+    restEl.className = 'transitDepartureRest';
+    restEl.textContent = `${d.headsign} · ${formatMinutesUntil(d.minutesUntil)}`;
+    chip.appendChild(routeEl);
+    chip.appendChild(restEl);
+    depsEl.appendChild(chip);
+  });
   body.appendChild(depsEl);
 
   el.appendChild(body);
