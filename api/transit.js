@@ -119,7 +119,7 @@ function shapeStopsResponse(data) {
     // day, etc.) isn't useful to show.
     .filter(s => s.departures.length > 0)
     .sort((a, b) => a.distanceMeters - b.distanceMeters)
-    .slice(0, 4); // closest 4 stops is plenty for a homepage card
+    .slice(0, 3); // closest 3 stops -- was 4, but the chip-based departure display (see buildDepartureChipsEl) is taller per stop than the old single text line, so 4 stops was pulling this card (and the row height it shares with the news card next to it) noticeably taller than before
 }
 
 module.exports = async (req, res) => {
