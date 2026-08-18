@@ -817,7 +817,17 @@ function loadNewsSourceColumns(){
   EXPANDED_NEWS_SOURCES.forEach(source => {
     const col = document.createElement('div');
     col.className = 'expandedNewsCol';
-    col.style.setProperty('--col-accent', source.color);
+    // Resolved to a concrete color here, not left as the literal string
+    // "var(--amber)" for the Oulu entry -- setting a custom property's
+    // value to another var() reference, through an inline style
+    // specifically, is exactly the kind of thing worth not relying on;
+    // resolving it directly guarantees a real, paintable color rather
+    // than depending on nested variable substitution working reliably
+    // in every browser through that indirection.
+    const resolvedAccent = source.color.startsWith('var(')
+      ? getComputedStyle(document.documentElement).getPropertyValue(source.color.slice(4, -1)).trim() || '#9b7fe8'
+      : source.color;
+    col.style.setProperty('--col-accent', resolvedAccent);
     const head = document.createElement('div');
     head.className = 'expandedNewsColHead';
     head.innerHTML = `<span class="expandedNewsColLogo" style="background:${source.color};">${source.label[0]}</span> ${source.label}`;
