@@ -1284,7 +1284,21 @@
      have silently lost to the base rule every time, regardless of
      viewport width. */
   @media (min-width:1301px){
-    body.desktopChatOpen{padding-right:clamp(300px, 27vw, 400px);transition:padding-right 0.25s ease;}
+    /* Reserves space on #homeGrid and #featureTiles specifically, not
+       body -- previously this was body.desktopChatOpen{padding-right:...},
+       which shrank EVERYTHING on the page equally, including the
+       decorative hero photo above (see the real, reported complaint:
+       "the picture gets shrunk"). #heroPhotoWrap and #homeGrid are
+       siblings, not nested, so scoping the padding to just the
+       content sections that actually hold clickable things (event/
+       business/news/transit cards, the feature tiles) means the hero
+       -- which has nothing interactive in it worth protecting from the
+       panel's overlap -- can stay genuinely full-width/full-bleed
+       exactly as it looks with the chat closed, with the panel simply
+       floating on top of its right edge instead of visually
+       compressing it. */
+    body.desktopChatOpen #homeGrid,
+    body.desktopChatOpen #featureTiles{padding-right:clamp(300px, 27vw, 400px);transition:padding-right 0.25s ease;box-sizing:border-box;}
     #askHeroResults.open{
       display:flex;flex-direction:column;
       position:fixed;top:104px;right:20px;bottom:20px;
@@ -1312,20 +1326,6 @@
     #askChatToolbarTitle{display:block;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;color:var(--ink);}
     #askNewChatBtn{display:flex;}
     #askDesktopChatMinimizeBtn{display:flex;}
-    /* The hero photo's full-bleed trick (width:100vw + left:50% +
-       margin-left:-50vw, see #heroPhotoWrap above) assumes a
-       symmetric page -- it silently mis-centers once
-       body.desktopChatOpen adds right-side-only padding to reserve
-       space for the docked panel, since "50vw" (true viewport) and
-       "50%" (now-asymmetric parent) stop referring to the same
-       physical point on the page. Visible result: a blank gap on the
-       left, roughly half the panel's width. Simplest correct fix
-       isn't re-deriving the exact compensating offset (fragile, since
-       the panel's own width is a clamp(), not a fixed number) -- it's
-       just having the hero fill its parent's already-correctly-narrowed
-       width directly instead of independently trying to full-bleed
-       past it. */
-    body.desktopChatOpen #heroPhotoWrap{width:100%;left:0;margin-left:0;}
     /* Explicit safeguard, not just relying on the transform that slides
        the whole sheet off-screen when minimized -- ensures Tyhjennä is
        never visible/clickable while minimized regardless of how that
