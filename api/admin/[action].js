@@ -168,7 +168,16 @@ async function handleGrant(req, res) {
   // helper the real purchase flow and "move to another town" both use --
   // retries with a fresh pick if a concurrent request (or a double-click)
   // grabbed one of the same positions in the meantime.
+  // Real edit_token generated here -- previously never set for granted
+  // (comped) slots at all, unlike the real purchase flow (see
+  // create-checkout-session.js) which always generates one before
+  // payment. Confirmed via schema.sql: the edit_token column has no
+  // database default either, so a comped slot genuinely had no working
+  // /manage access whatsoever, not just "nobody happened to write down
+  // the link" -- there was no link to write down. Same crypto.randomUUID()
+  // pattern as the real purchase flow, for consistency.
   const groupId = crypto.randomUUID();
+  const editToken = crypto.randomUUID();
   const { error: grantErr, rows: insertedRows } = await insertSlotsWithRetry(townId, wanted, (indices) =>
     indices.map(idx => ({
       town_id: townId,
@@ -183,11 +192,22 @@ async function handleGrant(req, res) {
       lng: geocoded ? geocoded.lng : null,
       status: 'active',
       is_comped: true,
-      group_id: groupId
+      group_id: groupId,
+      edit_token: editToken
     }))
   );
   if (grantErr) return res.status(409).json({ error: grantErr });
-  res.status(200).json({ ok: true, count: insertedRows.length });
+  // Comped businesses never go through checkout, so there's no natural
+  // "here's your link" success-page moment the way a real purchase has
+  // -- and they're frequently not attached to any email either (a
+  // free slot is often arranged in person or by phone, not through a
+  // web form that collects one), so the email-based recovery flow
+  // (see handleRequestManageLink in api/manage.js) can't help them
+  // either. Returning the URL here is what lets the admin actually
+  // hand it off directly -- read aloud, texted, written down, however
+  // makes sense for that specific business.
+  const manageUrl = `${process.env.SITE_URL}/manage?token=${encodeURIComponent(editToken)}`;
+  res.status(200).json({ ok: true, count: insertedRows.length, manageUrl });
 }
 
 async function handleRevoke(req, res) {
@@ -210,11 +230,41 @@ async function handleCompedList(req, res) {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
   const { data, error } = await supabase
     .from('slots')
-    .select('id, idx, company_name, website_url, group_id, town_id, towns(name)')
+    .select('id, idx, company_name, website_url, group_id, town_id, edit_token, towns(name)')
     .eq('is_comped', true)
     .eq('status', 'active');
   if (error) { console.error(error); return res.status(500).json({ error: 'Lookup failed.' }); }
   res.status(200).json({ slots: data });
+}
+
+// Returns the manage link for a comped group -- generating and saving a
+// real edit_token on the spot if this group predates the fix in
+// handleGrant above (edit_token still null in the database, not just
+// unknown). Means the same "copy manage link" button in the admin panel
+// correctly handles both a business granted five minutes ago and one
+// granted before this feature existed, without needing a separate
+// one-off backfill migration to run first.
+async function handleGetManageLink(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { groupId } = req.body || {};
+  if (!groupId) return res.status(400).json({ error: 'Missing groupId.' });
+
+  const { data: groupSlots, error: fetchErr } = await supabase
+    .from('slots')
+    .select('id, edit_token')
+    .eq('group_id', groupId)
+    .eq('is_comped', true);
+  if (fetchErr) { console.error(fetchErr); return res.status(500).json({ error: 'Lookup failed.' }); }
+  if (!groupSlots || groupSlots.length === 0) return res.status(404).json({ error: 'Group not found.' });
+
+  let editToken = groupSlots[0].edit_token;
+  if (!editToken) {
+    editToken = crypto.randomUUID();
+    const { error: updateErr } = await supabase.from('slots').update({ edit_token: editToken }).eq('group_id', groupId);
+    if (updateErr) { console.error(updateErr); return res.status(500).json({ error: 'Could not generate link.' }); }
+  }
+  res.status(200).json({ ok: true, manageUrl: `${process.env.SITE_URL}/manage?token=${encodeURIComponent(editToken)}` });
 }
 
 // "Teach" the AI agent -- admin-given freeform instructions injected
@@ -1233,6 +1283,7 @@ module.exports = async (req, res) => {
     case 'grant': return handleGrant(req, res);
     case 'revoke': return handleRevoke(req, res);
     case 'comped-list': return handleCompedList(req, res);
+    case 'get-manage-link': return handleGetManageLink(req, res);
     case 'find-company': return handleFindCompany(req, res);
     case 'list-ai-hints': return handleListAiHints(req, res);
     case 'add-ai-hint': return handleAddAiHint(req, res);
