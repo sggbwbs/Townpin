@@ -1099,7 +1099,22 @@
   .faqItem.open .faqA{max-height:400px;padding-bottom:16px;}
 
   /* ---- PWA install banner ---- */
-  #installBanner{display:none;align-items:center;gap:12px;justify-content:center;
+  /* position:fixed, not static in-flow -- this used to sit in normal
+     document flow, display:none until shown. That's a real, severe CLS
+     bug: it only becomes visible via an ASYNC event (Chrome/Android's
+     beforeinstallprompt can fire seconds after the page has already
+     rendered; see app-core.js), and an in-flow element suddenly gaining
+     real height pushes everything below it (the entire hero and page
+     content) down at that moment -- exactly the kind of unexpected,
+     non-interaction-triggered shift Cumulative Layout Shift scoring
+     penalizes most heavily. Fixed positioning removes it from the
+     layout flow entirely, so toggling it can never move anything else
+     on the page, regardless of when the async trigger fires. `top` is
+     set dynamically in JS (see showInstallBanner in app-core.js) rather
+     than hardcoded here, since the header's own height isn't a fixed
+     number -- it varies by content and breakpoint. */
+  #installBanner{display:none;position:fixed;left:0;right:0;z-index:180;
+    align-items:center;gap:12px;justify-content:center;
     background:rgba(224,138,60,0.14);border-bottom:1px solid var(--line);
     padding:10px 20px;font-size:13px;color:var(--ink);text-align:center;flex-wrap:wrap;}
   #installBannerBtn{background:var(--amber);color:#fff;border:none;border-radius:999px;

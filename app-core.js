@@ -895,6 +895,13 @@ function showInstallBanner(mode){
     textEl.textContent = t('installBannerTextIOS');
     btn.style.display = 'none';
   }
+  // Measured at show-time, not hardcoded -- the header's real height
+  // isn't a fixed number (varies by content and breakpoint), and this
+  // banner is now position:fixed specifically so toggling it never
+  // shifts page content (see the CSS comment on #installBanner for the
+  // real CLS bug this replaced).
+  const header = document.querySelector('header');
+  banner.style.top = header ? `${header.getBoundingClientRect().bottom}px` : '0';
   banner.style.display = 'flex';
 }
 
