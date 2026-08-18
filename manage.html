@@ -1,62 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Manage your PaikallisCanvas listing</title>
+<title>Hallitse PaikallisCanvas-ilmoitustasi</title>
 <meta name="robots" content="noindex, nofollow" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <style>
-  :root{ --bg-0:#050b14; --paper:#f4efe4; --amber:#f2a65a; --amber-bright:#ffc07e; }
+  /* Exact same values as the main site's real light-mode CSS variables
+     (see :root/[data-theme="light"] in styles.css) -- copied over
+     directly rather than re-picked by eye, so this page can't quietly
+     drift into a third, slightly-different purple the way it drifted
+     into an entirely different orange/cream palette before. This page
+     has no dark/light toggle of its own, so light mode (the main
+     site's own default) is the one consistent choice. */
+  :root{
+    --bg-0:#f3f2fa; --bg-1:#ece9f7; --panel:#ffffff; --line:#ddd8ef;
+    --amber:#5847c9; --amber-bright:#7266d6; --amber-deep:#463699;
+    --bizfeed-accent:#c93f96; --tilannehuone-accent:#c9622f;
+    --ink:#211c38; --ink-dim:#6b6488; --danger:#c1503a;
+    --success:#2f9e44;
+  }
   *{box-sizing:border-box;}
-  body{margin:0;min-height:100vh;background:var(--bg-0);color:#f5f7fb;
+  body{margin:0;min-height:100vh;background:linear-gradient(180deg,var(--bg-0),var(--bg-1));color:var(--ink);
     font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:flex-start;justify-content:center;padding:60px 20px;}
-  h1{font-family:'Space Grotesk',sans-serif;font-size:20px;margin:0 0 6px;}
-  .sub{color:#8fa3bd;font-size:13px;margin:0 0 24px;}
-  .card{background:var(--paper);color:#26210f;max-width:520px;width:100%;border-radius:14px;padding:32px;margin-bottom:20px;}
-  .card h2{font-family:'Space Grotesk',sans-serif;font-size:16px;margin:0 0 4px;}
-  .card .idx{font-size:11.5px;color:#8a8168;margin-bottom:16px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-size:20px;margin:0 0 6px;color:var(--ink);}
+  .sub{color:var(--ink-dim);font-size:13px;margin:0 0 24px;}
+  .card{background:var(--panel);border:1px solid var(--line);color:var(--ink);max-width:520px;width:100%;
+    border-radius:14px;padding:32px;margin-bottom:20px;box-shadow:0 8px 22px rgba(88,71,201,0.10);}
+  .card h2{font-family:'Space Grotesk',sans-serif;font-size:16px;margin:0 0 4px;color:var(--ink);}
+  .card .idx{font-size:11.5px;color:var(--ink-dim);margin-bottom:16px;}
   label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
-    color:#5c5440;margin:14px 0 5px;}
-  input[type=text],input[type=url],textarea{width:100%;padding:10px 12px;border:1px solid #d8cfb4;
-    border-radius:7px;font-size:14px;font-family:'IBM Plex Sans',sans-serif;background:#fffdf8;}
+    color:var(--ink-dim);margin:14px 0 5px;}
+  input[type=text],input[type=url],textarea{width:100%;padding:10px 12px;border:1px solid var(--line);
+    border-radius:7px;font-size:14px;font-family:'IBM Plex Sans',sans-serif;background:var(--bg-0);color:var(--ink);}
   textarea{min-height:60px;resize:vertical;}
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
   .swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid transparent;}
-  .swatch.selected{border-color:#26210f;}
+  .swatch.selected{border-color:var(--ink);}
   button{border:none;border-radius:8px;padding:11px 18px;font-family:'Space Grotesk',sans-serif;
     font-weight:700;font-size:13.5px;cursor:pointer;margin-top:8px;margin-right:8px;}
-  .primary{background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#2a1c0d;}
-  .secondary{background:#e4dcc4;color:#3a331d;}
-  .danger{background:none;color:#b8452f;text-decoration:underline;}
-  .saved{color:#4a7a5c;font-size:12.5px;margin-left:8px;display:none;}
-  .err{color:#b8452f;font-size:13px;margin:12px 0 0;}
-  .blurbBox{background:#efe8d3;border-radius:8px;padding:12px;margin-top:8px;font-size:13px;line-height:1.5;}
-  .note{font-size:11.5px;color:#8a8168;margin-top:6px;}
+  .primary{background:linear-gradient(135deg,var(--amber-bright),var(--amber));color:#fff;}
+  .secondary{background:var(--bg-1);color:var(--ink);}
+  .danger{background:none;color:var(--danger);text-decoration:underline;}
+  .saved{color:var(--success);font-size:12.5px;margin-left:8px;display:none;}
+  .err{color:var(--danger);font-size:13px;margin:12px 0 0;}
+  .blurbBox{background:var(--bg-1);border-radius:8px;padding:12px;margin-top:8px;font-size:13px;line-height:1.5;}
+  .note{font-size:11.5px;color:var(--ink-dim);margin-top:6px;}
 </style>
 </head>
 <body>
 
 <div id="app">
-  <p class="sub" style="color:#8fa3bd;">Loading…</p>
+  <p class="sub">Ladataan…</p>
 </div>
 
 <script>
 const params = new URLSearchParams(location.search);
 let token = params.get('token');
 const app = document.getElementById('app');
-const SWATCHES = ["#f2a65a","#d9694f","#5b8c5a","#3d6b94","#8a6fb0","#2b2718","#e0d9c4"];
+const SWATCHES = ["#5847c9","#7266d6","#c93f96","#c9622f","#2f5bc9","#211c38","#ece9f7"];
 
 if (!token) {
   app.innerHTML = `
     <div class="card">
-      <h1>Missing link</h1>
-      <p class="sub" style="margin-bottom:16px;">This page needs the edit link from your purchase confirmation — check the success page you saw right after paying. Lost it? Enter your email below and we'll send a fresh copy to any active listing(s) on file for it.</p>
-      <label>Email</label>
-      <input type="text" id="recoverEmail" placeholder="you@yourbusiness.fi" />
-      <button class="primary" id="recoverBtn" onclick="requestManageLink()">Email me my link</button>
+      <h1>Puuttuva linkki</h1>
+      <p class="sub" style="margin-bottom:16px;">Tämä sivu tarvitsee muokkauslinkin ostovahvistuksestasi — tarkista onnistumissivu, jonka näit heti maksun jälkeen. Hukassa? Anna sähköpostisi alla, niin lähetämme tuoreen kopion kaikkiin sillä oleviin aktiivisiin ilmoituksiin.</p>
+      <label>Sähköposti</label>
+      <input type="text" id="recoverEmail" placeholder="sina@yrityksesi.fi" />
+      <button class="primary" id="recoverBtn" onclick="requestManageLink()">Lähetä linkkini sähköpostiin</button>
       <p class="sub" id="recoverMsg" style="margin-top:12px;"></p>
     </div>`;
 } else {
@@ -67,7 +81,7 @@ async function requestManageLink(){
   const btn = document.getElementById('recoverBtn');
   const email = document.getElementById('recoverEmail').value.trim();
   const msg = document.getElementById('recoverMsg');
-  if (!email) { msg.textContent = 'Please enter an email address.'; return; }
+  if (!email) { msg.textContent = 'Anna sähköpostiosoite.'; return; }
   btn.disabled = true;
   try{
     const res = await fetch('/api/manage', {
@@ -75,9 +89,9 @@ async function requestManageLink(){
       body: JSON.stringify({ action: 'request_link', email })
     });
     const data = await res.json();
-    msg.textContent = data.message || data.error || 'If that email matches any active listings, we\'ve sent it a management link.';
+    msg.textContent = data.message || data.error || 'Jos tämä sähköposti löytyy aktiivisista ilmoituksista, lähetimme sille hallintalinkin.';
   }catch(e){
-    msg.textContent = 'Network error — please try again.';
+    msg.textContent = 'Verkkovirhe — yritä uudelleen.';
   }
   btn.disabled = false;
 }
@@ -87,12 +101,12 @@ async function load(){
     const res = await fetch(`/api/manage?token=${encodeURIComponent(token)}`);
     const data = await res.json();
     if (!res.ok){
-      app.innerHTML = `<div class="card"><h1>Link not found</h1><p>${data.error || 'This edit link is no longer valid.'}</p></div>`;
+      app.innerHTML = `<div class="card"><h1>Linkkiä ei löytynyt</h1><p>${data.error || 'Tämä muokkauslinkki ei ole enää voimassa.'}</p></div>`;
       return;
     }
     render(data.slots, data.towns, data.referralCode, data.referralStats);
   }catch(e){
-    app.innerHTML = '<div class="card"><h1>Network error</h1><p>Please try refreshing.</p></div>';
+    app.innerHTML = '<div class="card"><h1>Verkkovirhe</h1><p>Yritä päivittää sivu.</p></div>';
   }
 }
 
@@ -101,7 +115,7 @@ function copyReferralLink(){
   const btn = document.getElementById('copyReferralBtn');
   navigator.clipboard.writeText(input.value).then(() => {
     const original = btn.textContent;
-    btn.textContent = 'Copied!';
+    btn.textContent = 'Kopioitu!';
     setTimeout(() => { btn.textContent = original; }, 2000);
   }).catch(() => {
     // Clipboard permission denied or unavailable -- select the text so
@@ -119,10 +133,10 @@ function render(slots, towns, referralCode, referralStats){
   // group slots by town for an accurate summary when a purchase spans more than one town
   const countsByTown = {};
   slots.forEach(sq => {
-    const name = townsById[sq.town_id] ? townsById[sq.town_id].name : 'unknown town';
+    const name = townsById[sq.town_id] ? townsById[sq.town_id].name : 'tuntematon kaupunki';
     countsByTown[name] = (countsByTown[name] || 0) + 1;
   });
-  const townSummary = Object.entries(countsByTown).map(([name, n]) => `${n} in ${name}`).join(', ');
+  const townSummary = Object.entries(countsByTown).map(([name, n]) => `${name}: ${n} kpl`).join(', ');
   const totalViews = slots.reduce((sum, sq) => sum + (sq.view_count || 0), 0);
   // First slot's town for the referral link -- a business spanning
   // multiple towns only needs one concrete URL to share, and there's no
@@ -131,112 +145,112 @@ function render(slots, towns, referralCode, referralStats){
   const referralUrl = referralCode ? `https://www.paikalliscanvas.fi/${referralTownSlug}?ref=${referralCode}` : '';
 
   app.innerHTML = `
-    <h1>Manage your listing</h1>
-    <p class="sub">${s.company_name} — ${slots.length} slot${slots.length>1?'s':''} (${townSummary})</p>
+    <h1>Hallitse ilmoitustasi</h1>
+    <p class="sub">${s.company_name} — ${slots.length} mainospaikka${slots.length===1?'':'a'} (${townSummary})</p>
 
     <div class="card" style="text-align:center;">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:#8a8168;margin-bottom:4px;">Total page views</div>
-      <div style="font-size:34px;font-weight:700;font-family:'Space Grotesk',sans-serif;color:#3a331d;">${totalViews.toLocaleString()}</div>
-      <p class="sub" style="margin-top:6px;">Every time someone opens your listing's page, it counts here — real proof people are actually looking, not just a promise.</p>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-dim);margin-bottom:4px;">Sivunäyttöjä yhteensä</div>
+      <div style="font-size:34px;font-weight:700;font-family:'Space Grotesk',sans-serif;color:var(--ink);">${totalViews.toLocaleString('fi-FI')}</div>
+      <p class="sub" style="margin-top:6px;">Joka kerta kun joku avaa ilmoituksesi sivun, se lasketaan tähän — todellinen todiste siitä, että ihmiset oikeasti katsovat, ei pelkkä lupaus.</p>
     </div>
 
     ${referralCode ? `
     <div class="card">
-      <h2>Refer a business, get 50% off</h2>
-      <p class="sub" style="margin:-4px 0 12px;">Share your link below. When a business signs up through it and their first payment goes through, you get half off (€14.95) your next bill — no limit on how many times.</p>
-      <input type="text" readonly value="${referralUrl}" id="referralUrlInput" onclick="this.select();" style="width:100%;padding:10px 12px;border:1px solid #e5ddc8;border-radius:6px;font-size:13px;background:#fbf9f2;color:#3a331d;margin-bottom:8px;" />
-      <button type="button" onclick="copyReferralLink()" id="copyReferralBtn" style="width:100%;">Copy link</button>
-      <p class="sub" style="margin-top:12px;font-size:12px;">${(referralStats && referralStats.totalReferred) || 0} business${((referralStats && referralStats.totalReferred) || 0) === 1 ? '' : 'es'} referred so far — ${(referralStats && referralStats.rewarded) || 0} rewarded.</p>
+      <h2>Suosittele yritystä, saat 50% alennuksen</h2>
+      <p class="sub" style="margin:-4px 0 12px;">Jaa linkkisi alla. Kun yritys rekisteröityy sen kautta ja heidän ensimmäinen maksunsa menee läpi, saat puolet pois (14,95 €) seuraavasta laskustasi — ei rajaa sille, kuinka monta kertaa.</p>
+      <input type="text" readonly value="${referralUrl}" id="referralUrlInput" onclick="this.select();" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg-0);color:var(--ink);margin-bottom:8px;" />
+      <button type="button" onclick="copyReferralLink()" id="copyReferralBtn" style="width:100%;">Kopioi linkki</button>
+      <p class="sub" style="margin-top:12px;font-size:12px;">${(referralStats && referralStats.totalReferred) || 0} yritystä suositeltu tähän mennessä — ${(referralStats && referralStats.rewarded) || 0} palkittu.</p>
     </div>` : ''}
 
     <div class="card">
-      <h2>Appearance</h2>
-      <label>Tagline (shown on your page)</label>
-      <p class="note" style="margin:-4px 0 8px;">This is shared across all your slots, even if they're in different towns.</p>
-      <input type="text" id="tagline" value="${(s.tagline||'').replace(/"/g,'&quot;')}" placeholder="A short line about your business" maxlength="120" />
+      <h2>Ulkoasu</h2>
+      <label>Iskulause (näkyy sivullasi)</label>
+      <p class="note" style="margin:-4px 0 8px;">Tämä on jaettu kaikkien mainospaikkojesi kesken, vaikka ne olisivat eri kaupungeissa.</p>
+      <input type="text" id="tagline" value="${(s.tagline||'').replace(/"/g,'&quot;')}" placeholder="Lyhyt kuvaus yrityksestäsi" maxlength="120" />
       <label>Logo</label>
       <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp" style="display:none;" />
-      <button type="button" class="secondary" id="logoUploadBtn" style="width:auto;">📁 Choose a new image</button>
+      <button type="button" class="secondary" id="logoUploadBtn" style="width:auto;">📁 Valitse uusi kuva</button>
       <div id="cropperWrap" style="display:none;margin-top:12px;">
-        <div style="max-height:280px;overflow:hidden;border-radius:8px;background:#e4dcc4;">
+        <div style="max-height:280px;overflow:hidden;border-radius:8px;background:var(--bg-1);">
           <img id="cropperImg" style="display:block;max-width:100%;" />
         </div>
-        <p class="note">Drag and zoom to fit your slot(s)' shape.</p>
-        <button type="button" class="primary" id="cropConfirmBtn" style="width:auto;">✓ Use this crop</button>
+        <p class="note">Vedä ja zoomaa sopimaan mainospaikkasi/-paikkojesi muotoon.</p>
+        <button type="button" class="primary" id="cropConfirmBtn" style="width:auto;">✓ Käytä tätä rajausta</button>
       </div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
-        <img id="logoUrlPreview" src="${(s.logo_url||'').replace(/"/g,'&quot;')}" style="width:44px;height:44px;object-fit:contain;border-radius:6px;border:1px solid #d8cfb4;background:#eae3d3;${s.logo_url ? '' : 'display:none;'}" />
-        <span class="note" id="currentLogoNote" style="margin:0;">${s.logo_url ? 'Current logo shown above.' : 'No logo set yet.'}</span>
+        <img id="logoUrlPreview" src="${(s.logo_url||'').replace(/"/g,'&quot;')}" style="width:44px;height:44px;object-fit:contain;border-radius:6px;border:1px solid var(--line);background:var(--bg-1);${s.logo_url ? '' : 'display:none;'}" />
+        <span class="note" id="currentLogoNote" style="margin:0;">${s.logo_url ? 'Nykyinen logo näkyy yllä.' : 'Logoa ei ole vielä asetettu.'}</span>
       </div>
       <input type="url" id="logoUrl" value="${(s.logo_url||'').replace(/"/g,'&quot;')}" style="display:none;" />
-      <label>Slot color (used if no logo)</label>
+      <label>Mainospaikan väri (käytetään jos ei logoa)</label>
       <div class="row" id="colorRow"></div>
-      <button class="primary" onclick="saveAppearance()">Save appearance</button>
-      <span class="saved" id="savedAppearance">✓ Saved</span>
+      <button class="primary" onclick="saveAppearance()">Tallenna ulkoasu</button>
+      <span class="saved" id="savedAppearance">✓ Tallennettu</span>
       <div class="err" id="errAppearance"></div>
     </div>
 
     <div class="card">
-      <h2>AI-found "quick info"</h2>
-      <p class="sub" style="margin-bottom:10px;">This was automatically found and written by searching the web for your company. You can edit it, ask it to search again, or remove it entirely.</p>
-      ${s.ai_blurb_fi ? `<div class="blurbBox"><b>FI:</b> ${s.ai_blurb_fi}</div>` : '<div class="blurbBox">No info currently shown.</div>'}
+      <h2>Tekoälyn löytämä "pikatieto"</h2>
+      <p class="sub" style="margin-bottom:10px;">Tämä löydettiin ja kirjoitettiin automaattisesti hakemalla yritystäsi verkosta. Voit muokata sitä, pyytää hakemaan uudelleen tai poistaa sen kokonaan.</p>
+      ${s.ai_blurb_fi ? `<div class="blurbBox"><b>FI:</b> ${s.ai_blurb_fi}</div>` : '<div class="blurbBox">Ei tietoa näytettävänä tällä hetkellä.</div>'}
       ${s.ai_blurb_en ? `<div class="blurbBox"><b>EN:</b> ${s.ai_blurb_en}</div>` : ''}
-      <label>Edit Finnish text</label>
+      <label>Muokkaa suomenkielistä tekstiä</label>
       <textarea id="blurbFi">${s.ai_blurb_fi||''}</textarea>
-      <label>Edit English text</label>
+      <label>Muokkaa englanninkielistä tekstiä</label>
       <textarea id="blurbEn">${s.ai_blurb_en||''}</textarea>
       <div>
-        <button class="secondary" onclick="saveBlurbText()">Save edited text</button>
-        <button class="secondary" onclick="regenerateBlurb()">🔎 Search again</button>
-        <button class="danger" onclick="clearBlurb()">Remove entirely</button>
+        <button class="secondary" onclick="saveBlurbText()">Tallenna muokattu teksti</button>
+        <button class="secondary" onclick="regenerateBlurb()">🔎 Hae uudelleen</button>
+        <button class="danger" onclick="clearBlurb()">Poista kokonaan</button>
       </div>
-      <span class="saved" id="savedBlurb">✓ Saved</span>
+      <span class="saved" id="savedBlurb">✓ Tallennettu</span>
       <div class="err" id="errBlurb"></div>
     </div>
 
     <div class="card">
-      <h2>Security</h2>
+      <h2>Tietoturva</h2>
       <p class="sub" style="margin-bottom:12px;">
-        This link is the only thing that controls access to your listing — anyone who has it can edit it. If you think it's ended up somewhere it shouldn't (forwarded, screenshotted, etc.), you can invalidate it and get a new one. The old link stops working immediately; the new one is shown below and also emailed to you as a backup.
+        Tämä linkki on ainoa asia, joka hallitsee pääsyä ilmoitukseesi — kuka tahansa jolla se on, voi muokata sitä. Jos epäilet sen päätyneen jonnekin minne sen ei pitäisi (välitetty, kuvakaapattu jne.), voit mitätöidä sen ja saada uuden. Vanha linkki lakkaa toimimasta välittömästi; uusi näytetään alla ja lähetetään myös sähköpostiisi varmuuskopioksi.
       </p>
-      <button class="secondary" onclick="rotateLink()">Get a new link</button>
+      <button class="secondary" onclick="rotateLink()">Hanki uusi linkki</button>
       <div id="rotateResult" style="display:none;margin-top:12px;">
-        <label>Your new link</label>
+        <label>Uusi linkkisi</label>
         <input type="text" readonly id="newLinkInput" onclick="this.select();" />
-        <p class="note">Save or bookmark this now — this is the only time it's shown here.</p>
+        <p class="note">Tallenna tai kirjanmerkitse tämä nyt — tämä on ainoa kerta kun se näytetään täällä.</p>
       </div>
       <div class="err" id="errRotate"></div>
     </div>
 
     ${s.subscription_id ? `
     <div class="card">
-      <h2>Buy more slots</h2>
+      <h2>Osta lisää mainospaikkoja</h2>
       <p class="sub" style="margin-bottom:12px;">
-        More slots means a bigger logo on the board and your page. Every slot is €29.90/month, same price regardless of how many you have.
+        Useampi mainospaikka tarkoittaa isompaa logoa taululla ja sivullasi. Jokainen mainospaikka on 29,90 €/kk, sama hinta riippumatta siitä kuinka monta sinulla on.
       </p>
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
-        <button type="button" id="addSlotsMinus" style="width:36px;height:36px;border-radius:50%;border:1px solid #d8cfb4;background:#fffdf8;font-size:18px;font-weight:700;cursor:pointer;">−</button>
+        <button type="button" id="addSlotsMinus" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--bg-0);font-size:18px;font-weight:700;cursor:pointer;">−</button>
         <span id="addSlotsQty" style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;min-width:24px;text-align:center;">1</span>
-        <button type="button" id="addSlotsPlus" style="width:36px;height:36px;border-radius:50%;border:1px solid #d8cfb4;background:#fffdf8;font-size:18px;font-weight:700;cursor:pointer;">+</button>
+        <button type="button" id="addSlotsPlus" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--bg-0);font-size:18px;font-weight:700;cursor:pointer;">+</button>
         <span class="note" id="addSlotsPreview" style="margin:0;"></span>
       </div>
-      <button class="primary" onclick="addSlots()">Buy more slots</button>
-      <span class="saved" id="savedAddSlots">✓ Added</span>
+      <button class="primary" onclick="addSlots()">Osta lisää mainospaikkoja</button>
+      <span class="saved" id="savedAddSlots">✓ Lisätty</span>
       <div class="err" id="errAddSlots"></div>
     </div>
     <div class="card">
-      <h2>Cancel subscription</h2>
+      <h2>Peru tilaus</h2>
       <p class="sub" style="margin-bottom:12px;">
-        No contract, no notice period. If you cancel, your slot(s) stay live and visible for the rest of the period you've already paid for — then they're removed automatically. You won't be charged again.
+        Ei sopimusta, ei irtisanomisaikaa. Jos peruutat, mainospaikkasi pysyvät aktiivisina ja näkyvissä jo maksetun jakson loppuun asti — sitten ne poistetaan automaattisesti. Sinulta ei veloiteta enää uudelleen.
       </p>
-      <button class="danger" style="border:1px solid #c1503a;padding:9px 16px;border-radius:7px;" onclick="cancelSubscription()">Cancel my subscription</button>
-      <span class="saved" id="savedCancel">✓ Done</span>
+      <button class="danger" style="border:1px solid var(--danger);padding:9px 16px;border-radius:7px;" onclick="cancelSubscription()">Peru tilaukseni</button>
+      <span class="saved" id="savedCancel">✓ Valmis</span>
       <div class="err" id="errCancel"></div>
     </div>` : (s.active_until ? `
     <div class="card">
-      <h2>Prepaid term</h2>
+      <h2>Ennakkomaksettu jakso</h2>
       <p class="sub">
-        This was paid upfront for a fixed term and does not auto-renew. Your slot(s) stay live until <b>${new Date(s.active_until).toLocaleDateString()}</b>, then become available for someone else to claim. You can come back and buy again anytime before or after that date. Adding more slots to a prepaid term isn't self-service yet — contact us directly if you'd like more before then.
+        Tämä maksettiin etukäteen kiinteälle jaksolle eikä uusiudu automaattisesti. Mainospaikkasi pysyvät aktiivisina <b>${new Date(s.active_until).toLocaleDateString('fi-FI')}</b> asti, jonka jälkeen ne vapautuvat jonkun muun otettavaksi. Voit tulla takaisin ja ostaa uudelleen milloin tahansa ennen tai jälkeen tuon päivämäärän. Mainospaikkojen lisääminen ennakkomaksettuun jaksoon ei ole vielä itsepalvelua — ota suoraan yhteyttä jos haluat lisää ennen sitä.
       </p>
     </div>` : '')}
   `;
@@ -272,7 +286,7 @@ function render(slots, towns, referralCode, referralStats){
       document.getElementById('addSlotsQty').textContent = addSlotsQty;
       const newTotal = slots.length + addSlotsQty;
       document.getElementById('addSlotsPreview').textContent =
-        `→ ${newTotal} total, €${formatSlotPrice(PRICE_PER_SLOT)}/slot (€${formatSlotPrice(newTotal * PRICE_PER_SLOT)}/mo)`;
+        `→ ${newTotal} yhteensä, ${formatSlotPrice(PRICE_PER_SLOT)} €/paikka (${formatSlotPrice(newTotal * PRICE_PER_SLOT)} €/kk)`;
     };
     updateAddSlotsPreview();
     document.getElementById('addSlotsMinus').addEventListener('click', () => {
@@ -338,7 +352,7 @@ function render(slots, towns, referralCode, referralStats){
     if (!cropper) return;
     const canvas = cropper.getCroppedCanvas({ maxWidth: 800, maxHeight: 800 });
     const btn = document.getElementById('cropConfirmBtn');
-    btn.disabled = true; btn.textContent = 'Uploading…';
+    btn.disabled = true; btn.textContent = 'Ladataan…';
     canvas.toBlob((blob)=>{
       const reader = new FileReader();
       reader.onload = async ()=>{
@@ -349,17 +363,17 @@ function render(slots, towns, referralCode, referralStats){
             body: JSON.stringify({ imageBase64: base64, contentType: 'image/png' })
           });
           const data = await res.json();
-          if (!res.ok){ alert(data.error || 'Upload failed.'); btn.disabled = false; btn.textContent = '✓ Use this crop'; return; }
+          if (!res.ok){ alert(data.error || 'Lataus epäonnistui.'); btn.disabled = false; btn.textContent = '✓ Käytä tätä rajausta'; return; }
           document.getElementById('logoUrl').value = data.url;
           document.getElementById('logoUrlPreview').src = data.url;
           document.getElementById('logoUrlPreview').style.display = 'inline-block';
-          document.getElementById('currentLogoNote').textContent = 'New logo ready — click "Save appearance" below to confirm.';
+          document.getElementById('currentLogoNote').textContent = 'Uusi logo valmis — paina "Tallenna ulkoasu" alla vahvistaaksesi.';
           document.getElementById('cropperWrap').style.display = 'none';
           cropper.destroy(); cropper = null;
-          btn.disabled = false; btn.textContent = '✓ Use this crop';
+          btn.disabled = false; btn.textContent = '✓ Käytä tätä rajausta';
         }catch(err){
-          alert('Network error.');
-          btn.disabled = false; btn.textContent = '✓ Use this crop';
+          alert('Verkkovirhe.');
+          btn.disabled = false; btn.textContent = '✓ Käytä tätä rajausta';
         }
       };
       reader.readAsDataURL(blob);
@@ -373,7 +387,7 @@ async function post(body){
     body: JSON.stringify({ token, ...body })
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Save failed.');
+  if (!res.ok) throw new Error(data.error || 'Tallennus epäonnistui.');
   return data;
 }
 
@@ -426,7 +440,7 @@ async function clearBlurb(){
 async function rotateLink(){
   const errBox = document.getElementById('errRotate');
   errBox.textContent = '';
-  if (!confirm('Get a new link? Your current link will stop working immediately — make sure you\'re ready to save the new one before continuing.')) return;
+  if (!confirm('Hanki uusi linkki? Nykyinen linkkisi lakkaa toimimasta välittömästi — varmista että olet valmis tallentamaan uuden ennen jatkamista.')) return;
   try{
     const data = await post({ action: 'rotate_link' });
     document.getElementById('newLinkInput').value = data.newUrl;
@@ -443,12 +457,12 @@ async function addSlots(){
   const errBox = document.getElementById('errAddSlots');
   errBox.textContent = '';
   const qty = window._getAddSlotsQty ? window._getAddSlotsQty() : 1;
-  if (!confirm(`Add ${qty} more slot${qty>1?'s':''}? Your subscription will be updated and prorated for the rest of this billing period.`)) return;
+  if (!confirm(`Lisää ${qty} mainospaikka${qty===1?'':'a'} lisää? Tilauksesi päivitetään ja suhteutetaan tämän laskutuskauden loppuosalle.`)) return;
   try{
     const data = await post({ action: 'add_slots', additionalCount: qty });
     flash('savedAddSlots');
-    errBox.style.color = '#4a7a5c';
-    errBox.textContent = `Done — you now have ${data.newTotal} slots at €${Number(data.newPerSlot).toFixed(2)}/slot.`;
+    errBox.style.color = 'var(--success)';
+    errBox.textContent = `Valmis — sinulla on nyt ${data.newTotal} mainospaikkaa hintaan ${Number(data.newPerSlot).toFixed(2)} €/paikka.`;
     setTimeout(load, 2500); // let the success message actually be seen before load() re-renders the whole page and replaces it
   }catch(e){ errBox.textContent = e.message; }
 }
@@ -456,13 +470,13 @@ async function addSlots(){
 async function cancelSubscription(){
   const errBox = document.getElementById('errCancel');
   errBox.textContent = '';
-  if (!confirm('Cancel your subscription? Your slot(s) will stay live until the end of your current billing period, then be removed. You will not be charged again.')) return;
+  if (!confirm('Peru tilauksesi? Mainospaikkasi pysyvät aktiivisina nykyisen laskutuskautesi loppuun, sitten ne poistetaan. Sinulta ei veloiteta enää uudelleen.')) return;
   try{
     const data = await post({ action: 'cancel_subscription' });
-    const endsDate = data.endsAt ? new Date(data.endsAt * 1000).toLocaleDateString() : 'the end of your current period';
+    const endsDate = data.endsAt ? new Date(data.endsAt * 1000).toLocaleDateString('fi-FI') : 'nykyisen jaksosi loppuun';
     flash('savedCancel');
-    errBox.style.color = '#4a7a5c';
-    errBox.textContent = `Cancelled. Your slot(s) stay live until ${endsDate}.`;
+    errBox.style.color = 'var(--success)';
+    errBox.textContent = `Peruttu. Mainospaikkasi pysyvät aktiivisina ${endsDate} asti.`;
   }catch(e){ errBox.textContent = e.message; }
 }
 
