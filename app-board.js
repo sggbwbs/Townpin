@@ -782,7 +782,7 @@ const EXPANDED_NEWS_SOURCES = [
     options: [['rss-uusimmat','Uusimmat'], ['oulun-seutu','Oulun seutu'], ['kotimaa','Kotimaa']] },
   { group: 'yle', label: 'Yle', color: '#00b4d8',
     options: [['yle-tuoreimmat','Tuoreimmat'], ['yle-pohjois-pohjanmaa','Pohjois-Pohjanmaa'], ['yle-kotimaa','Kotimaa']] },
-  { group: 'kaupunki', label: 'Oulun kaupunki', color: 'var(--lilac, #5847c9)',
+  { group: 'kaupunki', label: 'Oulun kaupunki', color: 'var(--amber)',
     options: [['oulu-liikenne','Oulun seudun liikenteen uutiset'], ['oulu-business','BusinessOulun uutiset'],
               ['oulu-mun-oulu','Mun Oulun uutiset'], ['oulu-kaupunki','Oulun kaupungin uutiset'],
               ['oulu-museo','Oulun museo- ja tiedekeskuksen uutiset']] }
@@ -817,6 +817,7 @@ function loadNewsSourceColumns(){
   EXPANDED_NEWS_SOURCES.forEach(source => {
     const col = document.createElement('div');
     col.className = 'expandedNewsCol';
+    col.style.setProperty('--col-accent', source.color);
     const head = document.createElement('div');
     head.className = 'expandedNewsColHead';
     head.innerHTML = `<span class="expandedNewsColLogo" style="background:${source.color};">${source.label[0]}</span> ${source.label}`;
@@ -1032,6 +1033,15 @@ function makeFeedItemEl(item, index){
   // a second "lead".
   const isLead = index === 0;
   if (isLead) el.classList.add('newsRowLead');
+  // Tonal accent border per source (see .newsRow--kaleva/yle/oulu in the
+  // CSS) -- deliberately shades of the site's own purple rather than
+  // each outlet's real external brand color (that distinction already
+  // lives in the logo itself once uploaded, see sourceLogoSrc below) --
+  // keeping the card's own accent treatment visually unified with the
+  // rest of the site instead of turning the list into unrelated colors.
+  if (item.source_name === 'Kaleva') el.classList.add('newsRow--kaleva');
+  else if (item.source_name === 'Yle') el.classList.add('newsRow--yle');
+  else if (item.source_name === 'Oulun kaupunki') el.classList.add('newsRow--oulu');
   if (hasLink){ el.href = item.source_url; el.target = '_blank'; el.rel = 'noopener'; }
 
   // The circular icon is the real photo when one's available -- showing
