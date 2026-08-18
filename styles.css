@@ -992,21 +992,32 @@
      external brand color -- see the comment above where these classes
      get assigned in app-board.js for why. Distinct enough to tell
      sources apart at a glance in the mixed/all-sources view, but still
-     reads as one cohesive card rather than three competing colors. */
-  .newsRow--kaleva{border-left-color:var(--amber-deep);}
-  .newsRow--yle{border-left-color:var(--amber);}
-  .newsRow--oulu{border-left-color:var(--amber-bright);}
-  .newsRowBadge{flex:none;width:42px;height:42px;border-radius:50%;color:#fff;object-fit:cover;
+     reads as one cohesive card rather than three competing colors.
+     Background tint added alongside the existing left border -- the
+     border alone read as too subtle on its own (real feedback: it was
+     barely registering as color at a glance), so each row now also
+     gets a faint wash of its source's tone, not just a 3px hairline. */
+  .newsRow--kaleva{border-left-color:var(--amber-deep);background:color-mix(in srgb, var(--amber-deep) 6%, transparent);}
+  .newsRow--yle{border-left-color:var(--amber);background:color-mix(in srgb, var(--amber) 6%, transparent);}
+  .newsRow--oulu{border-left-color:var(--amber-bright);background:color-mix(in srgb, var(--amber-bright) 6%, transparent);}
+  /* Bigger and rounded-square rather than a small circle -- the single
+     biggest driver of the news card reading as flatter than the
+     photo-forward events card right above it on the homepage. Still
+     small enough to stay a "compact list row" rather than turning into
+     a full photo card (see .eventCard for that treatment), but enough
+     bigger to actually register as a real visual element, not a tiny
+     dot next to the text. */
+  .newsRowBadge{flex:none;width:52px;height:52px;border-radius:13px;color:#fff;object-fit:cover;
     display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;
-    font-size:16px;font-weight:700;}
+    font-size:18px;font-weight:700;}
   /* Real source logos (Kaleva/Yle) are wide wordmarks, not square icons
      -- force-cropping one into the circular photo badge above would cut
      off most of it and make it unrecognizable. A white rounded-rect
      chip with contain-fit (never cropped) is the standard, sane way to
      show an arbitrary-shaped brand logo at a small fixed size. */
-  .newsRowBadgeLogo{border-radius:9px;background:#fff;object-fit:contain;padding:6px;box-sizing:border-box;}
-  .newsRow.newsRowLead .newsRowBadgeLogo{border-radius:12px;padding:8px;}
-  .newsRowBody{flex:none;width:fit-content;max-width:calc(100% - 60px);min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .newsRowBadgeLogo{border-radius:11px;background:#fff;object-fit:contain;padding:7px;box-sizing:border-box;}
+  .newsRow.newsRowLead .newsRowBadgeLogo{border-radius:15px;padding:10px;}
+  .newsRowBody{flex:none;width:fit-content;max-width:calc(100% - 70px);min-width:0;display:flex;flex-direction:column;gap:2px;}
   .newsRow b{font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--ink);line-height:1.35;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
   .newsRowMeta{font-size:11.5px;color:var(--ink-dim);}
@@ -1018,7 +1029,8 @@
      alongside the rest of the card rather than looking like a separate
      component. */
   .newsRow.newsRowLead{padding-top:4px;padding-bottom:18px;gap:14px;}
-  .newsRow.newsRowLead .newsRowBadge{width:58px;height:58px;font-size:20px;}
+  .newsRow.newsRowLead .newsRowBadge{width:78px;height:78px;font-size:26px;border-radius:16px;}
+  .newsRow.newsRowLead .newsRowBody{max-width:calc(100% - 96px);}
   .newsRow.newsRowLead b{font-size:15.5px;line-height:1.3;}
 
   .feedItem{background:var(--panelT4);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
