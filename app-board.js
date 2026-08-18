@@ -415,6 +415,31 @@ function formatMinutesUntil(min){
   return `${min} min`;
 }
 
+// Shared by both the card's stop list AND the map modal's subtitle (see
+// openTransitStopMap) -- previously only the card list got the chip
+// treatment when this was first built, leaving the modal still showing
+// the old plain "D Keskusta 27 min · D Keskusta 63 min" run-on text.
+// One shared builder means both are now guaranteed to always match,
+// rather than needing to remember to update both places by hand.
+function buildDepartureChipsEl(departures){
+  const depsEl = document.createElement('div');
+  depsEl.className = 'transitDepartures';
+  departures.forEach(d => {
+    const chip = document.createElement('span');
+    chip.className = 'transitDepartureChip';
+    const routeEl = document.createElement('span');
+    routeEl.className = 'transitRouteBadge';
+    routeEl.textContent = d.route;
+    const restEl = document.createElement('span');
+    restEl.className = 'transitDepartureRest';
+    restEl.textContent = `${d.headsign} · ${formatMinutesUntil(d.minutesUntil)}`;
+    chip.appendChild(routeEl);
+    chip.appendChild(restEl);
+    depsEl.appendChild(chip);
+  });
+  return depsEl;
+}
+
 function makeTransitStopEl(stop){
   const el = document.createElement('div');
   el.className = 'feedItem feedItemCompact transitStopRow';
@@ -435,21 +460,7 @@ function makeTransitStopEl(stop){
   // question) since a real route-number badge is exactly the kind of
   // scannable pattern actual transit apps (HSL, Google Maps) already use,
   // not decoration for its own sake.
-  const depsEl = document.createElement('div');
-  depsEl.className = 'transitDepartures';
-  stop.departures.forEach(d => {
-    const chip = document.createElement('span');
-    chip.className = 'transitDepartureChip';
-    const routeEl = document.createElement('span');
-    routeEl.className = 'transitRouteBadge';
-    routeEl.textContent = d.route;
-    const restEl = document.createElement('span');
-    restEl.className = 'transitDepartureRest';
-    restEl.textContent = `${d.headsign} · ${formatMinutesUntil(d.minutesUntil)}`;
-    chip.appendChild(routeEl);
-    chip.appendChild(restEl);
-    depsEl.appendChild(chip);
-  });
+  const depsEl = buildDepartureChipsEl(stop.departures);
   body.appendChild(depsEl);
 
   el.appendChild(body);
@@ -553,8 +564,13 @@ function makeColoredPinIcon(cssVarName, fallbackHex){
 function openTransitStopMap(stop){
   document.getElementById('transitStopMapOverlay').style.display = 'flex';
   document.getElementById('transitStopMapTitle').textContent = stop.name;
-  document.getElementById('transitStopMapSub').textContent =
-    stop.departures.map(d => `${d.route} ${d.headsign} ${formatMinutesUntil(d.minutesUntil)}`).join('  ·  ');
+  // Same chip treatment as the card list (see buildDepartureChipsEl) --
+  // this modal was still showing the old plain "D Keskusta 27 min · D
+  // Keskusta 63 min" run-on text, a real gap left over from when the
+  // card list got redesigned but this subtitle wasn't updated to match.
+  const subEl = document.getElementById('transitStopMapSub');
+  subEl.innerHTML = '';
+  subEl.appendChild(buildDepartureChipsEl(stop.departures));
 
   if (typeof L === 'undefined') return; // Leaflet failed to load (e.g. offline) -- title/departures above still show without the map
   ensureLeafletIcons();
