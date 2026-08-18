@@ -532,6 +532,24 @@ document.getElementById('transitUseLocationBtn').addEventListener('click', () =>
 });
 
 let transitStopMapInstance = null;
+
+// Inline SVG pin, not an image file -- avoids needing to source/host a
+// new marker asset just for this. Color resolved to a real computed
+// value via getComputedStyle rather than trusting an inline SVG fill
+// attribute to correctly reference a CSS custom property through every
+// browser -- same reasoning already applied to the expanded news
+// column's accent color (see loadNewsSourceColumns).
+function makeColoredPinIcon(cssVarName, fallbackHex){
+  const resolved = getComputedStyle(document.documentElement).getPropertyValue(cssVarName).trim() || fallbackHex;
+  return L.divIcon({
+    className: 'coloredPinIcon',
+    html: `<svg viewBox="0 0 24 32" width="30" height="40"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20c0-6.6-5.4-12-12-12z" fill="${resolved}"/><circle cx="12" cy="12" r="5" fill="#fff"/></svg>`,
+    iconSize: [30, 40],
+    iconAnchor: [15, 40],
+    popupAnchor: [0, -36]
+  });
+}
+
 function openTransitStopMap(stop){
   document.getElementById('transitStopMapOverlay').style.display = 'flex';
   document.getElementById('transitStopMapTitle').textContent = stop.name;
@@ -553,7 +571,7 @@ function openTransitStopMap(stop){
     maxZoom: 19
   }).addTo(map);
 
-  const stopMarker = L.marker([stop.lat, stop.lng]).bindPopup(escapeAskText(stop.name));
+  const stopMarker = L.marker([stop.lat, stop.lng], { icon: makeColoredPinIcon('--bizfeed-accent', '#c93f96') }).bindPopup(escapeAskText(stop.name));
   stopMarker.addTo(map);
   const markers = [stopMarker];
 
@@ -562,8 +580,9 @@ function openTransitStopMap(stop){
   // exists once a load has already completed), but the null check
   // still costs nothing and avoids trusting that ordering blindly.
   if (lastTransitUserLocation){
+    const resolvedAmber = getComputedStyle(document.documentElement).getPropertyValue('--amber').trim() || '#5847c9';
     const userMarker = L.circleMarker([lastTransitUserLocation.lat, lastTransitUserLocation.lng],
-      { radius: 8, color: '#fff', weight: 2, fillColor: '#5847c9', fillOpacity: 1 }).addTo(map);
+      { radius: 8, color: '#fff', weight: 2, fillColor: resolvedAmber, fillOpacity: 1 }).addTo(map);
     markers.push(userMarker);
   }
 

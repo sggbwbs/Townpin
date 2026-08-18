@@ -433,6 +433,11 @@
   .nearbyPrivacyNote{font-size:11.5px;color:var(--ink-dim);text-align:center;margin:14px 0 0;line-height:1.4;}
   #nearbyMap, #transitStopMap{height:220px;border-radius:12px;margin-bottom:14px;background:var(--panelT4);
     z-index:0;} /* z-index:0 keeps Leaflet's own internal panes (which use high z-indexes) from bleeding above this modal's own close button etc. */
+  /* Leaflet's default div-icon adds its own background/border box --
+     needs resetting to nothing so the custom SVG pin (see
+     makeColoredPinIcon in app-board.js) renders on its own, not inside
+     an extra white square. */
+  .coloredPinIcon{background:transparent;border:none;}
   .nearbyListItem{display:flex;align-items:center;gap:12px;padding:10px 4px;
     border-radius:10px;transition:background 0.15s ease;}
   .nearbyListItem:hover{background:var(--panelT4);}
@@ -719,12 +724,15 @@
     padding:3px 8px 3px 3px;}
   /* Solid, confident color -- a real route-number badge, the same
      scannable pattern actual transit apps (HSL, Google Maps) already
-     use, not a decorative wash. Reuses this card's own accent color
-     (matches the card's top border) rather than introducing a fourth
-     unrelated color just for this. */
+     use, not a decorative wash. Pink specifically, not this card's own
+     orange accent -- OSL's (Oulun Seudun Liikenne) real buses ("Onnikat")
+     use a pink livery, so this is the one spot on the card where
+     matching the real external operator's own color is more accurate
+     than the card's general theme accent -- same reasoning already
+     applied to the news card's real source logos. */
   .transitRouteBadge{display:inline-flex;align-items:center;justify-content:center;
     min-width:20px;height:20px;padding:0 5px;border-radius:6px;
-    background:var(--tilannehuone-accent);color:#fff;
+    background:var(--bizfeed-accent);color:#fff;
     font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;}
   .transitDepartureRest{font-size:11.5px;color:var(--ink-dim);white-space:nowrap;}
   #featureTiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:8px;}
