@@ -409,6 +409,32 @@ window.addEventListener('resize', () => {
   }, 250);
 });
 
+// Cached by renderBoard right before calling renderEventsList, purely so
+// this listener can re-paginate on rotation without a fresh network
+// fetch -- the events themselves haven't changed, only how many fit per
+// page.
+let lastRenderedEvents = [];
+let eventsPageSizeWas = getEventsPageSize();
+let eventsResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(eventsResizeTimer);
+  eventsResizeTimer = setTimeout(() => {
+    const pageSizeNow = getEventsPageSize();
+    // Real, common case this actually fixes: rotating a phone between
+    // portrait and landscape. getEventsPageSize() was previously
+    // evaluated once per render and never revisited -- reasoned as fine
+    // because someone manually dragging a DESKTOP browser window's edge
+    // to straddle this exact breakpoint mid-session is rare. That
+    // reasoning doesn't hold for a phone: rotating it is a completely
+    // normal, everyday action, and landscape genuinely has room for
+    // more events per page than portrait does.
+    if (pageSizeNow !== eventsPageSizeWas){
+      eventsPageSizeWas = pageSizeNow;
+      if (lastRenderedEvents.length > 0) renderEventsList(lastRenderedEvents);
+    }
+  }, 250);
+});
+
 function formatMinutesUntil(min){
   if (min <= 0) return lang === 'fi' ? 'Nyt' : 'Now';
   if (min === 1) return lang === 'fi' ? '1 min' : '1 min';
@@ -1286,6 +1312,7 @@ function renderLocalFeed(feed){
     document.getElementById('eventsSourceNoteText').textContent = isOulu
       ? (lang === 'fi' ? 'Lähde: Kaleva' : 'Source: Kaleva')
       : (lang === 'fi' ? 'Haettu verkosta tekoälyllä' : 'Found via AI web search');
+    lastRenderedEvents = events; // cached so rotating the device can re-paginate without a fresh fetch -- see the resize listener below
     renderEventsList(events);
   }
 
