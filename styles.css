@@ -858,32 +858,20 @@
     border:1px solid var(--line);border-top:3px solid var(--col-accent, var(--amber));
     border-radius:14px;padding:18px;}
   .expandedNewsColHead{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;
-    font-weight:700;font-size:14.5px;color:var(--ink);margin:0 0 12px;}
+    font-weight:700;font-size:14.5px;margin:0 0 12px;}
+  /* The label itself is the link -- tried a separate row of source
+     chips below the columns first, but real feedback was that a whole
+     extra section felt bolted-on compared to just making the existing
+     header clickable. Underline only on hover, not by default, so it
+     still reads primarily as a heading, not as obviously a link until
+     you're actually interacting with it. */
+  .expandedNewsColHeadLink{display:flex;align-items:center;gap:8px;color:var(--ink);text-decoration:none;}
+  .expandedNewsColHeadLink:hover{text-decoration:underline;}
   .expandedNewsColLogo{width:22px;height:22px;border-radius:50%;flex:none;color:#fff;font-size:11px;font-weight:700;
     display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;}
   .expandedNewsColSelect{display:block;width:100%;margin:0 0 14px;padding:9px 12px;border-radius:9px;
     border:1px solid var(--line);background:var(--panelT7);color:var(--ink);font-size:13px;
     font-family:'IBM Plex Sans',sans-serif;cursor:pointer;}
-  /* Fills what was previously just blank reserved space below the
-     column grid (see the long comment above #newsSection.feedCardExpanded
-     for why that height is reserved at all -- removing it risks
-     reopening a real, already-debugged layout bug, so this fills the
-     space with something useful instead of touching that fragile math).
-     Previously an AI-chat banner here -- removed after real feedback
-     that it was just a fourth, redundant way to open the same chat
-     already reachable via the hero input, the mobile tab bar, and the
-     feature tile, without actually doing anything with the news itself.
-     Direct source links are a genuinely different, useful thing to fill
-     this space with instead. */
-  #newsSourceLinksBox{margin-top:20px;padding-top:16px;border-top:1px solid var(--line);}
-  #newsSourceLinksBox > b{display:block;font-family:'Space Grotesk',sans-serif;font-size:13px;
-    color:var(--ink-dim);margin-bottom:10px;}
-  #newsSourceLinksGrid{display:flex;flex-wrap:wrap;gap:8px;}
-  .newsSourceLinkChip{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;
-    border-radius:999px;border:1px solid var(--line);background:var(--panelT4);
-    color:var(--ink);font-size:12.5px;text-decoration:none;transition:background 0.15s ease,border-color 0.15s ease;}
-  .newsSourceLinkChip:hover{background:var(--panelT7);border-color:var(--amber);}
-  .newsSourceLinkChip::after{content:'↗';font-size:11px;opacity:0.6;}
   .feedSubhead{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--ink);
     margin:0 0 4px;}
   .cardHeadRow{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:4px;}

@@ -842,39 +842,25 @@ const EXPANDED_NEWS_SOURCES = [
               ['oulu-museo','Oulun museo- ja tiedekeskuksen uutiset']] }
 ];
 
-// Real homepages for all 7 distinct actual sources (not just the 3
-// group labels above) -- domains taken directly from the real feed
-// URLs already used server-side (see NEWS_RSS_FEEDS/YLE_NEWS_RSS_FEEDS/
-// OULU_CITY_NEWS_RSS_FEEDS in api/_localFeed.js), not guessed. A single
-// link per GROUP wouldn't work here: "Oulun kaupunki" alone actually
-// covers 5 different real organizations (BusinessOulu, Mun Oulu, the
-// city government, the museum, and the regional transit authority),
-// each its own domain -- someone specifically wanting OSL's own site,
-// for example, needs OSL's own link, not whatever the group's dropdown
-// happens to currently be set to.
-const NEWS_SOURCE_LINKS = [
-  { label: 'Kaleva', url: 'https://kaleva.fi' },
-  { label: 'Yle', url: 'https://yle.fi' },
-  { label: 'Oulun seudun liikenne', url: 'https://www.osl.fi' },
-  { label: 'Oulun kaupunki', url: 'https://www.ouka.fi' },
-  { label: 'BusinessOulu', url: 'https://www.businessoulu.com' },
-  { label: 'Mun Oulu', url: 'https://www.munoulu.fi' },
-  { label: 'Oulun museo- ja tiedekeskus', url: 'https://oulunmuseojatiedekeskus.fi' }
-];
-
-function renderNewsSourceLinks(){
-  const box = document.getElementById('newsSourceLinksGrid');
-  box.innerHTML = '';
-  NEWS_SOURCE_LINKS.forEach(src => {
-    const a = document.createElement('a');
-    a.href = src.url;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.className = 'newsSourceLinkChip';
-    a.textContent = src.label;
-    box.appendChild(a);
-  });
-}
+// Real homepages keyed by exact category, not just by group -- domains
+// taken directly from the real feed URLs already used server-side (see
+// NEWS_RSS_FEEDS/YLE_NEWS_RSS_FEEDS/OULU_CITY_NEWS_RSS_FEEDS in
+// api/_localFeed.js), not guessed. Keyed this specifically (not just
+// one URL per group) because "Oulun kaupunki" alone actually covers 5
+// different real organizations (BusinessOulu, Mun Oulu, the city
+// government, the museum, and the regional transit authority), each
+// its own domain -- the column's header link needs to follow whichever
+// one is currently selected in that column's own dropdown, not point
+// at one fixed site regardless of what's showing.
+const NEWS_CATEGORY_URLS = {
+  'rss-uusimmat': 'https://kaleva.fi', 'oulun-seutu': 'https://kaleva.fi', 'kotimaa': 'https://kaleva.fi',
+  'yle-tuoreimmat': 'https://yle.fi', 'yle-pohjois-pohjanmaa': 'https://yle.fi', 'yle-kotimaa': 'https://yle.fi',
+  'oulu-liikenne': 'https://www.osl.fi',
+  'oulu-business': 'https://www.businessoulu.com',
+  'oulu-mun-oulu': 'https://www.munoulu.fi',
+  'oulu-kaupunki': 'https://www.ouka.fi',
+  'oulu-museo': 'https://oulunmuseojatiedekeskus.fi'
+};
 
 async function loadExpandedNewsColumn(columnBodyEl, category){
   columnBodyEl.innerHTML = '<p class="note">Ladataan...</p>';
@@ -902,7 +888,6 @@ async function loadExpandedNewsColumn(columnBodyEl, category){
 function loadNewsSourceColumns(){
   const grid = document.getElementById('newsSourceColumnsGrid');
   grid.innerHTML = '';
-  renderNewsSourceLinks();
   EXPANDED_NEWS_SOURCES.forEach(source => {
     const col = document.createElement('div');
     col.className = 'expandedNewsCol';
@@ -919,7 +904,23 @@ function loadNewsSourceColumns(){
     col.style.setProperty('--col-accent', resolvedAccent);
     const head = document.createElement('div');
     head.className = 'expandedNewsColHead';
-    head.innerHTML = `<span class="expandedNewsColLogo" style="background:${source.color};">${source.label[0]}</span> ${source.label}`;
+    // The label itself is the link now, not a separate row of chips
+    // below the columns (tried that first -- real feedback was that a
+    // whole extra row felt bolted-on compared to just making the
+    // existing label clickable). For "Oulun kaupunki" specifically,
+    // the href is set/updated by the select's own change handler below,
+    // not fixed here -- that one group actually covers 5 different real
+    // organizations (BusinessOulu, Mun Oulu, the city government, the
+    // museum, OSL), each its own domain, so the link needs to follow
+    // whichever one is currently showing in this column, not point at
+    // a single fixed site regardless of what's selected.
+    const headLink = document.createElement('a');
+    headLink.className = 'expandedNewsColHeadLink';
+    headLink.target = '_blank';
+    headLink.rel = 'noopener';
+    headLink.href = NEWS_CATEGORY_URLS[source.options[0][0]] || '#';
+    headLink.innerHTML = `<span class="expandedNewsColLogo" style="background:${source.color};">${source.label[0]}</span> ${source.label}`;
+    head.appendChild(headLink);
     const select = document.createElement('select');
     select.className = 'expandedNewsColSelect';
     source.options.forEach(([value, label]) => {
@@ -929,7 +930,10 @@ function loadNewsSourceColumns(){
       select.appendChild(opt);
     });
     const body = document.createElement('div');
-    select.addEventListener('change', (e) => loadExpandedNewsColumn(body, e.target.value));
+    select.addEventListener('change', (e) => {
+      loadExpandedNewsColumn(body, e.target.value);
+      headLink.href = NEWS_CATEGORY_URLS[e.target.value] || headLink.href;
+    });
     col.appendChild(head);
     col.appendChild(select);
     col.appendChild(body);
