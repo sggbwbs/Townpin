@@ -1361,9 +1361,24 @@ function renderEventsList(events){
       const haystack = `${item.title_fi || ''} ${item.summary_fi || ''}`.toLowerCase();
       return personalizationKeywords.some(kw => haystack.includes(kw));
     };
+    // Explicit tier, not just relying on the interest comparator
+    // returning 0 for equal items -- a previous version of this sort
+    // compared interest-match alone across the WHOLE not-ended group,
+    // which meant a plain, uncurated event that happened to match a
+    // visitor's stored interest could jump above an admin_highlighted
+    // or manually admin_selected pick. A real, reported regression: a
+    // highlighted event and a manually-picked one both ended up
+    // demoted to page 2. Curation tier is now its own explicit sort
+    // key, checked BEFORE interest, so interest can only ever reorder
+    // events that were already equally-ranked by curation to begin
+    // with -- exactly what the design comment above always claimed,
+    // now actually true of the code.
+    const curationTier = (item) => item.admin_highlighted ? 0 : (item.admin_selected ? 1 : 2);
     const sorted = events.slice().sort((a, b) => {
       const endedDiff = (hasEventEnded(a) ? 1 : 0) - (hasEventEnded(b) ? 1 : 0);
       if (endedDiff !== 0) return endedDiff;
+      const tierDiff = curationTier(a) - curationTier(b);
+      if (tierDiff !== 0) return tierDiff;
       return (matchesInterest(b) ? 1 : 0) - (matchesInterest(a) ? 1 : 0);
     });
     renderPagedList(eventsBox, sorted, 'events', getEventsPageSize(), makeEventCardEl);

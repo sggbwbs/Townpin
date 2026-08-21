@@ -49,16 +49,19 @@ async function checkUserAuth(){
   }
   updateAccountButton();
   if (currentUser) {
-    // Separate, uncached request -- deliberately not folded into the
-    // shared, edge-cached board/feed response (see handlePersonalizationKeywords
-    // in api/data.js for the full reasoning on why that split matters).
-    try {
-      const res = await fetch(`${API_BASE}/user/personalization-keywords`);
-      const data = await res.json();
-      personalizationKeywords = Array.isArray(data.keywords) ? data.keywords : [];
-    } catch (e) {
-      personalizationKeywords = []; // fail quietly -- a missing personalization signal should never break the events list
-    }
+    // Deliberately NOT awaited -- checkUserAuth() itself is awaited
+    // before board/events/business rendering starts (see the init
+    // sequence in app-chat.js), so awaiting a second sequential fetch
+    // here delayed ALL board content behind it, not just this one
+    // enhancement. Fire-and-forget instead: personalizationKeywords
+    // starts as [] (a safe no-op everywhere it's read -- see
+    // matchesInterest in renderEventsList) and gets filled in whenever
+    // this resolves, even if that's after the first render already
+    // happened without it.
+    fetch(`${API_BASE}/user/personalization-keywords`)
+      .then(res => res.json())
+      .then(data => { personalizationKeywords = Array.isArray(data.keywords) ? data.keywords : []; })
+      .catch(() => { personalizationKeywords = []; }); // fail quietly -- a missing personalization signal should never break the events list
   }
 }
 
