@@ -1117,6 +1117,19 @@
   #installBannerClose{background:none;border:none;color:#fff;opacity:0.8;cursor:pointer;font-size:14px;
     padding:2px 6px;flex:none;}
 
+  /* Same fixed-overlay treatment and reasoning as #installBanner above
+     (mutually exclusive with it -- see the JS trigger conditions in
+     app-core.js -- so they never compete for the same space or need
+     different z-index handling). A slightly muted color, not the same
+     bright purple, since this is a lower-urgency "FYI, optional"
+     notice rather than an actionable prompt. */
+  #reinstallBanner{display:none;position:fixed;left:0;right:0;z-index:180;
+    align-items:center;gap:12px;justify-content:center;
+    background:var(--amber-deep);box-shadow:0 4px 16px rgba(20,15,40,0.25);
+    padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;}
+  #reinstallBannerClose{background:none;border:none;color:#fff;opacity:0.8;cursor:pointer;font-size:14px;
+    padding:2px 6px;flex:none;}
+
   /* ---- AI local guide: hero search (top of page, not a hidden corner bubble) ---- */
   /* Photo is a fixed-height layer behind the top of this wrapper (::before), not
      the wrapper's own background -- so long AI answers in #askHeroResults can

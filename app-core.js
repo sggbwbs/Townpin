@@ -467,6 +467,7 @@ const STRINGS = {
     installBannerTextChrome: 'Asenna PaikallisCanvas puhelimeesi nopeampaa käyttöä varten.',
     installBannerButton: 'Asenna',
     installBannerTextIOS: 'Lisää PaikallisCanvas kotinäytöllesi: napauta jakamispainiketta ja valitse "Lisää Koti-valikkoon".',
+    reinstallBannerText: 'Sovellukseesi on saatavilla parannuksia (mm. vaakasuunnan tuki), joita ei voida päivittää automaattisesti -- poista sovellus ja asenna se uudelleen saadaksesi ne käyttöön.',
     askThinking: 'Mietitään…',
     askError: 'Jokin meni pieleen. Kokeile hetken kuluttua uudelleen.',
     askRateLimited: 'Liian monta kysymystä tänään -- kokeile huomenna uudelleen.',
@@ -714,6 +715,7 @@ const STRINGS = {
     installBannerTextChrome: 'Install PaikallisCanvas on your phone for faster access.',
     installBannerButton: 'Install',
     installBannerTextIOS: 'Add PaikallisCanvas to your home screen: tap the share button, then choose "Add to Home Screen".',
+    reinstallBannerText: "Improvements are available for your installed app (including landscape support) that can't update automatically -- remove the app and reinstall it to get them.",
     askThinking: 'Thinking…',
     askError: 'Something went wrong. Please try again in a moment.',
     askRateLimited: 'Too many questions today -- try again tomorrow.',
@@ -936,6 +938,32 @@ window.addEventListener('appinstalled', () => {
 if (isIOSDevice() && !isStandaloneApp()) {
   showInstallBanner('ios');
 }
+
+// Manifest changes (this one specifically: removing an old
+// portrait-only orientation lock, see manifest.json) can't be pushed to
+// an already-installed app -- browsers only read the manifest once, at
+// the moment someone taps "Add to Home Screen", and it's baked into the
+// OS-level app registration from then on. There's no code-level way to
+// force that update; the only way anyone already running the installed
+// app gets the fix is by manually uninstalling and reinstalling it.
+// This is a one-time, dismissible nudge toward doing that -- shown only
+// to people ALREADY running the installed app (mutually exclusive with
+// the install banner above, which only shows to people who DON'T have
+// it installed yet, so the two can never compete for the same space).
+const REINSTALL_SUGGESTION_KEY = 'reinstallSuggestionDismissed_v1';
+function reinstallSuggestionDismissed(){
+  try { return localStorage.getItem(REINSTALL_SUGGESTION_KEY) === '1'; } catch (e) { return false; }
+}
+if (isStandaloneApp() && !reinstallSuggestionDismissed()) {
+  const banner = document.getElementById('reinstallBanner');
+  const header = document.querySelector('header');
+  banner.style.top = header ? `${header.getBoundingClientRect().bottom}px` : '0';
+  banner.style.display = 'flex';
+}
+document.getElementById('reinstallBannerClose').addEventListener('click', () => {
+  document.getElementById('reinstallBanner').style.display = 'none';
+  try { localStorage.setItem(REINSTALL_SUGGESTION_KEY, '1'); } catch (e) {}
+});
 
 /* ---- light/dark theme toggle ---- */
 const ICON_SUN = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
