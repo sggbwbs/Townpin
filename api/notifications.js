@@ -3,6 +3,7 @@ const { supabase } = require('./_db');
 const { getNewsSection, getEventsSection } = require('./_localFeed');
 const { sendDigestConfirmEmail, sendDigestEmail } = require('./_email');
 const { getClientIp, isRateLimited, recordRequest } = require('./_rateLimit');
+const { sendPushNotification } = require('./_push');
 
 const SITE_URL = process.env.SITE_URL;
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -254,7 +255,69 @@ async function handleSendDigest(req, res) {
     }
   }
 
-  res.status(200).json({ sent: sentCount, total: subscribers.length });
+  // Push notifications, piggybacking on this same daily 8am run rather
+  // than needing a separate cron entry -- reuses townContent (already
+  // fetched above for the email digest), so this adds zero extra news/
+  // events fetches. A single short "N tapahtumaa tänään" notification
+  // per town, not one push per subscriber's individual favorites the
+  // way the email digest personalizes -- push payloads are meant to be
+  // small and immediate, not a personalized mini-email; anyone who taps
+  // it lands on the real board where the actual event list (and their
+  // own favorites/interests) already lives. Runs before the final
+  // response below, not after -- this is a background cron trigger with
+  // no one waiting on a fast reply, so there's no reason to risk
+  // depending on whatever Vercel's actual behavior is for work
+  // continuing after a response has already been sent.
+  let pushSentCount = 0;
+  try {
+    const { data: pushSubs } = await supabase
+      .from('push_subscriptions')
+      .select('*')
+      .or(`last_sent_date.is.null,last_sent_date.lt.${todayStr}`);
+    if (pushSubs && pushSubs.length > 0) {
+      const pushTownIds = [...new Set(pushSubs.map(s => s.town_id))];
+      for (const townId of pushTownIds) {
+        // A town might have push subscribers but zero email subscribers
+        // (or vice versa) -- townContent above was only populated for
+        // towns with at least one EMAIL subscriber, so this fills the
+        // gap rather than silently skipping a town's push sends just
+        // because no one there happens to use email digests.
+        let eventCount, townName;
+        const content = townContent[townId];
+        if (content) {
+          eventCount = content.events.length;
+          townName = content.townName;
+        } else {
+          const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
+          if (!town) continue;
+          townName = town.name;
+          try {
+            const events = await getEventsSection(supabase, townId, town.name);
+            eventCount = (events || []).length;
+          } catch (err) {
+            console.error(`Push event count fetch failed for town ${townId}:`, err);
+            continue;
+          }
+        }
+        if (eventCount === 0) continue; // nothing worth a notification for -- skip rather than send an empty "0 events today" push
+
+        const payload = {
+          title: `${townName}: tapahtumia tänään`,
+          body: eventCount === 1 ? '1 tapahtuma tänään -- katso mitä.' : `${eventCount} tapahtumaa tänään -- katso mitä.`,
+          url: SITE_URL || '/'
+        };
+        const townSubs = pushSubs.filter(s => s.town_id === townId);
+        for (const sub of townSubs) {
+          const sent = await sendPushNotification(supabase, sub, payload);
+          if (sent) { pushSentCount++; await supabase.from('push_subscriptions').update({ last_sent_date: todayStr }).eq('id', sub.id); }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Push notification send loop failed (non-fatal, email digest above already sent):', err);
+  }
+
+  res.status(200).json({ sent: sentCount, total: subscribers.length, pushSent: pushSentCount });
 }
 
 module.exports = async (req, res) => {

@@ -9,6 +9,7 @@ const { getUserId, setUserSessionCookie, clearUserSessionCookie } = require('./_
 const { getClientIp, isRateLimited, recordRequest, countUserToday } = require('./_rateLimit');
 const { sendPasswordResetEmail, sendAccountVerificationEmail } = require('./_email');
 const { FREE_QUESTIONS_PER_DAY, CREDIT_BUNDLE_SIZE, CREDIT_BUNDLE_PRICE_EUR } = require('./_limits');
+const { VAPID_PUBLIC_KEY } = require('./_push');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const SITE_URL = process.env.SITE_URL;
@@ -712,8 +713,46 @@ async function handleTrackBusinessClick(req, res) {
   res.status(204).end();
 }
 
+// Not tied to a logged-in account -- works for every visitor, the same
+// way the install banner and event-interest toggle already do.
+// Requiring an account just to get "today's events" pushed to your
+// phone would be a real, unnecessary barrier for something this site
+// treats as a no-account feature everywhere else.
+async function handlePushVapidKey(req, res) {
+  res.status(200).json({ publicKey: VAPID_PUBLIC_KEY || null });
+}
+
+async function handlePushSubscribe(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const { townId, subscription } = req.body || {};
+  if (!townId || !subscription || !subscription.endpoint || !subscription.keys) {
+    return res.status(400).json({ error: 'Missing townId or subscription.' });
+  }
+  const { error } = await supabase.from('push_subscriptions').upsert({
+    town_id: townId,
+    endpoint: subscription.endpoint,
+    p256dh: subscription.keys.p256dh,
+    auth: subscription.keys.auth
+  }, { onConflict: 'endpoint' });
+  if (error) { console.error('Push subscribe failed:', error); return res.status(500).json({ error: 'Could not save subscription.' }); }
+  res.status(200).json({ ok: true });
+}
+
+async function handlePushUnsubscribe(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const { endpoint } = req.body || {};
+  if (!endpoint) return res.status(400).json({ error: 'Missing endpoint.' });
+  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+  if (error) { console.error('Push unsubscribe failed (non-fatal):', error); }
+  res.status(200).json({ ok: true });
+}
+
+
 module.exports = async (req, res) => {
   if (req.query.endpoint === 'user') return handleUser(req, res);
+  if (req.query.endpoint === 'push-vapid-key') return handlePushVapidKey(req, res);
+  if (req.query.endpoint === 'push-subscribe') return handlePushSubscribe(req, res);
+  if (req.query.endpoint === 'push-unsubscribe') return handlePushUnsubscribe(req, res);
   if (req.query.endpoint === 'feedback') return handleFeedback(req, res);
   if (req.query.endpoint === 'site-feedback') return handleSiteFeedback(req, res);
   if (req.query.endpoint === 'track-click') return handleTrackBusinessClick(req, res);
