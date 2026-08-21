@@ -908,13 +908,9 @@ function showInstallBanner(mode){
     textEl.textContent = t('installBannerTextIOS');
     btn.style.display = 'none';
   }
-  // Measured at show-time, not hardcoded -- the header's real height
-  // isn't a fixed number (varies by content and breakpoint), and this
-  // banner is now position:fixed specifically so toggling it never
-  // shifts page content (see the CSS comment on #installBanner for the
-  // real CLS bug this replaced).
-  const header = document.querySelector('header');
-  banner.style.top = header ? `${header.getBoundingClientRect().bottom}px` : '0';
+  // top is set as a static value in CSS now, not measured here -- see
+  // the comment on #installBanner in styles.css for why the JS
+  // measurement approach turned out fragile and was removed.
   banner.style.display = 'flex';
 }
 
@@ -972,8 +968,8 @@ function reinstallSuggestionDismissed(){
 if (isStandaloneApp() && !reinstallSuggestionDismissed()) {
   anyStartupBannerShown = true;
   const banner = document.getElementById('reinstallBanner');
-  const header = document.querySelector('header');
-  banner.style.top = header ? `${header.getBoundingClientRect().bottom}px` : '0';
+  // top is set as a static value in CSS now, not measured here -- see
+  // the comment on #installBanner in styles.css for why.
   banner.style.display = 'flex';
 }
 document.getElementById('reinstallBannerClose').addEventListener('click', () => {
@@ -1062,8 +1058,12 @@ setTimeout(() => {
   if (pushSupported() && Notification.permission === 'default' && !pushBannerDismissed() && !anyStartupBannerShown) {
     anyStartupBannerShown = true;
     const banner = document.getElementById('pushBanner');
-    const header = document.querySelector('header');
-    banner.style.top = header ? `${header.getBoundingClientRect().bottom}px` : '0';
+    // top is set as a static value in CSS now, not measured here -- see
+    // the comment on #installBanner in styles.css for why. This banner
+    // specifically, with its deliberate 1.5s delay, was the one most
+    // likely to actually trigger the old bug -- plenty of time for a
+    // visitor to have already started scrolling before the measurement
+    // ran.
     banner.style.display = 'flex';
   }
 }, 1500);

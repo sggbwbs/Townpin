@@ -1090,7 +1090,21 @@
      set dynamically in JS (see showInstallBanner in app-core.js) rather
      than hardcoded here, since the header's own height isn't a fixed
      number -- it varies by content and breakpoint. */
-  #installBanner{display:none;position:fixed;left:0;right:0;z-index:180;
+  /* top is a static value, not measured from the header via JS --
+     that measurement approach (still used by the JS that shows this
+     banner, kept for backwards compatibility but effectively
+     overridden by this more specific rule) turned out fragile: if the
+     header isn't itself position:fixed and a banner has any delay
+     before appearing (the push banner deliberately waits 1.5s), the
+     page can already be scrolled by the time the measurement runs,
+     producing a wrong value -- a real, reported bug where the banner
+     ended up mid-page instead of near the top. A fixed pixel value
+     can never be wrong regardless of scroll position or timing. Sized
+     generously for the header's tallest realistic content (the
+     weather widget + login button row), not pixel-perfect -- a few
+     px of gap is a far smaller problem than a banner in the wrong
+     place entirely. */
+  #installBanner{display:none;position:fixed;left:0;right:0;top:80px !important;z-index:180;
     align-items:center;gap:12px;justify-content:center;
     background:var(--amber);box-shadow:0 4px 16px rgba(20,15,40,0.25);
     padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;
@@ -1111,7 +1125,7 @@
      different z-index handling). A slightly muted color, not the same
      bright purple, since this is a lower-urgency "FYI, optional"
      notice rather than an actionable prompt. */
-  #reinstallBanner{display:none;position:fixed;left:0;right:0;z-index:180;
+  #reinstallBanner{display:none;position:fixed;left:0;right:0;top:80px !important;z-index:180;
     align-items:center;gap:12px;justify-content:center;
     background:var(--amber-deep);box-shadow:0 4px 16px rgba(20,15,40,0.25);
     padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;
@@ -1125,7 +1139,7 @@
      brand purple like #installBanner (not the muted tone
      #reinstallBanner uses), since this is an actionable prompt asking
      for a real decision, not just an FYI notice. */
-  #pushBanner{display:none;position:fixed;left:0;right:0;z-index:180;
+  #pushBanner{display:none;position:fixed;left:0;right:0;top:80px !important;z-index:180;
     align-items:center;gap:12px;justify-content:center;
     background:var(--amber);box-shadow:0 4px 16px rgba(20,15,40,0.25);
     padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;
