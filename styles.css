@@ -1093,7 +1093,8 @@
   #installBanner{display:none;position:fixed;left:0;right:0;z-index:180;
     align-items:center;gap:12px;justify-content:center;
     background:var(--amber);box-shadow:0 4px 16px rgba(20,15,40,0.25);
-    padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;}
+    padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;
+    transform:translateZ(0);will-change:transform;}
   /* White, not var(--amber) -- this banner is now a solid purple block
      (see above), so a same-color button would have been invisible
      against its own background. White stands out clearly regardless of
@@ -1113,7 +1114,8 @@
   #reinstallBanner{display:none;position:fixed;left:0;right:0;z-index:180;
     align-items:center;gap:12px;justify-content:center;
     background:var(--amber-deep);box-shadow:0 4px 16px rgba(20,15,40,0.25);
-    padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;}
+    padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;
+    transform:translateZ(0);will-change:transform;}
   #reinstallBannerClose{background:none;border:none;color:#fff;opacity:0.8;cursor:pointer;font-size:14px;
     padding:2px 6px;flex:none;}
 
@@ -1126,7 +1128,8 @@
   #pushBanner{display:none;position:fixed;left:0;right:0;z-index:180;
     align-items:center;gap:12px;justify-content:center;
     background:var(--amber);box-shadow:0 4px 16px rgba(20,15,40,0.25);
-    padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;}
+    padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;
+    transform:translateZ(0);will-change:transform;}
   #pushBannerBtn{background:#fff;color:var(--amber-deep);border:none;border-radius:999px;
     padding:6px 16px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:'Space Grotesk',sans-serif;
     flex:none;}
