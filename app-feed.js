@@ -257,12 +257,36 @@ function closeFavoritesModal(){
   document.getElementById('favoritesOverlay').style.display = 'none';
 }
 
-function openDigestModal(){
+async function openDigestModal(){
   document.getElementById('digestOverlay').style.display = 'flex';
-  document.getElementById('digestFormView').style.display = 'block';
-  document.getElementById('digestSuccessView').style.display = 'none';
-  document.getElementById('digestStatusView').style.display = 'none';
   document.getElementById('digestErrorMsg').style.display = 'none';
+  document.getElementById('digestSuccessMsg').style.display = 'none';
+
+  if (!currentUser){
+    document.getElementById('digestLoginRequired').style.display = 'block';
+    document.getElementById('digestPrefsView').style.display = 'none';
+    return;
+  }
+  document.getElementById('digestLoginRequired').style.display = 'none';
+  document.getElementById('digestPrefsView').style.display = 'block';
+
+  // Fetches real current state rather than always defaulting both boxes
+  // to unchecked -- without this, someone already subscribed who
+  // reopens the modal and hits save without touching anything would
+  // accidentally unsubscribe themselves.
+  const emailBox = document.getElementById('digestEmailCheckbox');
+  const pushBox = document.getElementById('digestPushCheckbox');
+  emailBox.checked = false;
+  pushBox.checked = false;
+  if (!currentTown) return;
+  try {
+    const res = await fetch(`${API_BASE}/notifications?endpoint=status&townId=${currentTown.id}`);
+    if (res.ok){
+      const data = await res.json();
+      emailBox.checked = !!data.emailSubscribed;
+      pushBox.checked = !!data.pushSubscribed;
+    }
+  } catch (e) {} // best-effort -- worst case the boxes just start unchecked, no worse than before this fetch existed
 }
 function closeDigestModal(){
   document.getElementById('digestOverlay').style.display = 'none';
@@ -271,51 +295,67 @@ document.getElementById('digestOverlay').addEventListener('click', (e) => {
   if (e.target.id === 'digestOverlay') closeDigestModal();
 });
 
-async function submitDigestSignup(){
-  const input = document.getElementById('digestEmailInput');
-  const email = input.value.trim();
+// Replaces submitDigestSignup -- that took a typed email and only ever
+// handled the email channel; this handles both checkboxes together
+// (email backed by the logged-in account's own already-verified email,
+// never a typed address -- see the real spam vector this closes in
+// handleSubscribe's own comment in api/notifications.js) as one save
+// action, since a person can genuinely want both at once.
+async function saveDigestPreferences(){
   const errBox = document.getElementById('digestErrorMsg');
+  const successBox = document.getElementById('digestSuccessMsg');
   errBox.style.display = 'none';
-
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    errBox.textContent = t('digestErrorInvalidEmail');
-    errBox.style.display = 'block';
-    return;
-  }
+  successBox.style.display = 'none';
   if (!currentTown){
     errBox.textContent = t('digestErrorGeneric');
     errBox.style.display = 'block';
     return;
   }
 
-  const btn = document.getElementById('digestSubmitBtn');
+  const btn = document.getElementById('digestSaveBtn');
   btn.disabled = true;
-
-  // navId (the numeric slot ID), not the group_id dedup key -- the
-  // digest backend looks businesses up against slots.id (see
-  // api/notifications.js), same reasoning as everywhere else favorites
-  // touch navigation: group_id isn't a valid lookup key there.
-  const favoriteBusinessIds = getFavoriteBusinesses().map(f => f.navId !== undefined ? f.navId : f.id);
+  const wantsEmail = document.getElementById('digestEmailCheckbox').checked;
+  const wantsPush = document.getElementById('digestPushCheckbox').checked;
 
   try {
-    const res = await fetch(`${API_BASE}/notifications/subscribe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, townId: currentTown.id, favoriteBusinessIds })
-    });
-    if (!res.ok){
-      const data = await res.json().catch(() => ({}));
-      errBox.textContent = data.error === 'invalid_email' ? t('digestErrorInvalidEmail') : t('digestErrorGeneric');
-      errBox.style.display = 'block';
-      btn.disabled = false;
-      return;
+    // navId (the numeric slot ID), not the group_id dedup key -- the
+    // digest backend looks businesses up against slots.id (see
+    // api/notifications.js), same reasoning as everywhere else
+    // favorites touch navigation: group_id isn't a valid lookup key
+    // there.
+    const favoriteBusinessIds = getFavoriteBusinesses().map(f => f.navId !== undefined ? f.navId : f.id);
+
+    if (wantsEmail){
+      await fetch(`${API_BASE}/notifications/subscribe`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ townId: currentTown.id, favoriteBusinessIds })
+      });
+    } else {
+      await fetch(`${API_BASE}/notifications?endpoint=unsubscribe-email`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ townId: currentTown.id })
+      });
     }
-    const data = await res.json().catch(() => ({}));
-    if (data.syncToken){
-      try { localStorage.setItem('paikallisCanvasDigestSyncToken', data.syncToken); } catch (e) {}
+
+    if (wantsPush){
+      // subscribeToPush handles requesting browser permission itself --
+      // a no-op if permission is already granted and a subscription
+      // already exists.
+      await subscribeToPush();
+    } else if (pushSupported() && Notification.permission === 'granted'){
+      const registration = await navigator.serviceWorker.ready;
+      const existing = await registration.pushManager.getSubscription();
+      if (existing){
+        await fetch(`${API_BASE}/data?endpoint=push-unsubscribe`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: existing.endpoint })
+        });
+        await existing.unsubscribe();
+      }
     }
-    document.getElementById('digestFormView').style.display = 'none';
-    document.getElementById('digestSuccessView').style.display = 'block';
+
+    successBox.textContent = t('digestSaved');
+    successBox.style.display = 'block';
   } catch (err) {
     errBox.textContent = t('digestErrorGeneric');
     errBox.style.display = 'block';
@@ -328,6 +368,9 @@ async function submitDigestSignup(){
 // unsubscribe link in a digest email (see the redirects in
 // api/notifications.js) -- a simple one-time toast rather than a
 // dedicated page, since there's nothing else useful to show there.
+// Still relevant for anyone clicking a link from an already-sent
+// (pre-login-requirement) email -- see handleConfirm/handleUnsubscribe
+// in api/notifications.js, both left unchanged for exactly this reason.
 (() => {
   const params = new URLSearchParams(window.location.search);
   const digestStatus = params.get('digest');
@@ -339,10 +382,16 @@ async function submitDigestSignup(){
   };
   if (messages[digestStatus]){
     document.getElementById('digestOverlay').style.display = 'flex';
-    document.getElementById('digestFormView').style.display = 'none';
-    document.getElementById('digestSuccessView').style.display = 'none';
-    document.getElementById('digestStatusView').style.display = 'block';
-    document.getElementById('digestStatusMsg').textContent = messages[digestStatus];
+    document.getElementById('digestLoginRequired').style.display = 'none';
+    document.getElementById('digestPrefsView').style.display = 'none';
+    // 'invalid' uses the error styling (digestErrorMsg), the other two
+    // use the success styling (digestSuccessMsg) -- both elements
+    // already exist in the modal for the normal save flow, reused here
+    // rather than needing a third, dedicated status element.
+    const targetId = digestStatus === 'invalid' ? 'digestErrorMsg' : 'digestSuccessMsg';
+    const el = document.getElementById(targetId);
+    el.textContent = messages[digestStatus];
+    el.style.display = 'block';
   }
   // Clean the URL so refreshing/sharing it doesn't re-show the message.
   params.delete('digest');

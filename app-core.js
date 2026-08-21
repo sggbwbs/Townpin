@@ -426,12 +426,14 @@ const STRINGS = {
     nearbyEmpty: 'Ei vielä sijaintitietoja sisältäviä yrityksiä.',
     favoritesTitle: 'Suosikkisi',
     digestTitle: 'Älä missaa mitään',
-    digestSub: 'Saat aamuisin klo 8 lyhyen koonnin päivän tapahtumista, uutisista ja suosikkiyrityksistäsi sähköpostiisi.',
-    digestEmailPlaceholder: 'sähköposti@esimerkki.fi',
-    digestSubmitBtn: 'Tilaa',
-    digestPrivacyNote: 'Voit peruuttaa tilauksen milloin tahansa jokaisen viestin lopusta löytyvällä linkillä.',
-    digestSuccessMsg: 'Tarkista sähköpostisi ja vahvista tilaus klikkaamalla lähettämäämme linkkiä.',
-    digestErrorInvalidEmail: 'Tarkista sähköpostiosoite.',
+    digestSub: 'Saat aamuisin klo 8 lyhyen koonnin päivän tapahtumista, uutisista ja suosikkiyrityksistäsi -- sähköpostiisi ja/tai puhelimeesi, valintasi mukaan.',
+    digestLoginRequiredMsg: 'Kirjaudu sisään tilataksesi ilmoituksia -- näin voimme lähettää ne vain sinulle, ei kenelle tahansa.',
+    digestLoginBtn: 'Kirjaudu sisään',
+    digestEmailCheckboxLabel: 'Sähköposti',
+    digestPushCheckboxLabel: 'Puhelin (push-ilmoitus)',
+    digestSaveBtn: 'Tallenna',
+    digestSaved: 'Tallennettu!',
+    digestPrivacyNote: 'Voit muuttaa näitä valintoja täältä milloin tahansa.',
     digestErrorGeneric: 'Jokin meni pieleen. Yritä hetken kuluttua uudelleen.',
     digestToastConfirmed: 'Kiitos! Tilauksesi on nyt vahvistettu.',
     digestToastUnsubscribed: 'Tilaus peruutettu. Et saa enää koonteja.',
@@ -469,11 +471,6 @@ const STRINGS = {
     installBannerButton: 'Asenna',
     installBannerTextIOS: 'Lisää PaikallisCanvas kotinäytöllesi: napauta jakamispainiketta ja valitse "Lisää Koti-valikkoon".',
     reinstallBannerText: 'Sovellukseesi on saatavilla parannuksia (mm. vaakasuunnan tuki), joita ei voida päivittää automaattisesti -- poista sovellus ja asenna se uudelleen saadaksesi ne käyttöön.',
-    pushInModalSub: 'Tai salli ilmoitukset puhelimeesi -- jos tänään on tapahtumia, saat siitä lyhyen ilmoituksen (samaan tapaan kuin sähköposti, aamulla klo 8), ilman erillistä sähköpostia.',
-    pushBannerButton: 'Salli ilmoitukset',
-    pushDenied: 'Ilmoituksia ei sallittu. Voit muuttaa tätä selaimen asetuksista.',
-    pushSubscribed: 'Ilmoitukset sallittu -- saat viestin, kun tänään on tapahtumia.',
-    pushError: 'Ilmoitusten salliminen epäonnistui. Yritä uudelleen.',
     settingsThemeLabel: 'Teema',
     settingsLangLabel: 'Kieli',
     askThinking: 'Mietitään…',
@@ -682,12 +679,14 @@ const STRINGS = {
     nearbyEmpty: 'No businesses with location data yet.',
     favoritesTitle: 'Your favorites',
     digestTitle: "Don't miss anything",
-    digestSub: "Get a short daily digest at 8am -- today's events, news, and your favorited businesses -- straight to your inbox.",
-    digestEmailPlaceholder: 'your@email.com',
-    digestSubmitBtn: 'Subscribe',
-    digestPrivacyNote: 'You can unsubscribe anytime using the link at the bottom of every email.',
-    digestSuccessMsg: 'Check your inbox and confirm your subscription by clicking the link we sent.',
-    digestErrorInvalidEmail: 'Please check your email address.',
+    digestSub: "Get a short daily digest at 8am -- today's events, news, and your favorited businesses -- to your email and/or phone, your choice.",
+    digestLoginRequiredMsg: "Log in to subscribe to notifications -- this way we can send them only to you, not anyone who happens to type in an address.",
+    digestLoginBtn: 'Log in',
+    digestEmailCheckboxLabel: 'Email',
+    digestPushCheckboxLabel: 'Phone (push notification)',
+    digestSaveBtn: 'Save',
+    digestSaved: 'Saved!',
+    digestPrivacyNote: 'You can change these choices here anytime.',
     digestErrorGeneric: 'Something went wrong. Please try again in a moment.',
     digestToastConfirmed: "Thanks! Your subscription is now confirmed.",
     digestToastUnsubscribed: "You've been unsubscribed and won't receive more digests.",
@@ -725,11 +724,6 @@ const STRINGS = {
     installBannerButton: 'Install',
     installBannerTextIOS: 'Add PaikallisCanvas to your home screen: tap the share button, then choose "Add to Home Screen".',
     reinstallBannerText: "Improvements are available for your installed app (including landscape support) that can't update automatically -- remove the app and reinstall it to get them.",
-    pushInModalSub: "Or allow notifications on your phone -- if there are events today, you'll get a short notification about it (same 8am timing as email), no separate email needed.",
-    pushBannerButton: 'Allow notifications',
-    pushDenied: 'Notifications were not allowed. You can change this in your browser settings.',
-    pushSubscribed: "Notifications allowed -- you'll get a message when there are events today.",
-    pushError: 'Could not enable notifications. Please try again.',
     settingsThemeLabel: 'Theme',
     settingsLangLabel: 'Language',
     askThinking: 'Thinking…',
@@ -1012,42 +1006,34 @@ function urlBase64ToUint8Array(base64String){
   return outputArray;
 }
 
+// Called from saveDigestPreferences (app-feed.js) as part of the
+// unified "Älä missaa mitään" save action, not from its own dedicated
+// button -- no longer manages any status text or button state of its
+// own; throws on denial/failure so the caller's existing try/catch
+// (which already handles both the email and push side of one save
+// action together) takes over instead of this duplicating that
+// handling.
 async function subscribeToPush(){
-  const btn = document.getElementById('pushInModalBtn');
-  const statusEl = document.getElementById('pushInModalStatus');
-  const showStatus = (msg) => { statusEl.textContent = msg; statusEl.style.display = 'block'; };
-  btn.disabled = true;
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') { showStatus(t('pushDenied')); return; }
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') throw new Error('push_permission_denied');
 
-    const keyRes = await fetch(`${API_BASE}/data?endpoint=push-vapid-key`);
-    const keyData = await keyRes.json();
-    if (!keyData.publicKey) {
-      // Not configured server-side (missing VAPID env vars) -- fails
-      // quietly rather than showing an error for something the visitor
-      // has no way to act on themselves.
-      return;
-    }
+  const keyRes = await fetch(`${API_BASE}/data?endpoint=push-vapid-key`);
+  const keyData = await keyRes.json();
+  if (!keyData.publicKey) return; // not configured server-side -- nothing more this visitor can do about it, so just stop quietly rather than error
 
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.subscribe({
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
     });
-
-    await fetch(`${API_BASE}/data?endpoint=push-subscribe`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ townId: currentTown.id, subscription: subscription.toJSON() })
-    });
-
-    btn.style.display = 'none';
-    showStatus(t('pushSubscribed'));
-  } catch (err) {
-    showStatus(t('pushError'));
-  } finally {
-    btn.disabled = false;
   }
+
+  await fetch(`${API_BASE}/data?endpoint=push-subscribe`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ townId: currentTown.id, subscription: subscription.toJSON() })
+  });
 }
 
 // Note: mobileBellBtn's onclick is set directly in index.html now

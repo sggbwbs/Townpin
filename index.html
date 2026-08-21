@@ -218,23 +218,26 @@
   <div id="digestModal" class="simpleModal">
     <button class="close" onclick="closeDigestModal()">✕</button>
     <h2 data-i18n="digestTitle">Älä missaa mitään</h2>
-    <p class="authSub" data-i18n="digestSub">Saat aamuisin klo 8 lyhyen koonnin päivän tapahtumista, uutisista ja suosikkiyrityksistäsi sähköpostiisi.</p>
-    <div id="digestFormView">
-      <input type="email" id="digestEmailInput" placeholder="sähköposti@esimerkki.fi" data-i18n-placeholder="digestEmailPlaceholder" style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:8px;border:1px solid var(--line);font-size:14px;font-family:'IBM Plex Sans',sans-serif;margin-bottom:12px;background:var(--panel);color:var(--ink);" />
-      <button class="authSubmit" id="digestSubmitBtn" onclick="submitDigestSignup()" data-i18n="digestSubmitBtn">Tilaa</button>
+    <p class="authSub" data-i18n="digestSub">Saat aamuisin klo 8 lyhyen koonnin päivän tapahtumista, uutisista ja suosikkiyrityksistäsi -- sähköpostiisi ja/tai puhelimeesi, valintasi mukaan.</p>
+
+    <div id="digestLoginRequired" style="display:none;text-align:center;padding:12px 0;">
+      <p class="nearbyPrivacyNote" data-i18n="digestLoginRequiredMsg" style="margin-bottom:14px;">Kirjaudu sisään tilataksesi ilmoituksia -- näin voimme lähettää ne vain sinulle, ei kenelle tahansa.</p>
+      <button class="authSubmit" onclick="closeDigestModal(); openAuthModal();" data-i18n="digestLoginBtn">Kirjaudu sisään</button>
+    </div>
+
+    <div id="digestPrefsView" style="display:none;">
+      <label class="settingsPanelRow" style="cursor:pointer;">
+        <span data-i18n="digestEmailCheckboxLabel">Sähköposti</span>
+        <input type="checkbox" id="digestEmailCheckbox" />
+      </label>
+      <label class="settingsPanelRow" style="cursor:pointer;">
+        <span data-i18n="digestPushCheckboxLabel">Puhelin (push-ilmoitus)</span>
+        <input type="checkbox" id="digestPushCheckbox" />
+      </label>
+      <button class="authSubmit" id="digestSaveBtn" onclick="saveDigestPreferences()" data-i18n="digestSaveBtn" style="margin-top:16px;">Tallenna</button>
       <p id="digestErrorMsg" class="err" style="display:none;"></p>
-      <p class="nearbyPrivacyNote" data-i18n="digestPrivacyNote">Voit peruuttaa tilauksen milloin tahansa jokaisen viestin lopusta löytyvällä linkillä.</p>
-    </div>
-    <div id="digestSuccessView" style="display:none;text-align:center;padding:12px 0;">
-      <p data-i18n="digestSuccessMsg">Tarkista sähköpostisi ja vahvista tilaus klikkaamalla lähettämäämme linkkiä.</p>
-    </div>
-    <div id="digestStatusView" style="display:none;text-align:center;padding:12px 0;">
-      <p id="digestStatusMsg"></p>
-    </div>
-    <div id="pushInModalSection" style="margin-top:18px;padding-top:18px;border-top:1px solid var(--line);">
-      <p class="nearbyPrivacyNote" style="margin:0 0 10px;" data-i18n="pushInModalSub">Tai salli ilmoitukset puhelimeesi -- jos tänään on tapahtumia, saat siitä lyhyen ilmoituksen (samaan tapaan kuin sähköposti, aamulla klo 8), ilman erillistä sähköpostia.</p>
-      <button type="button" class="authSubmit" id="pushInModalBtn" onclick="subscribeToPush()" style="background:var(--panelT4);color:var(--ink);" data-i18n="pushBannerButton">Salli ilmoitukset</button>
-      <p id="pushInModalStatus" class="nearbyPrivacyNote" style="display:none;margin-top:8px;"></p>
+      <p id="digestSuccessMsg" class="nearbyPrivacyNote" style="display:none;margin-top:8px;"></p>
+      <p class="nearbyPrivacyNote" data-i18n="digestPrivacyNote" style="margin-top:12px;">Voit muuttaa näitä valintoja täältä milloin tahansa.</p>
     </div>
   </div>
 </div>
