@@ -445,6 +445,7 @@ const STRINGS = {
     recentlyViewedEmpty: 'Ei vielä katsottuja yrityksiä. Käy yrityksen sivulla, niin se näkyy täällä.',
     favoriteToggleLabel: 'Tallenna suosikiksi',
     eventInterestToggleLabel: 'Kiinnostaa',
+    shareLabel: 'Jaa',
     askEmptyPlaceholder: 'Kysy mitä vain paikkakunnasta -- ruokapaikkoja, tekemistä tänään, tapahtumia tai mitä tahansa muuta.',
     askAiDisclaimer: 'Vastaukset ovat tekoälyn tuottamia ja voivat sisältää virheitä.',
     askFeedbackPrompt: 'Oliko tästä apua?',
@@ -468,6 +469,8 @@ const STRINGS = {
     installBannerButton: 'Asenna',
     installBannerTextIOS: 'Lisää PaikallisCanvas kotinäytöllesi: napauta jakamispainiketta ja valitse "Lisää Koti-valikkoon".',
     reinstallBannerText: 'Sovellukseesi on saatavilla parannuksia (mm. vaakasuunnan tuki), joita ei voida päivittää automaattisesti -- poista sovellus ja asenna se uudelleen saadaksesi ne käyttöön.',
+    pushBannerText: 'Haluatko ilmoituksen, kun tänään on tapahtumia?',
+    pushBannerButton: 'Salli ilmoitukset',
     askThinking: 'Mietitään…',
     askError: 'Jokin meni pieleen. Kokeile hetken kuluttua uudelleen.',
     askRateLimited: 'Liian monta kysymystä tänään -- kokeile huomenna uudelleen.',
@@ -693,6 +696,7 @@ const STRINGS = {
     recentlyViewedEmpty: "No businesses viewed yet. Visit a business's page and it'll show up here.",
     favoriteToggleLabel: 'Save as favorite',
     eventInterestToggleLabel: "I'm interested",
+    shareLabel: 'Share',
     askEmptyPlaceholder: "Ask anything about the area -- places to eat, things to do today, events, or anything else.",
     askAiDisclaimer: 'Answers are AI-generated and may contain errors.',
     askFeedbackPrompt: 'Was this helpful?',
@@ -716,6 +720,8 @@ const STRINGS = {
     installBannerButton: 'Install',
     installBannerTextIOS: 'Add PaikallisCanvas to your home screen: tap the share button, then choose "Add to Home Screen".',
     reinstallBannerText: "Improvements are available for your installed app (including landscape support) that can't update automatically -- remove the app and reinstall it to get them.",
+    pushBannerText: 'Want a notification when there are events today?',
+    pushBannerButton: 'Allow notifications',
     askThinking: 'Thinking…',
     askError: 'Something went wrong. Please try again in a moment.',
     askRateLimited: 'Too many questions today -- try again tomorrow.',
@@ -879,8 +885,17 @@ function installBannerDismissed(){
   try { return localStorage.getItem(INSTALL_DISMISS_KEY) === '1'; } catch (e) { return false; }
 }
 
+// Shared across all the fixed, below-header banners (install,
+// reinstall, and the push-permission prompt further below) -- they all
+// occupy the exact same screen position, so this stops more than one
+// from trying to show at once. Set here (covering both the iOS and the
+// async Android/beforeinstallprompt paths, since both call this same
+// function) and in the reinstall banner's own trigger below.
+let anyStartupBannerShown = false;
+
 function showInstallBanner(mode){
   if (isStandaloneApp() || installBannerDismissed()) return;
+  anyStartupBannerShown = true;
   installBannerMode = mode;
   const banner = document.getElementById('installBanner');
   const textEl = document.getElementById('installBannerText');
@@ -955,6 +970,7 @@ function reinstallSuggestionDismissed(){
   try { return localStorage.getItem(REINSTALL_SUGGESTION_KEY) === '1'; } catch (e) { return false; }
 }
 if (isStandaloneApp() && !reinstallSuggestionDismissed()) {
+  anyStartupBannerShown = true;
   const banner = document.getElementById('reinstallBanner');
   const header = document.querySelector('header');
   banner.style.top = header ? `${header.getBoundingClientRect().bottom}px` : '0';
@@ -964,6 +980,93 @@ document.getElementById('reinstallBannerClose').addEventListener('click', () => 
   document.getElementById('reinstallBanner').style.display = 'none';
   try { localStorage.setItem(REINSTALL_SUGGESTION_KEY, '1'); } catch (e) {}
 });
+
+// ---- Push notification permission prompt ----
+// Not gated on isStandaloneApp() either way (unlike install/reinstall
+// above) -- push notifications work from a regular browser tab on
+// supporting browsers, not just an installed PWA, so this is offered
+// to everyone rather than narrowed to one specific context.
+const PUSH_DISMISS_KEY = 'pushBannerDismissed_v1';
+function pushBannerDismissed(){
+  try { return localStorage.getItem(PUSH_DISMISS_KEY) === '1'; } catch (e) { return false; }
+}
+function pushSupported(){
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+// Converts the VAPID public key from its base64url wire format into
+// the raw byte array pushManager.subscribe() actually expects -- the
+// browser Push API doesn't accept the base64url string directly.
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+async function subscribeToPush(){
+  const btn = document.getElementById('pushBannerBtn');
+  btn.disabled = true;
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') { document.getElementById('pushBanner').style.display = 'none'; return; }
+
+    const keyRes = await fetch(`${API_BASE}/data?endpoint=push-vapid-key`);
+    const keyData = await keyRes.json();
+    if (!keyData.publicKey) {
+      // Not configured server-side (missing VAPID env vars) -- fails
+      // quietly rather than showing an error for something the visitor
+      // has no way to act on themselves.
+      document.getElementById('pushBanner').style.display = 'none';
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+    });
+
+    await fetch(`${API_BASE}/data?endpoint=push-subscribe`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ townId: currentTown.id, subscription: subscription.toJSON() })
+    });
+
+    document.getElementById('pushBanner').style.display = 'none';
+    try { localStorage.setItem(PUSH_DISMISS_KEY, '1'); } catch (e) {}
+  } catch (err) {
+    document.getElementById('pushBanner').style.display = 'none';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('pushBannerBtn').addEventListener('click', subscribeToPush);
+document.getElementById('pushBannerClose').addEventListener('click', () => {
+  document.getElementById('pushBanner').style.display = 'none';
+  try { localStorage.setItem(PUSH_DISMISS_KEY, '1'); } catch (e) {}
+});
+
+// Delayed, not shown immediately -- the Android install-prompt path
+// (beforeinstallprompt, see the listener above) is genuinely
+// asynchronous and can fire seconds after page load at a time the
+// browser itself decides, not something this code can check
+// synchronously the way the iOS/reinstall conditions can. Waiting gives
+// it a real chance to have already claimed the shared banner slot
+// (anyStartupBannerShown) before this decides whether to show too --
+// not a perfect guarantee against the rare remaining race, but a
+// meaningful, cheap reduction of it.
+setTimeout(() => {
+  if (pushSupported() && Notification.permission === 'default' && !pushBannerDismissed() && !anyStartupBannerShown) {
+    anyStartupBannerShown = true;
+    const banner = document.getElementById('pushBanner');
+    const header = document.querySelector('header');
+    banner.style.top = header ? `${header.getBoundingClientRect().bottom}px` : '0';
+    banner.style.display = 'flex';
+  }
+}, 1500);
 
 /* ---- light/dark theme toggle ---- */
 const ICON_SUN = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';

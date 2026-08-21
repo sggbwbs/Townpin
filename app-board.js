@@ -1094,8 +1094,50 @@ function makeEventCardEl(item){
     body.appendChild(addrEl);
   }
 
+  // Events had no share mechanism at all before this -- business pages
+  // already had one (see sharePinPage in api/pin/[id].js, mirrored
+  // here). Events are arguably the most shareable thing on the site in
+  // the moment ("want to come to this tonight?"), so this was a real,
+  // specific gap, not a nice-to-have added evenly everywhere.
+  const shareBtn = document.createElement('button');
+  shareBtn.type = 'button';
+  shareBtn.className = 'eventCardShareBtn';
+  shareBtn.setAttribute('aria-label', t('shareLabel'));
+  shareBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>';
+  shareBtn.onclick = (e) => {
+    e.preventDefault(); e.stopPropagation(); // same reasoning as interestBtn above -- el can be a real <a>
+    shareEvent(item, shareBtn);
+  };
+  body.appendChild(shareBtn);
+
   el.appendChild(body);
   return el;
+}
+
+// Falls back to clipboard copy on browsers without navigator.share
+// (most desktop browsers) -- same fallback pattern as sharePinPage in
+// api/pin/[id].js. Shares the event's own source_url when it has one
+// (the original listing/article), since events don't have their own
+// dedicated page on this site the way businesses do at /pin/{id} --
+// falling back to the current board page's URL otherwise, so sharing
+// never silently does nothing just because a specific event lacks a
+// source link.
+function shareEvent(item, btnEl){
+  const url = item.source_url || window.location.href;
+  const dateLabel = new Date(item.event_date + 'T00:00:00').toLocaleDateString('fi-FI');
+  const title = lang === 'fi' ? item.title_fi : (item.title_en || item.title_fi);
+  if (navigator.share) {
+    navigator.share({ title, text: `${title} (${dateLabel})`, url }).catch(() => {});
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      if (!btnEl) return;
+      const original = btnEl.innerHTML;
+      btnEl.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+      setTimeout(() => { btnEl.innerHTML = original; }, 1500);
+    }).catch(() => {});
+  }
 }
 
 // ---- Event interest ("Kiinnostaa") ----
@@ -1460,6 +1502,72 @@ function renderEventsList(events){
       return (matchesInterest(b) ? 1 : 0) - (matchesInterest(a) ? 1 : 0);
     });
     renderPagedList(eventsBox, sorted, 'events', getEventsPageSize(), makeEventCardEl);
+    injectEventStructuredData(sorted);
   }
   syncColumnHeights();
+}
+
+// Adds/updates schema.org Event structured data for today's events --
+// this is specifically what powers Google's "things to do" rich
+// results in search, and previously nothing on the site had it (only
+// the homepage's generic WebSite markup and each business page's own
+// LocalBusiness markup existed). Injected client-side after real data
+// loads rather than server-rendered into the initial HTML -- this site
+// has no server-rendering step to hook into (a plain static shell +
+// client-side JS, not a framework with SSR), and Google's own crawler
+// has executed JavaScript before evaluating structured data for many
+// years now, so this is the appropriately-scoped fix for this
+// architecture rather than a reason to build a bigger SSR pipeline.
+// Reuses ended-event filtering (skips them -- nothing to gain from
+// telling search engines about an event that's already over) and the
+// exact same date/time fields already driving the visible cards, so
+// this can't drift out of sync with what a visitor actually sees.
+function injectEventStructuredData(events){
+  const existing = document.getElementById('eventStructuredData');
+  if (existing) existing.remove();
+
+  const items = events
+    .filter(item => !hasEventEnded(item))
+    .map(item => {
+      // Floating local time (no explicit UTC offset) -- deliberately
+      // simple rather than computing Finland's exact EET/EEST offset
+      // (which flips with daylight saving), since schema.org and
+      // Google's own rich-result examples both accept a plain local
+      // ISO datetime with no offset, and getting DST math subtly wrong
+      // would be a worse outcome than just not including an offset.
+      const startTime = item.event_start_time || '00:00';
+      const startDate = `${item.event_date}T${startTime}:00`;
+      const endDateStr = item.event_end_date || item.event_date;
+      const endTime = item.event_end_time || (item.event_end_date ? '23:59' : null);
+      const endDate = endTime ? `${endDateStr}T${endTime}:00` : undefined;
+      const event = {
+        '@type': 'Event',
+        name: item.title_fi,
+        startDate,
+        eventStatus: 'https://schema.org/EventScheduled',
+        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode'
+      };
+      if (endDate) event.endDate = endDate;
+      if (item.address) {
+        event.location = { '@type': 'Place', name: item.address, address: item.address };
+      } else {
+        // Event schema requires SOME location -- Google's own
+        // structured-data guidelines explicitly reject an Event with
+        // none at all, so this falls back to the town name rather than
+        // silently omitting a required field for the (rare) event with
+        // no specific address on file.
+        event.location = { '@type': 'Place', name: currentTown ? currentTown.name : 'Oulu' };
+      }
+      if (item.image_url) event.image = [item.image_url];
+      if (item.source_url) event.url = item.source_url;
+      return event;
+    });
+
+  if (items.length === 0) return;
+
+  const script = document.createElement('script');
+  script.id = 'eventStructuredData';
+  script.type = 'application/ld+json';
+  script.textContent = JSON.stringify({ '@context': 'https://schema.org', '@graph': items });
+  document.head.appendChild(script);
 }

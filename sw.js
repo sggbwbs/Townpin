@@ -60,3 +60,41 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(event.request))
   );
 });
+
+// A push message's payload is just whatever JSON api/_push.js sent as
+// the notification body (see the daily send loop in
+// handleSendDigest, api/notifications.js) -- title/body/url, kept
+// deliberately minimal rather than trying to carry a full event list
+// through the push payload itself (payload size is limited by the
+// push service, and a simple "N events today, tap to see them" is
+// plenty to get someone back to the site).
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let payload;
+  try { payload = event.data.json(); } catch (e) { return; }
+  event.waitUntil(
+    self.registration.showNotification(payload.title || 'PaikallisCanvas', {
+      body: payload.body || '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: payload.url || '/' }
+    })
+  );
+});
+
+// Focuses an already-open tab on this site rather than always opening a
+// new one, if one happens to already be open -- a small courtesy, not
+// something a visitor would likely notice missing, but cheap to get
+// right.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      for (const client of clients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) return client.focus();
+      }
+      return self.clients.openWindow(url);
+    })
+  );
+});
