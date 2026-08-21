@@ -644,10 +644,27 @@ async function handleSelectEvents(req, res) {
     return res.status(400).json({ error: 'Only selected events can be highlighted.' });
   }
 
+  // Scoped to the SAME "still relevant" set handleListEventsForAdmin
+  // itself shows as choosable checkboxes -- previously this reset ALL
+  // events for the town unconditionally, regardless of whether the
+  // admin could currently even see them. Real, reported consequence: a
+  // multi-day event whose event_end_date wasn't correctly captured as
+  // spanning its full run (so it looked "ended" the moment its first
+  // day passed, even though it was still genuinely happening) silently
+  // dropped out of the admin's visible list -- and the next time the
+  // admin saved ANY selection, even an unrelated one, this reset wiped
+  // its admin_selected/admin_highlighted flags too, since it was never
+  // part of what got resubmitted (it wasn't visible to check in the
+  // first place). Scoping the reset to the same relevance window the
+  // admin can actually see and act on means anything temporarily
+  // outside that window keeps whatever was already set for it,
+  // regardless of what else gets curated in the meantime.
+  const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
   const { error: resetErr } = await supabase
     .from('local_feed_items')
     .update({ admin_selected: false, admin_highlighted: false })
-    .eq('town_id', townId).eq('item_type', 'event');
+    .eq('town_id', townId).eq('item_type', 'event')
+    .or(`event_end_date.gte.${helsinkiToday},and(event_end_date.is.null,event_date.gte.${helsinkiToday})`);
   if (resetErr) { console.error(resetErr); return res.status(500).json({ error: 'Could not update selection.' }); }
 
   if (selected.length > 0) {
