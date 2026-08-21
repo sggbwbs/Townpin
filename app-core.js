@@ -1046,11 +1046,10 @@ async function subscribeToPush(){
   }
 }
 
-// The notification bell (previously just an "coming soon" placeholder
-// alert -- see index.html) now opens this same modal too, since it's
-// exactly what the bell conceptually represents and was otherwise
-// sitting unused.
-document.getElementById('mobileBellBtn').setAttribute('onclick', 'openDigestModal()');
+// Note: mobileBellBtn's onclick is set directly in index.html now
+// (openDigestModal()) -- previously overridden here at runtime from a
+// placeholder "coming soon" alert, but now that the static markup
+// itself is correct, that override would just be redundant.
 
 /* ---- light/dark theme toggle ---- */
 const ICON_SUN = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
@@ -1066,6 +1065,31 @@ document.getElementById('themeToggle').addEventListener('click', ()=>{
 });
 // sync the button's icon with whatever the early head-script already applied
 applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+
+// ---- Settings gear (theme + language) ----
+// Consolidates what used to be two separate always-visible header
+// elements (the theme toggle button and the FI/EN language pill) into
+// one compact icon with a dropdown -- real feedback that those two
+// elements crowding the header row (Finnish text like "Kirjaudu" being
+// longer than English tipped the row's width past what fit on some
+// screens) was the actual root cause worth fixing directly, not just
+// patching around with more wrapping. Same click-outside-to-close
+// pattern the weather widget already uses (see its own listener
+// above), for a consistent interaction language across the header.
+let settingsOpen = false;
+function toggleSettingsPanel(){
+  settingsOpen = !settingsOpen;
+  document.getElementById('settingsPanel').style.display = settingsOpen ? 'block' : 'none';
+}
+document.getElementById('settingsBtn').addEventListener('click', toggleSettingsPanel);
+document.addEventListener('click', (e) => {
+  if (!settingsOpen) return;
+  const panel = document.getElementById('settingsPanel');
+  const btn = document.getElementById('settingsBtn');
+  if (panel.contains(e.target) || btn.contains(e.target)) return;
+  settingsOpen = false;
+  panel.style.display = 'none';
+});
 
 document.getElementById('legalLink').addEventListener('click', (e)=>{
   e.preventDefault();
