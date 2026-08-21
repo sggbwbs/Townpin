@@ -653,24 +653,7 @@
     #newsSection{grid-column:1;grid-row:2;}
     #offersSection{grid-column:2;grid-row:2;}
   }
-  /* A quiet, one-time entrance for the four homepage cards on load --
-     each staggered slightly by its DOM position so they settle in
-     sequence rather than all at once, without calling attention to
-     itself the way a bouncier or longer animation would. Respects
-     prefers-reduced-motion since this is decorative, not functional. */
-  @media (prefers-reduced-motion: no-preference){
-    #eventsSection, #offersSection, #newsSection, #bizFeedCard{
-      animation:cardEntrance 0.5s cubic-bezier(0.16,1,0.3,1) backwards;
-    }
-    #eventsSection{animation-delay:0s;}
-    #offersSection{animation-delay:0.06s;}
-    #newsSection{animation-delay:0.1s;}
-    #bizFeedCard{animation-delay:0.16s;}
-  }
-  @keyframes cardEntrance{
-    from{opacity:0;}
-    to{opacity:1;}
-  }
+
   /* Mobile-only stacking order: events, news, businesses, Tilannehuone --
      different from the DOM order (events, Tilannehuone, news, businesses)
      that the desktop 2x2 grid pairs up row-by-row. `order` only needs to
