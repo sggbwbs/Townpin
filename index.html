@@ -86,7 +86,7 @@
     <div class="name">PAIKALLIS<span>CANVAS</span><small id="brandTownMobile">Oulu</small></div>
   </div>
   <span id="townPill"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <span id="townPillName">Oulu</span> ⌄</span>
-  <div style="display:flex;align-items:center;gap:10px;">
+  <div id="headerRightGroup">
     <div id="weatherWrap">
       <div id="weatherWidget" style="display:none;">
         <span id="weatherIcon"></span>
@@ -220,6 +220,11 @@
     <div id="digestStatusView" style="display:none;text-align:center;padding:12px 0;">
       <p id="digestStatusMsg"></p>
     </div>
+    <div id="pushInModalSection" style="margin-top:18px;padding-top:18px;border-top:1px solid var(--line);">
+      <p class="nearbyPrivacyNote" style="margin:0 0 10px;" data-i18n="pushInModalSub">Tai salli ilmoitukset puhelimeesi -- jos tänään on tapahtumia, saat siitä lyhyen ilmoituksen (samaan tapaan kuin sähköposti, aamulla klo 8), ilman erillistä sähköpostia.</p>
+      <button type="button" class="authSubmit" id="pushInModalBtn" onclick="subscribeToPush()" style="background:var(--panelT4);color:var(--ink);" data-i18n="pushBannerButton">Salli ilmoitukset</button>
+      <p id="pushInModalStatus" class="nearbyPrivacyNote" style="display:none;margin-top:8px;"></p>
+    </div>
   </div>
 </div>
 
@@ -239,12 +244,6 @@
 <div id="reinstallBanner">
   <span id="reinstallBannerText" data-i18n="reinstallBannerText">Sovellukseesi on saatavilla parannuksia (mm. vaakasuunnan tuki), joita ei voida päivittää automaattisesti -- poista sovellus ja asenna se uudelleen saadaksesi ne käyttöön.</span>
   <button id="reinstallBannerClose" aria-label="Sulje">✕</button>
-</div>
-
-<div id="pushBanner">
-  <span data-i18n="pushBannerText">Haluatko ilmoituksen, kun tänään on tapahtumia?</span>
-  <button id="pushBannerBtn" data-i18n="pushBannerButton">Salli ilmoitukset</button>
-  <button id="pushBannerClose" aria-label="Sulje">✕</button>
 </div>
 
 <main>

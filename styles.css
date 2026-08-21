@@ -64,6 +64,17 @@
   header{display:flex;align-items:center;justify-content:space-between;padding:22px 28px;flex-wrap:wrap;gap:12px;
     max-width:1500px;margin:0 auto;}
   #townPill{display:flex;align-items:center;gap:4px;font-size:13.5px;color:var(--ink-dim);white-space:nowrap;}
+  /* flex-wrap:wrap here specifically, not just relying on the outer
+     header's own wrap -- this group (weather, login, theme, language)
+     was previously one rigid non-wrapping row with no fallback of its
+     own, so on a medium-width screen where Finnish text (e.g.
+     "Kirjaudu" vs English "Login") tipped its total width past what
+     actually fit, the language toggle at the end simply overflowed
+     past the right edge instead of reflowing -- a real, reported bug
+     specific to the Finnish UI. justify-content:flex-end keeps wrapped
+     items aligned to the right, matching where this group already
+     sits in the header. */
+  #headerRightGroup{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;}
   #mobileBellBtn{display:none;}
   #brandTownMobile{display:none;}
   @media (max-width:900px){
@@ -1131,23 +1142,6 @@
     padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;
     transform:translateZ(0);will-change:transform;}
   #reinstallBannerClose{background:none;border:none;color:#fff;opacity:0.8;cursor:pointer;font-size:14px;
-    padding:2px 6px;flex:none;}
-
-  /* Same fixed-overlay treatment as #installBanner/#reinstallBanner
-     above -- mutually exclusive with both (see anyStartupBannerShown in
-     app-core.js), so never competing for the same space. Uses the
-     brand purple like #installBanner (not the muted tone
-     #reinstallBanner uses), since this is an actionable prompt asking
-     for a real decision, not just an FYI notice. */
-  #pushBanner{display:none;position:fixed;left:0;right:0;top:80px !important;z-index:180;
-    align-items:center;gap:12px;justify-content:center;
-    background:var(--amber);box-shadow:0 4px 16px rgba(20,15,40,0.25);
-    padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;
-    transform:translateZ(0);will-change:transform;}
-  #pushBannerBtn{background:#fff;color:var(--amber-deep);border:none;border-radius:999px;
-    padding:6px 16px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:'Space Grotesk',sans-serif;
-    flex:none;}
-  #pushBannerClose{background:none;border:none;color:#fff;opacity:0.8;cursor:pointer;font-size:14px;
     padding:2px 6px;flex:none;}
 
   /* ---- AI local guide: hero search (top of page, not a hidden corner bubble) ---- */

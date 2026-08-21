@@ -469,8 +469,11 @@ const STRINGS = {
     installBannerButton: 'Asenna',
     installBannerTextIOS: 'Lisää PaikallisCanvas kotinäytöllesi: napauta jakamispainiketta ja valitse "Lisää Koti-valikkoon".',
     reinstallBannerText: 'Sovellukseesi on saatavilla parannuksia (mm. vaakasuunnan tuki), joita ei voida päivittää automaattisesti -- poista sovellus ja asenna se uudelleen saadaksesi ne käyttöön.',
-    pushBannerText: 'Tilaa ilmoitukset puhelimeesi päivän tapahtumista.',
+    pushInModalSub: 'Tai salli ilmoitukset puhelimeesi -- jos tänään on tapahtumia, saat siitä lyhyen ilmoituksen (samaan tapaan kuin sähköposti, aamulla klo 8), ilman erillistä sähköpostia.',
     pushBannerButton: 'Salli ilmoitukset',
+    pushDenied: 'Ilmoituksia ei sallittu. Voit muuttaa tätä selaimen asetuksista.',
+    pushSubscribed: 'Ilmoitukset sallittu -- saat viestin, kun tänään on tapahtumia.',
+    pushError: 'Ilmoitusten salliminen epäonnistui. Yritä uudelleen.',
     askThinking: 'Mietitään…',
     askError: 'Jokin meni pieleen. Kokeile hetken kuluttua uudelleen.',
     askRateLimited: 'Liian monta kysymystä tänään -- kokeile huomenna uudelleen.',
@@ -720,8 +723,11 @@ const STRINGS = {
     installBannerButton: 'Install',
     installBannerTextIOS: 'Add PaikallisCanvas to your home screen: tap the share button, then choose "Add to Home Screen".',
     reinstallBannerText: "Improvements are available for your installed app (including landscape support) that can't update automatically -- remove the app and reinstall it to get them.",
-    pushBannerText: "Get today's events sent straight to your phone.",
+    pushInModalSub: "Or allow notifications on your phone -- if there are events today, you'll get a short notification about it (same 8am timing as email), no separate email needed.",
     pushBannerButton: 'Allow notifications',
+    pushDenied: 'Notifications were not allowed. You can change this in your browser settings.',
+    pushSubscribed: "Notifications allowed -- you'll get a message when there are events today.",
+    pushError: 'Could not enable notifications. Please try again.',
     askThinking: 'Thinking…',
     askError: 'Something went wrong. Please try again in a moment.',
     askRateLimited: 'Too many questions today -- try again tomorrow.',
@@ -978,14 +984,14 @@ document.getElementById('reinstallBannerClose').addEventListener('click', () => 
 });
 
 // ---- Push notification permission prompt ----
-// Not gated on isStandaloneApp() either way (unlike install/reinstall
-// above) -- push notifications work from a regular browser tab on
-// supporting browsers, not just an installed PWA, so this is offered
-// to everyone rather than narrowed to one specific context.
-const PUSH_DISMISS_KEY = 'pushBannerDismissed_v1';
-function pushBannerDismissed(){
-  try { return localStorage.getItem(PUSH_DISMISS_KEY) === '1'; } catch (e) { return false; }
-}
+// Lives inside the "Älä missaa mitään" (digest) modal now, not a
+// separate standalone banner -- that banner turned out redundant with
+// this exact modal (real feedback: two disconnected opt-in flows for
+// the same underlying goal) and had proven genuinely hard to position
+// correctly as a fixed-position overlay across two separate rounds of
+// fixes. Folding it into an already-working, already-tested modal
+// sidesteps both problems at once rather than continuing to chase the
+// banner's positioning.
 function pushSupported(){
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
@@ -1003,11 +1009,13 @@ function urlBase64ToUint8Array(base64String){
 }
 
 async function subscribeToPush(){
-  const btn = document.getElementById('pushBannerBtn');
+  const btn = document.getElementById('pushInModalBtn');
+  const statusEl = document.getElementById('pushInModalStatus');
+  const showStatus = (msg) => { statusEl.textContent = msg; statusEl.style.display = 'block'; };
   btn.disabled = true;
   try {
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') { document.getElementById('pushBanner').style.display = 'none'; return; }
+    if (permission !== 'granted') { showStatus(t('pushDenied')); return; }
 
     const keyRes = await fetch(`${API_BASE}/data?endpoint=push-vapid-key`);
     const keyData = await keyRes.json();
@@ -1015,7 +1023,6 @@ async function subscribeToPush(){
       // Not configured server-side (missing VAPID env vars) -- fails
       // quietly rather than showing an error for something the visitor
       // has no way to act on themselves.
-      document.getElementById('pushBanner').style.display = 'none';
       return;
     }
 
@@ -1030,43 +1037,20 @@ async function subscribeToPush(){
       body: JSON.stringify({ townId: currentTown.id, subscription: subscription.toJSON() })
     });
 
-    document.getElementById('pushBanner').style.display = 'none';
-    try { localStorage.setItem(PUSH_DISMISS_KEY, '1'); } catch (e) {}
+    btn.style.display = 'none';
+    showStatus(t('pushSubscribed'));
   } catch (err) {
-    document.getElementById('pushBanner').style.display = 'none';
+    showStatus(t('pushError'));
   } finally {
     btn.disabled = false;
   }
 }
 
-document.getElementById('pushBannerBtn').addEventListener('click', subscribeToPush);
-document.getElementById('pushBannerClose').addEventListener('click', () => {
-  document.getElementById('pushBanner').style.display = 'none';
-  try { localStorage.setItem(PUSH_DISMISS_KEY, '1'); } catch (e) {}
-});
-
-// Delayed, not shown immediately -- the Android install-prompt path
-// (beforeinstallprompt, see the listener above) is genuinely
-// asynchronous and can fire seconds after page load at a time the
-// browser itself decides, not something this code can check
-// synchronously the way the iOS/reinstall conditions can. Waiting gives
-// it a real chance to have already claimed the shared banner slot
-// (anyStartupBannerShown) before this decides whether to show too --
-// not a perfect guarantee against the rare remaining race, but a
-// meaningful, cheap reduction of it.
-setTimeout(() => {
-  if (pushSupported() && Notification.permission === 'default' && !pushBannerDismissed() && !anyStartupBannerShown) {
-    anyStartupBannerShown = true;
-    const banner = document.getElementById('pushBanner');
-    // top is set as a static value in CSS now, not measured here -- see
-    // the comment on #installBanner in styles.css for why. This banner
-    // specifically, with its deliberate 1.5s delay, was the one most
-    // likely to actually trigger the old bug -- plenty of time for a
-    // visitor to have already started scrolling before the measurement
-    // ran.
-    banner.style.display = 'flex';
-  }
-}, 1500);
+// The notification bell (previously just an "coming soon" placeholder
+// alert -- see index.html) now opens this same modal too, since it's
+// exactly what the bell conceptually represents and was otherwise
+// sitting unused.
+document.getElementById('mobileBellBtn').setAttribute('onclick', 'openDigestModal()');
 
 /* ---- light/dark theme toggle ---- */
 const ICON_SUN = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
