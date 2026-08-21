@@ -713,22 +713,31 @@ async function handleTrackBusinessClick(req, res) {
   res.status(204).end();
 }
 
-// Not tied to a logged-in account -- works for every visitor, the same
-// way the install banner and event-interest toggle already do.
-// Requiring an account just to get "today's events" pushed to your
-// phone would be a real, unnecessary barrier for something this site
-// treats as a no-account feature everywhere else.
+// Public key only -- no auth needed, same as any other public config
+// value (this isn't a secret; the private key is what actually matters
+// for security, see api/_push.js).
 async function handlePushVapidKey(req, res) {
   res.status(200).json({ publicKey: VAPID_PUBLIC_KEY || null });
 }
 
+// Requires login now -- originally didn't (push has no real equivalent
+// of the email spam vector, since a subscription can only ever come
+// from the actual device granting browser permission, not from typing
+// something into a form), but "Älä missaa mitään" now presents email
+// and push as one unified pair of account notification preferences
+// rather than two separately-gated flows, and consistency with the
+// email side won out over keeping push technically account-free just
+// because it safely could have stayed that way.
 async function handlePushSubscribe(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'not_authenticated' });
   const { townId, subscription } = req.body || {};
   if (!townId || !subscription || !subscription.endpoint || !subscription.keys) {
     return res.status(400).json({ error: 'Missing townId or subscription.' });
   }
   const { error } = await supabase.from('push_subscriptions').upsert({
+    user_id: userId,
     town_id: townId,
     endpoint: subscription.endpoint,
     p256dh: subscription.keys.p256dh,
@@ -740,9 +749,16 @@ async function handlePushSubscribe(req, res) {
 
 async function handlePushUnsubscribe(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'not_authenticated' });
   const { endpoint } = req.body || {};
   if (!endpoint) return res.status(400).json({ error: 'Missing endpoint.' });
-  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+  // Scoped to this account's own subscription specifically, not just
+  // any row matching the endpoint -- a browser's push endpoint could in
+  // principle be shared across accounts on a shared device, and someone
+  // shouldn't be able to unsubscribe a DIFFERENT account's subscription
+  // just by knowing (or guessing) the same endpoint URL.
+  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint).eq('user_id', userId);
   if (error) { console.error('Push unsubscribe failed (non-fatal):', error); }
   res.status(200).json({ ok: true });
 }

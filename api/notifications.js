@@ -1,10 +1,11 @@
 const crypto = require('crypto');
 const { supabase } = require('./_db');
 const { getNewsSection, getEventsSection } = require('./_localFeed');
-const { sendDigestConfirmEmail, sendDigestEmail } = require('./_email');
+const { sendDigestEmail } = require('./_email');
 const { getClientIp, isRateLimited, recordRequest } = require('./_rateLimit');
 const { sendPushNotification } = require('./_push');
 const { fetchCurrentWeather, weatherGreetingText } = require('./_weather');
+const { getUserId } = require('./_userAuth');
 
 const SITE_URL = process.env.SITE_URL;
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -20,27 +21,28 @@ const CRON_SECRET = process.env.CRON_SECRET;
 
 async function handleSubscribe(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
+
+  // Requires login now -- previously anyone could type ANY email
+  // address into the signup form, and the site would send that address
+  // an unsolicited "please confirm your subscription" email, rate
+  // limited but still a real harassment vector. Using the account's own
+  // email (never anything from the request body) closes this
+  // completely: the only address that can ever be subscribed is the
+  // one already tied to, and verified for, the account making the
+  // request.
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'not_authenticated' });
+
   const ip = getClientIp(req);
-  // Previously unprotected -- this sends a real email on every request,
-  // meaning it could be used to repeatedly spam confirmation emails to
-  // any address typed into the form, regardless of whether that person
-  // ever asked for any of it. 5/hour allows genuine retries (a typo'd
-  // email, wanting a fresh link) without allowing rapid-fire abuse.
-  // Recorded further down, only once the request has actually passed
-  // validation and will really trigger a send -- not here, so a request
-  // rejected for a malformed email doesn't also eat into the quota.
   if (await isRateLimited(supabase, 'digest_subscribe_attempts', ip, 5, 1)) {
     return res.status(429).json({ error: 'Too many attempts -- please try again later.' });
   }
 
-  const { email, townId, favoriteBusinessIds } = req.body || {};
-  if (!email || !String(email).trim() || !townId) {
-    return res.status(400).json({ error: 'Missing email or townId.' });
-  }
-  const cleanEmail = String(email).trim().toLowerCase().slice(0, 200);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-    return res.status(400).json({ error: 'invalid_email' });
-  }
+  const { data: user } = await supabase.from('users').select('email').eq('id', userId).maybeSingle();
+  if (!user) return res.status(401).json({ error: 'not_authenticated' });
+
+  const { townId, favoriteBusinessIds } = req.body || {};
+  if (!townId) return res.status(400).json({ error: 'Missing townId.' });
 
   const confirmToken = crypto.randomBytes(24).toString('hex');
   const unsubscribeToken = crypto.randomBytes(24).toString('hex');
@@ -50,29 +52,47 @@ async function handleSubscribe(req, res) {
   // malformed/hostile request from writing an unbounded array.
   const favIds = Array.isArray(favoriteBusinessIds) ? favoriteBusinessIds.slice(0, 50) : [];
 
-  // upsert on (email, town_id) -- re-subscribing (e.g. after having
-  // unsubscribed, or to refresh a stale favorites snapshot) just
-  // resets confirmation status and issues fresh tokens, rather than
-  // erroring on the unique constraint.
+  // upsert on (user_id, town_id) now, not (email, town_id) -- ties the
+  // row to the account itself. confirmed:true immediately, not false --
+  // the whole point of the separate email-click confirmation step
+  // (still kept, unchanged, for any pre-existing unauthenticated
+  // subscriber rows) was to prove the typed address was real and
+  // wanted; an account's own email is already proven both by the
+  // account's own verification step, so re-proving it here would just
+  // be a redundant extra click for no real safety benefit.
   const { error } = await supabase.from('notification_subscribers').upsert({
-    email: cleanEmail,
+    user_id: userId,
+    email: user.email,
     town_id: townId,
     favorite_business_ids: favIds,
-    confirmed: false,
+    confirmed: true,
+    confirmed_at: new Date().toISOString(),
     confirm_token: confirmToken,
     unsubscribe_token: unsubscribeToken,
     sync_token: syncToken
-  }, { onConflict: 'email,town_id' });
+  }, { onConflict: 'user_id,town_id' });
 
   if (error) {
     console.error('Notification subscribe failed:', error);
     return res.status(500).json({ error: 'Could not subscribe.' });
   }
 
-  const confirmUrl = `${SITE_URL}/api/notifications/confirm?token=${confirmToken}`;
   await recordRequest(supabase, 'digest_subscribe_attempts', ip);
-  await sendDigestConfirmEmail(cleanEmail, confirmUrl);
   res.status(200).json({ ok: true, syncToken });
+}
+
+// Removes just the email-digest subscription for the logged-in account
+// + town, without touching any push subscription -- the two channels
+// are independent checkboxes now, not a single all-or-nothing toggle.
+async function handleUnsubscribeEmail(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'not_authenticated' });
+  const { townId } = req.body || {};
+  if (!townId) return res.status(400).json({ error: 'Missing townId.' });
+  const { error } = await supabase.from('notification_subscribers').delete().eq('user_id', userId).eq('town_id', townId);
+  if (error) { console.error('Email unsubscribe failed (non-fatal):', error); }
+  res.status(200).json({ ok: true });
 }
 
 // Keeps a subscriber's favorited-businesses snapshot up to date after
@@ -342,12 +362,32 @@ async function handleSendDigest(req, res) {
   res.status(200).json({ sent: sentCount, total: subscribers.length, pushSent: pushSentCount });
 }
 
+// Lets the modal show accurate current state when reopened, rather than
+// always defaulting to unchecked -- without this, someone already
+// subscribed who reopens the modal and hits save without changing
+// anything would accidentally unsubscribe themselves, since the boxes
+// would show unchecked regardless of their real subscription status.
+async function handleDigestStatus(req, res) {
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ error: 'not_authenticated' });
+  const townId = req.query.townId;
+  if (!townId) return res.status(400).json({ error: 'Missing townId.' });
+
+  const [{ data: emailSub }, { data: pushSubs }] = await Promise.all([
+    supabase.from('notification_subscribers').select('id').eq('user_id', userId).eq('town_id', townId).eq('confirmed', true).maybeSingle(),
+    supabase.from('push_subscriptions').select('id').eq('user_id', userId).eq('town_id', townId).limit(1)
+  ]);
+  res.status(200).json({ emailSubscribed: !!emailSub, pushSubscribed: !!(pushSubs && pushSubs.length > 0) });
+}
+
 module.exports = async (req, res) => {
   const { endpoint } = req.query;
   if (endpoint === 'subscribe') return handleSubscribe(req, res);
   if (endpoint === 'confirm') return handleConfirm(req, res);
   if (endpoint === 'unsubscribe') return handleUnsubscribe(req, res);
+  if (endpoint === 'unsubscribe-email') return handleUnsubscribeEmail(req, res);
   if (endpoint === 'sync-favorites') return handleSyncFavorites(req, res);
   if (endpoint === 'send-digest') return handleSendDigest(req, res);
+  if (endpoint === 'status') return handleDigestStatus(req, res);
   return res.status(404).json({ error: 'Unknown endpoint.' });
 };
