@@ -4,6 +4,7 @@ const { getNewsSection, getEventsSection } = require('./_localFeed');
 const { sendDigestConfirmEmail, sendDigestEmail } = require('./_email');
 const { getClientIp, isRateLimited, recordRequest } = require('./_rateLimit');
 const { sendPushNotification } = require('./_push');
+const { fetchCurrentWeather, weatherGreetingText } = require('./_weather');
 
 const SITE_URL = process.env.SITE_URL;
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -192,12 +193,18 @@ async function handleSendDigest(req, res) {
   const townIds = [...new Set(subscribers.map(s => s.town_id))];
   const townContent = {};
   for (const townId of townIds) {
-    const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
+    const { data: town } = await supabase.from('towns').select('name, lat, lng').eq('id', townId).maybeSingle();
     if (!town) continue;
     try {
-      const [news, events] = await Promise.all([
+      const [news, events, weather] = await Promise.all([
         getNewsSection(supabase, townId, 'oulun-seutu', town.name),
-        getEventsSection(supabase, townId, town.name)
+        getEventsSection(supabase, townId, town.name),
+        // Fails open (returns null) on any error or missing
+        // coordinates -- see fetchCurrentWeather's own comment in
+        // api/_weather.js. A missing weather signal should never break
+        // the digest send; sendDigestEmail/the push payload below both
+        // already handle a null greeting by simply omitting it.
+        fetchCurrentWeather(town.lat, town.lng)
       ]);
       // Same dedup key as the public site's own dedupeEvents() in
       // app-board.js and the admin panel's server-side dedup in
@@ -215,7 +222,10 @@ async function handleSendDigest(req, res) {
         seen.add(key);
         return true;
       });
-      townContent[townId] = { news: (news || []).slice(0, 5), events: dedupedEvents.slice(0, 4), townName: town.name };
+      townContent[townId] = {
+        news: (news || []).slice(0, 5), events: dedupedEvents.slice(0, 4), townName: town.name,
+        weatherGreeting: weatherGreetingText(weather)
+      };
     } catch (err) {
       console.error(`Digest content fetch failed for town ${townId}:`, err);
     }
@@ -247,6 +257,7 @@ async function handleSendDigest(req, res) {
       news: content.news,
       events: content.events,
       favorites: favBusinesses,
+      weatherGreeting: content.weatherGreeting,
       unsubscribeUrl
     });
     if (sent) {
@@ -282,18 +293,23 @@ async function handleSendDigest(req, res) {
         // towns with at least one EMAIL subscriber, so this fills the
         // gap rather than silently skipping a town's push sends just
         // because no one there happens to use email digests.
-        let eventCount, townName;
+        let eventCount, townName, weatherGreeting;
         const content = townContent[townId];
         if (content) {
           eventCount = content.events.length;
           townName = content.townName;
+          weatherGreeting = content.weatherGreeting;
         } else {
-          const { data: town } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
+          const { data: town } = await supabase.from('towns').select('name, lat, lng').eq('id', townId).maybeSingle();
           if (!town) continue;
           townName = town.name;
           try {
-            const events = await getEventsSection(supabase, townId, town.name);
+            const [events, weather] = await Promise.all([
+              getEventsSection(supabase, townId, town.name),
+              fetchCurrentWeather(town.lat, town.lng)
+            ]);
             eventCount = (events || []).length;
+            weatherGreeting = weatherGreetingText(weather);
           } catch (err) {
             console.error(`Push event count fetch failed for town ${townId}:`, err);
             continue;
@@ -301,9 +317,15 @@ async function handleSendDigest(req, res) {
         }
         if (eventCount === 0) continue; // nothing worth a notification for -- skip rather than send an empty "0 events today" push
 
+        const eventLine = eventCount === 1 ? '1 tapahtuma tänään.' : `${eventCount} tapahtumaa tänään.`;
         const payload = {
-          title: `${townName}: tapahtumia tänään`,
-          body: eventCount === 1 ? '1 tapahtuma tänään -- katso mitä.' : `${eventCount} tapahtumaa tänään -- katso mitä.`,
+          title: 'Hyvää huomenta!',
+          // weatherGreeting can be null (fetchCurrentWeather fails
+          // open on any error or missing coordinates -- see
+          // api/_weather.js) -- falls back to just the event count on
+          // its own rather than a broken-looking sentence with a gap
+          // in it.
+          body: weatherGreeting ? `${weatherGreeting} ${eventLine}` : `${townName}: ${eventLine}`,
           url: SITE_URL || '/'
         };
         const townSubs = pushSubs.filter(s => s.town_id === townId);

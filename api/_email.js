@@ -184,7 +184,7 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-async function sendDigestEmail(toEmail, { townName, news, events, favorites, unsubscribeUrl }) {
+async function sendDigestEmail(toEmail, { townName, news, events, favorites, weatherGreeting, unsubscribeUrl }) {
   if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
     console.error('Digest email not sent -- RESEND_API_KEY or RESEND_FROM_EMAIL is not configured.');
     return false;
@@ -260,7 +260,7 @@ async function sendDigestEmail(toEmail, { townName, news, events, favorites, uns
           <p style="margin:0;font-size:16px;font-weight:700;color:${INK};letter-spacing:0.01em;">PAIKALLIS<span style="color:${ACCENT};">CANVAS</span></p>
         </td></tr>
         <tr><td style="padding:8px 28px 0;text-align:center;">
-          <p style="margin:0;color:${INK_DIM};font-size:13.5px;">Hyvää huomenta! Tässä tämän päivän koonti, ${escapeHtml(townName)}.</p>
+          <p style="margin:0;color:${INK_DIM};font-size:13.5px;">Hyvää huomenta! Tässä tämän päivän koonti, ${escapeHtml(townName)}.${weatherGreeting ? ` ${escapeHtml(weatherGreeting)}` : ''}</p>
         </td></tr>
         ${eventsSection}
         ${newsSection}

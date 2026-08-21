@@ -6,6 +6,7 @@ const { geocodeAddress } = require('./_geocode');
 const { isAuthenticated: isAdminAuthenticated } = require('./admin/_auth');
 const { getUserId } = require('./_userAuth');
 const { FREE_QUESTIONS_PER_DAY } = require('./_limits');
+const { fetchCurrentWeather, weatherSummaryText } = require('./_weather');
 
 // AI local-guide chat widget: "what's on today", "where should I eat",
 // "things to do this weekend" -- grounded first in this town's own real
@@ -185,68 +186,6 @@ const INDUSTRY_LABELS = {
   matkailu: 'Matkailu ja majoitus', urheilu: 'Urheilu ja liikunta',
   kasityo: 'Käsityö ja taide', maatalous: 'Maatalous ja puutarha'
 };
-
-// Same free, keyless Open-Meteo API the weather widget already calls
-// client-side (see loadWeather in app-chat.js) -- called again here,
-// server-side, so the AI itself can factor real current conditions into
-// an answer (e.g. warning that outdoor plans might not be a great idea
-// right now), not just so a temperature can be shown in a corner of the
-// page. Fails open (returns null) on any error -- a missing weather
-// signal should never block a real answer, the same way a missing
-// businessContext/eventContext section wouldn't either.
-async function fetchCurrentWeather(lat, lng) {
-  if (typeof lat !== 'number' || typeof lng !== 'number') return null;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,precipitation_probability_max,weather_code&timezone=Europe%2FHelsinki&forecast_days=1`);
-    clearTimeout(timeout);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data.current || data.current.temperature_2m == null) return null;
-    return {
-      tempNow: Math.round(data.current.temperature_2m),
-      codeNow: data.current.weather_code,
-      isDayNow: data.current.is_day !== 0,
-      tempMaxToday: data.daily && data.daily.temperature_2m_max ? Math.round(data.daily.temperature_2m_max[0]) : null,
-      precipProbToday: data.daily && data.daily.precipitation_probability_max ? data.daily.precipitation_probability_max[0] : null
-    };
-  } catch (err) {
-    return null;
-  }
-}
-
-// Plain-language WMO weather-code labels for the prompt -- doesn't need
-// to cover every code with the same precision as the widget's icon
-// picker (weatherIconSlug in app-chat.js), just enough for the model to
-// describe today in a normal sentence.
-const WMO_LABELS_FI = {
-  0: 'selkeää', 1: 'enimmäkseen selkeää', 2: 'puolipilvistä', 3: 'pilvistä',
-  45: 'sumua', 48: 'huurteista sumua',
-  51: 'heikkoa tihkusadetta', 53: 'tihkusadetta', 55: 'runsasta tihkusadetta',
-  56: 'jäätävää tihkua', 57: 'jäätävää tihkua',
-  61: 'heikkoa sadetta', 63: 'sadetta', 65: 'rankkasadetta',
-  66: 'jäätävää sadetta', 67: 'jäätävää sadetta',
-  71: 'heikkoa lumisadetta', 73: 'lumisadetta', 75: 'runsasta lumisadetta', 77: 'lumijyväsiä',
-  80: 'sadekuuroja', 81: 'sadekuuroja', 82: 'rajuja sadekuuroja',
-  85: 'lumikuuroja', 86: 'runsaita lumikuuroja',
-  95: 'ukkosta', 96: 'ukkosta ja raekuuroja', 99: 'voimakasta ukkosta ja raekuuroja'
-};
-
-// Rounded/bucketed on purpose, not the raw API payload -- this feeds
-// into buildAskCacheKey below, and temperature genuinely fluctuating by
-// a fraction of a degree between two calls a minute apart shouldn't by
-// itself turn an otherwise-identical question into a cache miss. Whole
-// degrees plus a same-hour weather code already captures anything that
-// would actually change what the model should say.
-function weatherSummaryText(weather) {
-  if (!weather) return null;
-  const nowLabel = WMO_LABELS_FI[weather.codeNow] || 'vaihtelevaa säätä';
-  let text = `Sää juuri nyt: ${weather.tempNow}°C, ${nowLabel}.`;
-  if (weather.tempMaxToday != null) text += ` Tänään ylin lämpötila noin ${weather.tempMaxToday}°C.`;
-  if (weather.precipProbToday != null) text += ` Sateen todennäköisyys tänään: ${weather.precipProbToday}%.`;
-  return text;
-}
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
