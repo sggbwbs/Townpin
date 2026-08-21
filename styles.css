@@ -1105,12 +1105,16 @@
      number -- it varies by content and breakpoint. */
   #installBanner{display:none;position:fixed;left:0;right:0;z-index:180;
     align-items:center;gap:12px;justify-content:center;
-    background:rgba(224,138,60,0.14);border-bottom:1px solid var(--line);
-    padding:10px 20px;font-size:13px;color:var(--ink);text-align:center;flex-wrap:wrap;}
-  #installBannerBtn{background:var(--amber);color:#fff;border:none;border-radius:999px;
+    background:var(--amber);box-shadow:0 4px 16px rgba(20,15,40,0.25);
+    padding:10px 20px;font-size:13px;color:#fff;text-align:center;flex-wrap:wrap;}
+  /* White, not var(--amber) -- this banner is now a solid purple block
+     (see above), so a same-color button would have been invisible
+     against its own background. White stands out clearly regardless of
+     the banner's exact shade in either theme. */
+  #installBannerBtn{background:#fff;color:var(--amber-deep);border:none;border-radius:999px;
     padding:6px 16px;font-weight:700;font-size:12.5px;cursor:pointer;font-family:'Space Grotesk',sans-serif;
     flex:none;}
-  #installBannerClose{background:none;border:none;color:var(--ink-dim);cursor:pointer;font-size:14px;
+  #installBannerClose{background:none;border:none;color:#fff;opacity:0.8;cursor:pointer;font-size:14px;
     padding:2px 6px;flex:none;}
 
   /* ---- AI local guide: hero search (top of page, not a hidden corner bubble) ---- */
