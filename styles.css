@@ -1038,7 +1038,7 @@
   .newsRow.newsRowLead .newsRowBadgeLogo{border-radius:15px;padding:10px;}
   .newsRowBody{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
   .newsRow b{font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--ink);line-height:1.35;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;}
   .newsRowMeta{font-size:11.5px;color:var(--ink-dim);}
   .newsRowArrow{flex:none;margin-left:auto;width:20px;height:20px;color:var(--ink-dim);
     opacity:0.5;transition:opacity 0.15s ease, color 0.15s ease, transform 0.15s ease;}
