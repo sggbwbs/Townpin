@@ -903,7 +903,19 @@ async function loadExpandedNewsColumn(columnBodyEl, category){
       empty.textContent = 'Ei uutisia tällä hetkellä tässä kategoriassa.';
       columnBodyEl.appendChild(empty);
     } else {
-      news.forEach(item => columnBodyEl.appendChild(makeFeedItemEl(item)));
+      // .newsRowMeta (the per-item source label) is hidden here
+      // specifically, not removed from makeFeedItemEl itself -- that
+      // same builder is also used in the collapsed, mixed-source view
+      // where showing which source each item came from is still
+      // necessary. Here, every item in a column is already from the
+      // one source named in that column's own header, so repeating it
+      // on every single row was pure redundancy.
+      news.forEach(item => {
+        const el = makeFeedItemEl(item);
+        const meta = el.querySelector('.newsRowMeta');
+        if (meta) meta.style.display = 'none';
+        columnBodyEl.appendChild(el);
+      });
     }
   } catch (err) {
     console.error(`Expanded news column load failed for "${category}":`, err);
