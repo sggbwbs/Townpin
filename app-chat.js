@@ -883,11 +883,10 @@ async function init(){
     }
   })();
 
-  await applyContentOverrides();
+  await Promise.all([applyContentOverrides(), checkUserAuth()]);
   setLang(lang);
   showSuccessBannerIfNeeded();
   showCreditsBannerIfNeeded();
-  await checkUserAuth();
   checkAdminSession();
   const resetTokenParam = new URLSearchParams(window.location.search).get('resetToken');
   if (resetTokenParam) {
