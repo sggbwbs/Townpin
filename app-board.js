@@ -842,6 +842,40 @@ const EXPANDED_NEWS_SOURCES = [
               ['oulu-museo','Oulun museo- ja tiedekeskuksen uutiset']] }
 ];
 
+// Real homepages for all 7 distinct actual sources (not just the 3
+// group labels above) -- domains taken directly from the real feed
+// URLs already used server-side (see NEWS_RSS_FEEDS/YLE_NEWS_RSS_FEEDS/
+// OULU_CITY_NEWS_RSS_FEEDS in api/_localFeed.js), not guessed. A single
+// link per GROUP wouldn't work here: "Oulun kaupunki" alone actually
+// covers 5 different real organizations (BusinessOulu, Mun Oulu, the
+// city government, the museum, and the regional transit authority),
+// each its own domain -- someone specifically wanting OSL's own site,
+// for example, needs OSL's own link, not whatever the group's dropdown
+// happens to currently be set to.
+const NEWS_SOURCE_LINKS = [
+  { label: 'Kaleva', url: 'https://kaleva.fi' },
+  { label: 'Yle', url: 'https://yle.fi' },
+  { label: 'Oulun seudun liikenne', url: 'https://www.osl.fi' },
+  { label: 'Oulun kaupunki', url: 'https://www.ouka.fi' },
+  { label: 'BusinessOulu', url: 'https://www.businessoulu.com' },
+  { label: 'Mun Oulu', url: 'https://www.munoulu.fi' },
+  { label: 'Oulun museo- ja tiedekeskus', url: 'https://oulunmuseojatiedekeskus.fi' }
+];
+
+function renderNewsSourceLinks(){
+  const box = document.getElementById('newsSourceLinksGrid');
+  box.innerHTML = '';
+  NEWS_SOURCE_LINKS.forEach(src => {
+    const a = document.createElement('a');
+    a.href = src.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.className = 'newsSourceLinkChip';
+    a.textContent = src.label;
+    box.appendChild(a);
+  });
+}
+
 async function loadExpandedNewsColumn(columnBodyEl, category){
   columnBodyEl.innerHTML = '<p class="note">Ladataan...</p>';
   try {
@@ -849,7 +883,7 @@ async function loadExpandedNewsColumn(columnBodyEl, category){
     const data = await res.json();
     const news = (data.news || [])
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 5);
+      .slice(0, window.innerWidth >= 1000 ? 7 : 5);
     columnBodyEl.innerHTML = '';
     if (news.length === 0){
       const empty = document.createElement('p');
@@ -868,6 +902,7 @@ async function loadExpandedNewsColumn(columnBodyEl, category){
 function loadNewsSourceColumns(){
   const grid = document.getElementById('newsSourceColumnsGrid');
   grid.innerHTML = '';
+  renderNewsSourceLinks();
   EXPANDED_NEWS_SOURCES.forEach(source => {
     const col = document.createElement('div');
     col.className = 'expandedNewsCol';
