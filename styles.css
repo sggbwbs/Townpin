@@ -821,7 +821,6 @@
       z-index:60;
       max-height:92vh;
       overflow-y:auto;
-      overscroll-behavior:contain;
       box-shadow:0 24px 60px rgba(20,15,40,0.32);
     }
   }
