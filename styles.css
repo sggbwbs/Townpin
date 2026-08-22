@@ -532,15 +532,15 @@
   #weatherWidget .weatherChevron{font-size:10px;color:var(--ink-dim);transition:transform 0.15s;}
   #weatherWidget.expanded .weatherChevron{transform:rotate(180deg);}
   #weatherIcon{font-size:20px;line-height:1;display:inline-flex;align-items:center;}
-  #weatherIcon img{width:24px;height:24px;display:block;}
+  #weatherIcon img{width:28px;height:28px;display:block;}
   #weatherTemp{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--ink);}
   #weatherForecast{display:flex;flex-direction:column;gap:12px;}
   #weatherHourlyRow, #weatherDaysRow{display:flex;gap:8px;overflow-x:auto;padding:2px;}
   .forecastDay, .forecastHour{flex:none;width:78px;background:var(--panelT4);border:1px solid var(--line);border-radius:10px;
     padding:10px 6px;text-align:center;}
   .forecastDay .dName, .forecastHour .hTime{font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:700;color:var(--ink);}
-  .forecastDay .dIcon, .forecastHour .dIcon{font-size:22px;margin:4px 0;display:flex;align-items:center;justify-content:center;}
-  .forecastDay .dIcon img, .forecastHour .dIcon img{width:32px;height:32px;}
+  .forecastDay .dIcon, .forecastHour .dIcon{font-size:32px;margin:4px 0;display:flex;align-items:center;justify-content:center;}
+  .forecastDay .dIcon img, .forecastHour .dIcon img{width:46px;height:46px;}
   .forecastDay .dTemps, .forecastHour .dTemps{font-size:12px;color:var(--ink-dim);}
   .forecastDay .dTemps b, .forecastHour .dTemps b{color:var(--ink);}
   /* A thin top-edge accent + matching icon color per card, so the four

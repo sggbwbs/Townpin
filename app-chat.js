@@ -994,7 +994,7 @@ async function loadWeather(){
     const isDay = !data.current || data.current.is_day !== 0; // default to day if missing, safest guess
     if (temp === undefined || temp === null) return;
 
-    document.getElementById('weatherIcon').innerHTML = weatherIconHtml(code, isDay, 24);
+    document.getElementById('weatherIcon').innerHTML = weatherIconHtml(code, isDay, 28);
     document.getElementById('weatherTemp').textContent = `${Math.round(temp)}°C`;
     document.getElementById('weatherWidget').style.display = 'flex';
     weatherForecastData = data.daily || null;
@@ -1072,7 +1072,7 @@ function renderWeatherForecast(){
       const hcode = weatherHourlyData.weather_code[idx];
       const htemp = Math.round(weatherHourlyData.temperature_2m[idx]);
       const hIsDay = !weatherHourlyData.is_day || weatherHourlyData.is_day[idx] !== 0;
-      card.innerHTML = `<div class="hTime">${String(hour).padStart(2, '0')}:00</div><div class="dIcon">${weatherIconHtml(hcode, hIsDay, 32)}</div><div class="dTemps"><b>${htemp}°</b></div>`;
+      card.innerHTML = `<div class="hTime">${String(hour).padStart(2, '0')}:00</div><div class="dIcon">${weatherIconHtml(hcode, hIsDay, 46)}</div><div class="dTemps"><b>${htemp}°</b></div>`;
       hourlyRow.appendChild(card);
     });
     if (hourlyRow.children.length > 0) panel.appendChild(hourlyRow);
@@ -1089,7 +1089,7 @@ function renderWeatherForecast(){
     const code = weatherForecastData.weather_code[i];
     const max = Math.round(weatherForecastData.temperature_2m_max[i]);
     const min = Math.round(weatherForecastData.temperature_2m_min[i]);
-    card.innerHTML = `<div class="dName">${names[d.getDay()]}</div><div class="dIcon">${weatherIconHtml(code, true, 32)}</div><div class="dTemps"><b>${max}°</b> ${min}°</div>`;
+    card.innerHTML = `<div class="dName">${names[d.getDay()]}</div><div class="dIcon">${weatherIconHtml(code, true, 46)}</div><div class="dTemps"><b>${max}°</b> ${min}°</div>`;
     daysRow.appendChild(card);
   });
   panel.appendChild(daysRow);
