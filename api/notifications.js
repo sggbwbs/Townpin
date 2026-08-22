@@ -52,15 +52,28 @@ async function handleSubscribe(req, res) {
   // malformed/hostile request from writing an unbounded array.
   const favIds = Array.isArray(favoriteBusinessIds) ? favoriteBusinessIds.slice(0, 50) : [];
 
-  // upsert on (user_id, town_id) now, not (email, town_id) -- ties the
-  // row to the account itself. confirmed:true immediately, not false --
-  // the whole point of the separate email-click confirmation step
-  // (still kept, unchanged, for any pre-existing unauthenticated
-  // subscriber rows) was to prove the typed address was real and
-  // wanted; an account's own email is already proven both by the
-  // account's own verification step, so re-proving it here would just
-  // be a redundant extra click for no real safety benefit.
-  const { error } = await supabase.from('notification_subscribers').upsert({
+  // Explicit find-then-update-or-insert, not a single upsert() targeting
+  // one constraint -- the table now has two overlapping unique
+  // constraints: the original (email, town_id) from before today's
+  // login requirement, and the new (user_id, town_id). An upsert's
+  // onConflict only resolves conflicts on the ONE constraint it names;
+  // if a legacy row already exists with the same email+town but no
+  // user_id (exactly what anyone who tested the old, pre-login flow
+  // earlier would have), Postgres still rejects the insert as a genuine
+  // violation of the OTHER constraint. A real, reported bug: subscribing
+  // appeared to succeed in the UI but silently failed server-side,
+  // meaning the checkbox reverted to unchecked on the next reload and
+  // no digest ever actually got sent. Checking for an existing row by
+  // either key first sidesteps this regardless of which constraint a
+  // given row happens to match.
+  const { data: existing } = await supabase
+    .from('notification_subscribers')
+    .select('id')
+    .eq('town_id', townId)
+    .or(`user_id.eq.${userId},email.eq.${user.email}`)
+    .maybeSingle();
+
+  const rowData = {
     user_id: userId,
     email: user.email,
     town_id: townId,
@@ -70,7 +83,10 @@ async function handleSubscribe(req, res) {
     confirm_token: confirmToken,
     unsubscribe_token: unsubscribeToken,
     sync_token: syncToken
-  }, { onConflict: 'user_id,town_id' });
+  };
+  const { error } = existing
+    ? await supabase.from('notification_subscribers').update(rowData).eq('id', existing.id)
+    : await supabase.from('notification_subscribers').insert(rowData);
 
   if (error) {
     console.error('Notification subscribe failed:', error);
