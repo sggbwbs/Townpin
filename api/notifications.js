@@ -408,15 +408,15 @@ async function handleSendDigest(req, res) {
         }
         if (eventCount === 0) continue; // nothing worth a notification for -- skip rather than send an empty "0 events today" push
 
-        const eventLine = eventCount === 1 ? '1 tapahtuma tänään.' : `${eventCount} tapahtumaa tänään.`;
+        const eventLine = eventCount === 1 ? '1 tapahtuma odottaa tänään.' : `${eventCount} tapahtumaa odottaa tänään.`;
         const payload = {
-          title: 'Hyvää huomenta!',
+          title: `Hyvää huomenta, ${townName}!`,
           // weatherGreeting can be null (fetchCurrentWeather fails
           // open on any error or missing coordinates -- see
           // api/_weather.js) -- falls back to just the event count on
           // its own rather than a broken-looking sentence with a gap
           // in it.
-          body: weatherGreeting ? `${weatherGreeting} ${eventLine}` : `${townName}: ${eventLine}`,
+          body: weatherGreeting ? `${weatherGreeting} ${eventLine}` : eventLine,
           url: SITE_URL || '/'
         };
         const townSubs = pushSubs.filter(s => s.town_id === townId);
