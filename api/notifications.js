@@ -167,15 +167,35 @@ async function handleUnsubscribe(req, res) {
 // clock time via Intl (not a hardcoded UTC offset) handles the DST
 // transition automatically, the same way a person's own phone would.
 async function handleSendDigest(req, res) {
-  // Optional hardening: only meaningful once CRON_SECRET is actually
-  // set as an env var (Vercel then automatically includes it as the
-  // Authorization header on genuine cron-triggered requests) --
-  // skipped entirely if unset, same graceful-degrade pattern as the
-  // email module below, so this doesn't hard-require extra setup to
-  // function at all, just to be hardened against unauthorized triggers.
-  if (CRON_SECRET && req.headers['authorization'] !== `Bearer ${CRON_SECRET}`) {
+  // Two ways to authenticate: the Authorization header (how Vercel's
+  // own cron scheduler authenticates automatically, and how curl or
+  // Postman would too), or -- only when ?test=1 is also present -- a
+  // `secret` query parameter, so someone without any terminal or API
+  // tool can trigger a real test send just by pasting a URL into a
+  // browser's address bar. A secret in a URL is weaker than a header
+  // (it can end up in browser history or server access logs) -- an
+  // acceptable trade-off for an occasional manual test, not something
+  // this would be fine as a permanent public interface. Treat this
+  // value as sensitive; don't share a URL containing it.
+  const headerMatches = !!CRON_SECRET && req.headers['authorization'] === `Bearer ${CRON_SECRET}`;
+  const queryMatches = !!CRON_SECRET && req.query.test === '1' && req.query.secret === CRON_SECRET;
+  const isAuthenticated = headerMatches || queryMatches;
+
+  // Skipped entirely if CRON_SECRET is unset -- same graceful-degrade
+  // pattern as the email module below, so this doesn't hard-require
+  // extra setup to function at all, just to be hardened once it IS
+  // configured.
+  if (CRON_SECRET && !isAuthenticated) {
     return res.status(401).end();
   }
+
+  // Skips the 8am time-window check below -- for manually triggering a
+  // REAL send (actual emails/pushes to actual current subscribers) to
+  // verify a change without waiting for the next natural 8am window,
+  // potentially a full day away. Requires isAuthenticated, which is
+  // always false when CRON_SECRET is unset -- a known, guessable bypass
+  // parameter is never left open to anyone by default.
+  const isTestTrigger = req.query.test === '1' && isAuthenticated;
 
   const helsinkiParts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Europe/Helsinki', hour: '2-digit', minute: '2-digit', hour12: false
@@ -186,7 +206,7 @@ async function handleSendDigest(req, res) {
   // sends -- the cron firing again 15/30/45 minutes later is a no-op,
   // not a duplicate send, since last_sent_date below already guards
   // against that too (belt and suspenders).
-  if (hour !== 8 || minute >= 15) {
+  if (!isTestTrigger && (hour !== 8 || minute >= 15)) {
     return res.status(200).json({ skipped: true, reason: 'outside_send_window', helsinkiHour: hour, helsinkiMinute: minute });
   }
 
