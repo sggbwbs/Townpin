@@ -230,103 +230,118 @@ async function handleSendDigest(req, res) {
   // midnight where the two dates can differ.
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
 
-  const { data: subscribers, error } = await supabase
-    .from('notification_subscribers')
-    .select('*')
-    .eq('confirmed', true)
-    .or(`last_sent_date.is.null,last_sent_date.lt.${todayStr}`);
-
-  if (error) {
-    console.error('Digest subscriber lookup failed:', error);
-    return res.status(500).json({ error: 'lookup_failed' });
-  }
-  if (!subscribers || subscribers.length === 0) {
-    return res.status(200).json({ sent: 0, total: 0 });
-  }
-
-  // Fetch each distinct town's news/events once, not once per
-  // subscriber -- several people can share a town.
-  const townIds = [...new Set(subscribers.map(s => s.town_id))];
-  const townContent = {};
-  for (const townId of townIds) {
-    const { data: town } = await supabase.from('towns').select('name, lat, lng').eq('id', townId).maybeSingle();
-    if (!town) continue;
-    try {
-      const [news, events, weather] = await Promise.all([
-        getNewsSection(supabase, townId, 'oulun-seutu', town.name),
-        getEventsSection(supabase, townId, town.name),
-        // Fails open (returns null) on any error or missing
-        // coordinates -- see fetchCurrentWeather's own comment in
-        // api/_weather.js. A missing weather signal should never break
-        // the digest send; sendDigestEmail/the push payload below both
-        // already handle a null greeting by simply omitting it.
-        fetchCurrentWeather(town.lat, town.lng)
-      ]);
-      // Same dedup key as the public site's own dedupeEvents() in
-      // app-board.js and the admin panel's server-side dedup in
-      // api/admin/[action].js -- getEventsSection itself returns raw
-      // rows with no deduplication (that only ever happened in
-      // frontend JS, which obviously never runs for a server-rendered
-      // email), so without this the digest could slice straight into
-      // several rows that are really the same event repeated -- a real,
-      // reported case of the same event appearing 3 of 4 times in a
-      // sent digest.
-      const seen = new Set();
-      const dedupedEvents = (events || []).filter(ev => {
-        const key = `${ev.title_fi}|${ev.event_date}|${ev.event_start_time}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      townContent[townId] = {
-        news: (news || []).slice(0, 5), events: dedupedEvents.slice(0, 4), townName: town.name,
-        weatherGreeting: weatherGreetingText(weather),
-        // Kept separate from events.length above on purpose -- events
-        // itself is deliberately truncated to 4 for the email body's
-        // display list, and the push notification's event count read
-        // from that same truncated array, meaning it silently capped
-        // at 4 regardless of how many events were actually happening. A
-        // real, reported bug: "4 tapahtumaa tänään" every single day
-        // even when there were genuinely more.
-        eventCountTotal: dedupedEvents.length
-      };
-    } catch (err) {
-      console.error(`Digest content fetch failed for town ${townId}:`, err);
-    }
-  }
+  // Skips subscriber lookup, content fetching, and the entire email send
+  // loop below -- for testing push notification layout/content without
+  // also emailing every real, currently-subscribed person each time.
+  // Only meaningful alongside ?test=1 (isAuthenticated already covers
+  // that this requires a valid secret either way). townContent stays {}
+  // in this mode, which the push loop further down already handles
+  // correctly on its own -- it has its own independent per-town fetch
+  // path for exactly the case of "no shared email content available".
+  const pushOnly = req.query.pushOnly === '1' && isAuthenticated;
 
   let sentCount = 0;
-  for (const sub of subscribers) {
-    const content = townContent[sub.town_id];
-    if (!content) continue; // town lookup/content fetch failed above -- skip rather than send a broken email
+  let subscriberCount = 0;
+  const townContent = {};
 
-    // Favorited businesses were only ever captured as a one-time
-    // snapshot at signup (see the favorite_business_ids column comment
-    // in the migration) -- this looks them up fresh each send so at
-    // least their current info (logo, tagline) is accurate, even
-    // though the *set* of favorited IDs itself can go stale.
-    let favBusinesses = [];
-    if (Array.isArray(sub.favorite_business_ids) && sub.favorite_business_ids.length > 0) {
-      const { data: slots } = await supabase
-        .from('slots')
-        .select('id, company_name, tagline, logo_url, status')
-        .in('id', sub.favorite_business_ids)
-        .eq('status', 'active');
-      favBusinesses = slots || [];
+  if (!pushOnly) {
+    const { data: subscribers, error } = await supabase
+      .from('notification_subscribers')
+      .select('*')
+      .eq('confirmed', true)
+      .or(`last_sent_date.is.null,last_sent_date.lt.${todayStr}`);
+
+    if (error) {
+      console.error('Digest subscriber lookup failed:', error);
+      return res.status(500).json({ error: 'lookup_failed' });
     }
 
-    const unsubscribeUrl = `${SITE_URL}/api/notifications/unsubscribe?token=${sub.unsubscribe_token}`;
-    const sent = await sendDigestEmail(sub.email, {
-      townName: content.townName,
-      news: content.news,
-      events: content.events,
-      favorites: favBusinesses,
-      weatherGreeting: content.weatherGreeting,
-      unsubscribeUrl
-    });
-    if (sent) {
-      sentCount++;
-      await supabase.from('notification_subscribers').update({ last_sent_date: todayStr }).eq('id', sub.id);
+    if (subscribers && subscribers.length > 0) {
+      subscriberCount = subscribers.length;
+
+      // Fetch each distinct town's news/events once, not once per
+      // subscriber -- several people can share a town.
+      const townIds = [...new Set(subscribers.map(s => s.town_id))];
+      for (const townId of townIds) {
+        const { data: town } = await supabase.from('towns').select('name, lat, lng').eq('id', townId).maybeSingle();
+        if (!town) continue;
+        try {
+          const [news, events, weather] = await Promise.all([
+            getNewsSection(supabase, townId, 'oulun-seutu', town.name),
+            getEventsSection(supabase, townId, town.name),
+            // Fails open (returns null) on any error or missing
+            // coordinates -- see fetchCurrentWeather's own comment in
+            // api/_weather.js. A missing weather signal should never break
+            // the digest send; sendDigestEmail/the push payload below both
+            // already handle a null greeting by simply omitting it.
+            fetchCurrentWeather(town.lat, town.lng)
+          ]);
+          // Same dedup key as the public site's own dedupeEvents() in
+          // app-board.js and the admin panel's server-side dedup in
+          // api/admin/[action].js -- getEventsSection itself returns raw
+          // rows with no deduplication (that only ever happened in
+          // frontend JS, which obviously never runs for a server-rendered
+          // email), so without this the digest could slice straight into
+          // several rows that are really the same event repeated -- a real,
+          // reported case of the same event appearing 3 of 4 times in a
+          // sent digest.
+          const seen = new Set();
+          const dedupedEvents = (events || []).filter(ev => {
+            const key = `${ev.title_fi}|${ev.event_date}|${ev.event_start_time}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          townContent[townId] = {
+            news: (news || []).slice(0, 5), events: dedupedEvents.slice(0, 4), townName: town.name,
+            weatherGreeting: weatherGreetingText(weather),
+            // Kept separate from events.length above on purpose -- events
+            // itself is deliberately truncated to 4 for the email body's
+            // display list, and the push notification's event count read
+            // from that same truncated array, meaning it silently capped
+            // at 4 regardless of how many events were actually happening. A
+            // real, reported bug: "4 tapahtumaa tänään" every single day
+            // even when there were genuinely more.
+            eventCountTotal: dedupedEvents.length
+          };
+        } catch (err) {
+          console.error(`Digest content fetch failed for town ${townId}:`, err);
+        }
+      }
+
+      for (const sub of subscribers) {
+        const content = townContent[sub.town_id];
+        if (!content) continue; // town lookup/content fetch failed above -- skip rather than send a broken email
+
+        // Favorited businesses were only ever captured as a one-time
+        // snapshot at signup (see the favorite_business_ids column comment
+        // in the migration) -- this looks them up fresh each send so at
+        // least their current info (logo, tagline) is accurate, even
+        // though the *set* of favorited IDs itself can go stale.
+        let favBusinesses = [];
+        if (Array.isArray(sub.favorite_business_ids) && sub.favorite_business_ids.length > 0) {
+          const { data: slots } = await supabase
+            .from('slots')
+            .select('id, company_name, tagline, logo_url, status')
+            .in('id', sub.favorite_business_ids)
+            .eq('status', 'active');
+          favBusinesses = slots || [];
+        }
+
+        const unsubscribeUrl = `${SITE_URL}/api/notifications/unsubscribe?token=${sub.unsubscribe_token}`;
+        const sent = await sendDigestEmail(sub.email, {
+          townName: content.townName,
+          news: content.news,
+          events: content.events,
+          favorites: favBusinesses,
+          weatherGreeting: content.weatherGreeting,
+          unsubscribeUrl
+        });
+        if (sent) {
+          sentCount++;
+          await supabase.from('notification_subscribers').update({ last_sent_date: todayStr }).eq('id', sub.id);
+        }
+      }
     }
   }
 
@@ -415,7 +430,7 @@ async function handleSendDigest(req, res) {
     console.error('Push notification send loop failed (non-fatal, email digest above already sent):', err);
   }
 
-  res.status(200).json({ sent: sentCount, total: subscribers.length, pushSent: pushSentCount });
+  res.status(200).json({ sent: sentCount, total: subscriberCount, pushSent: pushSentCount, pushOnly });
 }
 
 // Lets the modal show accurate current state when reopened, rather than
