@@ -76,7 +76,19 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(payload.title || 'PaikallisCanvas', {
       body: payload.body || '',
       icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      // A dedicated, purpose-built asset, not the same file as icon
+      // above -- Android's badge specifically needs a monochrome image
+      // where the shape is defined by the ALPHA channel (the OS applies
+      // its own color/tint on top), not a full-color icon. icon-192.png
+      // has no alpha channel at all (confirmed: a plain 8-bit RGB PNG,
+      // fully opaque), so Android couldn't derive any real silhouette
+      // from it and was falling back to its own generic bell icon
+      // instead -- a real, reported bug, not a hypothetical one.
+      // icon-badge-192.png is a proper white-on-transparent silhouette
+      // of the same logo, generated from it directly (luminance mapped
+      // to alpha) so it stays visually consistent with the real icon
+      // rather than being a from-scratch redesign.
+      badge: '/icons/icon-badge-192.png',
       data: { url: payload.url || '/' }
     })
   );
