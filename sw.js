@@ -75,7 +75,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title || 'PaikallisCanvas', {
       body: payload.body || '',
-      icon: '/icons/icon-192.png',
+      icon: '/icons/icon-notification-256.png',
       // A dedicated, purpose-built asset, not the same file as icon
       // above -- Android's badge specifically needs a monochrome image
       // where the shape is defined by the ALPHA channel (the OS applies
