@@ -244,7 +244,15 @@ async function handleSendDigest(req, res) {
       });
       townContent[townId] = {
         news: (news || []).slice(0, 5), events: dedupedEvents.slice(0, 4), townName: town.name,
-        weatherGreeting: weatherGreetingText(weather)
+        weatherGreeting: weatherGreetingText(weather),
+        // Kept separate from events.length above on purpose -- events
+        // itself is deliberately truncated to 4 for the email body's
+        // display list, and the push notification's event count read
+        // from that same truncated array, meaning it silently capped
+        // at 4 regardless of how many events were actually happening. A
+        // real, reported bug: "4 tapahtumaa tänään" every single day
+        // even when there were genuinely more.
+        eventCountTotal: dedupedEvents.length
       };
     } catch (err) {
       console.error(`Digest content fetch failed for town ${townId}:`, err);
@@ -316,7 +324,7 @@ async function handleSendDigest(req, res) {
         let eventCount, townName, weatherGreeting;
         const content = townContent[townId];
         if (content) {
-          eventCount = content.events.length;
+          eventCount = content.eventCountTotal;
           townName = content.townName;
           weatherGreeting = content.weatherGreeting;
         } else {
@@ -328,7 +336,19 @@ async function handleSendDigest(req, res) {
               getEventsSection(supabase, townId, town.name),
               fetchCurrentWeather(town.lat, town.lng)
             ]);
-            eventCount = (events || []).length;
+            // Same dedup as the shared-content path above -- without
+            // this, a town with push subscribers but no email
+            // subscribers (the only case that reaches this branch)
+            // could overcount by treating the same real-world event's
+            // several raw rows as separate events.
+            const seen = new Set();
+            const dedupedEvents = (events || []).filter(ev => {
+              const key = `${ev.title_fi}|${ev.event_date}|${ev.event_start_time}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            eventCount = dedupedEvents.length;
             weatherGreeting = weatherGreetingText(weather);
           } catch (err) {
             console.error(`Push event count fetch failed for town ${townId}:`, err);
