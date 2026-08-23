@@ -31,9 +31,25 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 async function sendPushNotification(supabase, subscription, payload) {
   if (!vapidConfigured) return false;
   try {
+    // urgency:'high' asks the push service to prioritize immediate
+    // delivery over the recipient device's own power-saving
+    // considerations -- without it, the default ('normal') is more
+    // likely to be deferred by Android's Doze mode, especially
+    // relevant for an early-morning send when a phone may still be in
+    // an overnight low-power state. A real, reported case: the push
+    // service acknowledged the send (last_sent_date got set correctly),
+    // but the notification never visibly arrived that day, despite
+    // working fine during regular daytime testing.
+    //
+    // TTL of 12 hours, not the library's 4-week default -- this is a
+    // "here's what's happening today" message; if a device is offline
+    // long enough that the default TTL would still be holding it
+    // days later, delivering it very late would just be a confusing,
+    // stale notification rather than a useful one.
     await webpush.sendNotification(
       { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
-      JSON.stringify(payload)
+      JSON.stringify(payload),
+      { urgency: 'high', TTL: 12 * 60 * 60 }
     );
     return true;
   } catch (err) {
