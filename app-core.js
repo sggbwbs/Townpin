@@ -470,6 +470,7 @@ const STRINGS = {
     installBannerTextChrome: 'Asenna PaikallisCanvas puhelimeesi nopeampaa käyttöä varten.',
     installBannerButton: 'Asenna',
     installBannerTextIOS: 'Lisää PaikallisCanvas kotinäytöllesi: napauta jakamispainiketta ja valitse "Lisää Koti-valikkoon".',
+    installBannerTextSamsung: 'Samsung Internetissä asentaminen voi näyttää virheellisen "ei turvallinen" -varoituksen -- tämä on tunnettu ongelma Samsungin selaimessa, ei sivustossamme. Avaa sivu Chromessa asentaaksesi ongelmitta.',
     reinstallBannerText: 'Sovellukseesi on saatavilla parannuksia (mm. vaakasuunnan tuki), joita ei voida päivittää automaattisesti -- poista sovellus ja asenna se uudelleen saadaksesi ne käyttöön.',
     settingsThemeLabel: 'Teema',
     settingsLangLabel: 'Kieli',
@@ -723,6 +724,7 @@ const STRINGS = {
     installBannerTextChrome: 'Install PaikallisCanvas on your phone for faster access.',
     installBannerButton: 'Install',
     installBannerTextIOS: 'Add PaikallisCanvas to your home screen: tap the share button, then choose "Add to Home Screen".',
+    installBannerTextSamsung: 'Installing from Samsung Internet can show an incorrect "not safe" warning -- this is a known issue with Samsung\'s browser, not this site. Open this page in Chrome to install without issues.',
     reinstallBannerText: "Improvements are available for your installed app (including landscape support) that can't update automatically -- remove the app and reinstall it to get them.",
     settingsThemeLabel: 'Theme',
     settingsLangLabel: 'Language',
@@ -885,6 +887,20 @@ function isStandaloneApp(){
 function isIOSDevice(){
   return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
 }
+// Samsung Internet is a real, currently-known, ecosystem-wide problem
+// (not specific to this site -- confirmed by multiple independent 2026
+// reports, including a documented Google Play Protect false positive
+// affecting many PWAs installed from this specific browser): installing
+// a PWA from it can trigger an incorrect "This app was built for an
+// older version of Android and doesn't include the latest privacy
+// protections" warning, even though the app itself is fine. Chrome on
+// the same device installs correctly. Other real PWA platforms have
+// adopted the same workaround this does -- steer Samsung Internet
+// visitors toward Chrome for installation specifically, rather than
+// showing the normal install flow that risks that false warning.
+function isSamsungInternet(){
+  return /SamsungBrowser/i.test(navigator.userAgent);
+}
 function installBannerDismissed(){
   try { return localStorage.getItem(INSTALL_DISMISS_KEY) === '1'; } catch (e) { return false; }
 }
@@ -908,6 +924,13 @@ function showInstallBanner(mode){
     textEl.textContent = t('installBannerTextChrome');
     btn.textContent = t('installBannerButton');
     btn.style.display = 'inline-block';
+  } else if (mode === 'samsung'){
+    // No install button here at all -- there's genuinely nothing safe
+    // for this button to do from within Samsung Internet itself; the
+    // point is to redirect to a different browser entirely, not to
+    // trigger the same risky install flow this banner exists to avoid.
+    textEl.textContent = t('installBannerTextSamsung');
+    btn.style.display = 'none';
   } else {
     textEl.textContent = t('installBannerTextIOS');
     btn.style.display = 'none';
@@ -924,8 +947,18 @@ function showInstallBanner(mode){
 // and show our own banner instead, so there's an actual, discoverable
 // "Install" option on the page rather than relying on people finding it
 // buried in the browser's own menu.
+//
+// Samsung Internet is Chromium-based too and can fire this same event
+// -- checked first and handled with the warning-and-redirect message
+// above instead of the normal install prompt, since letting it proceed
+// through the standard flow is exactly what risks the false "unsafe"
+// warning in the first place.
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
+  if (isSamsungInternet()){
+    showInstallBanner('samsung');
+    return;
+  }
   deferredInstallPrompt = e;
   showInstallBanner('prompt');
 });
