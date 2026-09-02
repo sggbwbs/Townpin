@@ -72,26 +72,43 @@ self.addEventListener('push', (event) => {
   if (!event.data) return;
   let payload;
   try { payload = event.data.json(); } catch (e) { return; }
-  event.waitUntil(
-    self.registration.showNotification(payload.title || 'PaikallisCanvas', {
-      body: payload.body || '',
-      icon: '/icons/icon-notification-256.png',
-      // A dedicated, purpose-built asset, not the same file as icon
-      // above -- Android's badge specifically needs a monochrome image
-      // where the shape is defined by the ALPHA channel (the OS applies
-      // its own color/tint on top), not a full-color icon. icon-192.png
-      // has no alpha channel at all (confirmed: a plain 8-bit RGB PNG,
-      // fully opaque), so Android couldn't derive any real silhouette
-      // from it and was falling back to its own generic bell icon
-      // instead -- a real, reported bug, not a hypothetical one.
-      // icon-badge-192.png is a proper white-on-transparent silhouette
-      // of the same logo, generated from it directly (luminance mapped
-      // to alpha) so it stays visually consistent with the real icon
-      // rather than being a from-scratch redesign.
-      badge: '/icons/icon-badge-192.png',
-      data: { url: payload.url || '/' }
-    })
-  );
+  const options = {
+    body: payload.body || '',
+    icon: '/icons/icon-notification-256.png',
+    // A dedicated, purpose-built asset, not the same file as icon
+    // above -- Android's badge specifically needs a monochrome image
+    // where the shape is defined by the ALPHA channel (the OS applies
+    // its own color/tint on top), not a full-color icon. icon-192.png
+    // has no alpha channel at all (confirmed: a plain 8-bit RGB PNG,
+    // fully opaque), so Android couldn't derive any real silhouette
+    // from it and was falling back to its own generic bell icon
+    // instead -- a real, reported bug, not a hypothetical one.
+    // icon-badge-192.png is a proper white-on-transparent silhouette
+    // of the same logo, generated from it directly (luminance mapped
+    // to alpha) so it stays visually consistent with the real icon
+    // rather than being a from-scratch redesign.
+    badge: '/icons/icon-badge-192.png',
+    data: { url: payload.url || '/' }
+  };
+  // Optional -- a real photo from today's first event, when one exists
+  // (see the payload build in handleSendDigest, api/notifications.js).
+  // Shown as a banner within the expanded notification -- the closest
+  // a native push notification can genuinely get to the email's own
+  // photo-per-event layout, which isn't otherwise reproducible here at
+  // all (a hard platform limit, not a missing feature).
+  if (payload.image) options.image = payload.image;
+  // A real, distinct clickable target for today's top news story
+  // specifically -- separate from tapping the notification's own body
+  // (which still opens the site itself, via the default action further
+  // down). This is the genuine mechanism available for "make the news
+  // clickable too": there's no way to embed a working hyperlink inside
+  // a notification's body text on any platform, but an action button
+  // is a real, distinct tap target the OS natively supports.
+  if (payload.newsUrl) {
+    options.actions = [{ action: 'open-news', title: 'Lue uutinen' }];
+    options.data.newsUrl = payload.newsUrl;
+  }
+  event.waitUntil(self.registration.showNotification(payload.title || 'PaikallisCanvas', options));
 });
 
 // Focuses an already-open tab on this site rather than always opening a
@@ -100,7 +117,13 @@ self.addEventListener('push', (event) => {
 // right.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  // event.action is set when a specific action button was tapped
+  // (e.g. 'open-news', see the push listener above) -- falls back to
+  // the notification's own main url (tapping the body itself) when no
+  // action button was involved, which covers both the normal case and
+  // any older payload that never had a newsUrl to begin with.
+  const data = event.notification.data || {};
+  const url = (event.action === 'open-news' && data.newsUrl) ? data.newsUrl : (data.url || '/');
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
       for (const client of clients) {
