@@ -1431,3 +1431,386 @@ selling point, a referral incentive, social proof) — the last two of
 which touch pricing/billing directly and need explicit sign-off before
 being built, the same way pricing and routing changes have been handled
 throughout this project.
+
+## v1.3 — modernization session, push notifications, and a long visual-polish arc
+
+A single very long, continuous session covering a broad modernization
+pass, then an extensive round of visual/UX fixes on the homepage cards,
+then a full push-notification feature build, then more fixes discovered
+by actually testing that feature end-to-end. Grouped by theme below,
+not strict chronological order.
+
+### Modernization pass
+
+- **`squares` → `slots` rename completed and deployed** — 446
+  occurrences across all JS/HTML/SQL files, including
+  `api/_squares.js` → `api/_slots.js`. `migrations/rename_squares_to_slots.sql`
+  must run in the same release as the code deploy (metadata-only, fast).
+- **Manage-link recovery and rotation** — `POST /api/manage` with
+  `action: 'request_link'` looks up active slots by email and sends a
+  fresh link, rate-limited 3/hour/IP, always returns a generic response
+  regardless of whether the email matches anything (never confirms or
+  denies an email exists). `action: 'rotate_link'` generates a new UUID
+  and updates it atomically across slots/referral_codes/referrals via a
+  Postgres RPC function, emailing the new link as backup.
+- **Logo moderation gap closed** — `moderate()` now inspects the actual
+  logo image (not just text) at both purchase time and the weekly
+  recheck cron. Deliberately not added to the `/manage` appearance-save
+  path itself, since the weekly recheck already covers post-purchase
+  logo swaps.
+- **Image compression** — hero photo compressed and given WebP+JPG
+  responsive variants; a real Supabase storage-quota problem (1.18GB
+  against a 1GB free-plan limit) traced to feed images being stored at
+  full resolution with no resizing — `fetchAndUploadImage()` now resizes
+  to max 800px and recompresses via `sharp` (pinned ≥0.35.0 to avoid a
+  known libvips CVE).
+- **Edge Config / town-enabled cache** — a new `_townConfig.js`
+  read-through cache (Edge Config first, Supabase fallback), completely
+  dormant/safe without the optional env vars it needs.
+- **Regression tests added** — 22 tests total via `node --test`,
+  covering the mobile chat sheet state machine and event dedup; two test
+  files (plus `ask-sheet-state.js` itself) were missing from GitHub
+  entirely and had to be given as standalone files.
+- **AI chat caching was completely non-functional** — the
+  `ask_answer_cache` table was never actually created in Supabase
+  (migration never run), a 100% silent cache-miss rate with no error
+  surfaced anywhere. Also fixed real cache-key ordering bugs (missing
+  secondary `id` tiebreakers on the queries feeding the cache-key hash)
+  and made cache-read errors log instead of silently counting as misses.
+- **Downvote deletes the cache entry** — 👎 on an AI answer now removes
+  that exact cached response immediately, so a bad answer can't keep
+  being served to the next person asking the same question.
+- **Feed cleanup retention rule split in two** — was one blind 30-day
+  age cutoff for everything; news/offers still use a simple 3-day
+  cutoff, but events are now only deleted once their real
+  `event_end_date` (not just `event_date`) has passed, plus a 2-day
+  grace period — preserves multi-day festivals that legitimately outlive
+  a short fixed window.
+- **Event personalization** — a "Kiinnostaa" (interested) toggle on
+  event cards, today-scoped in localStorage for anonymous visitors, also
+  recorded server-side for logged-in + consented users. Events matching
+  a visitor's recent interest/search keywords float toward the top of
+  the "not ended" group — **this shipped with a real bug**, fixed later
+  in this same session (see "Personalization sort bug" below).
+
+### Homepage cards, colors, and a lot of iteration
+
+- **On-brand color system replacing leftover pre-rebrand
+  orange/green/red** — researched Oulu's actual 2021 city rebrand (a
+  purple-to-blue gradient as the primary color, plus a signature pink,
+  sea/sky blue, and red-to-orange reserved for department variation) and
+  rebuilt the four homepage cards' accents to match: events stayed
+  purple (already correct), news became a violet-leaning blue, the
+  business feed became pink (previously a fully off-brand green),
+  Tilannehuone became a warm coral-orange on its own dedicated CSS
+  variable (previously silently reusing `--danger`, meaning real form-
+  error styling and this card's brand color were accidentally the same
+  thing). The four bottom feature tiles had the exact same old
+  hardcoded colors and got the same fix, plus made theme-aware (they'd
+  never actually adapted between light/dark mode before).
+- **News card went through several real rounds of visual iteration**,
+  each one a genuine fix, not just taste: bigger rounded-square photo
+  thumbnails instead of tiny circles (the actual biggest driver of it
+  reading as flatter than the photo-forward events card); real source
+  logos (Kaleva/Yle used with explicit permission from the actual email
+  threads, Oulun kaupunki's own logo pending separately) added with a
+  safe fallback to the existing colored-letter badge if a logo file is
+  ever missing; a background-tint-per-row treatment was tried, found to
+  read as "muddy off-white boxes" rather than color, and reverted back
+  to left-border-only; the 3-column expanded view's per-source links
+  moved from a separate bottom link-chip row into the column headers
+  themselves being clickable (with Oulun kaupunki's link dynamically
+  following whichever of 5 real sub-organizations is currently selected
+  in that column's dropdown, since a single static link couldn't
+  represent all of them correctly); title line-clamp raised from 2 to 3
+  lines (narrow columns + long Finnish compound words were cutting
+  headlines off after very few words); the internal scroll dead-zone
+  bug fixed twice — first by raising the height ceiling from 80vh to
+  92vh, then by removing `overscroll-behavior:contain` entirely once
+  that same height increase meant the card usually no longer needed to
+  scroll internally at all, and the "contain" setting was trapping
+  scroll input instead of passing it to the page.
+- **Bus stop card** — each departure rebuilt as a distinct chip (route
+  badge + destination + time) instead of one run-on text string; the
+  route badge color changed from the card's orange accent to pink,
+  matching OSL's real bus livery color (per direct real-world knowledge,
+  since web search couldn't confirm an official hex value); the stop
+  map's plain default blue Leaflet pin replaced with a real pink pin
+  built from inline SVG; stop count reduced from 4 to 3 once the new
+  chip layout made the card noticeably taller than before.
+- **A hero-photo-width bug, found via screenshot, then genuinely root-
+  caused**: the docked desktop chat panel's space-reservation was
+  applied to `body` itself, silently shrinking the *entire* page
+  (including the decorative hero photo, which has nothing worth
+  protecting from the panel's overlap) instead of just the interactive
+  card grid. Fixed by moving the reservation onto `#homeGrid` and
+  `#featureTiles` specifically, siblings of the hero rather than
+  ancestors of it.
+- **Personalization sort bug** — the event-interest boost (see above)
+  was supposed to only reorder events *within* the same admin-curation
+  tier, per its own design comment, but the actual code did a flat
+  match/no-match split across the whole list — a real, reported
+  regression where a highlighted event and a manually-picked one both
+  got demoted behind an unrelated event that happened to match a
+  visitor's stored keywords. Fixed by making curation tier an explicit
+  sort key, checked before interest matching. A second, unrelated bug
+  found at the same time: the personalization-keywords fetch was
+  blocking the entire board's rendering (it's awaited before
+  events/business load), fixed by making it fire in the background
+  instead.
+- **Admin curation flags could be silently wiped** — `handleSelectEvents`
+  reset *every* event's selected/highlighted flag for the whole town on
+  every single save, with no scoping. A multi-day event whose
+  `event_end_date` wasn't correctly captured as spanning its full run
+  could drop out of the admin panel's "still relevant" visible list
+  after its first day — then the next unrelated save would wipe its
+  flags, since it was never part of what got resubmitted. Fixed by
+  scoping the reset to the same relevance window the admin can actually
+  see.
+- **A decorative card-entrance fade-in animation removed entirely** —
+  it ran on a fixed timer completely independent of whether real data
+  had arrived, and since business data is near-instant while events
+  depend on a real network fetch, it was painting whatever happened to
+  be on screen at that exact moment — sometimes the loading skeleton,
+  sometimes real content. Read as content flashing in and out on a
+  slower connection; a real, reported bug traced to this specific
+  animation, not a vague "feels slow" complaint.
+- **Mobile phone rotation didn't repaginate events** — `getEventsPageSize()`
+  was deliberately evaluated only once per render, reasoned as fine
+  because someone dragging a *desktop* browser window to straddle the
+  breakpoint mid-session is rare. That reasoning doesn't hold for a
+  phone: rotating between portrait and landscape is completely normal.
+  Made reactive via the same debounced resize pattern already used for
+  the logo banner.
+- **A settings gear replacing two separate always-visible header
+  elements** (theme toggle + FI/EN language pill) — consolidated after
+  real feedback that Finnish text ("Kirjaudu" vs English "Login") being
+  longer was enough to tip the header's row width past what fit on some
+  screens, pushing the language toggle off-screen. The new dropdown
+  deliberately reuses the weather-forecast panel's own proven
+  desktop/mobile positioning split, since that panel had already solved
+  the identical "positioned dropdown goes wrong on a crowded mobile
+  header" problem once. **Found two real, pre-existing bugs while fixing
+  this**: the mobile rule meant to hide "Kirjaudu" in favor of a bell
+  icon had a later, conflicting base style rule silently winning due to
+  plain CSS cascade order — likely meaning that swap had never actually
+  worked, on any device, the whole time. And `justify-content:space-between`
+  only distributes multiple items along a shared line; when the whole
+  header-right group wrapped onto its own line by itself, there was
+  nothing to distribute against, so it defaulted left instead of staying
+  right-aligned — fixed with `margin-left:auto`.
+- **The mobile bell icon now actually does something** — previously a
+  placeholder `alert('Ilmoitukset ovat tulossa pian.')`; opens "Älä
+  missaa mitään" now.
+
+### Push notifications (the big new feature)
+
+- **Full Web Push implementation** — `api/_push.js` (VAPID sending,
+  auto-cleanup of dead subscriptions on a 404/410 response),
+  `push_subscriptions` table, subscribe/unsubscribe/vapid-key endpoints,
+  a real `push` event listener in `sw.js` that displays the notification
+  (previously nothing handled push events at all).
+- **A real icon bug, confirmed by directly inspecting the file, not
+  guessed at**: the notification's small badge icon was showing
+  Android's generic fallback bell instead of the real logo. The actual
+  icon file has no alpha channel at all (plain opaque RGB PNG), and
+  Android's badge specifically derives its shape from transparency, not
+  color — it couldn't extract any real silhouette from it. Generated a
+  proper white-on-transparent version from the same real logo (luminance
+  mapped to alpha), not a redesign. Separately, the large notification
+  icon looked small and washed out — directly measured the source file
+  and found the actual logo content filled only ~35-40% of its own
+  canvas, the rest dead white padding; generated a tightly-cropped,
+  edge-to-edge version.
+- **A real event-count bug**: the push notification's "N tapahtumaa
+  tänään" was always capped at 4 regardless of the real number, because
+  it read `.length` from the array already truncated for the *email
+  body's* display list. Fixed by tracking the real total separately.
+  While fixing it, found the fallback code path (used specifically by
+  `pushOnly=1` test sends) wasn't deduplicating events at all, unlike
+  the main path — could have overcounted the same real-world event's
+  several raw rows as separate events.
+- **Push content made richer**, within real platform limits — the body
+  now names actual event titles (not just a count) and includes a real
+  news headline with its source, and shows a real event photo as the
+  notification's banner image when one's available. A genuine second
+  tap target (an action button, "Lue uutinen") opens the top news
+  story's real source URL directly — the actual mechanism available for
+  "clickable news" on a native notification, since there's no way to
+  embed a working hyperlink inside a notification's body text on any
+  platform. Explicitly documented what's *not* possible here: a full
+  multi-section layout with individual photos per item, matching the
+  email's own layout, is a hard platform limit on every OS, for every
+  app — not a code gap.
+- **Weather + a morning greeting added to both channels**, reusing a
+  newly-extracted shared `api/_weather.js` module (previously
+  `api/ask.js` had its own private copy of the exact same fetch logic
+  and WMO weather-code labels — now one shared source instead of two
+  that could quietly drift apart).
+- **Notification subscribe now requires login, closing a real spam
+  vector** — anyone could previously type *any* email address into the
+  old free-text signup form, and the site would send that address an
+  unsolicited "please confirm" email, rate-limited but still a real
+  harassment vector. The account's own already-verified email is used
+  automatically now (login itself already guarantees `email_verified`
+  before a session can even exist, confirmed directly in the login
+  handler) — no separate email-click confirmation needed for this path.
+  Extended the same login requirement to push (which doesn't have quite
+  the same spam vulnerability on its own, but presenting both channels
+  as one unified set of account preferences — two checkboxes, one save
+  action — won out over keeping them inconsistently gated).
+  `migrations/notification_subscribers_user_id.sql` and
+  `push_subscriptions_user_id.sql` add the needed `user_id` columns;
+  existing pre-login subscriber rows are untouched and keep working
+  exactly as before, including their already-sent unsubscribe links.
+- **A real bug found only by actually testing this end-to-end with a
+  real account**: the table now has two overlapping "this row already
+  exists" rules (the original email+town one, and the new account+town
+  one). The subscribe code only ever checked the new rule, so anyone who
+  had tested the old pre-login flow earlier had a leftover row that
+  silently made the new upsert fail as a genuine constraint violation on
+  the *other* rule — subscribing appeared to succeed in the UI but
+  failed server-side every time, with the checkbox reverting to
+  unchecked on reload. Fixed by explicitly checking for an existing row
+  under either key before deciding whether to update or insert.
+- **A manual test-trigger for the 8am send**, `?test=1` plus either the
+  real `Authorization` header (same secret Vercel's own cron uses
+  automatically) or, specifically when testing, a `secret=` query
+  parameter — added so a real send could be verified without waiting up
+  to 24 hours for the next natural window. The query-parameter path
+  requires `CRON_SECRET` unconditionally with no graceful fallback if
+  it's unset, unlike the main auth check — a known, guessable bypass
+  parameter left open by omission would be a real risk given genuine
+  subscribers are on the other end of a real send. `?pushOnly=1`
+  further scopes a test send to push only, so iterating on notification
+  layout doesn't also email every real subscriber each time.
+- **Two real Finnish grammar bugs caught by actually running realistic
+  text through the logic, not just reading it**: "ja 1 muuta" should be
+  "ja 1 muu" (singular, not partitive plural) when exactly one event is
+  left over; and the push notification's town-name suffix concatenation
+  (`townName + 'ssa'`) only happened to be grammatically correct for
+  "Oulu" specifically — Finnish case endings depend on each word's own
+  phonetic structure, so this would have quietly produced wrong Finnish
+  the moment a second town is ever enabled. Rewrote the phrasing to not
+  need an inflected town name at all.
+- **A `urgency:'high'` + 12-hour TTL added to the actual push send
+  call** after a real send succeeded server-side (confirmed by
+  `last_sent_date` correctly being set) but never visibly arrived on the
+  device that same morning — Android's Doze mode is more likely to defer
+  a default-priority push, especially overnight/early-morning, than one
+  explicitly marked high-urgency. Flagged with appropriate honesty as
+  the most likely explanation, not a confirmed fix, since it can't be
+  verified without waiting for another real early-morning send.
+
+### PWA / installability
+
+- **Landscape orientation on mobile was completely broken for the
+  installed app specifically** — `manifest.json` had
+  `"orientation": "portrait-primary"`, hard-locking the *installed* PWA
+  to portrait only on Android, while the plain browser-tab version (no
+  such lock exists there) worked fine the whole time. Removed entirely.
+  Also fixed the manifest's own leftover pre-rebrand orange/cream
+  `theme_color`/`background_color`. Only takes effect for anyone who
+  reinstalls — already-installed instances keep the old locked
+  behavior until they do.
+- **A dismissible in-app notice added for exactly that reason** — a
+  manifest change can't be pushed to an already-installed app; browsers
+  only read it once, at install time. Shown only to people already
+  running the installed app (mutually exclusive with the install-prompt
+  banner, which only shows to people who don't have it installed yet).
+- **Samsung Internet install warning** — a real, currently-unresolved,
+  ecosystem-wide bug (confirmed via multiple independent current
+  sources, including a real PWA-hosting company's own writeup) where
+  Google Play Protect incorrectly flags PWA installs from Samsung's own
+  browser as "unsafe... doesn't include the latest privacy protections."
+  Not fixable from this site's side — the wrapper-app generation that
+  causes it lives entirely in Samsung's own infrastructure. Detects
+  Samsung Internet specifically and shows a redirect message (any other
+  browser works fine, not narrowly "use Chrome") instead of the normal
+  install flow that would otherwise walk someone straight into the false
+  warning.
+
+### SEO / sharing / audit fixes
+
+- **schema.org Event structured data added for today's events** —
+  previously only the homepage (generic WebSite) and business pages
+  (LocalBusiness) had any; this is specifically what powers Google's
+  "things to do" rich results. Injected client-side after real event
+  data loads, not server-rendered (this site has no SSR step to hook
+  into) — Google's own crawler has executed JavaScript before evaluating
+  structured data for years now, so this is the right-sized fix for this
+  architecture.
+- **A share button added to events** — businesses already had one
+  (`sharePinPage`); events, arguably the most shareable content on the
+  site in the moment, had none.
+- **A real accessibility-tool audit acted on directly**: the two static
+  images actually missing `alt` text fixed (all dynamically-created
+  images already had it, confirmed by checking); meta description
+  trimmed from 218 to 154 characters (Google typically truncates around
+  155-160); cache headers added for JS/CSS files specifically (only
+  images had any before) — deliberately much shorter (5 minutes, not
+  images' 7 days) since these files change often and have no
+  content-hashed filenames to bust a stale cache the moment a fix
+  deploys.
+- **The real cause of a very poor CLS score (0.65) found and fixed**:
+  the install banner sat in normal document flow, `display:none` until
+  a genuinely async browser event fired (sometimes seconds after the
+  page had already rendered) — an in-flow element suddenly gaining real
+  height pushes everything below it, exactly what CLS scoring penalizes
+  most. Converted to a fixed overlay, removing it from the layout flow
+  entirely so toggling it can never move anything else on the page.
+
+### IP protection consultation (business, not code)
+
+Researched a scheduled meeting with a Finnish patent/trademark agent
+(iprloikka.fi). Direct, honest answer given: patenting the site itself
+is very unlikely to succeed under Finnish/EU law, which explicitly
+excludes "software as such" and "business methods as such" from
+patentability — what this site is (a directory, ad slots, an AI
+chatbot, a referral system) doesn't have the kind of technical effect
+patent law requires. Trademarking the name/logo, and getting IP
+ownership paperwork clean ahead of an eventual sale, are the two
+genuinely actionable, valuable things given the stated goal of selling
+the business eventually.
+
+### Currently unresolved
+
+**Yle's actual content-display requirements for the website are still
+an open question.** Yle provided a detailed branded-graphic guide
+(exact hex colors per element, a mandatory proprietary "Yle Next" font,
+fixed 1920×1080/1080×1920 canvas sizes, Yle Uutiset vs Yle Urheilu
+styling depending on content type, and a hard requirement that finished
+feeds be approved by Yle before publishing) — but the guide's own
+hashtags (`#digiscreenit` `#DOOH` `#mainospinnat`) and fixed signage-style
+dimensions read like it may be written for a digital-screen/kiosk
+product Yle offers, not necessarily how a responsive website displays a
+compact news list. A second document was also shared (Yle's general
+Supplier Code of Conduct — labor standards, anti-corruption, data
+handling) which is unrelated to content display entirely and needs no
+code changes. Whether the actual signed contract requires the *website*
+specifically to match the branded-graphic template is still unanswered
+— needs a direct answer from Yle (named contacts in the guide: Juha
+Laukkanen, Hilppa Hyrkäs) or from the contract text itself before any
+related code changes are made.
+
+### Cycling feature (test-branch only, not merged to main)
+
+Researched real, verified open data for Oulu's genuine cycling-capital
+reputation — a free GraphQL cyclist/pedestrian counter API
+(oulunliikenne.fi) confirmed to exist but not fully verified end-to-end
+(the guide page has bot protection, and live GraphQL queries couldn't be
+tested from this environment), plus real, confirmed content (free bike
+repair station locations, named winter/mountain routes). Built a test
+version of a 5th homepage card with the verified static content
+(curated list, not distance-sorted — no confirmed precise coordinates
+for the repair stations yet). Explicitly deployed to a separate git
+branch, not main, specifically to preview via Vercel's automatic branch
+preview URL before merging anything live. A 6th-card idea explored
+separately, driven by "what do people search daily" rather than more
+Oulu-specific data: Finnish name days (nimipäivät) came out as the
+strongest low-risk option — a genuine daily Finnish search habit, zero
+external dependency, pure calendar lookup. A hockey-scores idea
+(Kärpät, Oulu's own major team) was researched and explicitly flagged
+as higher-risk: the only access found is liiga.fi's unofficial,
+reverse-engineered API, with a real developer forum report of it
+breaking without warning when the site changed.

@@ -720,6 +720,24 @@
     padding:20px;box-shadow:var(--shadow-md), inset 0 3px 0 0 var(--tilannehuone-accent);transition:box-shadow 0.2s ease;
     display:flex;flex-direction:column;}
   #offersSection .feedSubhead svg{color:var(--tilannehuone-accent);}
+
+  /* Test card, not yet placed into the grid's carefully-tuned
+     row/column assignments the other 4 cards have -- added as a 5th
+     item so it naturally flows into its own new row below them via
+     grid auto-placement, rather than risking disrupting that existing
+     layout. Reuses the core purple accent rather than introducing a
+     new color decision for what's explicitly a test build. */
+  #cyclingCard{background:var(--panel);border:1px solid var(--line);border-radius:20px;
+    padding:20px;box-shadow:var(--shadow-md), inset 0 3px 0 0 var(--amber);}
+  #cyclingCard .feedSubhead svg{color:var(--amber);}
+  .cyclingSectionLabel{display:block;font-family:'Space Grotesk',sans-serif;font-size:12.5px;
+    color:var(--ink-dim);text-transform:uppercase;letter-spacing:0.03em;margin:14px 0 6px;}
+  .cyclingSectionLabel:first-of-type{margin-top:0;}
+  .cyclingList{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
+  .cyclingList li{font-size:13px;color:var(--ink);line-height:1.4;padding-left:16px;position:relative;}
+  .cyclingList li::before{content:'';position:absolute;left:0;top:7px;width:5px;height:5px;
+    border-radius:50%;background:var(--amber);}
+  .cyclingList li span{color:var(--ink-dim);}
   /* flex:1 lets this grow to fill whatever height the grid's own
      align-items:stretch gives #offersSection (matched to its row-mate's
      real height -- #newsSection, since the Tilannehuone/business-
