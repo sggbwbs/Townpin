@@ -1,7 +1,11 @@
 // Merged from what used to be login.js, logout.js, check.js, content.js
-// into one file to stay within Vercel Hobby's 12-serverless-function cap.
-// Same URLs as before (/api/admin/login, /api/admin/content, etc.) via
-// this dynamic [action] route -- admin.html needed zero changes.
+// into one file. Originally reasoned as necessary to stay within Vercel
+// Hobby's 12-function cap; confirmed since that this project is
+// actually on Pro, so that specific constraint doesn't apply -- kept as
+// one file anyway since the consolidated structure isn't broken by
+// that, just no longer forced. Same URLs as before (/api/admin/login,
+// /api/admin/content, etc.) via this dynamic [action] route --
+// admin.html needed zero changes.
 
 const bcrypt = require('bcryptjs');
 const { supabase } = require('../_db');
