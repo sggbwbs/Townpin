@@ -1793,7 +1793,7 @@ specifically to match the branded-graphic template is still unanswered
 Laukkanen, Hilppa Hyrkäs) or from the contract text itself before any
 related code changes are made.
 
-### Cycling feature (test-branch only, not merged to main)
+### Cycling feature (explored and reverted, not wanted right now)
 
 Researched real, verified open data for Oulu's genuine cycling-capital
 reputation — a free GraphQL cyclist/pedestrian counter API
@@ -1803,14 +1803,20 @@ tested from this environment), plus real, confirmed content (free bike
 repair station locations, named winter/mountain routes). Built a test
 version of a 5th homepage card with the verified static content
 (curated list, not distance-sorted — no confirmed precise coordinates
-for the repair stations yet). Explicitly deployed to a separate git
-branch, not main, specifically to preview via Vercel's automatic branch
-preview URL before merging anything live. A 6th-card idea explored
-separately, driven by "what do people search daily" rather than more
-Oulu-specific data: Finnish name days (nimipäivät) came out as the
-strongest low-risk option — a genuine daily Finnish search habit, zero
-external dependency, pure calendar lookup. A hockey-scores idea
-(Kärpät, Oulu's own major team) was researched and explicitly flagged
-as higher-risk: the only access found is liiga.fi's unofficial,
-reverse-engineered API, with a real developer forum report of it
-breaking without warning when the site changed.
+for the repair stations yet), initially pushed toward a separate git
+branch for preview. **Explicitly not wanted as a shipped feature —
+reverted out of `index.html`/`styles.css`/`app-core.js` entirely,
+confirmed zero remaining references.** Kept here only because the
+underlying research (the verified data sources, the specific repair
+station locations and named routes) is genuinely reusable if this ever
+comes back as a real request later — nothing here should be treated as
+pending or half-built. A 6th-card idea was also explored, separately
+and before the above was reverted, driven by "what do people search
+daily" rather than more Oulu-specific data: Finnish name days
+(nimipäivät) came out as the strongest low-risk option — a genuine
+daily Finnish search habit, zero external dependency, pure calendar
+lookup. A hockey-scores idea (Kärpät, Oulu's own major team) was
+researched and explicitly flagged as higher-risk: the only access found
+is liiga.fi's unofficial, reverse-engineered API, with a real developer
+forum report of it breaking without warning when the site changed. Both
+6th-card ideas are equally unbuilt and not currently planned.
