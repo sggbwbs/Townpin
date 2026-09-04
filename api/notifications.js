@@ -11,13 +11,15 @@ const SITE_URL = process.env.SITE_URL;
 const CRON_SECRET = process.env.CRON_SECRET;
 
 // Combines subscribe/confirm/unsubscribe/send-digest into one file --
-// same reasoning as api/data.js and api/maintenance.js: each /api/*.js
-// file is its own Vercel Serverless Function regardless of how much
-// logic lives inside it, and the Hobby plan's 12-function limit is
-// already fully used by the existing endpoints. The frontend calls
-// clean /api/notifications/:action-style URLs -- see the rewrites in
-// vercel.json -- which route all of them to this one file with an
-// `endpoint` marker, same convention as api/data.js.
+// same convention as api/data.js and api/maintenance.js. Originally
+// reasoned as necessary to stay within Vercel Hobby's 12-function cap;
+// confirmed since that this project is actually on Pro, so that
+// specific constraint doesn't apply -- kept as one file anyway since
+// the consolidated structure isn't broken by that, just no longer
+// forced. The frontend calls clean /api/notifications/:action-style
+// URLs -- see the rewrites in vercel.json -- which route all of them to
+// this one file with an `endpoint` marker, same convention as
+// api/data.js.
 
 async function handleSubscribe(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
