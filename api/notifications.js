@@ -374,12 +374,10 @@ async function handleSendDigest(req, res) {
         // towns with at least one EMAIL subscriber, so this fills the
         // gap rather than silently skipping a town's push sends just
         // because no one there happens to use email digests.
-        let eventCount, eventsForPush, newsForPush, townName, weatherGreeting;
+        let eventCount, townName, weatherGreeting;
         const content = townContent[townId];
         if (content) {
           eventCount = content.eventCountTotal;
-          eventsForPush = content.events; // already deduped + capped at 4, see the shared-content build above
-          newsForPush = content.news; // already capped at 5, see the shared-content build above
           townName = content.townName;
           weatherGreeting = content.weatherGreeting;
         } else {
@@ -387,12 +385,13 @@ async function handleSendDigest(req, res) {
           if (!town) continue;
           townName = town.name;
           try {
-            const [news, events, weather] = await Promise.all([
-              getNewsSection(supabase, townId, 'oulun-seutu', town.name),
+            // News is intentionally not fetched here -- the push body
+            // is weather + event count only (see below), so there's
+            // nothing here that would use it.
+            const [events, weather] = await Promise.all([
               getEventsSection(supabase, townId, town.name),
               fetchCurrentWeather(town.lat, town.lng)
             ]);
-            newsForPush = (news || []).slice(0, 5);
             // Same dedup as the shared-content path above -- without
             // this, a town with push subscribers but no email
             // subscribers (the only case that reaches this branch)
@@ -406,7 +405,6 @@ async function handleSendDigest(req, res) {
               return true;
             });
             eventCount = dedupedEvents.length;
-            eventsForPush = dedupedEvents.slice(0, 4);
             weatherGreeting = weatherGreetingText(weather);
           } catch (err) {
             console.error(`Push event count fetch failed for town ${townId}:`, err);
@@ -415,33 +413,15 @@ async function handleSendDigest(req, res) {
         }
         if (eventCount === 0) continue; // nothing worth a notification for -- skip rather than send an empty "0 events today" push
 
-        // Names real events instead of just a bare count -- gets
-        // meaningfully closer to "the same content as the email"
-        // within what a native push notification can actually support.
-        // A full item-by-item layout with separate photos per event
-        // (what the email itself shows) is a hard platform limit, not
-        // a code gap -- no OS's notification system supports that for
-        // web push, on any phone, for any app. Naming a couple of real
-        // events plus one real photo is the honest ceiling here.
-        const namedEvents = eventsForPush.slice(0, 2).map(ev => ev.title_fi).filter(Boolean);
-        const remaining = eventCount - namedEvents.length;
-        let eventLine;
-        if (namedEvents.length === 0) {
-          eventLine = eventCount === 1 ? '1 tapahtuma odottaa tänään.' : `${eventCount} tapahtumaa odottaa tänään.`;
-        } else if (remaining > 0) {
-          eventLine = `Tänään: ${namedEvents.join(', ')} ja ${remaining} ${remaining === 1 ? 'muu' : 'muuta'}.`;
-        } else {
-          eventLine = `Tänään: ${namedEvents.join(' ja ')}.`;
-        }
-        const firstImage = eventsForPush.find(ev => ev.image_url);
-        // News headline + source, matching how the site always
-        // attributes news elsewhere (see the newsRowMeta pattern in
-        // app-board.js) -- not shown as an inline clickable link, since
-        // no OS's notification body supports embedded hyperlinks, on
-        // any phone, for any app. The real click-through for this one
-        // story specifically is the action button below instead.
-        const topNews = newsForPush.find(n => n.title_fi && n.source_url);
-        const newsLine = topNews ? ` Uutinen: ${topNews.title_fi} (${topNews.source_name || 'lähde'}).` : '';
+        // Reverted from v1.3's richer version (named events, a news
+        // headline, and an event photo as the notification's banner
+        // image) back to the original simple "weather + event count"
+        // body -- the banner image specifically was reported as
+        // confusing on a real device (it read as an unrelated news
+        // photo rather than something tied to the notification's own
+        // text), so this intentionally drops all of that in favor of
+        // a plain, unambiguous line.
+        const eventLine = eventCount === 1 ? '1 tapahtuma tänään.' : `${eventCount} tapahtumaa tänään.`;
         const payload = {
           title: `Hyvää huomenta, ${townName}!`,
           // weatherGreeting can be null (fetchCurrentWeather fails
@@ -449,21 +429,9 @@ async function handleSendDigest(req, res) {
           // api/_weather.js) -- falls back to just the event line on
           // its own rather than a broken-looking sentence with a gap
           // in it.
-          body: (weatherGreeting ? `${weatherGreeting} ${eventLine}` : eventLine) + newsLine,
-          url: SITE_URL || '/',
-          // Optional -- the service worker only sets this as the
-          // notification's banner image if present (see the push event
-          // listener in sw.js), so a town with genuinely no event
-          // photos today just gets the plain icon-only layout instead,
-          // never a broken image reference.
-          image: firstImage ? firstImage.image_url : undefined,
-          // A real, distinct clickable target for the top news story
-          // specifically -- Android/Chrome reliably support up to 2
-          // action buttons; only adding this one here, alongside the
-          // notification's own default tap-to-open-the-site behavior,
-          // rather than crowding it with a second button that has less
-          // clear value.
-          newsUrl: topNews ? topNews.source_url : undefined
+          body: weatherGreeting ? `${weatherGreeting} ${eventLine}` : eventLine,
+          url: SITE_URL || '/'
+          // No image, no news line/action button -- see comment above.
         };
         const townSubs = pushSubs.filter(s => s.town_id === townId);
         for (const sub of townSubs) {
