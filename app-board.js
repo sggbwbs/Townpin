@@ -1560,6 +1560,29 @@ function injectEventStructuredData(events){
       }
       if (item.image_url) event.image = [item.image_url];
       if (item.source_url) event.url = item.source_url;
+      // Google flags "description" as a recommended (non-critical)
+      // field -- summary_fi/summary_en already exist as real, non-null
+      // curated content for every event (same feed pipeline as
+      // title_fi/title_en; currently only used internally for
+      // interest-keyword matching, see matchesInterest above, not
+      // rendered as its own element on the visible card). Using it here
+      // is genuinely available, accurate data about the event, not
+      // something invented for the sake of the warning. Matches
+      // whichever language the visitor currently has selected, same as
+      // every other event field above.
+      const description = lang === 'fi' ? item.summary_fi : (item.summary_en || item.summary_fi);
+      if (description) event.description = description;
+      // performer, offers, and organizer are also flagged as
+      // recommended by Google -- deliberately left out. This site's
+      // event data has no real performer, ticket/price, or organizing-
+      // body information to put there; the news source (Kaleva/Yle/
+      // Oulun kaupunki) is who *reported* the event, not who organizes
+      // it, so using that would be inaccurate structured data rather
+      // than a genuine fix. These three are "recommended", not
+      // required -- they don't block rich-result eligibility, and
+      // Google's own guidance is to omit a recommended field entirely
+      // when the real value isn't known, rather than fill it with a
+      // placeholder.
       return event;
     });
 
