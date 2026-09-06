@@ -779,8 +779,8 @@ let feedCardExpandedType = null; // null | 'events' | 'news'
 function expandFeedCard(type){
   feedCardExpandedType = type;
   const linkEl = document.getElementById('viewAllNewsLinkEl');
-  // #offersSection (Tilannehuone), not #bizFeedCard -- after the
-  // Tilannehuone/business-showcase grid swap, offersSection is the
+  // #offersSection (the transit card), not #bizFeedCard -- after the
+  // transit-card/business-showcase grid swap, offersSection is the
   // element that now shares news's row (row 2). bizFeedCard moved to
   // row 1 with events and is no longer affected by news leaving grid
   // flow at all.
@@ -837,7 +837,7 @@ function collapseFeedCard(){
     document.getElementById('newsCollapsedView').style.display = 'block';
     document.getElementById('newsExpandedView').style.display = 'none';
     document.getElementById('newsSection').classList.remove('feedCardExpanded');
-    document.getElementById('offersSection').style.minHeight = ''; // release the freeze from expandFeedCard (Tilannehuone is the row-2 row-mate now, see comment there)
+    document.getElementById('offersSection').style.minHeight = ''; // release the freeze from expandFeedCard (the transit card is the row-2 row-mate now, see comment there)
     expandedView.style.opacity = '';
     expandedView.style.transform = '';
 
@@ -1297,9 +1297,9 @@ function makeFeedItemEl(item, index){
   // margin-left:auto -- real content genuinely worth the space (a
   // real, honest affordance -- "this opens elsewhere" -- not just
   // decorative filler), and unlike a per-item timestamp (see the
-  // comment on formatFreshness above for why that was already tried
-  // and reverted as actively misleading) this doesn't claim anything
-  // about the article that isn't true.
+  // metaEl comment above for why that was already tried and reverted
+  // as actively misleading) this doesn't claim anything about the
+  // article that isn't true.
   if (hasLink) {
     const arrow = document.createElement('span');
     arrow.className = 'newsRowArrow';
@@ -1308,25 +1308,6 @@ function makeFeedItemEl(item, index){
   }
 
   return el;
-}
-
-// Generic freshness formatter -- how long ago the newest item in a list
-// was published/reported. Originally built for news specifically, now
-// reused for Tilannehuone too, since "how current is this" is a more
-// useful signal than a raw item count regardless of which feed it's for.
-function formatFreshness(items){
-  if (!items || items.length === 0) return '–';
-  const newest = items.reduce((latest, item) =>
-    new Date(item.created_at) > new Date(latest.created_at) ? item : latest
-  );
-  const ageMs = Date.now() - new Date(newest.created_at).getTime();
-  const ageMin = Math.floor(ageMs / 60000);
-  if (ageMin < 1) return lang === 'fi' ? 'Juuri nyt' : 'Just now';
-  if (ageMin < 60) return lang === 'fi' ? `${ageMin} min sitten` : `${ageMin} min ago`;
-  const ageHours = Math.floor(ageMin / 60);
-  if (ageHours < 24) return lang === 'fi' ? `${ageHours} t sitten` : `${ageHours}h ago`;
-  const ageDays = Math.floor(ageHours / 24);
-  return lang === 'fi' ? `${ageDays} pv sitten` : `${ageDays}d ago`;
 }
 
 function renderLocalFeed(feed){

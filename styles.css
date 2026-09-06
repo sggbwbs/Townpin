@@ -1,7 +1,7 @@
   :root{
     --bg-0:#0a2440; --bg-1:#2c1a5c; --panel:#1e1f52; --line:rgba(255,255,255,0.16);
     --paper:#1e1f52; --amber:#9b7fe8; --amber-bright:#b39cf0; --amber-deep:#7a5cd6;
-    --news-accent:#6f93f0; --bizfeed-accent:#e685c4; --tilannehuone-accent:#f0955f;
+    --news-accent:#6f93f0; --bizfeed-accent:#e685c4; --transit-accent:#f0955f;
     --ink:#f2eefa; --ink-dim:#a8b4d0; --danger:#e0715a; --hero-border:rgba(255,255,255,0.4);
     --shadow-lg:0 24px 60px rgba(0,0,0,0.45); --shadow-md:0 10px 28px rgba(0,0,0,0.3);
     --glow:rgba(155,127,232,0.22); --panelT7:rgba(30,31,82,0.7); --panelT4:rgba(30,31,82,0.4);
@@ -10,7 +10,7 @@
   [data-theme="light"]{
     --bg-0:#f3f2fa; --bg-1:#ece9f7; --panel:#ffffff; --line:#ddd8ef;
     --paper:#ffffff; --amber:#5847c9; --amber-bright:#7266d6; --amber-deep:#463699;
-    --news-accent:#2f5bc9; --bizfeed-accent:#c93f96; --tilannehuone-accent:#c9622f;
+    --news-accent:#2f5bc9; --bizfeed-accent:#c93f96; --transit-accent:#c9622f;
     --ink:#211c38; --ink-dim:#6b6488; --danger:#c1503a; --hero-border:#c7bee8;
     --shadow-lg:0 20px 50px rgba(88,71,201,0.12); --shadow-md:0 8px 22px rgba(88,71,201,0.10);
     --glow:rgba(88,71,201,0.14); --panelT7:rgba(255,255,255,0.8); --panelT4:rgba(255,255,255,0.55);
@@ -545,14 +545,11 @@
   .forecastDay .dTemps b, .forecastHour .dTemps b{color:var(--ink);}
   /* A thin top-edge accent + matching icon color per card, so the four
      card types read as distinct at a glance rather than all sharing the
-     exact same neutral-ink icon. Colors are reused from elsewhere on
-     this page rather than invented fresh: events takes the brand
-     violet (it's the lead card), Tilannehuone the existing --danger red
-     (already means "alert" via the feature tiles' bell), and news/
-     businesses reuse the exact blue/green already used for the
-     "Lähelläsi"/notifications feature tiles. inset box-shadow (not
-     border-top) so it follows the card's existing border-radius
-     without needing separate corner math. */
+     exact same neutral-ink icon: events takes the brand violet (it's the
+     lead card), the transit card its own dedicated coral
+     (--transit-accent), news a violet-leaning blue, and businesses pink.
+     inset box-shadow (not border-top) so it follows the card's existing
+     border-radius without needing separate corner math. */
   #eventsSection{background:var(--panel);border:1px solid var(--line);border-radius:20px;
     padding:18px 20px;box-shadow:var(--shadow-md), inset 0 3px 0 0 var(--amber);transition:box-shadow 0.2s ease;}
   #eventsSection .feedSubhead svg{color:var(--amber);}
@@ -675,7 +672,7 @@
      results text instead of just the photo -- worth an eye on that state
      specifically, not just the empty/default view. */
   /* align-items:stretch (not the old start) is what actually makes
-     Tilannehuone/bizFeedCard match their row-sibling's height -- with
+     #offersSection (the transit card)/bizFeedCard match their row-sibling's height -- with
      start, each grid row is still sized to its tallest item (events,
      news), but a shorter sibling's own box just stops early instead of
      filling that reserved space, leaving bare page background in the
@@ -702,8 +699,8 @@
     #offersSection{grid-column:2;grid-row:2;}
   }
 
-  /* Mobile-only stacking order: events, news, businesses, Tilannehuone --
-     different from the DOM order (events, Tilannehuone, news, businesses)
+  /* Mobile-only stacking order: events, news, businesses, transit --
+     different from the DOM order (events, transit, news, businesses)
      that the desktop 2x2 grid pairs up row-by-row. `order` only needs to
      be set below 1000px -- once the desktop media query above kicks in,
      these simply stop applying (order isn't set anywhere else), and every
@@ -717,29 +714,16 @@
     #offersSection{order:4;}
   }
   #offersSection{background:var(--panel);border:1px solid var(--line);border-radius:20px;
-    padding:20px;box-shadow:var(--shadow-md), inset 0 3px 0 0 var(--tilannehuone-accent);transition:box-shadow 0.2s ease;
+    padding:20px;box-shadow:var(--shadow-md), inset 0 3px 0 0 var(--transit-accent);transition:box-shadow 0.2s ease;
     display:flex;flex-direction:column;}
-  #offersSection .feedSubhead svg{color:var(--tilannehuone-accent);}
-  /* flex:1 lets this grow to fill whatever height the grid's own
-     align-items:stretch gives #offersSection (matched to its row-mate's
-     real height -- #newsSection, since the Tilannehuone/business-
-     showcase swap) instead of staying only as tall as its own 1-2 page
-     content -- align-items:center re-centers the (now possibly much
-     shorter) itemsPage content vertically in that extra space, rather
-     than leaving it stranded at the top with blank space below. Only
-     overrides align-items (an ID rule beats the .pagedItemsContainer
-     class rule regardless of source order); the class's own
-     display:flex/row-direction/overflow-x, which is what actually makes
-     the horizontal swipe pagination work, is untouched. */
-  #tilannehuoneItems{flex:1;align-items:center;}
-  [data-theme="light"] #offersSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10), inset 0 3px 0 0 var(--tilannehuone-accent);}
-  .tilannehuoneMeta{font-size:11.5px !important;color:var(--ink-dim);margin:2px 0 6px !important;}
+  #offersSection .feedSubhead svg{color:var(--transit-accent);}
+  [data-theme="light"] #offersSection{border:none;box-shadow:0 16px 40px rgba(30,20,70,0.10), inset 0 3px 0 0 var(--transit-accent);}
   /* 4 standard rows at 140px + 3×18px gaps = 614px total. 5 of these
      compact rows + 4×18px gaps need to fit that same total, so
      (614 - 72) / 5 = ~108px each -- scaled down from the standard row
-     since Tilannehuone items are just a title + meta line + link, no
-     description paragraph or photo, so they don't need the full 140px
-     to read cleanly. */
+     since a transit stop row is just a stop name + distance + a row of
+     departure chips, no description paragraph or photo, so it doesn't
+     need the full 140px to read cleanly. */
   .feedItem.feedItemCompact{flex:1;height:auto;padding:12px 16px;display:flex;flex-direction:column;
     justify-content:center;align-items:stretch;}
   .feedItem.feedItemCompact b{font-size:13.5px;-webkit-line-clamp:2;}
@@ -794,9 +778,9 @@
      sized for each section spanning the full page width. */
   /* "Näytä kaikki" swaps a card's own content between collapsed and
      expanded views in place. On the >=1000px 2x2 grid, news shares its
-     row with the business card (align-items:stretch, same as
-     events/Tilannehuone) -- expanding news in place would grow its own
-     row's height, and stretch would then drag the business card's
+     row with the business card (align-items:stretch, same principle
+     applies elsewhere in this grid) -- expanding news in place would grow
+     its own row's height, and stretch would then drag the business card's
      height along with it too, even though nothing about the business
      card actually changed.
      Two things this went through before landing here:
@@ -913,7 +897,7 @@
      instead of a grid of fixed-size rows -- always exactly 3 items that
      stretch to fill whatever height JS sets on this container, rather
      than calculating how many fixed-size rows fit in a given space. */
-  #tilannehuoneItems{margin-top:12px;}
+  #transitItems{margin-top:12px;}
   /* Horizontal-scroll pages instead of a growing vertical list --
      overflow-x + scroll-snap gives real native swipe on mobile for free,
      no touch-event JS needed; the arrow buttons just scroll by one page
@@ -936,10 +920,10 @@
   .pagedItemsContainer::-webkit-scrollbar{display:none;}
   .itemsPage{flex:0 0 100%;scroll-snap-align:start;display:flex;flex-direction:column;gap:12px;min-width:0;}
   /* Event pages lay their cards out in a horizontal row (matching the
-     reference design) instead of the vertical stack news/Tilannehuone
-     use -- :has() lets this happen automatically based on what's
-     actually inside, rather than needing renderPagedList to know or
-     care which visual style a given list uses. */
+     reference design) instead of the vertical stack news uses -- :has()
+     lets this happen automatically based on what's actually inside,
+     rather than needing renderPagedList to know or care which visual
+     style a given list uses. */
   .itemsPage:has(.eventCard){flex-direction:row;max-height:250px;}
   .pagerControls{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;}
   .pagerArrow{background:var(--panelT7);border:1px solid var(--line);color:var(--ink);width:32px;height:32px;

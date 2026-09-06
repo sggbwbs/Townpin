@@ -1295,11 +1295,11 @@ async function openBoard(name, country, population){
 let currentFeedItems = { news: [], events: [] };
 let currentNewsCategory = 'rss-uusimmat';
 
-// Height-matching between each grid row's two cards (events/Tilannehuone,
-// news/business) is now handled entirely by #homeGrid's own
+// Height-matching between each grid row's two cards (events/business,
+// news/transit) is now handled entirely by #homeGrid's own
 // align-items:stretch -- a shorter card automatically fills its row's
 // full height at the CSS level, with nothing that depends on JS running
-// at the right moment relative to events/news/Tilannehuone/business each
+// at the right moment relative to events/news/business/transit each
 // loading independently. An earlier version of this function tried to
 // do the same thing by measuring and setting explicit pixel heights in
 // JS, which turned out to be fragile in practice. Kept as a no-op rather
