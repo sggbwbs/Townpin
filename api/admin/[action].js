@@ -604,7 +604,7 @@ async function handleListEventsForAdmin(req, res) {
   const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
   const { data, error } = await supabase
     .from('local_feed_items')
-    .select('id, title_fi, title_en, summary_fi, event_date, event_end_date, event_start_time, source_url, admin_selected, admin_highlighted, auto_selected')
+    .select('id, title_fi, title_en, summary_fi, event_date, event_end_date, event_start_time, source_url, admin_selected, admin_highlighted, admin_hidden, auto_selected')
     .eq('town_id', townId).eq('item_type', 'event')
     .or(`event_end_date.gte.${helsinkiToday},and(event_end_date.is.null,event_date.gte.${helsinkiToday})`)
     .order('event_date', { ascending: true });
@@ -636,16 +636,20 @@ async function handleListEventsForAdmin(req, res) {
 async function handleSelectEvents(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
-  const { townId, selectedIds, highlightedIds } = req.body || {};
+  const { townId, selectedIds, highlightedIds, hiddenIds } = req.body || {};
   if (!townId) return res.status(400).json({ error: 'Missing townId.' });
 
   const selected = Array.isArray(selectedIds) ? [...new Set(selectedIds)] : [];
   const highlighted = Array.isArray(highlightedIds) ? [...new Set(highlightedIds)] : [];
+  const hidden = Array.isArray(hiddenIds) ? [...new Set(hiddenIds)] : [];
   if (selected.length > MAX_SELECTED_EVENTS) {
     return res.status(400).json({ error: `Choose at most ${MAX_SELECTED_EVENTS} events.` });
   }
   if (highlighted.some(id => !selected.includes(id))) {
     return res.status(400).json({ error: 'Only selected events can be highlighted.' });
+  }
+  if (hidden.some(id => selected.includes(id))) {
+    return res.status(400).json({ error: 'An event can\'t be both hidden and selected as a pick.' });
   }
 
   // Scoped to the SAME "still relevant" set handleListEventsForAdmin
@@ -662,11 +666,12 @@ async function handleSelectEvents(req, res) {
   // first place). Scoping the reset to the same relevance window the
   // admin can actually see and act on means anything temporarily
   // outside that window keeps whatever was already set for it,
-  // regardless of what else gets curated in the meantime.
+  // regardless of what else gets curated in the meantime. admin_hidden
+  // gets the exact same treatment for the exact same reason.
   const helsinkiToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date());
   const { error: resetErr } = await supabase
     .from('local_feed_items')
-    .update({ admin_selected: false, admin_highlighted: false })
+    .update({ admin_selected: false, admin_highlighted: false, admin_hidden: false })
     .eq('town_id', townId).eq('item_type', 'event')
     .or(`event_end_date.gte.${helsinkiToday},and(event_end_date.is.null,event_date.gte.${helsinkiToday})`);
   if (resetErr) { console.error(resetErr); return res.status(500).json({ error: 'Could not update selection.' }); }
@@ -694,7 +699,32 @@ async function handleSelectEvents(req, res) {
       .eq('town_id', townId).eq('item_type', 'event').in('id', highlighted);
     if (hlErr) { console.error(hlErr); return res.status(500).json({ error: 'Could not update selection.' }); }
   }
+  if (hidden.length > 0) {
+    const { error: hideErr } = await supabase
+      .from('local_feed_items').update({ admin_hidden: true })
+      .eq('town_id', townId).eq('item_type', 'event').in('id', hidden);
+    if (hideErr) { console.error(hideErr); return res.status(500).json({ error: 'Could not update selection.' }); }
+  }
   res.status(200).json({ ok: true });
+}
+
+async function handleRefreshEvents(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Not authenticated.' });
+  const { townId } = req.body || {};
+  if (!townId) return res.status(400).json({ error: 'Missing townId.' });
+
+  const { data: town, error: townErr } = await supabase.from('towns').select('name').eq('id', townId).maybeSingle();
+  if (townErr || !town) return res.status(404).json({ error: 'Town not found.' });
+
+  const { getEventsSection } = require('../_localFeed');
+  try {
+    const events = await getEventsSection(supabase, townId, town.name, { forceRefresh: true });
+    res.status(200).json({ ok: true, count: events.length });
+  } catch (err) {
+    console.error('Manual event refresh failed:', err);
+    res.status(500).json({ error: 'Could not refresh events.' });
+  }
 }
 
 async function handleFindCompany(req, res) {
@@ -1339,6 +1369,7 @@ module.exports = async (req, res) => {
     case 'get-color-theme': return handleGetColorTheme(req, res);
     case 'list-events': return handleListEventsForAdmin(req, res);
     case 'select-events': return handleSelectEvents(req, res);
+    case 'refresh-events': return handleRefreshEvents(req, res);
     default: return res.status(404).json({ error: 'Unknown admin action.' });
   }
 };
