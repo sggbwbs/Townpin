@@ -140,7 +140,10 @@
 <div class="card" id="eventsCard" style="display:none;">
   <h2>Choose today's featured events</h2>
   <p class="sub">Pick up to 4 events to show on the public board instead of the automatic ranking — useful when you want specific events front and center (say, during a big festival). Optionally highlight a few of your picks to make them stand out. Uncheck everything and save to go back to automatic selection.</p>
+  <p class="sub">Event pulled wrong (wrong day, garbled title, a duplicate that slipped through)? Use "Hide" on that row instead of trying to select around it — it keeps that one row off the public site entirely without deleting it, so a future refresh won't just re-fetch the same bad data.</p>
   <div id="eventsPickerTownNote" class="sub" style="margin:6px 0 12px;font-weight:700;"></div>
+  <button id="refreshEventsBtn" type="button" style="margin-bottom:12px;">↻ Refresh events now</button>
+  <span class="sub" id="refreshEventsNote" style="display:none;margin-left:8px;"></span>
   <div id="eventsPickerList"><p class="sub">Loading…</p></div>
   <button id="saveEventsBtn" style="margin-top:14px;">Save selection</button>
   <span class="saved" id="eventsSavedMsg">✓ Saved</span>
@@ -1351,6 +1354,7 @@ async function loadEventsPicker(){
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = !!ev.admin_selected;
+      cb.disabled = !!ev.admin_hidden;
       cb.dataset.id = ev.id;
       cb.className = 'eventSelectCb';
       cb.style.marginTop = '3px';
@@ -1369,7 +1373,16 @@ async function loadEventsPicker(){
       starBtn.dataset.on = ev.admin_highlighted ? '1' : '0';
       starBtn.textContent = ev.admin_highlighted ? '★ Highlighted' : '☆ Highlight';
       starBtn.style.cssText = 'padding:6px 10px;font-size:12px;flex:none;';
-      starBtn.disabled = !cb.checked;
+      starBtn.disabled = !cb.checked || !!ev.admin_hidden;
+
+      const hideBtn = document.createElement('button');
+      hideBtn.type = 'button';
+      hideBtn.className = 'eventHideBtn';
+      hideBtn.dataset.id = ev.id;
+      hideBtn.dataset.on = ev.admin_hidden ? '1' : '0';
+      hideBtn.textContent = ev.admin_hidden ? '🙈 Hidden' : 'Hide';
+      hideBtn.style.cssText = 'padding:6px 10px;font-size:12px;flex:none;margin-left:6px;';
+      if (ev.admin_hidden) row.style.opacity = '0.55';
 
       cb.addEventListener('change', () => {
         starBtn.disabled = !cb.checked;
@@ -1380,15 +1393,56 @@ async function loadEventsPicker(){
         starBtn.dataset.on = isOn ? '0' : '1';
         starBtn.textContent = isOn ? '☆ Highlight' : '★ Highlighted';
       });
+      // Hiding and selecting are mutually exclusive (same rule the
+      // server enforces in handleSelectEvents) -- toggling hide on
+      // forces the select checkbox (and any highlight) off and disables
+      // both, since a hidden event can't also be a featured pick.
+      hideBtn.addEventListener('click', () => {
+        const isOn = hideBtn.dataset.on === '1';
+        hideBtn.dataset.on = isOn ? '0' : '1';
+        hideBtn.textContent = isOn ? 'Hide' : '🙈 Hidden';
+        row.style.opacity = isOn ? '1' : '0.55';
+        if (!isOn) {
+          cb.checked = false;
+          starBtn.dataset.on = '0';
+          starBtn.textContent = '☆ Highlight';
+        }
+        cb.disabled = !isOn;
+        starBtn.disabled = !isOn || !cb.checked;
+      });
 
       row.appendChild(left);
       row.appendChild(starBtn);
+      row.appendChild(hideBtn);
       listBox.appendChild(row);
     });
   } catch (e) {
     listBox.innerHTML = '<p class="sub">Network error.</p>';
   }
 }
+
+document.getElementById('refreshEventsBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('refreshEventsBtn');
+  const note = document.getElementById('refreshEventsNote');
+  if (!currentAdminTownId) return;
+  btn.disabled = true; btn.textContent = 'Refreshing…';
+  note.style.display = 'none';
+  try {
+    const res = await fetch(`${API}/refresh-events`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ townId: currentAdminTownId })
+    });
+    const data = await res.json();
+    if (!res.ok) { note.textContent = data.error || 'Could not refresh.'; note.style.color = '#c0392b'; }
+    else { note.textContent = `✓ Refreshed — ${data.count} event(s) now live.`; note.style.color = ''; }
+    note.style.display = 'inline';
+    await loadEventsPicker(); // reload so the list reflects whatever the refresh actually found
+  } catch (e) {
+    note.textContent = 'Network error.'; note.style.color = '#c0392b'; note.style.display = 'inline';
+  } finally {
+    btn.disabled = false; btn.textContent = '↻ Refresh events now';
+  }
+});
 
 document.getElementById('saveEventsBtn').addEventListener('click', async () => {
   const errBox = document.getElementById('eventsErr');
@@ -1397,10 +1451,11 @@ document.getElementById('saveEventsBtn').addEventListener('click', async () => {
   const selectedIds = [...document.querySelectorAll('.eventSelectCb')].filter(cb => cb.checked).map(cb => cb.dataset.id);
   if (selectedIds.length > 4) { showErr(errBox, 'Choose at most 4 events.'); return; }
   const highlightedIds = [...document.querySelectorAll('.eventHighlightBtn')].filter(b => b.dataset.on === '1').map(b => b.dataset.id);
+  const hiddenIds = [...document.querySelectorAll('.eventHideBtn')].filter(b => b.dataset.on === '1').map(b => b.dataset.id);
   try {
     const res = await fetch(`${API}/select-events`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ townId: currentAdminTownId, selectedIds, highlightedIds })
+      body: JSON.stringify({ townId: currentAdminTownId, selectedIds, highlightedIds, hiddenIds })
     });
     const data = await res.json();
     if (!res.ok) { showErr(errBox, data.error || 'Could not save.'); return; }
