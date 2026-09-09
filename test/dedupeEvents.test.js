@@ -26,6 +26,7 @@ function makeEvent(overrides = {}) {
     event_start_time: '18:00',
     admin_selected: false,
     admin_highlighted: false,
+    admin_hidden: false,
     ...overrides
   };
 }
@@ -113,4 +114,36 @@ test('applyAdminEventCuration: with nothing selected, order is otherwise preserv
   const b = makeEvent({ id: 'b', title_fi: 'B' });
   const result = applyAdminEventCuration([a, b]);
   assert.deepEqual(result.map(e => e.id), ['a', 'b']);
+});
+
+test('applyAdminEventCuration: admin_hidden events are filtered out entirely', () => {
+  const visible = makeEvent({ id: 'v', title_fi: 'Visible' });
+  const hidden = makeEvent({ id: 'h', title_fi: 'Hidden', admin_hidden: true });
+  const result = applyAdminEventCuration([visible, hidden]);
+  assert.deepEqual(result.map(e => e.id), ['v']);
+});
+
+test('applyAdminEventCuration: hiding one duplicate still lets a non-hidden duplicate through', () => {
+  // The real scenario this matters for: an admin hides the specific bad
+  // row (e.g. one with a garbled title from a bad source parse), not
+  // realizing -- or not needing to know -- that a second, correct row
+  // for the same real-world event also exists. Filtering hidden rows
+  // BEFORE dedup (not after) is what makes this work: dedup then just
+  // sees a single remaining row and passes it through untouched.
+  const hiddenFirst = makeEvent({ id: 'h', title_fi: 'Kesäkonsertti', admin_hidden: true });
+  const goodDupe = makeEvent({ id: 'g', title_fi: 'Kesäkonsertti' });
+  const result = applyAdminEventCuration([hiddenFirst, goodDupe]);
+  assert.deepEqual(result.map(e => e.id), ['g']);
+});
+
+test('applyAdminEventCuration: a hidden event that was also admin_selected does not appear or affect ordering', () => {
+  // Defense in depth: the admin API itself rejects saving an id as both
+  // hidden and selected (see handleSelectEvents), but this confirms the
+  // read-side filtering doesn't depend on that validation ever having
+  // run -- e.g. against a row hidden after it was already selected in an
+  // earlier request.
+  const hiddenButSelected = makeEvent({ id: 'h', title_fi: 'Hidden', admin_selected: true, admin_hidden: true });
+  const plain = makeEvent({ id: 'p', title_fi: 'Plain' });
+  const result = applyAdminEventCuration([hiddenButSelected, plain]);
+  assert.deepEqual(result.map(e => e.id), ['p']);
 });
