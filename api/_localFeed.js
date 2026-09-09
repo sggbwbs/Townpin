@@ -1015,7 +1015,13 @@ function dedupeEvents(events) {
 // never resurface, regardless of which branch (cache hit, merge, etc.)
 // produced the final list.
 function applyAdminEventCuration(rawEvents) {
-  const events = dedupeEvents(rawEvents);
+  // admin_hidden is a separate, independent flag from admin_selected --
+  // "hide this, it was pulled wrong / on the wrong day" vs "feature this
+  // as one of the 4 picks". Filtered first, before dedup even, so a
+  // hidden event can never resurface by way of a duplicate row that
+  // wasn't itself marked hidden.
+  const visible = (rawEvents || []).filter(e => !e.admin_hidden);
+  const events = dedupeEvents(visible);
   const selected = events.filter(e => e.admin_selected);
   if (selected.length === 0) return events;
   const highlighted = selected.filter(e => e.admin_highlighted);
@@ -1024,7 +1030,8 @@ function applyAdminEventCuration(rawEvents) {
   return [...highlighted, ...plainSelected, ...rest];
 }
 
-async function getEventsSection(supabase, townId, townName) {
+async function getEventsSection(supabase, townId, townName, options = {}) {
+  const { forceRefresh = false } = options;
   try {
     // Secondary .order('id') below: event_date alone ties for every
     // event happening today, which is the common case for "today's
@@ -1056,7 +1063,12 @@ async function getEventsSection(supabase, townId, townName) {
       ? Math.max(...existingEvents.map(e => new Date(e.created_at).getTime())) : 0;
     const eventsAgeHours = newestCreated ? (Date.now() - newestCreated) / 3600000 : Infinity;
 
-    if (existingEvents.length > 0 && eventsAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
+    const newestCreatedHelsinkiDate = newestCreated
+      ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki' }).format(new Date(newestCreated))
+      : null;
+    const curatedToday = newestCreatedHelsinkiDate === helsinkiToday;
+
+    if (!forceRefresh && existingEvents.length > 0 && curatedToday && eventsAgeHours < EVENTS_REFRESH_AFTER_HOURS) {
       await applyLearnedAutoSelection(supabase, existingEvents);
       return applyAdminEventCuration(existingEvents);
     }
