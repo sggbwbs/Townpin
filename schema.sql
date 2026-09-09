@@ -259,6 +259,21 @@ alter table local_feed_items add column if not exists admin_selected boolean not
 alter table local_feed_items add column if not exists admin_highlighted boolean not null default false;
 create index if not exists local_feed_items_admin_selected_idx on local_feed_items (town_id, item_type, admin_selected);
 
+-- Independent of the pair above: marks an event that was pulled wrong
+-- (wrong day, garbled title, duplicate that dedup missed, etc.) so an
+-- admin can suppress it from the public site entirely without deleting
+-- the row outright (deleting it would just let the next refresh cycle
+-- re-fetch and re-insert the exact same bad data from the source). Kept
+-- as a flat boolean, matching admin_selected/admin_highlighted above,
+-- not the date-scoped event_picks table below -- see the note on that
+-- table for why: nothing in this codebase actually reads or writes
+-- event_picks despite the comment there describing it as replacing
+-- these flat columns; the real, currently-running code (see
+-- applyAdminEventCuration in api/_localFeed.js) still uses the flat
+-- columns exclusively, so this stays consistent with what's actually
+-- live rather than the aspirational design that was never finished.
+alter table local_feed_items add column if not exists admin_hidden boolean not null default false;
+
 -- ==== Date-scoped event curation (replaces the flat columns above) ====
 -- The admin_selected/admin_highlighted columns above applied ALWAYS,
 -- with no concept of "which day" -- there was no way to pick today's
