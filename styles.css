@@ -1580,7 +1580,28 @@
     font-size:10px;text-transform:uppercase;letter-spacing:0.03em;padding:2px 7px;border-radius:999px;
     margin:0 2px;vertical-align:middle;}
   .askWebResults{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
-  .askMap{height:220px;border-radius:10px;margin-top:12px;overflow:hidden;border:1px solid var(--line);}
+  #askPinnedMap{flex:none;height:140px;position:relative;border-bottom:1px solid var(--line);overflow:hidden;}
+  /* Leaflet renders divIcon markers as plain unstyled <div>s -- this is
+     the marker's actual visual appearance, a pin-shaped numbered badge
+     matching the chip numbers below it. */
+  .askMapNumberIcon{width:28px;height:28px;border-radius:50% 50% 50% 0;background:var(--amber-deep);
+    border:2px solid #fff;transform:rotate(-45deg);box-shadow:0 3px 8px rgba(0,0,0,0.3);
+    display:flex;align-items:center;justify-content:center;transition:opacity 0.2s ease, background 0.15s ease;}
+  .askMapNumberIcon span{transform:rotate(45deg);color:#fff;font-family:'IBM Plex Mono',monospace;
+    font-weight:700;font-size:11px;}
+  .askMapNumberIcon.askMapNumberIconFaded{opacity:0.42;}
+  /* Applied to whichever marker's chip was just clicked (or vice versa)
+     -- pink like the business/spotlight accent so it reads as "this one
+     specifically", distinct from the map's own default amber pins. */
+  .askMapNumberIcon.askMapPointActive{background:var(--bizfeed-accent);opacity:1;}
+  .askChipNum{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
+    border-radius:50%;background:rgba(255,255,255,0.3);font-size:10px;font-weight:700;margin-right:2px;}
+  /* The chip-side half of the same active-state pairing as
+     .askMapPointActive above -- a visible ring rather than a color
+     swap, since chips already carry meaningful color (amber = mention,
+     neutral = web result) that a highlight shouldn't overwrite. */
+  .askMentionChip.askMapChipActive, .askWebResultChip.askMapChipActive{
+    box-shadow:0 0 0 2px var(--bizfeed-accent);}
   .askWebResultChip{font-size:14px;padding:9px 18px;border-radius:999px;border:1px solid var(--line);
     background:none;color:var(--ink-dim);text-decoration:none;}
   .askWebResultChip:hover{border-color:var(--ink-dim);color:var(--ink);}

@@ -149,40 +149,35 @@ async function askAsk(question, sendBtn){
 
     const answer = data.answer || t('askError');
     let html = renderAskMarkdown(answer);
-    if (Array.isArray(data.mentioned) && data.mentioned.length > 0){
-      html += buildMentionsHtml(data.mentioned);
+
+    // Ids assigned once here, shared by both chip rendering below and
+    // the map markers created further down -- see the comment on
+    // assignAskMapPointIds in app-feed.js for why this can't be done
+    // independently in two places.
+    const { mentioned: mentionedWithIds, webResults: webResultsWithIds } =
+      assignAskMapPointIds(data.mentioned, data.webResults);
+    const pointNumbers = computeAskMapPointNumbers(mentionedWithIds, webResultsWithIds);
+
+    if (mentionedWithIds.length > 0){
+      html += buildMentionsHtml(mentionedWithIds, pointNumbers);
       // The banner now paginates (see renderLogoBanner) -- if a business
       // just recommended here isn't on whatever page happens to be
       // showing, jump to the page it's actually on so what's visible
       // matches what was just said, instead of silently showing something
       // unrelated.
-      highlightBusinessesInBanner(data.mentioned.map(m => m.name));
+      highlightBusinessesInBanner(mentionedWithIds.map(m => m.name));
     }
 
-    // A light map of wherever real coordinates exist -- board businesses
-    // always have real, stored ones (never AI-supplied); general places
-    // only get a pin when the model found (and we successfully geocoded)
-    // a genuine address, never a guessed one. No pin for something is
-    // normal and expected, not an error. Paid/board businesses are
-    // listed first below, so they're always included ahead of the cap
-    // if there are more real points than the map can reasonably show.
-    const mapPoints = [
-      ...(Array.isArray(data.mentioned) ? data.mentioned : []),
-      ...(Array.isArray(data.webResults) ? data.webResults : [])
-    ].filter(p => typeof p.lat === 'number' && typeof p.lng === 'number').slice(0, 10);
-
-    let mapId = null;
-    if (mapPoints.length > 0){
-      mapId = 'askMap' + (askResultBlockCounter++);
-      html += `<div class="askMap" id="${mapId}"></div>`;
-    }
-
-    if (Array.isArray(data.webResults) && data.webResults.length > 0){
+    if (webResultsWithIds.length > 0){
       const resultId = 'askWebResults' + (askResultBlockCounter++);
-      html += `<div class="askWebResults" id="${resultId}">` + data.webResults.map((r, i) =>
-        `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${escapeAskText(r.name)} ${r.isSearchFallback ? '🔍' : '↗'}</a>`
-      ).join('') + '</div>';
-      if (data.webResults.length > 4){
+      html += `<div class="askWebResults" id="${resultId}">` + webResultsWithIds.map((r, i) => {
+        const number = pointNumbers.get(r.mapPointId);
+        const numBadge = number ? `<span class="askChipNum">${number}</span> ` : '';
+        const mapAttr = typeof r.mapPointId === 'number' ? ` data-map-point-id="${r.mapPointId}"` : '';
+        const mapClick = typeof r.mapPointId === 'number' ? ` onclick="highlightAskMapPoint(${r.mapPointId});"` : '';
+        return `<a class="askWebResultChip${i >= 4 ? ' askWebResultExtra' : ''}"${i >= 4 ? ' style="display:none;"' : ''}${mapAttr}${mapClick} href="${escapeAskText(r.url)}" target="_blank" rel="noopener">${numBadge}${escapeAskText(r.name)} ${r.isSearchFallback ? '🔍' : '↗'}</a>`;
+      }).join('') + '</div>';
+      if (webResultsWithIds.length > 4){
         html += `<button class="askShowMoreBtn logoBtn" data-expanded="false" onclick="toggleAskWebResults('${resultId}', this)">${t('showMore')}</button>`;
       }
     }
@@ -194,12 +189,24 @@ async function askAsk(question, sendBtn){
       <button class="askFeedbackBtn" data-rating="down" aria-label="Huono vastaus">👎</button>
     </div>`;
 
+    // Paid/board businesses first, matching the existing display order
+    // above -- so if there are ever more than 10 real points in one
+    // turn, board businesses are always among the ones actually shown
+    // on the map rather than a general web result crowding one out.
+    // Capped here (map only), not at id-assignment time above: a chip
+    // beyond the cap still gets a real number for visual consistency
+    // with its neighbors, it just won't have a working marker to
+    // correlate to if clicked -- a rare edge case (most real answers
+    // have far fewer than 10 geocoded points) not worth the extra
+    // bookkeeping of threading the cap through id assignment itself.
+    const mapPoints = [...mentionedWithIds, ...webResultsWithIds].slice(0, 10);
+
     const resultEl = askAppendResult('<p class="askTypingText"></p>');
     const typingEl = resultEl.querySelector('.askTypingText');
     typeReveal(typingEl, answer, () => {
       resultEl.innerHTML = html;
       wireAskFeedback(resultEl.querySelector('#' + feedbackId), question, answer, data.cacheKey || null);
-      if (mapId) renderAskMap(mapId, mapPoints);
+      updateAskPinnedMap(mapPoints);
       resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
 

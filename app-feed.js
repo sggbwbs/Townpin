@@ -871,12 +871,30 @@ const ASK_HISTORY_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 // -- exactly the same markup either way, so a restored answer's
 // business links look identical to a freshly-received one instead of
 // the two rendering paths quietly drifting apart over time.
-function buildMentionsHtml(mentioned){
+// mentioned and webResults must be in the exact same order already
+// passed to updateAskPinnedMap (mentioned first, then webResults) --
+// this assigns each coordinate-having item the same number its marker
+// gets there. An item without coordinates gets no entry (no number
+// shown for it, since there's no marker for it to correlate with).
+function computeAskMapPointNumbers(mentioned, webResults){
+  const numberById = new Map();
+  let n = 1;
+  [...(mentioned || []), ...(webResults || [])].forEach(item => {
+    if (typeof item.mapPointId === 'number') numberById.set(item.mapPointId, n++);
+  });
+  return numberById;
+}
+
+function buildMentionsHtml(mentioned, pointNumbers){
   const pinIconSvg = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
   let html = '<p class="askMentionsNote">' + pinIconSvg + ' = ' + t('askMentionsNote') + '</p>';
-  html += '<div class="askMentions">' + mentioned.map(m =>
-    `<a class="askMentionChip" href="/pin/${m.slotId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${m.slotId})">${pinIconSvg} ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`
-  ).join('') + '</div>';
+  html += '<div class="askMentions">' + mentioned.map(m => {
+    const hasMapPoint = !!(pointNumbers && pointNumbers.has(m.mapPointId));
+    const numBadge = hasMapPoint ? `<span class="askChipNum">${pointNumbers.get(m.mapPointId)}</span> ` : '';
+    const mapAttr = hasMapPoint ? ` data-map-point-id="${m.mapPointId}"` : '';
+    const mapClick = hasMapPoint ? `highlightAskMapPoint(${m.mapPointId});` : '';
+    return `<a class="askMentionChip"${mapAttr} href="/pin/${m.slotId}?lang=${lang}" target="_blank" rel="noopener" onclick="trackBusinessClick(${m.slotId});${mapClick}">${numBadge}${pinIconSvg} ${escapeAskText(m.name)} <span class="askAdvertiserTag">${escapeAskText(t('askAdvertiserTag'))}</span> ↗</a>`;
+  }).join('') + '</div>';
   return html;
 }
 
@@ -947,6 +965,18 @@ function startNewConversation(){
   document.getElementById('askResultsList').innerHTML = '';
   document.getElementById('askFollowupRow').style.display = 'none';
   try { localStorage.removeItem(ASK_HISTORY_STORAGE_KEY); } catch (e) {}
+  // Full teardown, not just clearing markers -- askMapPointRegistry and
+  // askMapTurns would otherwise keep referencing a live Leaflet instance
+  // and marker objects with nothing left in the DOM to correlate them
+  // to, and the next conversation's ids (askMapPointIdCounter keeps
+  // counting up, deliberately never reset -- see its own comment) would
+  // just accumulate onto a map that should really be starting empty.
+  if (askPinnedMapInstance){ askPinnedMapInstance.remove(); askPinnedMapInstance = null; }
+  askMapTurns = [];
+  askMapPointRegistry.clear();
+  askMapActivePointId = null;
+  const pinnedMapEl = document.getElementById('askPinnedMap');
+  if (pinnedMapEl) pinnedMapEl.style.display = 'none';
   // Minimizes the sheet now that there's nothing left in it to show --
   // previously this only cleared content and left .open in place, so
   // the sheet stayed fully visible but shrunk to just its own header
@@ -1063,25 +1093,159 @@ function ensureLeafletIcons(){
   leafletIconsFixed = true;
 }
 
-function renderAskMap(mapId, points){
-  if (typeof L === 'undefined' || points.length === 0) return;
-  const container = document.getElementById(mapId);
-  if (!container) return;
+// ===== Persistent ask map (Phase 1 of the AI+map merge -- see CHANGELOG) =====
+// One Leaflet map instance for the whole conversation, created lazily on
+// the first turn that has any real coordinates, instead of a fresh map
+// torn down and rebuilt inside every single answer. Deliberately NOT
+// restored from localStorage on page reload -- same reasoning as
+// restoreAskHistoryFromStorage's existing comment on why the map doesn't
+// come back: it needs live marker/point-id wiring, not just saved text.
+let askPinnedMapInstance = null;
+// Each entry: { layerGroup: L.layerGroup, ids: [pointId, ...] } -- kept in
+// chronological order, oldest first. Capped at 2 (this turn + the
+// previous one); anything older is removed from the map entirely rather
+// than just visually hidden, so it can't silently accumulate forever in
+// a long conversation.
+let askMapTurns = [];
+// Monotonically increasing, never reset mid-conversation (only implicitly
+// "reset" by starting a new conversation, which destroys the whole map
+// and everything referencing old ids anyway) -- avoids any risk of two
+// different points across turns accidentally sharing an id.
+let askMapPointIdCounter = 0;
+// pointId -> { marker, lat, lng } -- looked up by both a chip click
+// (pan/open that marker) and a marker click (find/scroll to that chip).
+// Chips are looked up live via document.querySelector on
+// [data-map-point-id] rather than also cached here, since caching a DOM
+// reference risks going stale if a block is ever re-rendered.
+let askMapPointRegistry = new Map();
+
+// Assigns a stable, globally-unique id to every mentioned/webResult item
+// that has real coordinates (skips anything without -- there's no marker
+// to correlate a chip to). Called once per turn, before building either
+// the chip HTML or the map markers, so both use the exact same ids.
+// Returns the same two arrays back, each item now carrying .mapPointId
+// when it has coordinates (undefined otherwise).
+function assignAskMapPointIds(mentioned, webResults){
+  const withIds = (arr) => (Array.isArray(arr) ? arr : []).map(item => {
+    if (typeof item.lat === 'number' && typeof item.lng === 'number'){
+      return { ...item, mapPointId: askMapPointIdCounter++ };
+    }
+    return item;
+  });
+  return { mentioned: withIds(mentioned), webResults: withIds(webResults) };
+}
+
+function askMapNumberIcon(number){
+  return L.divIcon({
+    className: 'askMapNumberIcon',
+    html: `<span>${number}</span>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -26]
+  });
+}
+
+// pointsWithIds: the SAME combined, id-assigned array (mentioned then
+// webResults, matching chip render order) passed to the chip-building
+// code for this turn -- numbering here must match numbering there, since
+// the whole point is a marker and its chip sharing a visible number.
+function updateAskPinnedMap(pointsWithIds){
+  const points = (pointsWithIds || []).filter(p => typeof p.lat === 'number' && typeof p.lng === 'number' && typeof p.mapPointId === 'number');
+  if (points.length === 0 || typeof L === 'undefined') return;
   ensureLeafletIcons();
 
-  const map = L.map(mapId, { scrollWheelZoom: false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
-    maxZoom: 19
-  }).addTo(map);
+  const container = document.getElementById('askPinnedMap');
+  if (!container) return;
+  container.style.display = 'block';
 
-  const markers = points.map(p => L.marker([p.lat, p.lng]).bindPopup(escapeAskText(p.name)));
-  markers.forEach(m => m.addTo(map));
-
-  if (points.length === 1){
-    map.setView([points[0].lat, points[0].lng], 15);
+  if (!askPinnedMapInstance){
+    askPinnedMapInstance = L.map('askPinnedMap', { scrollWheelZoom: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    }).addTo(askPinnedMapInstance);
   } else {
-    map.fitBounds(L.featureGroup(markers).getBounds().pad(0.2));
+    // The container was hidden (display:none) for however long since
+    // the map was created -- Leaflet doesn't notice a size change it
+    // wasn't told about, so without this a map first shown while hidden
+    // (or resized since) renders with stale/wrong tile bounds.
+    askPinnedMapInstance.invalidateSize();
+  }
+
+  const layerGroup = L.layerGroup().addTo(askPinnedMapInstance);
+  const ids = [];
+  points.forEach((p, i) => {
+    const marker = L.marker([p.lat, p.lng], { icon: askMapNumberIcon(i + 1) }).bindPopup(escapeAskText(p.name));
+    marker.on('click', () => highlightAskMapPoint(p.mapPointId, { fromMarker: true }));
+    marker.addTo(layerGroup);
+    askMapPointRegistry.set(p.mapPointId, { marker, lat: p.lat, lng: p.lng });
+    ids.push(p.mapPointId);
+  });
+  askMapTurns.push({ layerGroup, ids });
+
+  // Fade the previous turn's markers (still real, still clickable --
+  // just visually secondary) rather than dropping them the instant a
+  // new question comes in. A genuinely unrelated follow-up (someone
+  // switches from restaurants to hairdressers) still shows one turn of
+  // stale-looking-but-real pins for one more turn, which is an
+  // acceptable trade for not losing a *related* follow-up's context
+  // (e.g. "what's fun to do after dinner" needing the restaurant pin
+  // still visible) -- there's no way to tell those two cases apart
+  // without the AI explicitly saying whether it's a related follow-up,
+  // which isn't something the current answer shape carries.
+  if (askMapTurns.length >= 2){
+    const prevTurn = askMapTurns[askMapTurns.length - 2];
+    prevTurn.ids.forEach(id => {
+      const entry = askMapPointRegistry.get(id);
+      if (entry && entry.marker.getElement()){
+        entry.marker.getElement().classList.add('askMapNumberIconFaded');
+      }
+    });
+  }
+
+  // Older than the previous turn: removed from the map entirely, not
+  // just faded further -- see the module comment above on askMapTurns.
+  while (askMapTurns.length > 2){
+    const dropped = askMapTurns.shift();
+    dropped.layerGroup.remove();
+    dropped.ids.forEach(id => askMapPointRegistry.delete(id));
+  }
+
+  const visibleMarkers = askMapTurns.flatMap(t => t.ids.map(id => askMapPointRegistry.get(id).marker));
+  if (visibleMarkers.length === 1){
+    askPinnedMapInstance.setView([visibleMarkers[0].getLatLng().lat, visibleMarkers[0].getLatLng().lng], 15);
+  } else {
+    askPinnedMapInstance.fitBounds(L.featureGroup(visibleMarkers).getBounds().pad(0.2));
+  }
+}
+
+// Shared by both directions of the click-through: a chip click passes
+// fromMarker:false (pan+open the popup), a marker click passes
+// fromMarker:true (find and pulse/scroll the matching chip instead of
+// re-triggering itself). Either way, exactly one chip and one marker end
+// up visually marked active at a time.
+let askMapActivePointId = null;
+function highlightAskMapPoint(pointId, opts){
+  const fromMarker = !!(opts && opts.fromMarker);
+  document.querySelectorAll('.askMapChipActive').forEach(el => el.classList.remove('askMapChipActive'));
+  if (askMapActivePointId !== null){
+    const prevEntry = askMapPointRegistry.get(askMapActivePointId);
+    if (prevEntry && prevEntry.marker.getElement()) prevEntry.marker.getElement().classList.remove('askMapPointActive');
+  }
+  askMapActivePointId = pointId;
+
+  const chip = document.querySelector(`[data-map-point-id="${pointId}"]`);
+  if (chip){
+    chip.classList.add('askMapChipActive');
+    if (fromMarker) chip.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  const entry = askMapPointRegistry.get(pointId);
+  if (entry){
+    if (entry.marker.getElement()) entry.marker.getElement().classList.add('askMapPointActive');
+    if (!fromMarker && askPinnedMapInstance){
+      askPinnedMapInstance.panTo([entry.lat, entry.lng]);
+      entry.marker.openPopup();
+    }
   }
 }
 
