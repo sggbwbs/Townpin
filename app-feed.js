@@ -965,18 +965,10 @@ function startNewConversation(){
   document.getElementById('askResultsList').innerHTML = '';
   document.getElementById('askFollowupRow').style.display = 'none';
   try { localStorage.removeItem(ASK_HISTORY_STORAGE_KEY); } catch (e) {}
-  // Full teardown, not just clearing markers -- askMapPointRegistry and
-  // askMapTurns would otherwise keep referencing a live Leaflet instance
-  // and marker objects with nothing left in the DOM to correlate them
-  // to, and the next conversation's ids (askMapPointIdCounter keeps
-  // counting up, deliberately never reset -- see its own comment) would
-  // just accumulate onto a map that should really be starting empty.
-  if (askPinnedMapInstance){ askPinnedMapInstance.remove(); askPinnedMapInstance = null; }
-  askMapTurns = [];
-  askMapPointRegistry.clear();
-  askMapActivePointId = null;
-  const pinnedMapEl = document.getElementById('askPinnedMap');
-  if (pinnedMapEl) pinnedMapEl.style.display = 'none';
+  // Full teardown of the persistent map -- see clearAskPinnedMap's own
+  // comment for why zero-point turns use the same reset, not just
+  // starting a new conversation.
+  clearAskPinnedMap();
   // Minimizes the sheet now that there's nothing left in it to show --
   // previously this only cleared content and left .open in place, so
   // the sheet stayed fully visible but shrunk to just its own header
@@ -1145,13 +1137,29 @@ function askMapNumberIcon(number){
   });
 }
 
+// Full teardown -- also used by startNewConversation. Zero points on the
+// current turn means "no map context for this topic" -- rather than
+// leaving whatever was already showing from an older, now-unrelated
+// turn (which reads as if it's still relevant when it isn't), this
+// clears back to empty. The next turn that actually has coordinates
+// starts a fresh map from scratch, same as the very first one ever.
+function clearAskPinnedMap(){
+  if (askPinnedMapInstance){ askPinnedMapInstance.remove(); askPinnedMapInstance = null; }
+  askMapTurns = [];
+  askMapPointRegistry.clear();
+  askMapActivePointId = null;
+  const container = document.getElementById('askPinnedMap');
+  if (container) container.style.display = 'none';
+}
+
 // pointsWithIds: the SAME combined, id-assigned array (mentioned then
 // webResults, matching chip render order) passed to the chip-building
 // code for this turn -- numbering here must match numbering there, since
 // the whole point is a marker and its chip sharing a visible number.
 function updateAskPinnedMap(pointsWithIds){
   const points = (pointsWithIds || []).filter(p => typeof p.lat === 'number' && typeof p.lng === 'number' && typeof p.mapPointId === 'number');
-  if (points.length === 0 || typeof L === 'undefined') return;
+  if (points.length === 0){ clearAskPinnedMap(); return; }
+  if (typeof L === 'undefined') return;
   ensureLeafletIcons();
 
   const container = document.getElementById('askPinnedMap');
